@@ -1,1 +1,3 @@
-fastapi uvicorn groq 
+fastapi 
+uvicorn 
+groq
