@@ -22,6 +22,17 @@ type Customer = {
   notes: string | null;
   created_at: string | null;
   updated_at: string | null;
+  lead_id: string | null;
+  lead?: {
+    id: string;
+    name: string | null;
+    phone: string | null;
+    email: string | null;
+    ciu_number: string | null;
+    product_service: string | null;
+    status: string | null;
+    feedback: string | null;
+  } | null;
 };
 
 const ACTIVE_STAGES = [
@@ -99,33 +110,19 @@ export default function Customers() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [viewingCustomer, setViewingCustomer] = useState<Customer | null>(null);
   const [error, setError] = useState("");
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] =
     useState("All Customers");
 
-  const [showAddCustomer, setShowAddCustomer] =
-    useState(false);
-
-  const [editingCustomer, setEditingCustomer] =
-    useState<Customer | null>(null);
 
   const [showFollowUp, setShowFollowUp] =
     useState(false);
 
   const [followUpCustomer, setFollowUpCustomer] =
     useState<Customer | null>(null);
-
-  const [form, setForm] = useState({
-    ciu_number: "",
-    full_names: "",
-    telephone: "",
-    email: "",
-    program: "",
-    stage: "Admitted",
-    tuition_fee: "",
-  });
 
   const [followUpForm, setFollowUpForm] = useState({
     date: "",
@@ -140,19 +137,58 @@ export default function Customers() {
     const { data, error: loadError } = await supabase
       .from("admissions")
       .select(
-        "id, ciu_number, full_names, telephone, email, program, stage, tuition_fee, tuition_paid, application_fee, application_paid, acceptance_fee, acceptance_paid, follow_up_date, last_contact, notes, created_at, updated_at"
+        "id, lead_id, ciu_number, full_names, telephone, email, program, stage, tuition_fee, tuition_paid, application_fee, application_paid, acceptance_fee, acceptance_paid, follow_up_date, last_contact, notes, created_at, updated_at"
       )
-      .order("created_at", {
-        ascending: false,
-      });
+      .order("created_at", { ascending: false });
 
     if (loadError) {
       console.error(loadError);
       setError(loadError.message);
       setCustomers([]);
-    } else {
-      setCustomers((data || []) as Customer[]);
+      setLoading(false);
+      return;
     }
+
+    const admissionRows = (data || []) as Customer[];
+    const leadIds = Array.from(
+      new Set(
+        admissionRows
+          .map((customer) => customer.lead_id)
+          .filter((id): id is string => Boolean(id))
+      )
+    );
+
+    if (leadIds.length === 0) {
+      setCustomers(admissionRows);
+      setLoading(false);
+      return;
+    }
+
+    const { data: leadRows, error: leadError } = await supabase
+      .from("leads")
+      .select("id, name, phone, email, ciu_number, product_service, status, feedback")
+      .in("id", leadIds);
+
+    if (leadError) {
+      console.error(leadError);
+      setCustomers(admissionRows);
+      setError("Customers loaded, but linked lead information could not be loaded.");
+      setLoading(false);
+      return;
+    }
+
+    const leadMap = new Map(
+      (leadRows || []).map((lead) => [lead.id, lead])
+    );
+
+    setCustomers(
+      admissionRows.map((customer) => ({
+        ...customer,
+        lead: customer.lead_id
+          ? leadMap.get(customer.lead_id) || null
+          : null,
+      }))
+    );
 
     setLoading(false);
   }
@@ -216,127 +252,6 @@ export default function Customers() {
       total + Number(customer.tuition_fee || 0),
     0
   );
-
-  function resetForm() {
-    setForm({
-      ciu_number: "",
-      full_names: "",
-      telephone: "",
-      email: "",
-      program: "",
-      stage: "Admitted",
-      tuition_fee: "",
-    });
-  }
-
-  function openAddCustomer() {
-    resetForm();
-    setEditingCustomer(null);
-    setError("");
-    setShowAddCustomer(true);
-  }
-
-  function openEditCustomer(customer: Customer) {
-    setForm({
-      ciu_number: customer.ciu_number || "",
-      full_names: customer.full_names || "",
-      telephone: customer.telephone || "",
-      email: customer.email || "",
-      program: customer.program || "",
-      stage: customer.stage || "Admitted",
-      tuition_fee:
-        customer.tuition_fee !== null
-          ? String(customer.tuition_fee)
-          : "",
-    });
-
-    setEditingCustomer(customer);
-    setError("");
-    setShowAddCustomer(true);
-  }
-
-  function closeModal() {
-    if (saving) return;
-
-    setShowAddCustomer(false);
-    setEditingCustomer(null);
-    resetForm();
-    setError("");
-  }
-
-  async function handleSaveCustomer(
-    event: React.FormEvent<HTMLFormElement>
-  ) {
-    event.preventDefault();
-
-    if (!form.full_names.trim()) {
-      setError("Customer full name is required.");
-      return;
-    }
-
-    if (!form.program.trim()) {
-      setError("Program is required.");
-      return;
-    }
-
-    setSaving(true);
-    setError("");
-
-    const payload = {
-      ciu_number:
-        form.ciu_number.trim() || null,
-
-      full_names: form.full_names.trim(),
-
-      telephone:
-        form.telephone.trim() || null,
-
-      email:
-        form.email.trim() || null,
-
-      program: form.program.trim(),
-
-      stage: form.stage,
-
-      tuition_fee: form.tuition_fee
-        ? Number(form.tuition_fee)
-        : 0,
-    };
-
-    if (editingCustomer) {
-      const { error: updateError } =
-        await supabase
-          .from("admissions")
-          .update(payload)
-          .eq("id", editingCustomer.id);
-
-      if (updateError) {
-        console.error(updateError);
-        setError(updateError.message);
-        setSaving(false);
-        return;
-      }
-    } else {
-      const { error: insertError } =
-        await supabase
-          .from("admissions")
-          .insert(payload);
-
-      if (insertError) {
-        console.error(insertError);
-        setError(insertError.message);
-        setSaving(false);
-        return;
-      }
-    }
-
-    setSaving(false);
-    setShowAddCustomer(false);
-    setEditingCustomer(null);
-    resetForm();
-
-    await loadCustomers();
-  }
 
   function openFollowUp(customer: Customer) {
     setFollowUpCustomer(customer);
@@ -430,37 +345,10 @@ export default function Customers() {
       <div className="crm-page-heading">
         <div>
           <h1>Customers</h1>
-
           <p>
-            Manage your customers, students and
-            their relationships.
+            View students and admissions from the same records used across the CRM.
           </p>
         </div>
-
-        <button
-          type="button"
-          className="crm-btn"
-          onClick={openAddCustomer}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            visibility: "visible",
-            opacity: 1,
-            color: "#ffffff",
-            background: "#2563eb",
-            border: "1px solid #2563eb",
-            padding: "10px 16px",
-            borderRadius: 8,
-            fontSize: 14,
-            fontWeight: 600,
-            cursor: "pointer",
-            minHeight: 40,
-            whiteSpace: "nowrap",
-          }}
-        >
-          + Add Customer
-        </button>
       </div>
 
       <div className="crm-kpis">
@@ -742,64 +630,108 @@ export default function Customers() {
                         >
                           <button
                             type="button"
-                            onClick={() =>
-                              openFollowUp(
-                                customer
-                              )
-                            }
+                            onClick={() => setViewingCustomer(customer)}
                             style={{
                               display: "inline-flex",
                               alignItems: "center",
-                              justifyContent:
-                                "center",
-                              visibility: "visible",
-                              opacity: 1,
-                              color: "#ffffff",
-                              background: "#16a34a",
-                              border:
-                                "1px solid #16a34a",
-                              padding:
-                                "7px 11px",
-                              borderRadius: 7,
-                              fontSize: 13,
-                              fontWeight: 600,
-                              cursor: "pointer",
-                              whiteSpace:
-                                "nowrap",
-                            }}
-                          >
-                            Follow Up
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              openEditCustomer(
-                                customer
-                              )
-                            }
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              justifyContent:
-                                "center",
+                              justifyContent: "center",
                               visibility: "visible",
                               opacity: 1,
                               color: "#2563eb",
                               background: "#eff6ff",
-                              border:
-                                "1px solid #bfdbfe",
-                              padding:
-                                "7px 11px",
+                              border: "1px solid #bfdbfe",
+                              padding: "7px 11px",
                               borderRadius: 7,
                               fontSize: 13,
                               fontWeight: 600,
                               cursor: "pointer",
-                              whiteSpace:
-                                "nowrap",
+                              whiteSpace: "nowrap",
                             }}
                           >
-                            Edit
+                            View
+                          </button>
+
+                          {customer.telephone && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                window.location.href = `tel:${customer.telephone}`;
+                              }}
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                visibility: "visible",
+                                opacity: 1,
+                                color: "#374151",
+                                background: "#ffffff",
+                                border: "1px solid #d1d5db",
+                                padding: "7px 11px",
+                                borderRadius: 7,
+                                fontSize: 13,
+                                fontWeight: 600,
+                                cursor: "pointer",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              Call
+                            </button>
+                          )}
+
+                          {customer.telephone && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const digits = customer.telephone!.replace(/\D/g, "");
+                                const normalized = digits.startsWith("0")
+                                  ? `256${digits.substring(1)}`
+                                  : digits.startsWith("256")
+                                  ? digits
+                                  : `256${digits}`;
+                                window.open(`https://wa.me/${normalized}`, "_blank");
+                              }}
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                visibility: "visible",
+                                opacity: 1,
+                                color: "#ffffff",
+                                background: "#16a34a",
+                                border: "1px solid #16a34a",
+                                padding: "7px 11px",
+                                borderRadius: 7,
+                                fontSize: 13,
+                                fontWeight: 600,
+                                cursor: "pointer",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              WhatsApp
+                            </button>
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={() => openFollowUp(customer)}
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              visibility: "visible",
+                              opacity: 1,
+                              color: "#ffffff",
+                              background: "#16a34a",
+                              border: "1px solid #16a34a",
+                              padding: "7px 11px",
+                              borderRadius: 7,
+                              fontSize: 13,
+                              fontWeight: 600,
+                              cursor: "pointer",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            Follow Up
                           </button>
                         </div>
                       </td>
