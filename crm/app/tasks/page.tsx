@@ -47,6 +47,7 @@ type Lead = {
   name: string | null;
   ciu_number: string | null;
   phone: string | null;
+  email: string | null;
 };
 
 type Opportunity = {
@@ -85,11 +86,11 @@ const TASK_TYPES: TaskType[] = [
   "Other",
 ];
 
-const STATUS_OPTIONS: { value: TaskStatus; label: string }[] = [
-  { value: "pending", label: "Pending" },
-  { value: "in_progress", label: "In Progress" },
-  { value: "completed", label: "Completed" },
-  { value: "cancelled", label: "Cancelled" },
+const TASK_STATUSES: TaskStatus[] = [
+  "pending",
+  "in_progress",
+  "completed",
+  "cancelled",
 ];
 
 const EMPTY_FORM: TaskForm = {
@@ -139,18 +140,28 @@ function formatDate(value: string | null) {
 
 function formatCurrency(
   value: number | null,
-  currency: string | null = "UGX"
+  currency = "UGX"
 ) {
   if (value === null || value === undefined) {
     return "—";
   }
 
-  return `${currency || "UGX"} ${Number(value).toLocaleString("en-UG")}`;
+  return `${currency} ${Number(value).toLocaleString("en-UG")}`;
 }
 
 function getStatusLabel(status: string) {
-  const found = STATUS_OPTIONS.find((item) => item.value === status);
-  return found?.label || status;
+  switch (status) {
+    case "pending":
+      return "Pending";
+    case "in_progress":
+      return "In Progress";
+    case "completed":
+      return "Completed";
+    case "cancelled":
+      return "Cancelled";
+    default:
+      return status;
+  }
 }
 
 function getStatusStyle(status: string) {
@@ -159,35 +170,30 @@ function getStatusStyle(status: string) {
       return {
         background: "#fff7ed",
         color: "#c2410c",
-        border: "1px solid #fed7aa",
       };
 
     case "in_progress":
       return {
         background: "#eff6ff",
         color: "#1d4ed8",
-        border: "1px solid #bfdbfe",
       };
 
     case "completed":
       return {
         background: "#ecfdf5",
         color: "#047857",
-        border: "1px solid #a7f3d0",
       };
 
     case "cancelled":
       return {
         background: "#f3f4f6",
         color: "#6b7280",
-        border: "1px solid #d1d5db",
       };
 
     default:
       return {
-        background: "#f9fafb",
+        background: "#f3f4f6",
         color: "#374151",
-        border: "1px solid #e5e7eb",
       };
   }
 }
@@ -196,24 +202,18 @@ function getTaskTypeIcon(type: string) {
   switch (type) {
     case "Call":
       return "☎";
-
     case "Email":
       return "✉";
-
     case "WhatsApp":
       return "◉";
-
     case "Meeting":
-      return "▣";
-
+      return "◫";
     case "Note":
-      return "☰";
-
-    case "Proposal":
       return "▤";
-
+    case "Proposal":
+      return "▱";
     default:
-      return "•";
+      return "✓";
   }
 }
 
@@ -231,16 +231,15 @@ function isToday(value: string | null) {
 }
 
 function isOverdue(task: Task) {
-  if (!task.due_at) return false;
-
   if (
+    !task.due_at ||
     task.status === "completed" ||
     task.status === "cancelled"
   ) {
     return false;
   }
 
-  return new Date(task.due_at) < new Date();
+  return new Date(task.due_at).getTime() < Date.now();
 }
 
 function isCompletedThisMonth(task: Task) {
@@ -248,12 +247,12 @@ function isCompletedThisMonth(task: Task) {
     return false;
   }
 
-  const completedDate = new Date(task.completed_at);
+  const date = new Date(task.completed_at);
   const now = new Date();
 
   return (
-    completedDate.getFullYear() === now.getFullYear() &&
-    completedDate.getMonth() === now.getMonth()
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth()
   );
 }
 
@@ -266,20 +265,33 @@ function toDateTimeLocal(value: string | null) {
     return "";
   }
 
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  const hours = String(date.getHours()).padStart(2, "0");
-  const minutes = String(date.getMinutes()).padStart(2, "0");
+  const offset = date.getTimezoneOffset();
+  const localDate = new Date(
+    date.getTime() - offset * 60 * 1000
+  );
 
-  return `${year}-${month}-${day}T${hours}:${minutes}`;
+  return localDate.toISOString().slice(0, 16);
+}
+
+function getInitials(name: string | null) {
+  if (!name) return "—";
+
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
 }
 
 export default function TasksPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
-  const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
+  const [opportunities, setOpportunities] = useState<
+    Opportunity[]
+  >([]);
   const [pipelineStages, setPipelineStages] = useState<
     PipelineStage[]
   >([]);
@@ -293,23 +305,23 @@ export default function TasksPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [assignedFilter, setAssignedFilter] =
+    useState("all");
 
   const [showModal, setShowModal] = useState(false);
-  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [editingTask, setEditingTask] =
+    useState<Task | null>(null);
 
   const [form, setForm] = useState<TaskForm>(EMPTY_FORM);
 
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [selectedTask, setSelectedTask] =
+    useState<Task | null>(null);
 
-  useEffect(() => {
-    loadAll();
-  }, []);
-
-  async function loadAll() {
-    setLoading(true);
-    setError("");
-
+  const loadAll = async () => {
     try {
+      setLoading(true);
+      setError("");
+
       const [
         tasksResult,
         profilesResult,
@@ -320,20 +332,7 @@ export default function TasksPage() {
         supabase
           .from("tasks")
           .select(
-            `
-              id,
-              title,
-              description,
-              task_type,
-              lead_id,
-              opportunity_id,
-              assigned_to,
-              due_at,
-              status,
-              completed_at,
-              created_at,
-              updated_at
-            `
+            "id,title,description,task_type,lead_id,opportunity_id,assigned_to,due_at,status,completed_at,created_at,updated_at"
           )
           .order("due_at", {
             ascending: true,
@@ -343,7 +342,7 @@ export default function TasksPage() {
         supabase
           .from("profiles")
           .select(
-            "id, full_name, role, is_active"
+            "id,full_name,role,is_active"
           )
           .order("full_name", {
             ascending: true,
@@ -352,7 +351,7 @@ export default function TasksPage() {
         supabase
           .from("leads")
           .select(
-            "id, name, ciu_number, phone"
+            "id,name,ciu_number,phone,email"
           )
           .order("name", {
             ascending: true,
@@ -361,7 +360,7 @@ export default function TasksPage() {
         supabase
           .from("opportunities")
           .select(
-            "id, lead_id, title, value, currency, stage_id"
+            "id,lead_id,title,value,currency,stage_id"
           )
           .order("title", {
             ascending: true,
@@ -370,7 +369,7 @@ export default function TasksPage() {
         supabase
           .from("pipeline_stages")
           .select(
-            "id, name, position"
+            "id,name,position"
           )
           .order("position", {
             ascending: true,
@@ -397,25 +396,83 @@ export default function TasksPage() {
         throw stagesResult.error;
       }
 
-      setTasks((tasksResult.data || []) as Task[]);
-      setProfiles((profilesResult.data || []) as Profile[]);
-      setLeads((leadsResult.data || []) as Lead[]);
+      setTasks(
+        (tasksResult.data || []) as Task[]
+      );
+
+      setProfiles(
+        (profilesResult.data || []) as Profile[]
+      );
+
+      setLeads(
+        (leadsResult.data || []) as Lead[]
+      );
+
       setOpportunities(
         (opportunitiesResult.data || []) as Opportunity[]
       );
+
       setPipelineStages(
         (stagesResult.data || []) as PipelineStage[]
       );
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
+
       setError(
-        err?.message ||
-          "Failed to load tasks. Please try again."
+        err instanceof Error
+          ? err.message
+          : "Failed to load tasks."
       );
     } finally {
       setLoading(false);
     }
-  }
+  };
+
+  useEffect(() => {
+    loadAll();
+  }, []);
+
+  const getLead = (task: Task) => {
+    if (!task.lead_id) return null;
+
+    return (
+      leads.find(
+        (lead) => lead.id === task.lead_id
+      ) || null
+    );
+  };
+
+  const getOpportunity = (task: Task) => {
+    if (!task.opportunity_id) return null;
+
+    return (
+      opportunities.find(
+        (opportunity) =>
+          opportunity.id === task.opportunity_id
+      ) || null
+    );
+  };
+
+  const getStaff = (task: Task) => {
+    if (!task.assigned_to) return null;
+
+    return (
+      profiles.find(
+        (profile) =>
+          profile.id === task.assigned_to
+      ) || null
+    );
+  };
+
+  const getStage = (stageId: string | null) => {
+    if (!stageId) return null;
+
+    return (
+      pipelineStages.find(
+        (stage) => stage.id === stageId
+      ) || null
+    );
+  };
 
   const stats = useMemo(() => {
     const activeTasks = tasks.filter(
@@ -424,12 +481,12 @@ export default function TasksPage() {
         task.status !== "cancelled"
     );
 
-    const dueToday = activeTasks.filter((task) =>
-      isToday(task.due_at)
+    const dueToday = activeTasks.filter(
+      (task) => isToday(task.due_at)
     ).length;
 
-    const overdue = activeTasks.filter((task) =>
-      isOverdue(task)
+    const overdue = activeTasks.filter(
+      (task) => isOverdue(task)
     ).length;
 
     const completed = tasks.filter(
@@ -465,110 +522,130 @@ export default function TasksPage() {
     };
   }, [tasks]);
 
-  const filteredTasks = useMemo(() => {
-    const searchValue = search
-      .trim()
-      .toLowerCase();
-
-    return [...tasks]
-      .filter((task) => {
-        /*
-         * IMPORTANT:
-         *
-         * When the user is viewing "All Statuses",
-         * only active tasks are shown.
-         *
-         * Completed tasks remain in Supabase and can
-         * still be accessed by selecting "Completed"
-         * in the status filter.
-         */
-        if (statusFilter === "all") {
-          return task.status !== "completed";
-        }
-
-        return task.status === statusFilter;
-      })
-      .filter((task) => {
-        if (typeFilter === "all") {
-          return true;
-        }
-
-        return task.task_type === typeFilter;
-      })
-      .filter((task) => {
-        if (!searchValue) {
-          return true;
-        }
-
-        const lead = leads.find(
-          (item) => item.id === task.lead_id
+  const teamWorkload = useMemo(() => {
+    return profiles
+      .filter(
+        (profile) =>
+          profile.is_active !== false &&
+          profile.role === "salesperson"
+      )
+      .map((profile) => {
+        const staffTasks = tasks.filter(
+          (task) =>
+            task.assigned_to === profile.id
         );
 
-        const opportunity = opportunities.find(
-          (item) => item.id === task.opportunity_id
-        );
+        const pending = staffTasks.filter(
+          (task) =>
+            task.status !== "completed" &&
+            task.status !== "cancelled"
+        ).length;
 
-        const staff = profiles.find(
-          (item) => item.id === task.assigned_to
-        );
+        const overdue = staffTasks.filter(
+          (task) =>
+            task.status !== "completed" &&
+            task.status !== "cancelled" &&
+            isOverdue(task)
+        ).length;
 
-        const searchableText = [
-          task.title,
-          task.description,
-          task.task_type,
-          task.status,
-          lead?.name,
-          lead?.ciu_number,
-          lead?.phone,
-          opportunity?.title,
-          staff?.full_name,
-        ]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase();
-
-        return searchableText.includes(searchValue);
+        return {
+          id: profile.id,
+          name:
+            profile.full_name ||
+            "Unnamed Staff",
+          pending,
+          overdue,
+        };
       })
       .sort((a, b) => {
-        if (!a.due_at && !b.due_at) return 0;
-        if (!a.due_at) return 1;
-        if (!b.due_at) return -1;
+        if (b.overdue !== a.overdue) {
+          return b.overdue - a.overdue;
+        }
 
-        return (
-          new Date(a.due_at).getTime() -
-          new Date(b.due_at).getTime()
-        );
+        return b.pending - a.pending;
       });
+  }, [profiles, tasks]);
+
+  const filteredTasks = useMemo(() => {
+    const query = search.trim().toLowerCase();
+
+    return tasks.filter((task) => {
+      if (
+        statusFilter !== "all" &&
+        task.status !== statusFilter
+      ) {
+        return false;
+      }
+
+      if (
+        typeFilter !== "all" &&
+        task.task_type !== typeFilter
+      ) {
+        return false;
+      }
+
+      if (
+        assignedFilter !== "all" &&
+        task.assigned_to !== assignedFilter
+      ) {
+        return false;
+      }
+
+      if (!query) {
+        return true;
+      }
+
+      const lead = getLead(task);
+      const opportunity =
+        getOpportunity(task);
+      const staff = getStaff(task);
+
+      const searchable = [
+        task.title,
+        task.description,
+        task.task_type,
+        task.status,
+        lead?.name,
+        lead?.ciu_number,
+        lead?.phone,
+        lead?.email,
+        opportunity?.title,
+        staff?.full_name,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return searchable.includes(query);
+    });
   }, [
     tasks,
     search,
     statusFilter,
     typeFilter,
+    assignedFilter,
     leads,
     opportunities,
     profiles,
   ]);
 
-  function openCreateModal() {
+  const openCreateModal = () => {
     setEditingTask(null);
     setForm(EMPTY_FORM);
     setError("");
     setSuccess("");
     setShowModal(true);
-  }
+  };
 
-  function openEditModal(task: Task) {
+  const openEditModal = (task: Task) => {
     setEditingTask(task);
 
     setForm({
       title: task.title || "",
       description: task.description || "",
       task_type:
-        (TASK_TYPES.includes(
-          task.task_type as TaskType
-        )
-          ? task.task_type
-          : "Other") as TaskType,
+        (task.task_type as TaskType) ||
+        "Call",
       lead_id: task.lead_id || "",
       opportunity_id:
         task.opportunity_id || "",
@@ -578,279 +655,331 @@ export default function TasksPage() {
         task.due_at
       ),
       status:
-        task.status as TaskStatus,
+        (task.status as TaskStatus) ||
+        "pending",
     });
 
     setError("");
     setSuccess("");
     setShowModal(true);
-  }
+  };
 
-  function closeModal() {
-    if (saving) return;
-
-    setShowModal(false);
-    setEditingTask(null);
-    setForm(EMPTY_FORM);
-  }
-
-  async function handleSaveTask(
+  const handleSaveTask = async (
     event: FormEvent<HTMLFormElement>
-  ) {
+  ) => {
     event.preventDefault();
 
-    setSaving(true);
-    setError("");
-    setSuccess("");
+    if (!form.title.trim()) {
+      setError("Please enter a task title.");
+      return;
+    }
 
     try {
-      if (!form.title.trim()) {
-        throw new Error(
-          "Please enter a task title."
-        );
-      }
-
-      let dueAt: string | null = null;
-
-      if (form.due_at) {
-        const parsedDate = new Date(
-          form.due_at
-        );
-
-        if (Number.isNaN(parsedDate.getTime())) {
-          throw new Error(
-            "Please enter a valid due date and time."
-          );
-        }
-
-        dueAt = parsedDate.toISOString();
-      }
-
-      const completedAt =
-        form.status === "completed"
-          ? editingTask?.completed_at ||
-            new Date().toISOString()
-          : null;
+      setSaving(true);
+      setError("");
+      setSuccess("");
 
       const payload = {
         title: form.title.trim(),
         description:
           form.description.trim() || null,
         task_type: form.task_type,
-        lead_id:
-          form.lead_id || null,
+        lead_id: form.lead_id || null,
         opportunity_id:
           form.opportunity_id || null,
         assigned_to:
           form.assigned_to || null,
-        due_at: dueAt,
+        due_at:
+          form.due_at
+            ? new Date(
+                form.due_at
+              ).toISOString()
+            : null,
         status: form.status,
-        completed_at: completedAt,
-        updated_at:
-          new Date().toISOString(),
       };
 
       if (editingTask) {
         const { error: updateError } =
           await supabase
             .from("tasks")
-            .update(payload)
+            .update({
+              ...payload,
+              completed_at:
+                form.status === "completed"
+                  ? editingTask.completed_at ||
+                    new Date().toISOString()
+                  : null,
+              updated_at:
+                new Date().toISOString(),
+            })
             .eq("id", editingTask.id);
 
         if (updateError) {
           throw updateError;
         }
 
-        setSuccess(
-          "Task updated successfully."
-        );
+        setSuccess("Task updated successfully.");
       } else {
+        const {
+          data: {
+            user,
+          },
+        } = await supabase.auth.getUser();
+
+        const insertPayload: Record<
+          string,
+          unknown
+        > = {
+          ...payload,
+        };
+
+        if (user?.id) {
+          insertPayload.created_by =
+            user.id;
+        }
+
+        if (form.status === "completed") {
+          insertPayload.completed_at =
+            new Date().toISOString();
+        }
+
         const { error: insertError } =
           await supabase
             .from("tasks")
-            .insert({
-              ...payload,
-              created_at:
-                new Date().toISOString(),
-            });
+            .insert(insertPayload);
 
         if (insertError) {
           throw insertError;
         }
 
-        setSuccess(
-          "Task created successfully."
-        );
+        setSuccess("Task created successfully.");
       }
-
-      await loadAll();
 
       setShowModal(false);
       setEditingTask(null);
       setForm(EMPTY_FORM);
-    } catch (err: any) {
+
+      await loadAll();
+    } catch (err) {
       console.error(err);
 
       setError(
-        err?.message ||
-          "Failed to save task."
+        err instanceof Error
+          ? err.message
+          : "Failed to save task."
       );
     } finally {
       setSaving(false);
     }
-  }
+  };
 
-  async function markComplete(task: Task) {
-    if (task.status === "completed") {
-      return;
+  const markComplete = async (task: Task) => {
+    try {
+      setError("");
+      setSuccess("");
+
+      const { error: updateError } =
+        await supabase
+          .from("tasks")
+          .update({
+            status: "completed",
+            completed_at:
+              new Date().toISOString(),
+            updated_at:
+              new Date().toISOString(),
+          })
+          .eq("id", task.id);
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      setSuccess("Task marked as completed.");
+
+      await loadAll();
+    } catch (err) {
+      console.error(err);
+
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to complete task."
+      );
     }
+  };
 
-    setError("");
-    setSuccess("");
-
-    const { error: updateError } =
-      await supabase
-        .from("tasks")
-        .update({
-          status: "completed",
-          completed_at:
-            new Date().toISOString(),
-          updated_at:
-            new Date().toISOString(),
-        })
-        .eq("id", task.id);
-
-    if (updateError) {
-      console.error(updateError);
-
-      setError(updateError.message);
-      return;
-    }
-
-    setSuccess(
-      "Task marked as completed."
-    );
-
-    await loadAll();
-  }
-
-  async function updateStatus(
+  const updateStatus = async (
     task: Task,
     status: TaskStatus
-  ) {
-    setError("");
-    setSuccess("");
+  ) => {
+    try {
+      setError("");
+      setSuccess("");
 
-    const completedAt =
-      status === "completed"
-        ? task.completed_at ||
-          new Date().toISOString()
-        : null;
+      const { error: updateError } =
+        await supabase
+          .from("tasks")
+          .update({
+            status,
+            completed_at:
+              status === "completed"
+                ? new Date().toISOString()
+                : null,
+            updated_at:
+              new Date().toISOString(),
+          })
+          .eq("id", task.id);
 
-    const { error: updateError } =
-      await supabase
-        .from("tasks")
-        .update({
-          status,
-          completed_at: completedAt,
-          updated_at:
-            new Date().toISOString(),
-        })
-        .eq("id", task.id);
+      if (updateError) {
+        throw updateError;
+      }
 
-    if (updateError) {
-      console.error(updateError);
+      setSuccess("Task status updated.");
 
-      setError(updateError.message);
-      return;
-    }
+      await loadAll();
+    } catch (err) {
+      console.error(err);
 
-    setSuccess(
-      `Task moved to ${getStatusLabel(
-        status
-      )}.`
-    );
-
-    await loadAll();
-  }
-
-  async function deleteTask(task: Task) {
-    const confirmed =
-      window.confirm(
-        `Are you sure you want to delete "${task.title}"?`
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to update task."
       );
+    }
+  };
 
-    if (!confirmed) {
+  const deleteTask = async (task: Task) => {
+    const confirmed = window.confirm(
+      `Delete "${task.title}"? This action cannot be undone.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setError("");
+      setSuccess("");
+
+      const { error: deleteError } =
+        await supabase
+          .from("tasks")
+          .delete()
+          .eq("id", task.id);
+
+      if (deleteError) {
+        throw deleteError;
+      }
+
+      setSuccess("Task deleted successfully.");
+
+      if (selectedTask?.id === task.id) {
+        setSelectedTask(null);
+      }
+
+      await loadAll();
+    } catch (err) {
+      console.error(err);
+
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to delete task."
+      );
+    }
+  };
+
+  const callLead = (lead: Lead | null) => {
+    if (!lead?.phone) {
+      setError(
+        "This lead does not have a phone number."
+      );
       return;
     }
 
-    setError("");
-    setSuccess("");
+    window.location.href = `tel:${lead.phone}`;
+  };
 
-    const { error: deleteError } =
-      await supabase
-        .from("tasks")
-        .delete()
-        .eq("id", task.id);
-
-    if (deleteError) {
-      console.error(deleteError);
-
-      setError(deleteError.message);
+  const whatsappLead = (
+    lead: Lead | null
+  ) => {
+    if (!lead?.phone) {
+      setError(
+        "This lead does not have a phone number."
+      );
       return;
     }
 
-    if (selectedTask?.id === task.id) {
-      setSelectedTask(null);
+    const phone = lead.phone.replace(
+      /[^\d]/g,
+      ""
+    );
+
+    if (!phone) {
+      setError(
+        "The lead phone number is invalid."
+      );
+      return;
     }
 
-    setSuccess(
-      "Task deleted successfully."
+    window.open(
+      `https://wa.me/${phone}`,
+      "_blank",
+      "noopener,noreferrer"
     );
+  };
 
-    await loadAll();
-  }
-
-  function getLead(task: Task) {
-    return leads.find(
-      (lead) => lead.id === task.lead_id
-    );
-  }
-
-  function getOpportunity(task: Task) {
-    return opportunities.find(
-      (opportunity) =>
-        opportunity.id ===
-        task.opportunity_id
-    );
-  }
-
-  function getStaff(task: Task) {
-    return profiles.find(
-      (profile) =>
-        profile.id === task.assigned_to
-    );
-  }
-
-  function getStage(opportunity: Opportunity | undefined) {
-    if (!opportunity?.stage_id) {
-      return undefined;
+  const emailLead = (lead: Lead | null) => {
+    if (!lead?.email) {
+      setError(
+        "This lead does not have an email address."
+      );
+      return;
     }
 
-    return pipelineStages.find(
-      (stage) =>
-        stage.id ===
-        opportunity.stage_id
-    );
-  }
+    window.location.href =
+      `mailto:${lead.email}`;
+  };
+
+  const clearFilters = () => {
+    setSearch("");
+    setStatusFilter("all");
+    setTypeFilter("all");
+    setAssignedFilter("all");
+  };
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    height: "42px",
+    padding: "0 12px",
+    border:
+      "1px solid #d1d5db",
+    borderRadius: "8px",
+    background: "#ffffff",
+    color: "#111827",
+    fontSize: "14px",
+    outline: "none",
+    boxSizing: "border-box",
+  };
+
+  const smallActionButton: React.CSSProperties = {
+    border:
+      "1px solid #d1d5db",
+    background: "#ffffff",
+    color: "#374151",
+    borderRadius: "7px",
+    padding: "6px 9px",
+    fontSize: "12px",
+    fontWeight: 650,
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+  };
 
   return (
-    <div
+    <main
       style={{
         minHeight: "100vh",
         background: "#f8fafc",
+        padding: "30px",
         color: "#111827",
-        padding: "24px",
       }}
     >
       <div
@@ -859,24 +988,26 @@ export default function TasksPage() {
           margin: "0 auto",
         }}
       >
-        {/* PAGE HEADER */}
+        {/* HEADER */}
         <div
           style={{
             display: "flex",
+            justifyContent:
+              "space-between",
             alignItems: "center",
-            justifyContent: "space-between",
             gap: "20px",
-            marginBottom: "24px",
             flexWrap: "wrap",
+            marginBottom: "24px",
           }}
         >
           <div>
             <h1
               style={{
                 margin: 0,
-                fontSize: "30px",
+                fontSize: "28px",
                 fontWeight: 800,
-                letterSpacing: "-0.5px",
+                letterSpacing:
+                  "-0.5px",
               }}
             >
               Tasks & Follow-ups
@@ -885,9 +1016,9 @@ export default function TasksPage() {
             <p
               style={{
                 margin:
-                  "7px 0 0",
+                  "6px 0 0",
                 color: "#6b7280",
-                fontSize: "15px",
+                fontSize: "14px",
               }}
             >
               Stay on top of activities
@@ -900,16 +1031,14 @@ export default function TasksPage() {
             onClick={openCreateModal}
             style={{
               border: "none",
-              borderRadius: "10px",
+              borderRadius: "9px",
               background: "#111827",
               color: "#ffffff",
               padding:
-                "12px 18px",
+                "11px 17px",
               fontSize: "14px",
               fontWeight: 700,
               cursor: "pointer",
-              boxShadow:
-                "0 4px 12px rgba(0,0,0,0.12)",
             }}
           >
             + New Task
@@ -921,11 +1050,11 @@ export default function TasksPage() {
           <div
             style={{
               marginBottom: "16px",
-              padding: "13px 16px",
-              borderRadius: "10px",
-              background: "#fef2f2",
+              padding: "12px 15px",
+              borderRadius: "9px",
               border:
                 "1px solid #fecaca",
+              background: "#fef2f2",
               color: "#b91c1c",
               fontSize: "14px",
             }}
@@ -938,11 +1067,11 @@ export default function TasksPage() {
           <div
             style={{
               marginBottom: "16px",
-              padding: "13px 16px",
-              borderRadius: "10px",
-              background: "#ecfdf5",
+              padding: "12px 15px",
+              borderRadius: "9px",
               border:
                 "1px solid #a7f3d0",
+              background: "#ecfdf5",
               color: "#047857",
               fontSize: "14px",
             }}
@@ -961,36 +1090,340 @@ export default function TasksPage() {
             marginBottom: "24px",
           }}
         >
-          <KpiCard
-            label="Due Today"
-            value={stats.dueToday}
-            icon="◷"
-            description="Active tasks due today"
-          />
+          <div
+            style={{
+              background: "#ffffff",
+              border:
+                "1px solid #e5e7eb",
+              borderRadius: "14px",
+              padding: "19px",
+            }}
+          >
+            <div
+              style={{
+                color: "#6b7280",
+                fontSize: "13px",
+                marginBottom: "8px",
+              }}
+            >
+              Due Today
+            </div>
 
-          <KpiCard
-            label="Overdue"
-            value={stats.overdue}
-            icon="!"
-            description="Active tasks past due"
-            danger={stats.overdue > 0}
-          />
+            <div
+              style={{
+                fontSize: "28px",
+                fontWeight: 800,
+              }}
+            >
+              {stats.dueToday}
+            </div>
+          </div>
 
-          <KpiCard
-            label="Completed This Month"
-            value={
-              stats.completedThisMonth
-            }
-            icon="✓"
-            description="Tasks completed this month"
-          />
+          <div
+            style={{
+              background: "#ffffff",
+              border:
+                "1px solid #e5e7eb",
+              borderRadius: "14px",
+              padding: "19px",
+            }}
+          >
+            <div
+              style={{
+                color: "#6b7280",
+                fontSize: "13px",
+                marginBottom: "8px",
+              }}
+            >
+              Overdue
+            </div>
 
-          <KpiCard
-            label="Completion Rate"
-            value={`${stats.completionRate}%`}
-            icon="%"
-            description={`${stats.completed} completed tasks`}
-          />
+            <div
+              style={{
+                fontSize: "28px",
+                fontWeight: 800,
+                color:
+                  stats.overdue > 0
+                    ? "#b91c1c"
+                    : "#111827",
+              }}
+            >
+              {stats.overdue}
+            </div>
+          </div>
+
+          <div
+            style={{
+              background: "#ffffff",
+              border:
+                "1px solid #e5e7eb",
+              borderRadius: "14px",
+              padding: "19px",
+            }}
+          >
+            <div
+              style={{
+                color: "#6b7280",
+                fontSize: "13px",
+                marginBottom: "8px",
+              }}
+            >
+              Completed This Month
+            </div>
+
+            <div
+              style={{
+                fontSize: "28px",
+                fontWeight: 800,
+              }}
+            >
+              {stats.completedThisMonth}
+            </div>
+          </div>
+
+          <div
+            style={{
+              background: "#ffffff",
+              border:
+                "1px solid #e5e7eb",
+              borderRadius: "14px",
+              padding: "19px",
+            }}
+          >
+            <div
+              style={{
+                color: "#6b7280",
+                fontSize: "13px",
+                marginBottom: "8px",
+              }}
+            >
+              Completion Rate
+            </div>
+
+            <div
+              style={{
+                fontSize: "28px",
+                fontWeight: 800,
+              }}
+            >
+              {stats.completionRate}%
+            </div>
+          </div>
+        </div>
+
+        {/* TEAM WORKLOAD */}
+        <div
+          style={{
+            background: "#ffffff",
+            border:
+              "1px solid #e5e7eb",
+            borderRadius: "14px",
+            padding: "20px 22px",
+            marginBottom: "24px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent:
+                "space-between",
+              alignItems: "center",
+              marginBottom: "16px",
+              gap: "16px",
+              flexWrap: "wrap",
+            }}
+          >
+            <div>
+              <h2
+                style={{
+                  margin: 0,
+                  fontSize: "19px",
+                  fontWeight: 750,
+                }}
+              >
+                Team Workload
+              </h2>
+
+              <p
+                style={{
+                  margin:
+                    "5px 0 0",
+                  color: "#6b7280",
+                  fontSize: "13px",
+                }}
+              >
+                Pending and overdue tasks
+                by salesperson
+              </p>
+            </div>
+
+            <div
+              style={{
+                fontSize: "13px",
+                color: "#6b7280",
+              }}
+            >
+              {teamWorkload.length} active
+              salesperson
+              {teamWorkload.length === 1
+                ? ""
+                : "s"}
+            </div>
+          </div>
+
+          {teamWorkload.length === 0 ? (
+            <div
+              style={{
+                padding: "18px",
+                borderRadius: "10px",
+                background: "#f9fafb",
+                color: "#6b7280",
+                fontSize: "14px",
+                textAlign: "center",
+              }}
+            >
+              No active salespeople found.
+            </div>
+          ) : (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns:
+                  "repeat(auto-fit, minmax(220px, 1fr))",
+                gap: "12px",
+              }}
+            >
+              {teamWorkload.map(
+                (staff) => (
+                  <button
+                    key={staff.id}
+                    type="button"
+                    onClick={() =>
+                      setAssignedFilter(
+                        staff.id
+                      )
+                    }
+                    style={{
+                      textAlign: "left",
+                      border:
+                        assignedFilter ===
+                        staff.id
+                          ? "2px solid #111827"
+                          : "1px solid #e5e7eb",
+                      borderRadius:
+                        "12px",
+                      padding: "15px",
+                      background:
+                        assignedFilter ===
+                        staff.id
+                          ? "#f9fafb"
+                          : "#ffffff",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize:
+                          "14px",
+                        fontWeight: 700,
+                        color: "#111827",
+                        marginBottom:
+                          "12px",
+                      }}
+                    >
+                      {staff.name}
+                    </div>
+
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns:
+                          "1fr 1fr",
+                        gap: "10px",
+                      }}
+                    >
+                      <div
+                        style={{
+                          padding: "10px",
+                          borderRadius:
+                            "8px",
+                          background:
+                            "#f3f4f6",
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize:
+                              "11px",
+                            color:
+                              "#6b7280",
+                            marginBottom:
+                              "3px",
+                          }}
+                        >
+                          Pending
+                        </div>
+
+                        <div
+                          style={{
+                            fontSize:
+                              "20px",
+                            fontWeight: 800,
+                          }}
+                        >
+                          {staff.pending}
+                        </div>
+                      </div>
+
+                      <div
+                        style={{
+                          padding: "10px",
+                          borderRadius:
+                            "8px",
+                          background:
+                            staff.overdue >
+                            0
+                              ? "#fef2f2"
+                              : "#f3f4f6",
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize:
+                              "11px",
+                            color:
+                              staff.overdue >
+                              0
+                                ? "#b91c1c"
+                                : "#6b7280",
+                            marginBottom:
+                              "3px",
+                          }}
+                        >
+                          Overdue
+                        </div>
+
+                        <div
+                          style={{
+                            fontSize:
+                              "20px",
+                            fontWeight: 800,
+                            color:
+                              staff.overdue >
+                              0
+                                ? "#b91c1c"
+                                : "#111827",
+                          }}
+                        >
+                          {staff.overdue}
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                )
+              )}
+            </div>
+          )}
         </div>
 
         {/* MAIN CARD */}
@@ -1001,71 +1434,41 @@ export default function TasksPage() {
               "1px solid #e5e7eb",
             borderRadius: "14px",
             overflow: "hidden",
-            boxShadow:
-              "0 2px 8px rgba(15,23,42,0.04)",
           }}
         >
-          {/* CARD HEADER */}
           <div
             style={{
-              padding: "20px 22px",
+              padding:
+                "20px 22px",
               borderBottom:
                 "1px solid #e5e7eb",
             }}
           >
             <div
               style={{
-                display: "flex",
-                justifyContent:
-                  "space-between",
-                alignItems: "center",
-                gap: "20px",
-                marginBottom: "16px",
-                flexWrap: "wrap",
+                marginBottom: "18px",
               }}
             >
-              <div>
-                <h2
-                  style={{
-                    margin: 0,
-                    fontSize: "20px",
-                    fontWeight: 750,
-                  }}
-                >
-                  My Tasks
-                </h2>
-
-                <p
-                  style={{
-                    margin:
-                      "5px 0 0",
-                    color: "#6b7280",
-                    fontSize: "13px",
-                  }}
-                >
-                  Activities and follow-ups
-                </p>
-              </div>
-
-              <div
+              <h2
                 style={{
-                  fontSize: "13px",
-                  color: "#6b7280",
+                  margin: 0,
+                  fontSize: "19px",
+                  fontWeight: 750,
                 }}
               >
-                Showing{" "}
-                <strong
-                  style={{
-                    color: "#111827",
-                  }}
-                >
-                  {filteredTasks.length}
-                </strong>{" "}
-                task
-                {filteredTasks.length === 1
-                  ? ""
-                  : "s"}
-              </div>
+                Team Tasks
+              </h2>
+
+              <p
+                style={{
+                  margin:
+                    "5px 0 0",
+                  color: "#6b7280",
+                  fontSize: "13px",
+                }}
+              >
+                Activities and follow-ups
+              </p>
             </div>
 
             {/* FILTERS */}
@@ -1073,55 +1476,20 @@ export default function TasksPage() {
               style={{
                 display: "grid",
                 gridTemplateColumns:
-                  "minmax(250px, 1fr) 180px 180px",
-                gap: "12px",
+                  "minmax(250px, 1fr) 180px 180px 180px",
+                gap: "10px",
               }}
             >
-              <div
-                style={{
-                  position: "relative",
-                }}
-              >
-                <span
-                  style={{
-                    position:
-                      "absolute",
-                    left: "13px",
-                    top: "50%",
-                    transform:
-                      "translateY(-50%)",
-                    color: "#9ca3af",
-                    fontSize: "16px",
-                  }}
-                >
-                  ⌕
-                </span>
-
-                <input
-                  value={search}
-                  onChange={(event) =>
-                    setSearch(
-                      event.target.value
-                    )
-                  }
-                  placeholder="Search tasks, leads, staff..."
-                  style={{
-                    width: "100%",
-                    height: "42px",
-                    boxSizing:
-                      "border-box",
-                    border:
-                      "1px solid #d1d5db",
-                    borderRadius: "9px",
-                    padding:
-                      "0 13px 0 38px",
-                    outline: "none",
-                    fontSize: "14px",
-                    background:
-                      "#ffffff",
-                  }}
-                />
-              </div>
+              <input
+                value={search}
+                onChange={(event) =>
+                  setSearch(
+                    event.target.value
+                  )
+                }
+                placeholder="Search tasks, leads, staff..."
+                style={inputStyle}
+              />
 
               <select
                 value={statusFilter}
@@ -1130,31 +1498,21 @@ export default function TasksPage() {
                     event.target.value
                   )
                 }
-                style={{
-                  height: "42px",
-                  border:
-                    "1px solid #d1d5db",
-                  borderRadius: "9px",
-                  padding:
-                    "0 12px",
-                  fontSize: "14px",
-                  background:
-                    "#ffffff",
-                  color: "#111827",
-                  outline: "none",
-                }}
+                style={inputStyle}
               >
                 <option value="all">
-                  All Active Statuses
+                  All Statuses
                 </option>
 
-                {STATUS_OPTIONS.map(
+                {TASK_STATUSES.map(
                   (status) => (
                     <option
-                      key={status.value}
-                      value={status.value}
+                      key={status}
+                      value={status}
                     >
-                      {status.label}
+                      {getStatusLabel(
+                        status
+                      )}
                     </option>
                   )
                 )}
@@ -1167,19 +1525,7 @@ export default function TasksPage() {
                     event.target.value
                   )
                 }
-                style={{
-                  height: "42px",
-                  border:
-                    "1px solid #d1d5db",
-                  borderRadius: "9px",
-                  padding:
-                    "0 12px",
-                  fontSize: "14px",
-                  background:
-                    "#ffffff",
-                  color: "#111827",
-                  outline: "none",
-                }}
+                style={inputStyle}
               >
                 <option value="all">
                   All Task Types
@@ -1196,33 +1542,79 @@ export default function TasksPage() {
                   )
                 )}
               </select>
-            </div>
-          </div>
 
-          {/* COMPLETED FILTER INFORMATION */}
-          {statusFilter ===
-            "completed" && (
-            <div
-              style={{
-                margin:
-                  "16px 22px 0",
-                padding:
-                  "11px 14px",
-                borderRadius: "9px",
-                background:
-                  "#ecfdf5",
-                border:
-                  "1px solid #a7f3d0",
-                color: "#047857",
-                fontSize: "13px",
-              }}
-            >
-              You are viewing completed
-              tasks. These tasks remain
-              stored in the database for
-              history and reporting.
+              <select
+                value={assignedFilter}
+                onChange={(event) =>
+                  setAssignedFilter(
+                    event.target.value
+                  )
+                }
+                style={inputStyle}
+              >
+                <option value="all">
+                  All Staff
+                </option>
+
+                {profiles
+                  .filter(
+                    (profile) =>
+                      profile.is_active !==
+                      false
+                  )
+                  .map((profile) => (
+                    <option
+                      key={profile.id}
+                      value={profile.id}
+                    >
+                      {profile.full_name ||
+                        "Unnamed Staff"}
+                    </option>
+                  ))}
+              </select>
             </div>
-          )}
+
+            {(search ||
+              statusFilter !== "all" ||
+              typeFilter !== "all" ||
+              assignedFilter !== "all") && (
+              <div
+                style={{
+                  marginTop: "10px",
+                  display: "flex",
+                  justifyContent:
+                    "space-between",
+                  alignItems: "center",
+                  gap: "10px",
+                  flexWrap: "wrap",
+                  fontSize: "13px",
+                  color: "#6b7280",
+                }}
+              >
+                <span>
+                  Showing{" "}
+                  {filteredTasks.length} of{" "}
+                  {tasks.length} tasks
+                </span>
+
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  style={{
+                    border: "none",
+                    background:
+                      "transparent",
+                    color: "#2563eb",
+                    fontSize: "13px",
+                    fontWeight: 650,
+                    cursor: "pointer",
+                  }}
+                >
+                  Clear filters
+                </button>
+              </div>
+            )}
+          </div>
 
           {/* TABLE */}
           <div
@@ -1230,148 +1622,116 @@ export default function TasksPage() {
               overflowX: "auto",
             }}
           >
-            {loading ? (
-              <div
-                style={{
-                  padding: "70px 20px",
-                  textAlign: "center",
-                  color: "#6b7280",
-                }}
-              >
-                Loading tasks...
-              </div>
-            ) : filteredTasks.length ===
-              0 ? (
-              <div
-                style={{
-                  padding: "70px 20px",
-                  textAlign: "center",
-                }}
-              >
-                <div
+            <table
+              style={{
+                width: "100%",
+                borderCollapse:
+                  "collapse",
+                minWidth: "1100px",
+              }}
+            >
+              <thead>
+                <tr
                   style={{
-                    width: "54px",
-                    height: "54px",
-                    borderRadius: "50%",
-                    background:
-                      "#f3f4f6",
-                    display: "flex",
-                    alignItems:
-                      "center",
-                    justifyContent:
-                      "center",
-                    margin:
-                      "0 auto 14px",
-                    fontSize: "24px",
-                    color: "#6b7280",
+                    background: "#f9fafb",
                   }}
                 >
-                  ✓
-                </div>
-
-                <h3
-                  style={{
-                    margin:
-                      "0 0 6px",
-                    fontSize: "17px",
-                  }}
-                >
-                  No tasks found
-                </h3>
-
-                <p
-                  style={{
-                    margin: 0,
-                    color: "#6b7280",
-                    fontSize: "14px",
-                  }}
-                >
-                  {statusFilter ===
-                  "all"
-                    ? "There are no active tasks to display."
-                    : "No tasks match the selected filters."}
-                </p>
-              </div>
-            ) : (
-              <table
-                style={{
-                  width: "100%",
-                  borderCollapse:
-                    "collapse",
-                  minWidth:
-                    "1050px",
-                }}
-              >
-                <thead>
-                  <tr
-                    style={{
-                      background:
-                        "#f8fafc",
-                      borderBottom:
-                        "1px solid #e5e7eb",
-                    }}
-                  >
+                  {[
+                    "TASK",
+                    "TYPE",
+                    "RELATED",
+                    "ASSIGNED TO",
+                    "DUE",
+                    "STATUS",
+                    "ACTIONS",
+                  ].map((heading) => (
                     <th
-                      style={
-                        tableHeaderStyle
-                      }
-                    >
-                      TASK
-                    </th>
-
-                    <th
-                      style={
-                        tableHeaderStyle
-                      }
-                    >
-                      TYPE
-                    </th>
-
-                    <th
-                      style={
-                        tableHeaderStyle
-                      }
-                    >
-                      RELATED
-                    </th>
-
-                    <th
-                      style={
-                        tableHeaderStyle
-                      }
-                    >
-                      ASSIGNED TO
-                    </th>
-
-                    <th
-                      style={
-                        tableHeaderStyle
-                      }
-                    >
-                      DUE
-                    </th>
-
-                    <th
-                      style={
-                        tableHeaderStyle
-                      }
-                    >
-                      STATUS
-                    </th>
-
-                    <th
+                      key={heading}
                       style={{
-                        ...tableHeaderStyle,
-                        textAlign: "right",
+                        padding:
+                          "12px 18px",
+                        textAlign:
+                          heading ===
+                          "ACTIONS"
+                            ? "right"
+                            : "left",
+                        fontSize:
+                          "11px",
+                        fontWeight: 750,
+                        color:
+                          "#6b7280",
+                        letterSpacing:
+                          "0.04em",
+                        borderBottom:
+                          "1px solid #e5e7eb",
                       }}
                     >
-                      ACTIONS
+                      {heading}
                     </th>
-                  </tr>
-                </thead>
+                  ))}
+                </tr>
+              </thead>
 
-                <tbody>
-                  {filteredTasks.map(
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td
+                      colSpan={7}
+                      style={{
+                        padding:
+                          "50px",
+                        textAlign:
+                          "center",
+                        color:
+                          "#6b7280",
+                      }}
+                    >
+                      Loading tasks...
+                    </td>
+                  </tr>
+                ) : filteredTasks.length ===
+                  0 ? (
+                  <tr>
+                    <td
+                      colSpan={7}
+                      style={{
+                        padding:
+                          "60px",
+                        textAlign:
+                          "center",
+                        color:
+                          "#6b7280",
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize:
+                            "15px",
+                          fontWeight:
+                            650,
+                          color:
+                            "#374151",
+                          marginBottom:
+                            "5px",
+                        }}
+                      >
+                        No tasks found
+                      </div>
+
+                      <div
+                        style={{
+                          fontSize:
+                            "13px",
+                        }}
+                      >
+                        Try changing your
+                        filters or create
+                        a new task.
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredTasks.map(
                     (task) => {
                       const lead =
                         getLead(task);
@@ -1386,6 +1746,12 @@ export default function TasksPage() {
 
                       const overdue =
                         isOverdue(task);
+
+                      const stage =
+                        getStage(
+                          opportunity?.stage_id ||
+                            null
+                        );
 
                       return (
                         <tr
@@ -1408,52 +1774,50 @@ export default function TasksPage() {
                               style={{
                                 display:
                                   "flex",
-                                gap: "11px",
+                                gap: "10px",
                                 alignItems:
                                   "flex-start",
                               }}
                             >
                               <button
                                 type="button"
-                                onClick={() =>
-                                  markComplete(
-                                    task
-                                  )
-                                }
+                                onClick={() => {
+                                  if (
+                                    task.status !==
+                                    "completed"
+                                  ) {
+                                    markComplete(
+                                      task
+                                    );
+                                  }
+                                }}
                                 title={
                                   task.status ===
                                   "completed"
                                     ? "Completed"
                                     : "Mark complete"
                                 }
-                                disabled={
-                                  task.status ===
-                                  "completed"
-                                }
                                 style={{
                                   width:
-                                    "28px",
+                                    "24px",
                                   height:
-                                    "28px",
+                                    "24px",
                                   minWidth:
-                                    "28px",
+                                    "24px",
                                   borderRadius:
                                     "50%",
                                   border:
                                     task.status ===
                                     "completed"
                                       ? "1px solid #10b981"
-                                      : "1px solid #cbd5e1",
+                                      : "1px solid #d1d5db",
                                   background:
                                     task.status ===
                                     "completed"
-                                      ? "#10b981"
+                                      ? "#ecfdf5"
                                       : "#ffffff",
                                   color:
-                                    task.status ===
-                                    "completed"
-                                      ? "#ffffff"
-                                      : "#64748b",
+                                    "#047857",
                                   cursor:
                                     task.status ===
                                     "completed"
@@ -1465,10 +1829,7 @@ export default function TasksPage() {
                                     "center",
                                   justifyContent:
                                     "center",
-                                  fontSize:
-                                    "13px",
-                                  marginTop:
-                                    "1px",
+                                  padding: 0,
                                 }}
                               >
                                 {task.status ===
@@ -1480,10 +1841,10 @@ export default function TasksPage() {
                               <div>
                                 <div
                                   style={{
-                                    fontWeight:
-                                      700,
                                     fontSize:
                                       "14px",
+                                    fontWeight:
+                                      700,
                                     color:
                                       "#111827",
                                     marginBottom:
@@ -1530,43 +1891,24 @@ export default function TasksPage() {
                                   "inline-flex",
                                 alignItems:
                                   "center",
-                                gap: "7px",
+                                gap: "6px",
                                 fontSize:
                                   "13px",
-                                fontWeight:
-                                  600,
                                 color:
                                   "#374151",
                               }}
                             >
-                              <span
-                                style={{
-                                  width:
-                                    "27px",
-                                  height:
-                                    "27px",
-                                  borderRadius:
-                                    "7px",
-                                  background:
-                                    "#f3f4f6",
-                                  display:
-                                    "flex",
-                                  alignItems:
-                                    "center",
-                                  justifyContent:
-                                    "center",
-                                  fontSize:
-                                    "13px",
-                                }}
-                              >
+                              <span>
                                 {getTaskTypeIcon(
                                   task.task_type
                                 )}
                               </span>
 
-                              {
-                                task.task_type
-                              }
+                              <span>
+                                {
+                                  task.task_type
+                                }
+                              </span>
                             </div>
                           </td>
 
@@ -1586,26 +1928,25 @@ export default function TasksPage() {
                                     fontSize:
                                       "13px",
                                     fontWeight:
-                                      650,
-                                    color:
-                                      "#111827",
+                                      700,
                                   }}
                                 >
                                   {lead.name ||
-                                    "Unnamed lead"}
+                                    "Unnamed Lead"}
                                 </div>
 
                                 {lead.ciu_number && (
                                   <div
                                     style={{
-                                      marginTop:
-                                        "3px",
-                                      fontSize:
-                                        "11px",
                                       color:
                                         "#6b7280",
+                                      fontSize:
+                                        "12px",
+                                      marginTop:
+                                        "3px",
                                     }}
                                   >
+                                    CIU:{" "}
                                     {
                                       lead.ciu_number
                                     }
@@ -1615,12 +1956,12 @@ export default function TasksPage() {
                                 {lead.phone && (
                                   <div
                                     style={{
-                                      marginTop:
-                                        "2px",
-                                      fontSize:
-                                        "11px",
                                       color:
                                         "#6b7280",
+                                      fontSize:
+                                        "12px",
+                                      marginTop:
+                                        "2px",
                                     }}
                                   >
                                     {
@@ -1636,7 +1977,7 @@ export default function TasksPage() {
                                     fontSize:
                                       "13px",
                                     fontWeight:
-                                      650,
+                                      700,
                                   }}
                                 >
                                   {
@@ -1646,21 +1987,35 @@ export default function TasksPage() {
 
                                 <div
                                   style={{
-                                    marginTop:
-                                      "3px",
-                                    fontSize:
-                                      "11px",
                                     color:
                                       "#6b7280",
+                                    fontSize:
+                                      "12px",
+                                    marginTop:
+                                      "3px",
                                   }}
                                 >
-                                  {
-                                    formatCurrency(
-                                      opportunity.value,
-                                      opportunity.currency
-                                    )
-                                  }
+                                  {formatCurrency(
+                                    opportunity.value,
+                                    opportunity.currency ||
+                                      "UGX"
+                                  )}
                                 </div>
+
+                                {stage && (
+                                  <div
+                                    style={{
+                                      color:
+                                        "#6b7280",
+                                      fontSize:
+                                        "12px",
+                                      marginTop:
+                                        "2px",
+                                    }}
+                                  >
+                                    {stage.name}
+                                  </div>
+                                )}
                               </div>
                             ) : (
                               <span
@@ -1668,10 +2023,10 @@ export default function TasksPage() {
                                   color:
                                     "#9ca3af",
                                   fontSize:
-                                    "12px",
+                                    "13px",
                                 }}
                               >
-                                No related record
+                                No relation
                               </span>
                             )}
                           </td>
@@ -1685,74 +2040,69 @@ export default function TasksPage() {
                                 "top",
                             }}
                           >
-                            <div
-                              style={{
-                                display:
-                                  "flex",
-                                alignItems:
-                                  "center",
-                                gap: "9px",
-                              }}
-                            >
+                            {staff ? (
                               <div
                                 style={{
-                                  width:
-                                    "30px",
-                                  height:
-                                    "30px",
-                                  borderRadius:
-                                    "50%",
-                                  background:
-                                    "#e5e7eb",
                                   display:
                                     "flex",
                                   alignItems:
                                     "center",
-                                  justifyContent:
-                                    "center",
-                                  fontSize:
-                                    "11px",
-                                  fontWeight:
-                                    700,
-                                  color:
-                                    "#374151",
+                                  gap: "8px",
                                 }}
                               >
-                                {staff?.full_name
-                                  ? staff.full_name
-                                      .split(
-                                        " "
-                                      )
-                                      .map(
-                                        (
-                                          part
-                                        ) =>
-                                          part[0]
-                                      )
-                                      .join("")
-                                      .slice(
-                                        0,
-                                        2
-                                      )
-                                      .toUpperCase()
-                                  : "—"}
-                              </div>
+                                <div
+                                  style={{
+                                    width:
+                                      "30px",
+                                    height:
+                                      "30px",
+                                    borderRadius:
+                                      "50%",
+                                    background:
+                                      "#f3f4f6",
+                                    display:
+                                      "flex",
+                                    alignItems:
+                                      "center",
+                                    justifyContent:
+                                      "center",
+                                    fontSize:
+                                      "11px",
+                                    fontWeight:
+                                      800,
+                                    color:
+                                      "#374151",
+                                  }}
+                                >
+                                  {getInitials(
+                                    staff.full_name
+                                  )}
+                                </div>
 
-                              <div
+                                <span
+                                  style={{
+                                    fontSize:
+                                      "13px",
+                                    fontWeight:
+                                      600,
+                                  }}
+                                >
+                                  {staff.full_name ||
+                                    "Unnamed Staff"}
+                                </span>
+                              </div>
+                            ) : (
+                              <span
                                 style={{
-                                  fontSize:
-                                    "12px",
                                   color:
-                                    "#374151",
-                                  fontWeight:
-                                    600,
+                                    "#9ca3af",
+                                  fontSize:
+                                    "13px",
                                 }}
                               >
-                                {staff
-                                  ?.full_name ||
-                                  "Unassigned"}
-                              </div>
-                            </div>
+                                Unassigned
+                              </span>
+                            )}
                           </td>
 
                           {/* DUE */}
@@ -1767,15 +2117,13 @@ export default function TasksPage() {
                             <div
                               style={{
                                 fontSize:
-                                  "12px",
+                                  "13px",
+                                fontWeight:
+                                  600,
                                 color:
                                   overdue
-                                    ? "#dc2626"
+                                    ? "#b91c1c"
                                     : "#374151",
-                                fontWeight:
-                                  overdue
-                                    ? 700
-                                    : 500,
                               }}
                             >
                               {formatDateTime(
@@ -1786,16 +2134,14 @@ export default function TasksPage() {
                             {overdue && (
                               <div
                                 style={{
-                                  display:
-                                    "inline-block",
                                   marginTop:
-                                    "5px",
+                                    "4px",
                                   fontSize:
-                                    "10px",
+                                    "11px",
                                   fontWeight:
                                     700,
                                   color:
-                                    "#dc2626",
+                                    "#b91c1c",
                                 }}
                               >
                                 OVERDUE
@@ -1875,6 +2221,72 @@ export default function TasksPage() {
                                 View
                               </button>
 
+                              {lead?.phone && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    callLead(
+                                      lead
+                                    )
+                                  }
+                                  style={{
+                                    ...smallActionButton,
+                                    color:
+                                      "#1d4ed8",
+                                    border:
+                                      "1px solid #bfdbfe",
+                                    background:
+                                      "#eff6ff",
+                                  }}
+                                >
+                                  Call
+                                </button>
+                              )}
+
+                              {lead?.phone && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    whatsappLead(
+                                      lead
+                                    )
+                                  }
+                                  style={{
+                                    ...smallActionButton,
+                                    color:
+                                      "#047857",
+                                    border:
+                                      "1px solid #a7f3d0",
+                                    background:
+                                      "#ecfdf5",
+                                  }}
+                                >
+                                  WhatsApp
+                                </button>
+                              )}
+
+                              {lead?.email && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    emailLead(
+                                      lead
+                                    )
+                                  }
+                                  style={{
+                                    ...smallActionButton,
+                                    color:
+                                      "#7c3aed",
+                                    border:
+                                      "1px solid #ddd6fe",
+                                    background:
+                                      "#f5f3ff",
+                                  }}
+                                >
+                                  Email
+                                </button>
+                              )}
+
                               <button
                                 type="button"
                                 onClick={() =>
@@ -1932,363 +2344,59 @@ export default function TasksPage() {
                         </tr>
                       );
                     }
-                  )}
-                </tbody>
-              </table>
-            )}
+                  )
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
 
-      {/* VIEW TASK MODAL */}
-      {selectedTask && (
-        <div
-          onClick={() =>
-            setSelectedTask(null)
-          }
-          style={modalOverlayStyle}
-        >
-          <div
-            onClick={(event) =>
-              event.stopPropagation()
-            }
-            style={modalCardStyle}
-          >
-            {(() => {
-              const lead =
-                getLead(selectedTask);
-
-              const opportunity =
-                getOpportunity(
-                  selectedTask
-                );
-
-              const staff =
-                getStaff(selectedTask);
-
-              const stage =
-                getStage(opportunity);
-
-              return (
-                <>
-                  <div
-                    style={
-                      modalHeaderStyle
-                    }
-                  >
-                    <div>
-                      <h2
-                        style={{
-                          margin: 0,
-                          fontSize:
-                            "21px",
-                          fontWeight:
-                            800,
-                        }}
-                      >
-                        Task Details
-                      </h2>
-
-                      <p
-                        style={{
-                          margin:
-                            "5px 0 0",
-                          color:
-                            "#6b7280",
-                          fontSize:
-                            "13px",
-                        }}
-                      >
-                        View task and
-                        follow-up
-                        information
-                      </p>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setSelectedTask(
-                          null
-                        )
-                      }
-                      style={
-                        closeButtonStyle
-                      }
-                    >
-                      ×
-                    </button>
-                  </div>
-
-                  <div
-                    style={{
-                      padding:
-                        "22px",
-                    }}
-                  >
-                    <div
-                      style={{
-                        display:
-                          "grid",
-                        gridTemplateColumns:
-                          "repeat(2, minmax(0, 1fr))",
-                        gap: "18px",
-                      }}
-                    >
-                      <DetailItem
-                        label="Task"
-                        value={
-                          selectedTask.title
-                        }
-                      />
-
-                      <DetailItem
-                        label="Task Type"
-                        value={
-                          selectedTask.task_type
-                        }
-                      />
-
-                      <DetailItem
-                        label="Status"
-                        value={
-                          getStatusLabel(
-                            selectedTask.status
-                          )
-                        }
-                      />
-
-                      <DetailItem
-                        label="Due Date"
-                        value={formatDateTime(
-                          selectedTask.due_at
-                        )}
-                      />
-
-                      <DetailItem
-                        label="Assigned To"
-                        value={
-                          staff?.full_name ||
-                          "Unassigned"
-                        }
-                      />
-
-                      <DetailItem
-                        label="Created"
-                        value={formatDate(
-                          selectedTask.created_at
-                        )}
-                      />
-
-                      {selectedTask.completed_at && (
-                        <DetailItem
-                          label="Completed"
-                          value={formatDateTime(
-                            selectedTask.completed_at
-                          )}
-                        />
-                      )}
-
-                      {lead && (
-                        <DetailItem
-                          label="Related Lead"
-                          value={
-                            lead.name ||
-                            "Unnamed lead"
-                          }
-                        />
-                      )}
-
-                      {lead?.ciu_number && (
-                        <DetailItem
-                          label="CIU Number"
-                          value={
-                            lead.ciu_number
-                          }
-                        />
-                      )}
-
-                      {lead?.phone && (
-                        <DetailItem
-                          label="Phone"
-                          value={
-                            lead.phone
-                          }
-                        />
-                      )}
-
-                      {opportunity && (
-                        <DetailItem
-                          label="Pipeline Opportunity"
-                          value={
-                            opportunity.title ||
-                            "Opportunity"
-                          }
-                        />
-                      )}
-
-                      {stage && (
-                        <DetailItem
-                          label="Pipeline Stage"
-                          value={
-                            stage.name
-                          }
-                        />
-                      )}
-
-                      {opportunity && (
-                        <DetailItem
-                          label="Opportunity Value"
-                          value={formatCurrency(
-                            opportunity.value,
-                            opportunity.currency
-                          )}
-                        />
-                      )}
-                    </div>
-
-                    {selectedTask.description && (
-                      <div
-                        style={{
-                          marginTop:
-                            "20px",
-                        }}
-                      >
-                        <div
-                          style={
-                            detailLabelStyle
-                          }
-                        >
-                          DESCRIPTION
-                        </div>
-
-                        <div
-                          style={{
-                            marginTop:
-                              "7px",
-                            padding:
-                              "12px 14px",
-                            borderRadius:
-                              "9px",
-                            background:
-                              "#f8fafc",
-                            color:
-                              "#374151",
-                            fontSize:
-                              "13px",
-                            lineHeight:
-                              1.6,
-                            whiteSpace:
-                              "pre-wrap",
-                          }}
-                        >
-                          {
-                            selectedTask.description
-                          }
-                        </div>
-                      </div>
-                    )}
-
-                    <div
-                      style={{
-                        marginTop:
-                          "24px",
-                        display:
-                          "flex",
-                        justifyContent:
-                          "flex-end",
-                        gap: "9px",
-                        flexWrap:
-                          "wrap",
-                      }}
-                    >
-                      {lead?.phone && (
-                        <a
-                          href={`tel:${lead.phone}`}
-                          style={{
-                            ...secondaryButtonStyle,
-                            textDecoration:
-                              "none",
-                          }}
-                        >
-                          Call Lead
-                        </a>
-                      )}
-
-                      {selectedTask.status !==
-                        "completed" && (
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            await markComplete(
-                              selectedTask
-                            );
-
-                            setSelectedTask(
-                              null
-                            );
-                          }}
-                          style={
-                            primaryButtonStyle
-                          }
-                        >
-                          ✓ Mark Complete
-                        </button>
-                      )}
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedTask(
-                            null
-                          );
-                          openEditModal(
-                            selectedTask
-                          );
-                        }}
-                        style={
-                          secondaryButtonStyle
-                        }
-                      >
-                        Edit Task
-                      </button>
-                    </div>
-                  </div>
-                </>
-              );
-            })()}
-          </div>
-        </div>
-      )}
-
       {/* CREATE / EDIT MODAL */}
       {showModal && (
         <div
-          onClick={closeModal}
-          style={modalOverlayStyle}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background:
+              "rgba(15,23,42,0.45)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "20px",
+            zIndex: 1000,
+          }}
         >
           <div
-            onClick={(event) =>
-              event.stopPropagation()
-            }
             style={{
-              ...modalCardStyle,
-              maxWidth: "780px",
+              width: "100%",
+              maxWidth: "700px",
+              maxHeight: "90vh",
+              overflowY: "auto",
+              background: "#ffffff",
+              borderRadius: "14px",
+              boxShadow:
+                "0 20px 50px rgba(0,0,0,0.18)",
             }}
           >
             <div
-              style={
-                modalHeaderStyle
-              }
+              style={{
+                padding:
+                  "20px 22px",
+                borderBottom:
+                  "1px solid #e5e7eb",
+                display: "flex",
+                justifyContent:
+                  "space-between",
+                alignItems: "center",
+              }}
             >
               <div>
                 <h2
                   style={{
                     margin: 0,
-                    fontSize:
-                      "21px",
-                    fontWeight:
-                      800,
+                    fontSize: "20px",
+                    fontWeight: 800,
                   }}
                 >
                   {editingTask
@@ -2306,795 +2414,1149 @@ export default function TasksPage() {
                       "13px",
                   }}
                 >
-                  {editingTask
-                    ? "Update the task details below."
-                    : "Create a new activity or follow-up."}
+                  Create and manage
+                  staff activities and
+                  follow-ups.
                 </p>
               </div>
 
               <button
                 type="button"
-                onClick={closeModal}
-                style={
-                  closeButtonStyle
+                onClick={() =>
+                  setShowModal(false)
                 }
+                style={{
+                  border: "none",
+                  background:
+                    "transparent",
+                  fontSize: "24px",
+                  cursor: "pointer",
+                  color:
+                    "#6b7280",
+                }}
               >
                 ×
               </button>
             </div>
 
             <form
-              onSubmit={
-                handleSaveTask
-              }
+              onSubmit={handleSaveTask}
+              style={{
+                padding: "22px",
+              }}
             >
               <div
                 style={{
-                  padding:
-                    "22px",
+                  display: "grid",
+                  gridTemplateColumns:
+                    "1fr 1fr",
+                  gap: "16px",
                 }}
               >
-                {error && (
-                  <div
+                <div
+                  style={{
+                    gridColumn:
+                      "1 / -1",
+                  }}
+                >
+                  <label
                     style={{
-                      marginBottom:
-                        "17px",
-                      padding:
-                        "11px 13px",
-                      borderRadius:
-                        "8px",
-                      background:
-                        "#fef2f2",
-                      border:
-                        "1px solid #fecaca",
-                      color:
-                        "#b91c1c",
+                      display:
+                        "block",
                       fontSize:
                         "13px",
+                      fontWeight:
+                        700,
+                      marginBottom:
+                        "6px",
                     }}
                   >
-                    {error}
-                  </div>
-                )}
+                    Task Title
+                  </label>
 
-                <div
-                  style={{
-                    display:
-                      "grid",
-                    gridTemplateColumns:
-                      "repeat(2, minmax(0, 1fr))",
-                    gap: "17px",
-                  }}
-                >
-                  {/* TITLE */}
-                  <div
-                    style={{
-                      gridColumn:
-                        "1 / -1",
-                    }}
-                  >
-                    <FormLabel>
-                      Task Title
-                    </FormLabel>
-
-                    <input
-                      required
-                      value={
-                        form.title
-                      }
-                      onChange={(
-                        event
-                      ) =>
-                        setForm(
-                          (
-                            current
-                          ) => ({
-                            ...current,
-                            title:
-                              event
-                                .target
-                                .value,
-                          })
-                        )
-                      }
-                      placeholder="e.g. Call admitted student"
-                      style={
-                        inputStyle
-                      }
-                    />
-                  </div>
-
-                  {/* DESCRIPTION */}
-                  <div
-                    style={{
-                      gridColumn:
-                        "1 / -1",
-                    }}
-                  >
-                    <FormLabel>
-                      Description
-                    </FormLabel>
-
-                    <textarea
-                      value={
-                        form.description
-                      }
-                      onChange={(
-                        event
-                      ) =>
-                        setForm(
-                          (
-                            current
-                          ) => ({
-                            ...current,
-                            description:
-                              event
-                                .target
-                                .value,
-                          })
-                        )
-                      }
-                      placeholder="Add task details, notes or instructions..."
-                      rows={4}
-                      style={{
-                        ...inputStyle,
-                        height:
-                          "auto",
-                        padding:
-                          "11px 12px",
-                        resize:
-                          "vertical",
-                        fontFamily:
-                          "inherit",
-                      }}
-                    />
-                  </div>
-
-                  {/* TYPE */}
-                  <div>
-                    <FormLabel>
-                      Task Type
-                    </FormLabel>
-
-                    <select
-                      value={
-                        form.task_type
-                      }
-                      onChange={(
-                        event
-                      ) =>
-                        setForm(
-                          (
-                            current
-                          ) => ({
-                            ...current,
-                            task_type:
-                              event
-                                .target
-                                .value as TaskType,
-                          })
-                        )
-                      }
-                      style={
-                        inputStyle
-                      }
-                    >
-                      {TASK_TYPES.map(
-                        (
-                          type
-                        ) => (
-                          <option
-                            key={
-                              type
-                            }
-                            value={
-                              type
-                            }
-                          >
-                            {type}
-                          </option>
-                        )
-                      )}
-                    </select>
-                  </div>
-
-                  {/* STATUS */}
-                  <div>
-                    <FormLabel>
-                      Status
-                    </FormLabel>
-
-                    <select
-                      value={
-                        form.status
-                      }
-                      onChange={(
-                        event
-                      ) =>
-                        setForm(
-                          (
-                            current
-                          ) => ({
-                            ...current,
-                            status:
-                              event
-                                .target
-                                .value as TaskStatus,
-                          })
-                        )
-                      }
-                      style={
-                        inputStyle
-                      }
-                    >
-                      {STATUS_OPTIONS.map(
-                        (
-                          status
-                        ) => (
-                          <option
-                            key={
-                              status.value
-                            }
-                            value={
-                              status.value
-                            }
-                          >
-                            {
-                              status.label
-                            }
-                          </option>
-                        )
-                      )}
-                    </select>
-                  </div>
-
-                  {/* LEAD */}
-                  <div>
-                    <FormLabel>
-                      Related Lead
-                    </FormLabel>
-
-                    <select
-                      value={
-                        form.lead_id
-                      }
-                      onChange={(
-                        event
-                      ) =>
-                        setForm(
-                          (
-                            current
-                          ) => ({
-                            ...current,
-                            lead_id:
-                              event
-                                .target
-                                .value,
-                          })
-                        )
-                      }
-                      style={
-                        inputStyle
-                      }
-                    >
-                      <option value="">
-                        No lead
-                      </option>
-
-                      {leads.map(
-                        (lead) => (
-                          <option
-                            key={
-                              lead.id
-                            }
-                            value={
-                              lead.id
-                            }
-                          >
-                            {lead.name ||
-                              "Unnamed lead"}
-                            {lead.ciu_number
-                              ? ` — ${lead.ciu_number}`
-                              : ""}
-                          </option>
-                        )
-                      )}
-                    </select>
-                  </div>
-
-                  {/* OPPORTUNITY */}
-                  <div>
-                    <FormLabel>
-                      Pipeline Opportunity
-                    </FormLabel>
-
-                    <select
-                      value={
-                        form.opportunity_id
-                      }
-                      onChange={(
-                        event
-                      ) =>
-                        setForm(
-                          (
-                            current
-                          ) => ({
-                            ...current,
-                            opportunity_id:
-                              event
-                                .target
-                                .value,
-                          })
-                        )
-                      }
-                      style={
-                        inputStyle
-                      }
-                    >
-                      <option value="">
-                        No opportunity
-                      </option>
-
-                      {opportunities.map(
-                        (
-                          opportunity
-                        ) => (
-                          <option
-                            key={
-                              opportunity.id
-                            }
-                            value={
-                              opportunity.id
-                            }
-                          >
-                            {opportunity.title ||
-                              "Untitled opportunity"}
-                            {opportunity.value !==
-                            null
-                              ? ` — ${formatCurrency(
-                                  opportunity.value,
-                                  opportunity.currency
-                                )}`
-                              : ""}
-                          </option>
-                        )
-                      )}
-                    </select>
-                  </div>
-
-                  {/* STAFF */}
-                  <div>
-                    <FormLabel>
-                      Assigned Staff
-                    </FormLabel>
-
-                    <select
-                      value={
-                        form.assigned_to
-                      }
-                      onChange={(
-                        event
-                      ) =>
-                        setForm(
-                          (
-                            current
-                          ) => ({
-                            ...current,
-                            assigned_to:
-                              event
-                                .target
-                                .value,
-                          })
-                        )
-                      }
-                      style={
-                        inputStyle
-                      }
-                    >
-                      <option value="">
-                        Unassigned
-                      </option>
-
-                      {profiles
-                        .filter(
-                          (
-                            profile
-                          ) =>
-                            profile.is_active !==
-                              false
-                        )
-                        .map(
-                          (
-                            profile
-                          ) => (
-                            <option
-                              key={
-                                profile.id
-                              }
-                              value={
-                                profile.id
-                              }
-                            >
-                              {profile.full_name ||
-                                "Unnamed staff"}
-                              {profile.role
-                                ? ` — ${profile.role}`
-                                : ""}
-                            </option>
-                          )
-                        )}
-                    </select>
-                  </div>
-
-                  {/* DUE DATE */}
-                  <div>
-                    <FormLabel>
-                      Due Date & Time
-                    </FormLabel>
-
-                    <input
-                      type="datetime-local"
-                      value={
-                        form.due_at
-                      }
-                      onChange={(
-                        event
-                      ) =>
-                        setForm(
-                          (
-                            current
-                          ) => ({
-                            ...current,
-                            due_at:
-                              event
-                                .target
-                                .value,
-                          })
-                        )
-                      }
-                      style={
-                        inputStyle
-                      }
-                    />
-                  </div>
+                  <input
+                    value={
+                      form.title
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setForm(
+                        (current) => ({
+                          ...current,
+                          title:
+                            event
+                              .target
+                              .value,
+                        })
+                      )
+                    }
+                    placeholder="e.g. Call student about admission"
+                    style={
+                      inputStyle
+                    }
+                  />
                 </div>
 
-                {/* FORM FOOTER */}
-                <div
-                  style={{
-                    display:
-                      "flex",
-                    justifyContent:
-                      "flex-end",
-                    gap: "9px",
-                    marginTop:
-                      "24px",
-                    paddingTop:
-                      "18px",
-                    borderTop:
-                      "1px solid #e5e7eb",
-                  }}
-                >
-                  <button
-                    type="button"
-                    onClick={
-                      closeModal
+                <div>
+                  <label
+                    style={{
+                      display:
+                        "block",
+                      fontSize:
+                        "13px",
+                      fontWeight:
+                        700,
+                      marginBottom:
+                        "6px",
+                    }}
+                  >
+                    Task Type
+                  </label>
+
+                  <select
+                    value={
+                      form.task_type
                     }
-                    disabled={
-                      saving
+                    onChange={(
+                      event
+                    ) =>
+                      setForm(
+                        (current) => ({
+                          ...current,
+                          task_type:
+                            event
+                              .target
+                              .value as TaskType,
+                        })
+                      )
                     }
                     style={
-                      secondaryButtonStyle
+                      inputStyle
                     }
                   >
-                    Cancel
-                  </button>
+                    {TASK_TYPES.map(
+                      (type) => (
+                        <option
+                          key={type}
+                          value={type}
+                        >
+                          {type}
+                        </option>
+                      )
+                    )}
+                  </select>
+                </div>
 
-                  <button
-                    type="submit"
-                    disabled={
-                      saving
-                    }
+                <div>
+                  <label
                     style={{
-                      ...primaryButtonStyle,
-                      opacity:
-                        saving
-                          ? 0.7
-                          : 1,
+                      display:
+                        "block",
+                      fontSize:
+                        "13px",
+                      fontWeight:
+                        700,
+                      marginBottom:
+                        "6px",
                     }}
                   >
-                    {saving
-                      ? "Saving..."
-                      : editingTask
-                      ? "Update Task"
-                      : "Create Task"}
-                  </button>
+                    Status
+                  </label>
+
+                  <select
+                    value={
+                      form.status
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setForm(
+                        (current) => ({
+                          ...current,
+                          status:
+                            event
+                              .target
+                              .value as TaskStatus,
+                        })
+                      )
+                    }
+                    style={
+                      inputStyle
+                    }
+                  >
+                    {TASK_STATUSES.map(
+                      (status) => (
+                        <option
+                          key={status}
+                          value={status}
+                        >
+                          {getStatusLabel(
+                            status
+                          )}
+                        </option>
+                      )
+                    )}
+                  </select>
                 </div>
+
+                <div>
+                  <label
+                    style={{
+                      display:
+                        "block",
+                      fontSize:
+                        "13px",
+                      fontWeight:
+                        700,
+                      marginBottom:
+                        "6px",
+                    }}
+                  >
+                    Lead
+                  </label>
+
+                  <select
+                    value={
+                      form.lead_id
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setForm(
+                        (current) => ({
+                          ...current,
+                          lead_id:
+                            event
+                              .target
+                              .value,
+                        })
+                      )
+                    }
+                    style={
+                      inputStyle
+                    }
+                  >
+                    <option value="">
+                      No Lead
+                    </option>
+
+                    {leads.map(
+                      (lead) => (
+                        <option
+                          key={lead.id}
+                          value={lead.id}
+                        >
+                          {lead.name ||
+                            "Unnamed Lead"}
+                          {lead.ciu_number
+                            ? ` — ${lead.ciu_number}`
+                            : ""}
+                        </option>
+                      )
+                    )}
+                  </select>
+                </div>
+
+                <div>
+                  <label
+                    style={{
+                      display:
+                        "block",
+                      fontSize:
+                        "13px",
+                      fontWeight:
+                        700,
+                      marginBottom:
+                        "6px",
+                    }}
+                  >
+                    Opportunity
+                  </label>
+
+                  <select
+                    value={
+                      form.opportunity_id
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setForm(
+                        (current) => ({
+                          ...current,
+                          opportunity_id:
+                            event
+                              .target
+                              .value,
+                        })
+                      )
+                    }
+                    style={
+                      inputStyle
+                    }
+                  >
+                    <option value="">
+                      No Opportunity
+                    </option>
+
+                    {opportunities.map(
+                      (
+                        opportunity
+                      ) => (
+                        <option
+                          key={
+                            opportunity.id
+                          }
+                          value={
+                            opportunity.id
+                          }
+                        >
+                          {opportunity.title ||
+                            "Untitled Opportunity"}
+                        </option>
+                      )
+                    )}
+                  </select>
+                </div>
+
+                <div>
+                  <label
+                    style={{
+                      display:
+                        "block",
+                      fontSize:
+                        "13px",
+                      fontWeight:
+                        700,
+                      marginBottom:
+                        "6px",
+                    }}
+                  >
+                    Assigned Staff
+                  </label>
+
+                  <select
+                    value={
+                      form.assigned_to
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setForm(
+                        (current) => ({
+                          ...current,
+                          assigned_to:
+                            event
+                              .target
+                              .value,
+                        })
+                      )
+                    }
+                    style={
+                      inputStyle
+                    }
+                  >
+                    <option value="">
+                      Unassigned
+                    </option>
+
+                    {profiles
+                      .filter(
+                        (profile) =>
+                          profile.is_active !==
+                          false
+                      )
+                      .map(
+                        (profile) => (
+                          <option
+                            key={
+                              profile.id
+                            }
+                            value={
+                              profile.id
+                            }
+                          >
+                            {profile.full_name ||
+                              "Unnamed Staff"}
+                          </option>
+                        )
+                      )}
+                  </select>
+                </div>
+
+                <div>
+                  <label
+                    style={{
+                      display:
+                        "block",
+                      fontSize:
+                        "13px",
+                      fontWeight:
+                        700,
+                      marginBottom:
+                        "6px",
+                    }}
+                  >
+                    Due Date & Time
+                  </label>
+
+                  <input
+                    type="datetime-local"
+                    value={
+                      form.due_at
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setForm(
+                        (current) => ({
+                          ...current,
+                          due_at:
+                            event
+                              .target
+                              .value,
+                        })
+                      )
+                    }
+                    style={
+                      inputStyle
+                    }
+                  />
+                </div>
+
+                <div
+                  style={{
+                    gridColumn:
+                      "1 / -1",
+                  }}
+                >
+                  <label
+                    style={{
+                      display:
+                        "block",
+                      fontSize:
+                        "13px",
+                      fontWeight:
+                        700,
+                      marginBottom:
+                        "6px",
+                    }}
+                  >
+                    Description
+                  </label>
+
+                  <textarea
+                    value={
+                      form.description
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setForm(
+                        (current) => ({
+                          ...current,
+                          description:
+                            event
+                              .target
+                              .value,
+                        })
+                      )
+                    }
+                    placeholder="Add task details, instructions or notes..."
+                    rows={5}
+                    style={{
+                      ...inputStyle,
+                      height:
+                        "auto",
+                      padding:
+                        "11px 12px",
+                      resize:
+                        "vertical",
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent:
+                    "flex-end",
+                  gap: "10px",
+                  marginTop: "22px",
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() =>
+                    setShowModal(
+                      false
+                    )
+                  }
+                  style={{
+                    border:
+                      "1px solid #d1d5db",
+                    background:
+                      "#ffffff",
+                    color:
+                      "#374151",
+                    borderRadius:
+                      "8px",
+                    padding:
+                      "10px 16px",
+                    fontWeight:
+                      650,
+                    cursor:
+                      "pointer",
+                  }}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={
+                    saving
+                  }
+                  style={{
+                    border:
+                      "none",
+                    background:
+                      saving
+                        ? "#9ca3af"
+                        : "#111827",
+                    color:
+                      "#ffffff",
+                    borderRadius:
+                      "8px",
+                    padding:
+                      "10px 17px",
+                    fontWeight:
+                      700,
+                    cursor:
+                      saving
+                        ? "not-allowed"
+                        : "pointer",
+                  }}
+                >
+                  {saving
+                    ? "Saving..."
+                    : editingTask
+                    ? "Update Task"
+                    : "Create Task"}
+                </button>
               </div>
             </form>
           </div>
         </div>
       )}
-    </div>
-  );
-}
 
-/* =========================================================
-   SMALL COMPONENTS
-========================================================= */
-
-function KpiCard({
-  label,
-  value,
-  icon,
-  description,
-  danger = false,
-}: {
-  label: string;
-  value: string | number;
-  icon: string;
-  description: string;
-  danger?: boolean;
-}) {
-  return (
-    <div
-      style={{
-        background: "#ffffff",
-        border:
-          "1px solid #e5e7eb",
-        borderRadius: "13px",
-        padding: "18px",
-        boxShadow:
-          "0 2px 7px rgba(15,23,42,0.03)",
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          justifyContent:
-            "space-between",
-          alignItems: "flex-start",
-          gap: "10px",
-        }}
-      >
-        <div>
-          <div
-            style={{
-              color: "#6b7280",
-              fontSize: "12px",
-              fontWeight: 700,
-              textTransform:
-                "uppercase",
-              letterSpacing:
-                "0.35px",
-            }}
-          >
-            {label}
-          </div>
-
-          <div
-            style={{
-              marginTop:
-                "8px",
-              fontSize: "28px",
-              lineHeight: 1,
-              fontWeight: 800,
-              color: danger
-                ? "#dc2626"
-                : "#111827",
-            }}
-          >
-            {value}
-          </div>
-
-          <div
-            style={{
-              marginTop:
-                "8px",
-              color: "#9ca3af",
-              fontSize: "11px",
-            }}
-          >
-            {description}
-          </div>
-        </div>
-
+      {/* VIEW TASK MODAL */}
+      {selectedTask && (
         <div
           style={{
-            width: "38px",
-            height: "38px",
-            borderRadius:
-              "10px",
-            background: danger
-              ? "#fef2f2"
-              : "#f3f4f6",
-            color: danger
-              ? "#dc2626"
-              : "#374151",
+            position: "fixed",
+            inset: 0,
+            background:
+              "rgba(15,23,42,0.45)",
             display: "flex",
-            alignItems:
-              "center",
-            justifyContent:
-              "center",
-            fontSize: "17px",
-            fontWeight: 800,
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "20px",
+            zIndex: 1001,
           }}
         >
-          {icon}
+          <div
+            style={{
+              width: "100%",
+              maxWidth: "620px",
+              background: "#ffffff",
+              borderRadius: "14px",
+              boxShadow:
+                "0 20px 50px rgba(0,0,0,0.18)",
+            }}
+          >
+            <div
+              style={{
+                padding:
+                  "20px 22px",
+                borderBottom:
+                  "1px solid #e5e7eb",
+                display: "flex",
+                justifyContent:
+                  "space-between",
+                alignItems: "flex-start",
+                gap: "15px",
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    fontSize:
+                      "11px",
+                    fontWeight:
+                      750,
+                    color:
+                      "#6b7280",
+                    textTransform:
+                      "uppercase",
+                    marginBottom:
+                      "6px",
+                  }}
+                >
+                  {selectedTask.task_type}
+                </div>
+
+                <h2
+                  style={{
+                    margin: 0,
+                    fontSize:
+                      "21px",
+                    fontWeight:
+                      800,
+                  }}
+                >
+                  {
+                    selectedTask.title
+                  }
+                </h2>
+              </div>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setSelectedTask(
+                    null
+                  )
+                }
+                style={{
+                  border: "none",
+                  background:
+                    "transparent",
+                  fontSize:
+                    "24px",
+                  cursor:
+                    "pointer",
+                  color:
+                    "#6b7280",
+                }}
+              >
+                ×
+              </button>
+            </div>
+
+            <div
+              style={{
+                padding:
+                  "22px",
+              }}
+            >
+              <div
+                style={{
+                  display:
+                    "grid",
+                  gridTemplateColumns:
+                    "1fr 1fr",
+                  gap: "18px",
+                }}
+              >
+                <div>
+                  <div
+                    style={{
+                      fontSize:
+                        "11px",
+                      color:
+                        "#6b7280",
+                      fontWeight:
+                        750,
+                      textTransform:
+                        "uppercase",
+                      marginBottom:
+                        "5px",
+                    }}
+                  >
+                    Status
+                  </div>
+
+                  <span
+                    style={{
+                      display:
+                        "inline-flex",
+                      padding:
+                        "5px 9px",
+                      borderRadius:
+                        "999px",
+                      fontSize:
+                        "11px",
+                      fontWeight:
+                        700,
+                      ...getStatusStyle(
+                        selectedTask.status
+                      ),
+                    }}
+                  >
+                    {getStatusLabel(
+                      selectedTask.status
+                    )}
+                  </span>
+                </div>
+
+                <div>
+                  <div
+                    style={{
+                      fontSize:
+                        "11px",
+                      color:
+                        "#6b7280",
+                      fontWeight:
+                        750,
+                      textTransform:
+                        "uppercase",
+                      marginBottom:
+                        "5px",
+                    }}
+                  >
+                    Due
+                  </div>
+
+                  <div
+                    style={{
+                      fontSize:
+                        "13px",
+                      fontWeight:
+                        600,
+                    }}
+                  >
+                    {formatDateTime(
+                      selectedTask.due_at
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <div
+                    style={{
+                      fontSize:
+                        "11px",
+                      color:
+                        "#6b7280",
+                      fontWeight:
+                        750,
+                      textTransform:
+                        "uppercase",
+                      marginBottom:
+                        "5px",
+                    }}
+                  >
+                    Assigned To
+                  </div>
+
+                  <div
+                    style={{
+                      fontSize:
+                        "13px",
+                      fontWeight:
+                        600,
+                    }}
+                  >
+                    {getStaff(
+                      selectedTask
+                    )?.full_name ||
+                      "Unassigned"}
+                  </div>
+                </div>
+
+                <div>
+                  <div
+                    style={{
+                      fontSize:
+                        "11px",
+                      color:
+                        "#6b7280",
+                      fontWeight:
+                        750,
+                      textTransform:
+                        "uppercase",
+                      marginBottom:
+                        "5px",
+                    }}
+                  >
+                    Created
+                  </div>
+
+                  <div
+                    style={{
+                      fontSize:
+                        "13px",
+                      fontWeight:
+                        600,
+                    }}
+                  >
+                    {formatDate(
+                      selectedTask.created_at
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {selectedTask.description && (
+                <div
+                  style={{
+                    marginTop:
+                      "22px",
+                    padding:
+                      "14px",
+                    borderRadius:
+                      "10px",
+                    background:
+                      "#f9fafb",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize:
+                        "11px",
+                      color:
+                        "#6b7280",
+                      fontWeight:
+                        750,
+                      textTransform:
+                        "uppercase",
+                      marginBottom:
+                        "6px",
+                    }}
+                  >
+                    Description
+                  </div>
+
+                  <div
+                    style={{
+                      fontSize:
+                        "14px",
+                      lineHeight:
+                        1.6,
+                      color:
+                        "#374151",
+                    }}
+                  >
+                    {
+                      selectedTask.description
+                    }
+                  </div>
+                </div>
+              )}
+
+              {(() => {
+                const lead =
+                  getLead(
+                    selectedTask
+                  );
+
+                const opportunity =
+                  getOpportunity(
+                    selectedTask
+                  );
+
+                if (!lead && !opportunity) {
+                  return null;
+                }
+
+                return (
+                  <div
+                    style={{
+                      marginTop:
+                        "18px",
+                      padding:
+                        "14px",
+                      borderRadius:
+                        "10px",
+                      border:
+                        "1px solid #e5e7eb",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize:
+                          "11px",
+                        color:
+                          "#6b7280",
+                        fontWeight:
+                          750,
+                        textTransform:
+                          "uppercase",
+                        marginBottom:
+                          "7px",
+                      }}
+                    >
+                      Related Record
+                    </div>
+
+                    {lead && (
+                      <div>
+                        <div
+                          style={{
+                            fontSize:
+                              "14px",
+                            fontWeight:
+                              750,
+                          }}
+                        >
+                          {lead.name ||
+                            "Unnamed Lead"}
+                        </div>
+
+                        {lead.ciu_number && (
+                          <div
+                            style={{
+                              fontSize:
+                                "12px",
+                              color:
+                                "#6b7280",
+                              marginTop:
+                                "3px",
+                            }}
+                          >
+                            CIU Number:{" "}
+                            {
+                              lead.ciu_number
+                            }
+                          </div>
+                        )}
+
+                        {lead.phone && (
+                          <div
+                            style={{
+                              fontSize:
+                                "12px",
+                              color:
+                                "#6b7280",
+                              marginTop:
+                                "3px",
+                            }}
+                          >
+                            Phone:{" "}
+                            {
+                              lead.phone
+                            }
+                          </div>
+                        )}
+
+                        {lead.email && (
+                          <div
+                            style={{
+                              fontSize:
+                                "12px",
+                              color:
+                                "#6b7280",
+                              marginTop:
+                                "3px",
+                            }}
+                          >
+                            Email:{" "}
+                            {
+                              lead.email
+                            }
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {opportunity && (
+                      <div
+                        style={{
+                          marginTop:
+                            lead
+                              ? "12px"
+                              : "0",
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize:
+                              "14px",
+                            fontWeight:
+                              750,
+                          }}
+                        >
+                          {
+                            opportunity.title
+                          }
+                        </div>
+
+                        <div
+                          style={{
+                            fontSize:
+                              "12px",
+                            color:
+                              "#6b7280",
+                            marginTop:
+                              "3px",
+                          }}
+                        >
+                          {formatCurrency(
+                            opportunity.value,
+                            opportunity.currency ||
+                              "UGX"
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              <div
+                style={{
+                  display: "flex",
+                  gap: "8px",
+                  flexWrap: "wrap",
+                  marginTop: "22px",
+                }}
+              >
+                {getLead(
+                  selectedTask
+                )?.phone && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      callLead(
+                        getLead(
+                          selectedTask
+                        )
+                      )
+                    }
+                    style={{
+                      ...smallActionButton,
+                      color:
+                        "#1d4ed8",
+                      border:
+                        "1px solid #bfdbfe",
+                      background:
+                        "#eff6ff",
+                    }}
+                  >
+                    Call Lead
+                  </button>
+                )}
+
+                {getLead(
+                  selectedTask
+                )?.phone && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      whatsappLead(
+                        getLead(
+                          selectedTask
+                        )
+                      )
+                    }
+                    style={{
+                      ...smallActionButton,
+                      color:
+                        "#047857",
+                      border:
+                        "1px solid #a7f3d0",
+                      background:
+                        "#ecfdf5",
+                    }}
+                  >
+                    WhatsApp
+                  </button>
+                )}
+
+                {getLead(
+                  selectedTask
+                )?.email && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      emailLead(
+                        getLead(
+                          selectedTask
+                        )
+                      )
+                    }
+                    style={{
+                      ...smallActionButton,
+                      color:
+                        "#7c3aed",
+                      border:
+                        "1px solid #ddd6fe",
+                      background:
+                        "#f5f3ff",
+                    }}
+                  >
+                    Email
+                  </button>
+                )}
+
+                {selectedTask.status !==
+                  "completed" && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await markComplete(
+                        selectedTask
+                      );
+                      setSelectedTask(
+                        null
+                      );
+                    }}
+                    style={{
+                      ...smallActionButton,
+                      color:
+                        "#047857",
+                      border:
+                        "1px solid #a7f3d0",
+                      background:
+                        "#ecfdf5",
+                    }}
+                  >
+                    Complete Task
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedTask(
+                      null
+                    );
+                    openEditModal(
+                      selectedTask
+                    );
+                  }}
+                  style={
+                    smallActionButton
+                  }
+                >
+                  Edit Task
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
-  );
-}
+      )}
 
-function DetailItem({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
-  return (
-    <div>
-      <div
-        style={
-          detailLabelStyle
+      {/* RESPONSIVE STYLE */}
+      <style jsx>{`
+        @media (max-width: 1000px) {
+          main {
+            padding: 18px !important;
+          }
+
+          .unused {
+            display: none;
+          }
         }
-      >
-        {label}
-      </div>
 
-      <div
-        style={{
-          marginTop:
-            "5px",
-          color: "#111827",
-          fontSize:
-            "14px",
-          fontWeight:
-            600,
-        }}
-      >
-        {value}
-      </div>
-    </div>
+        @media (max-width: 800px) {
+          div {
+            box-sizing: border-box;
+          }
+        }
+      `}</style>
+    </main>
   );
 }
-
-function FormLabel({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  return (
-    <label
-      style={{
-        display:
-          "block",
-        marginBottom:
-          "7px",
-        color:
-          "#374151",
-        fontSize:
-          "12px",
-        fontWeight:
-          700,
-      }}
-    >
-      {children}
-    </label>
-  );
-}
-
-/* =========================================================
-   STYLES
-========================================================= */
-
-const tableHeaderStyle: React.CSSProperties = {
-  padding: "12px 18px",
-  textAlign: "left",
-  fontSize: "10px",
-  fontWeight: 800,
-  color: "#6b7280",
-  letterSpacing: "0.7px",
-  whiteSpace: "nowrap",
-};
-
-const smallActionButton: React.CSSProperties = {
-  border: "1px solid #d1d5db",
-  background: "#ffffff",
-  color: "#374151",
-  borderRadius: "7px",
-  padding: "6px 9px",
-  fontSize: "11px",
-  fontWeight: 650,
-  cursor: "pointer",
-};
-
-const modalOverlayStyle: React.CSSProperties = {
-  position: "fixed",
-  inset: 0,
-  zIndex: 1000,
-  background:
-    "rgba(15, 23, 42, 0.55)",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  padding: "20px",
-  overflowY: "auto",
-};
-
-const modalCardStyle: React.CSSProperties = {
-  width: "100%",
-  maxWidth: "900px",
-  maxHeight: "calc(100vh - 40px)",
-  overflowY: "auto",
-  background: "#ffffff",
-  borderRadius: "14px",
-  boxShadow:
-    "0 25px 70px rgba(15,23,42,0.25)",
-};
-
-const modalHeaderStyle: React.CSSProperties = {
-  display: "flex",
-  alignItems: "flex-start",
-  justifyContent: "space-between",
-  gap: "20px",
-  padding: "20px 22px",
-  borderBottom: "1px solid #e5e7eb",
-};
-
-const closeButtonStyle: React.CSSProperties = {
-  width: "34px",
-  height: "34px",
-  borderRadius: "8px",
-  border: "1px solid #e5e7eb",
-  background: "#ffffff",
-  color: "#6b7280",
-  fontSize: "22px",
-  lineHeight: 1,
-  cursor: "pointer",
-};
-
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  height: "42px",
-  boxSizing: "border-box",
-  border: "1px solid #d1d5db",
-  borderRadius: "8px",
-  padding: "0 12px",
-  fontSize: "13px",
-  color: "#111827",
-  background: "#ffffff",
-  outline: "none",
-};
-
-const primaryButtonStyle: React.CSSProperties = {
-  border: "none",
-  borderRadius: "8px",
-  background: "#111827",
-  color: "#ffffff",
-  padding: "10px 15px",
-  fontSize: "13px",
-  fontWeight: 700,
-  cursor: "pointer",
-};
-
-const secondaryButtonStyle: React.CSSProperties = {
-  border: "1px solid #d1d5db",
-  borderRadius: "8px",
-  background: "#ffffff",
-  color: "#374151",
-  padding: "10px 15px",
-  fontSize: "13px",
-  fontWeight: 650,
-  cursor: "pointer",
-};
-
-const detailLabelStyle: React.CSSProperties = {
-  color: "#9ca3af",
-  fontSize: "10px",
-  fontWeight: 800,
-  letterSpacing: "0.6px",
-  textTransform: "uppercase",
-};
