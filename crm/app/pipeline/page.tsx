@@ -12,8 +12,20 @@ type PipelineStage = {
   is_lost: boolean | null;
 };
 
+type Lead = {
+  id: string;
+  organization_id: string | null;
+  ciu_number: string | null;
+  name: string | null;
+  phone: string | null;
+  email: string | null;
+  product_service: string | null;
+  contact_id: string | null;
+};
+
 type Opportunity = {
   id: string;
+  lead_id: string | null;
   title: string;
   value: number | null;
   probability: number | null;
@@ -28,18 +40,11 @@ export default function Pipeline() {
 
   const [stages, setStages] = useState<PipelineStage[]>([]);
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
+  const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
 
-  const [showNewDeal, setShowNewDeal] = useState(false);
   const [saving, setSaving] = useState(false);
-
-  const [newDeal, setNewDeal] = useState({
-    title: "",
-    value: "",
-    stage_id: "",
-    probability: "",
-  });
 
   async function loadPipeline() {
     setLoading(true);
@@ -62,7 +67,7 @@ export default function Pipeline() {
       await supabase
         .from("opportunities")
         .select(
-          "id, title, value, probability, stage_id, status, updated_at, created_at"
+          "id, lead_id, title, value, probability, stage_id, status, updated_at, created_at"
         )
         .order("created_at", { ascending: false });
 
@@ -74,19 +79,77 @@ export default function Pipeline() {
       setOpportunities((opportunityData as Opportunity[]) || []);
     }
 
+    const { data: leadData, error: leadError } = await supabase
+      .from("leads")
+      .select(
+        "id, organization_id, ciu_number, name, phone, email, product_service, contact_id"
+      )
+      .order("name", { ascending: true });
+
+    if (leadError) {
+      console.error("Pipeline leads error:", leadError);
+      setErrorMessage(leadError.message);
+      setLeads([]);
+    } else {
+      setLeads((leadData as Lead[]) || []);
+    }
+
     const loadedStages = (stageData as PipelineStage[]) || [];
     setStages(loadedStages);
 
-    if (loadedStages.length > 0 && !newDeal.stage_id) {
-      const firstOpenStage =
-        loadedStages.find((stage) => !stage.is_won && !stage.is_lost) ||
-        loadedStages[0];
+    const loadedLeads = (leadData as Lead[]) || [];
+    const leadsStage = loadedStages.find(
+      (stage) => stage.position === 1
+    );
 
-      setNewDeal((current) => ({
-        ...current,
-        stage_id: firstOpenStage.id,
-        probability: String(firstOpenStage.probability ?? ""),
-      }));
+    if (leadsStage && loadedLeads.length > 0) {
+      const existingLeadIds = new Set(
+        ((opportunityData as Opportunity[]) || [])
+          .map((opportunity) => opportunity.lead_id)
+          .filter(Boolean)
+      );
+
+      const missingLeads = loadedLeads.filter(
+        (lead) => !existingLeadIds.has(lead.id)
+      );
+
+      if (missingLeads.length > 0) {
+        const newPipelineRecords = missingLeads.map((lead) => ({
+          lead_id: lead.id,
+          organization_id: lead.organization_id,
+          contact_id: lead.contact_id,
+          title: lead.name || "Unnamed Lead",
+          value: 0,
+          currency: "UGX",
+          stage_id: leadsStage.id,
+          status: "open",
+          probability: Number(leadsStage.probability ?? 0),
+          notes: "Automatically added from CRM Leads.",
+        }));
+
+        const {
+          data: createdOpportunities,
+          error: createOpportunityError,
+        } = await supabase
+          .from("opportunities")
+          .insert(newPipelineRecords)
+          .select(
+            "id, lead_id, title, value, probability, stage_id, status, updated_at, created_at"
+          );
+
+        if (createOpportunityError) {
+          console.error(
+            "Pipeline Lead sync error:",
+            createOpportunityError
+          );
+          setErrorMessage(createOpportunityError.message);
+        } else if (createdOpportunities) {
+          setOpportunities([
+            ...((opportunityData as Opportunity[]) || []),
+            ...(createdOpportunities as Opportunity[]),
+          ]);
+        }
+      }
     }
 
     setLoading(false);
@@ -165,81 +228,50 @@ export default function Pipeline() {
     return `UGX ${value.toLocaleString()}`;
   }
 
-  function handleStageChange(stageId: string) {
+  async function transferOpportunity(
+    opportunityId: string,
+    stageId: string
+  ) {
     const selectedStage = stages.find((stage) => stage.id === stageId);
 
-    setNewDeal((current) => ({
-      ...current,
-      stage_id: stageId,
-      probability: String(selectedStage?.probability ?? ""),
-    }));
-  }
-
-  async function handleAddDeal(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    if (!newDeal.title.trim()) {
-      setErrorMessage("Please enter a deal title.");
-      return;
-    }
-
-    if (!newDeal.value || Number(newDeal.value) <= 0) {
-      setErrorMessage("Please enter a valid deal value.");
-      return;
-    }
-
-    if (!newDeal.stage_id) {
-      setErrorMessage("Please select a pipeline stage.");
+    if (!selectedStage) {
+      setErrorMessage("The selected pipeline stage could not be found.");
       return;
     }
 
     setSaving(true);
     setErrorMessage("");
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      setErrorMessage("Your session has expired. Please log in again.");
-      setSaving(false);
-      return;
-    }
-
-    const { error } = await supabase.from("opportunities").insert({
-      title: newDeal.title.trim(),
-      value: Number(newDeal.value),
-      currency: "UGX",
-      stage_id: newDeal.stage_id,
-      probability: Number(newDeal.probability || 0),
-      status: "open",
-      assigned_to: user.id,
-    });
+    const { error } = await supabase
+      .from("opportunities")
+      .update({
+        stage_id: stageId,
+        probability: Number(selectedStage.probability ?? 0),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", opportunityId);
 
     if (error) {
-      console.error("New deal error:", error);
+      console.error("Pipeline stage transfer error:", error);
       setErrorMessage(error.message);
       setSaving(false);
       return;
     }
 
-    setNewDeal({
-      title: "",
-      value: "",
-      stage_id: stages.find((stage) => !stage.is_won && !stage.is_lost)?.id ||
-        stages[0]?.id ||
-        "",
-      probability: String(
-        stages.find((stage) => !stage.is_won && !stage.is_lost)?.probability ??
-          stages[0]?.probability ??
-          ""
-      ),
-    });
+    setOpportunities((current) =>
+      current.map((opportunity) =>
+        opportunity.id === opportunityId
+          ? {
+              ...opportunity,
+              stage_id: stageId,
+              probability: Number(selectedStage.probability ?? 0),
+              updated_at: new Date().toISOString(),
+            }
+          : opportunity
+      )
+    );
 
-    setShowNewDeal(false);
     setSaving(false);
-
-    await loadPipeline();
   }
 
   return (
@@ -250,29 +282,7 @@ export default function Pipeline() {
           <p>Track opportunities from first contact to conversion.</p>
         </div>
 
-       <button
-  className="crm-btn"
-  onClick={() => setShowNewDeal(true)}
-  style={{
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    visibility: "visible",
-    opacity: 1,
-    color: "#ffffff",
-    background: "#2563eb",
-    border: "1px solid #2563eb",
-    padding: "10px 16px",
-    borderRadius: 8,
-    fontSize: 14,
-    fontWeight: 600,
-    cursor: "pointer",
-    minHeight: 40,
-    whiteSpace: "nowrap",
-  }}
->
-  + New Deal
-</button>
+
       </div>
 
       {errorMessage && (
@@ -370,16 +380,32 @@ export default function Pipeline() {
                         stage.probability ??
                         0;
 
+                      const linkedLead = leads.find(
+                        (lead) => lead.id === deal.lead_id
+                      );
+
                       return (
                         <div
                           className="crm-deal"
                           key={deal.id}
                         >
-                          <strong>{deal.title}</strong>
+                          <strong>
+                            {linkedLead?.name || deal.title}
+                          </strong>
 
                           <small>
-                            Business opportunity
+                            {linkedLead?.ciu_number ||
+                              "No CIU number"}{" "}
+                            ?{" "}
+                            {linkedLead?.product_service ||
+                              "Programme not set"}
                           </small>
+
+                          {linkedLead?.phone && (
+                            <small>
+                              {linkedLead.phone}
+                            </small>
+                          )}
 
                           <div className="crm-deal-value">
                             {formatCurrency(
@@ -397,6 +423,50 @@ export default function Pipeline() {
                               }}
                             />
                           </div>
+
+                          <div
+                            style={{
+                              marginTop: 12,
+                            }}
+                          >
+                            <select
+                              value={deal.stage_id}
+                              disabled={saving}
+                              onChange={(event) =>
+                                transferOpportunity(
+                                  deal.id,
+                                  event.target.value
+                                )
+                              }
+                              style={{
+                                flex: 1,
+                                minWidth: 0,
+                                padding: "8px 9px",
+                                border: "1px solid #d1d5db",
+                                borderRadius: 7,
+                                background: "#ffffff",
+                                fontSize: 12,
+                                cursor: saving
+                                  ? "not-allowed"
+                                  : "pointer",
+                              }}
+                            >
+                              {stages
+                                .filter(
+                                  (stage) => !stage.is_lost
+                                )
+                                .map((stageOption) => (
+                                  <option
+                                    key={stageOption.id}
+                                    value={stageOption.id}
+                                  >
+                                    {stageOption.name}
+                                  </option>
+                                ))}
+                            </select>
+
+
+                          </div>
                         </div>
                       );
                     })
@@ -407,246 +477,7 @@ export default function Pipeline() {
         </div>
       )}
 
-      {showNewDeal && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.45)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-            padding: 20,
-          }}
-        >
-          <div
-            style={{
-              width: "100%",
-              maxWidth: 500,
-              background: "#fff",
-              borderRadius: 12,
-              padding: 24,
-              boxShadow: "0 20px 50px rgba(0,0,0,0.2)",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: 20,
-              }}
-            >
-              <div>
-                <h2 style={{ margin: 0 }}>Create New Deal</h2>
-                <p
-                  style={{
-                    margin: "6px 0 0",
-                    fontSize: 13,
-                    opacity: 0.65,
-                  }}
-                >
-                  Add a new opportunity to your sales pipeline.
-                </p>
-              </div>
 
-              <button
-                type="button"
-                onClick={() => setShowNewDeal(false)}
-                style={{
-                  border: "none",
-                  background: "transparent",
-                  fontSize: 22,
-                  cursor: "pointer",
-                }}
-              >
-                ×
-              </button>
-            </div>
-
-            <form onSubmit={handleAddDeal}>
-              <div style={{ marginBottom: 16 }}>
-                <label
-                  style={{
-                    display: "block",
-                    fontSize: 13,
-                    fontWeight: 600,
-                    marginBottom: 6,
-                  }}
-                >
-                  Deal Title
-                </label>
-
-                <input
-                  type="text"
-                  value={newDeal.title}
-                  onChange={(event) =>
-                    setNewDeal({
-                      ...newDeal,
-                      title: event.target.value,
-                    })
-                  }
-                  placeholder="e.g. MBA Registration"
-                  style={{
-                    width: "100%",
-                    padding: "11px 12px",
-                    border: "1px solid #ddd",
-                    borderRadius: 7,
-                  }}
-                />
-              </div>
-
-              <div style={{ marginBottom: 16 }}>
-                <label
-                  style={{
-                    display: "block",
-                    fontSize: 13,
-                    fontWeight: 600,
-                    marginBottom: 6,
-                  }}
-                >
-                  Deal Value (UGX)
-                </label>
-
-                <input
-                  type="number"
-                  min="0"
-                  value={newDeal.value}
-                  onChange={(event) =>
-                    setNewDeal({
-                      ...newDeal,
-                      value: event.target.value,
-                    })
-                  }
-                  placeholder="e.g. 4200000"
-                  style={{
-                    width: "100%",
-                    padding: "11px 12px",
-                    border: "1px solid #ddd",
-                    borderRadius: 7,
-                  }}
-                />
-              </div>
-
-              <div style={{ marginBottom: 16 }}>
-                <label
-                  style={{
-                    display: "block",
-                    fontSize: 13,
-                    fontWeight: 600,
-                    marginBottom: 6,
-                  }}
-                >
-                  Pipeline Stage
-                </label>
-
-                <select
-                  value={newDeal.stage_id}
-                  onChange={(event) =>
-                    handleStageChange(event.target.value)
-                  }
-                  style={{
-                    width: "100%",
-                    padding: "11px 12px",
-                    border: "1px solid #ddd",
-                    borderRadius: 7,
-                  }}
-                >
-                  {stages
-                    .filter((stage) => !stage.is_lost)
-                    .map((stage) => (
-                      <option
-                        key={stage.id}
-                        value={stage.id}
-                      >
-                        {stage.name}
-                      </option>
-                    ))}
-                </select>
-              </div>
-
-              <div style={{ marginBottom: 20 }}>
-                <label
-                  style={{
-                    display: "block",
-                    fontSize: 13,
-                    fontWeight: 600,
-                    marginBottom: 6,
-                  }}
-                >
-                  Probability (%)
-                </label>
-
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={newDeal.probability}
-                  onChange={(event) =>
-                    setNewDeal({
-                      ...newDeal,
-                      probability: event.target.value,
-                    })
-                  }
-                  style={{
-                    width: "100%",
-                    padding: "11px 12px",
-                    border: "1px solid #ddd",
-                    borderRadius: 7,
-                  }}
-                />
-              </div>
-
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "flex-end",
-                  gap: 10,
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() => setShowNewDeal(false)}
-                  style={{
-                    padding: "10px 16px",
-                    border: "1px solid #ddd",
-                    borderRadius: 7,
-                    background: "#fff",
-                    cursor: "pointer",
-                  }}
-                >
-                  Cancel
-                </button>
-
-               <button
-  type="submit"
-  disabled={saving}
-  style={{
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    visibility: "visible",
-    opacity: 1,
-    color: "#ffffff",
-    background: "#2563eb",
-    border: "1px solid #2563eb",
-    padding: "10px 16px",
-    borderRadius: 8,
-    fontSize: 14,
-    fontWeight: 600,
-    cursor: saving ? "not-allowed" : "pointer",
-    minHeight: 40,
-    whiteSpace: "nowrap",
-  }}
->
-  {saving ? "Saving..." : "Create Deal"}
-</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </>
   );
 }

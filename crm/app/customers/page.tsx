@@ -435,10 +435,18 @@ export default function Customers() {
 
   return (
     <>
-      <div className="crm-page-heading">
+      <div
+        className="crm-page-heading"
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "flex-start",
+          gap: "4px",
+        }}
+      >
         <div>
-          <h1>Customers</h1>
-          <p>
+          <h1 style={{ marginBottom: "6px" }}>Customers</h1>
+          <p style={{ margin: 0 }}>
             View students and admissions from the same records used across the CRM.
           </p>
         </div>
