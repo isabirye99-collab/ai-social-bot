@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -96,62 +96,6 @@ export default function Pipeline() {
 
     const loadedStages = (stageData as PipelineStage[]) || [];
     setStages(loadedStages);
-
-    const loadedLeads = (leadData as Lead[]) || [];
-    const leadsStage = loadedStages.find(
-      (stage) => stage.position === 1
-    );
-
-    if (leadsStage && loadedLeads.length > 0) {
-      const existingLeadIds = new Set(
-        ((opportunityData as Opportunity[]) || [])
-          .map((opportunity) => opportunity.lead_id)
-          .filter(Boolean)
-      );
-
-      const missingLeads = loadedLeads.filter(
-        (lead) => !existingLeadIds.has(lead.id)
-      );
-
-      if (missingLeads.length > 0) {
-        const newPipelineRecords = missingLeads.map((lead) => ({
-          lead_id: lead.id,
-          organization_id: lead.organization_id,
-          contact_id: lead.contact_id,
-          title: lead.name || "Unnamed Lead",
-          value: 0,
-          currency: "UGX",
-          stage_id: leadsStage.id,
-          status: "open",
-          probability: Number(leadsStage.probability ?? 0),
-          notes: "Automatically added from CRM Leads.",
-        }));
-
-        const {
-          data: createdOpportunities,
-          error: createOpportunityError,
-        } = await supabase
-          .from("opportunities")
-          .insert(newPipelineRecords)
-          .select(
-            "id, lead_id, title, value, probability, stage_id, status, updated_at, created_at"
-          );
-
-        if (createOpportunityError) {
-          console.error(
-            "Pipeline Lead sync error:",
-            createOpportunityError
-          );
-          setErrorMessage(createOpportunityError.message);
-        } else if (createdOpportunities) {
-          setOpportunities([
-            ...((opportunityData as Opportunity[]) || []),
-            ...(createdOpportunities as Opportunity[]),
-          ]);
-        }
-      }
-    }
-
     setLoading(false);
   }
 
@@ -481,5 +425,6 @@ export default function Pipeline() {
     </>
   );
 }
+
 
 
