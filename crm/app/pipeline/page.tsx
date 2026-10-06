@@ -396,7 +396,7 @@ export default function Pipeline() {
                           <small>
                             {linkedLead?.ciu_number ||
                               "No CIU number"}{" "}
-                            ?{" "}
+                            -{" "}
                             {linkedLead?.product_service ||
                               "Programme not set"}
                           </small>
@@ -481,3 +481,5 @@ export default function Pipeline() {
     </>
   );
 }
+
+
