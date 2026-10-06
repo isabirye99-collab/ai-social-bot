@@ -186,6 +186,65 @@ function isThisMonth(value: string | null) {
   );
 }
 
+function isOverdueFollowUp(value: string | null) {
+  if (!value) return false;
+
+  const followUpDate = new Date(value);
+  const now = new Date();
+
+  return followUpDate < now;
+}
+
+function isTodayFollowUp(value: string | null) {
+  if (!value) return false;
+
+  const followUpDate = new Date(value);
+  const now = new Date();
+
+  return isSameDay(followUpDate, now);
+}
+
+function isUpcomingFollowUp(value: string | null) {
+  if (!value) return false;
+
+  const followUpDate = new Date(value);
+  const now = new Date();
+
+  const sevenDaysFromNow = new Date(now);
+  sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
+
+  return (
+    followUpDate > now &&
+    followUpDate <= sevenDaysFromNow
+  );
+}
+
+function normalizeWhatsAppNumber(phone: string | null) {
+  if (!phone) return "";
+
+  const cleaned = phone.replace(/[^\d+]/g, "");
+
+  if (cleaned.startsWith("+")) {
+    return cleaned.substring(1);
+  }
+
+  if (cleaned.startsWith("0")) {
+    return `256${cleaned.substring(1)}`;
+  }
+
+  return cleaned;
+}
+
+function isClosedLead(lead: Lead) {
+  const status = (lead.status || "").toLowerCase();
+
+  return (
+    status === "converted" ||
+    status === "lost" ||
+    status === "unqualified"
+  );
+}
+
 export default function DashboardPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [admissions, setAdmissions] = useState<Admission[]>([]);
@@ -381,6 +440,7 @@ export default function DashboardPage() {
 
     const followUps = leads.filter((lead) => {
       if (!lead.next_follow_up_at) return false;
+      if (isClosedLead(lead)) return false;
 
       const followUpDate = new Date(lead.next_follow_up_at);
 
@@ -414,6 +474,117 @@ export default function DashboardPage() {
       ).length,
     };
   }, [leads, admissions, opportunities, tasks]);
+
+  const overdueFollowUps = useMemo(() => {
+    return leads
+      .filter((lead) => {
+        if (!lead.next_follow_up_at) return false;
+        if (isClosedLead(lead)) return false;
+
+        return isOverdueFollowUp(lead.next_follow_up_at);
+      })
+      .sort((a, b) => {
+        return (
+          new Date(a.next_follow_up_at || 0).getTime() -
+          new Date(b.next_follow_up_at || 0).getTime()
+        );
+      });
+  }, [leads]);
+
+  const todayFollowUps = useMemo(() => {
+    return leads
+      .filter((lead) => {
+        if (!lead.next_follow_up_at) return false;
+        if (isClosedLead(lead)) return false;
+
+        return isTodayFollowUp(lead.next_follow_up_at);
+      })
+      .sort((a, b) => {
+        return (
+          new Date(a.next_follow_up_at || 0).getTime() -
+          new Date(b.next_follow_up_at || 0).getTime()
+        );
+      });
+  }, [leads]);
+
+  const upcomingFollowUps = useMemo(() => {
+    return leads
+      .filter((lead) => {
+        if (!lead.next_follow_up_at) return false;
+        if (isClosedLead(lead)) return false;
+
+        return isUpcomingFollowUp(lead.next_follow_up_at);
+      })
+      .sort((a, b) => {
+        return (
+          new Date(a.next_follow_up_at || 0).getTime() -
+          new Date(b.next_follow_up_at || 0).getTime()
+        );
+      });
+  }, [leads]);
+
+  const interestedLeads = useMemo(() => {
+    return leads.filter((lead) => {
+      const status = (lead.status || "").toLowerCase();
+      const feedback = (lead.feedback || "").toLowerCase();
+
+      return (
+        status === "qualified" ||
+        feedback.includes("interested")
+      );
+    });
+  }, [leads]);
+
+  const admissionProspects = useMemo(() => {
+    const prospectStages = [
+      "application started",
+      "application submitted",
+      "admitted",
+      "acceptance paid",
+      "enrolled",
+    ];
+
+    return admissions.filter((admission) => {
+      const stage = (admission.stage || "").toLowerCase();
+
+      return prospectStages.includes(stage);
+    });
+  }, [admissions]);
+
+  const acceptanceFollowUps = useMemo(() => {
+    return admissions.filter((admission) => {
+      const stage = (admission.stage || "").toLowerCase();
+
+      return (
+        stage === "admitted" ||
+        stage === "acceptance paid"
+      );
+    });
+  }, [admissions]);
+
+  const todayTasks = useMemo(() => {
+    const now = new Date();
+
+    return tasks
+      .filter((task) => {
+        if (!task.due_at) return false;
+
+        if (
+          task.status === "completed" ||
+          task.status === "cancelled"
+        ) {
+          return false;
+        }
+
+        return isSameDay(new Date(task.due_at), now);
+      })
+      .sort((a, b) => {
+        return (
+          new Date(a.due_at || 0).getTime() -
+          new Date(b.due_at || 0).getTime()
+        );
+      });
+  }, [tasks]);
 
   const recentLeads = useMemo(() => {
     return leads.slice(0, 6);
@@ -453,16 +624,6 @@ export default function DashboardPage() {
 
     return map;
   }, [profiles]);
-
-  const leadMap = useMemo(() => {
-    const map = new Map<string, Lead>();
-
-    leads.forEach((lead) => {
-      map.set(lead.id, lead);
-    });
-
-    return map;
-  }, [leads]);
 
   const pipelineSummary = useMemo(() => {
     return pipelineStages.map((stage) => {
@@ -517,6 +678,11 @@ export default function DashboardPage() {
       </main>
     );
   }
+
+  const priorityFollowUps = [
+    ...overdueFollowUps,
+    ...todayFollowUps,
+  ].slice(0, 8);
 
   return (
     <main
@@ -854,7 +1020,7 @@ export default function DashboardPage() {
               >
                 {stats.followUps > 0
                   ? "Requires attention"
-                  : "Nothing overdue"}
+                  : "Nothing due"}
               </div>
             </div>
           </Link>
@@ -907,6 +1073,1054 @@ export default function DashboardPage() {
             </div>
           </Link>
         </div>
+
+        {/* DAILY FOLLOW-UP WORKSPACE */}
+        <section
+          style={{
+            marginBottom: 24,
+            background: "#ffffff",
+            border: "1px solid #e5e7eb",
+            borderRadius: 12,
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              padding: "18px 20px",
+              borderBottom: "1px solid #e5e7eb",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 12,
+              flexWrap: "wrap",
+            }}
+          >
+            <div>
+              <h2
+                style={{
+                  margin: 0,
+                  fontSize: 20,
+                  fontWeight: 700,
+                }}
+              >
+                Daily Follow-up Workspace
+              </h2>
+
+              <p
+                style={{
+                  margin: "5px 0 0",
+                  color: "#64748b",
+                  fontSize: 13,
+                }}
+              >
+                Focus on students and activities that need attention.
+              </p>
+            </div>
+
+            <Link
+              href="/leads"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                visibility: "visible",
+                opacity: 1,
+                color: "#ffffff",
+                background: "#2563eb",
+                border: "1px solid #2563eb",
+                padding: "9px 14px",
+                borderRadius: 8,
+                fontSize: 13,
+                fontWeight: 600,
+                textDecoration: "none",
+              }}
+            >
+              Open Leads
+            </Link>
+          </div>
+
+          {/* WORKSPACE COUNTS */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns:
+                "repeat(auto-fit, minmax(170px, 1fr))",
+              gap: 12,
+              padding: 20,
+              borderBottom: "1px solid #e5e7eb",
+            }}
+          >
+            <div
+              style={{
+                background: "#fef2f2",
+                border: "1px solid #fecaca",
+                borderRadius: 10,
+                padding: 15,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 12,
+                  color: "#991b1b",
+                  fontWeight: 600,
+                }}
+              >
+                Overdue
+              </div>
+
+              <div
+                style={{
+                  marginTop: 5,
+                  fontSize: 26,
+                  fontWeight: 700,
+                  color: "#dc2626",
+                }}
+              >
+                {overdueFollowUps.length}
+              </div>
+            </div>
+
+            <div
+              style={{
+                background: "#eff6ff",
+                border: "1px solid #bfdbfe",
+                borderRadius: 10,
+                padding: 15,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 12,
+                  color: "#1d4ed8",
+                  fontWeight: 600,
+                }}
+              >
+                Due Today
+              </div>
+
+              <div
+                style={{
+                  marginTop: 5,
+                  fontSize: 26,
+                  fontWeight: 700,
+                  color: "#2563eb",
+                }}
+              >
+                {todayFollowUps.length}
+              </div>
+            </div>
+
+            <div
+              style={{
+                background: "#f0fdf4",
+                border: "1px solid #bbf7d0",
+                borderRadius: 10,
+                padding: 15,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 12,
+                  color: "#166534",
+                  fontWeight: 600,
+                }}
+              >
+                Next 7 Days
+              </div>
+
+              <div
+                style={{
+                  marginTop: 5,
+                  fontSize: 26,
+                  fontWeight: 700,
+                  color: "#16a34a",
+                }}
+              >
+                {upcomingFollowUps.length}
+              </div>
+            </div>
+
+            <div
+              style={{
+                background: "#f5f3ff",
+                border: "1px solid #ddd6fe",
+                borderRadius: 10,
+                padding: 15,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 12,
+                  color: "#6d28d9",
+                  fontWeight: 600,
+                }}
+              >
+                Interested Leads
+              </div>
+
+              <div
+                style={{
+                  marginTop: 5,
+                  fontSize: 26,
+                  fontWeight: 700,
+                  color: "#7c3aed",
+                }}
+              >
+                {interestedLeads.length}
+              </div>
+            </div>
+
+            <div
+              style={{
+                background: "#fff7ed",
+                border: "1px solid #fed7aa",
+                borderRadius: 10,
+                padding: 15,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 12,
+                  color: "#c2410c",
+                  fontWeight: 600,
+                }}
+              >
+                Admission Prospects
+              </div>
+
+              <div
+                style={{
+                  marginTop: 5,
+                  fontSize: 26,
+                  fontWeight: 700,
+                  color: "#ea580c",
+                }}
+              >
+                {admissionProspects.length}
+              </div>
+            </div>
+
+            <div
+              style={{
+                background: "#ecfeff",
+                border: "1px solid #a5f3fc",
+                borderRadius: 10,
+                padding: 15,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 12,
+                  color: "#0e7490",
+                  fontWeight: 600,
+                }}
+              >
+                Today's Tasks
+              </div>
+
+              <div
+                style={{
+                  marginTop: 5,
+                  fontSize: 26,
+                  fontWeight: 700,
+                  color: "#0891b2",
+                }}
+              >
+                {todayTasks.length}
+              </div>
+            </div>
+          </div>
+
+          {/* PRIORITY FOLLOW-UPS */}
+          <div style={{ padding: 20 }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: 12,
+                marginBottom: 14,
+              }}
+            >
+              <div>
+                <h3
+                  style={{
+                    margin: 0,
+                    fontSize: 16,
+                    fontWeight: 700,
+                  }}
+                >
+                  Priority Follow-ups
+                </h3>
+
+                <p
+                  style={{
+                    margin: "4px 0 0",
+                    fontSize: 12,
+                    color: "#64748b",
+                  }}
+                >
+                  Overdue and today's follow-ups.
+                </p>
+              </div>
+            </div>
+
+            {priorityFollowUps.length === 0 ? (
+              <div
+                style={{
+                  padding: 24,
+                  textAlign: "center",
+                  background: "#f8fafc",
+                  borderRadius: 10,
+                  color: "#64748b",
+                  fontSize: 13,
+                }}
+              >
+                No urgent follow-ups right now.
+              </div>
+            ) : (
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 10,
+                }}
+              >
+                {priorityFollowUps.map((lead) => {
+                  const phone = normalizeWhatsAppNumber(
+                    lead.phone
+                  );
+
+                  const overdue = isOverdueFollowUp(
+                    lead.next_follow_up_at
+                  );
+
+                  return (
+                    <div
+                      key={lead.id}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: 14,
+                        padding: 14,
+                        border: "1px solid #e5e7eb",
+                        borderRadius: 10,
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <div
+                        style={{
+                          minWidth: 220,
+                          flex: 1,
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontWeight: 700,
+                            fontSize: 14,
+                            color: "#111827",
+                          }}
+                        >
+                          {lead.name || "Unnamed Lead"}
+                        </div>
+
+                        <div
+                          style={{
+                            marginTop: 4,
+                            fontSize: 12,
+                            color: "#64748b",
+                          }}
+                        >
+                          {lead.product_service ||
+                            "No programme"}
+
+                          {lead.ciu_number
+                            ? ` · ${lead.ciu_number}`
+                            : ""}
+                        </div>
+
+                        <div
+                          style={{
+                            marginTop: 5,
+                            fontSize: 12,
+                            color: overdue
+                              ? "#dc2626"
+                              : "#2563eb",
+                            fontWeight: 600,
+                          }}
+                        >
+                          {overdue
+                            ? "OVERDUE"
+                            : "DUE TODAY"}{" "}
+                          ·{" "}
+                          {formatDateTime(
+                            lead.next_follow_up_at
+                          )}
+                        </div>
+                      </div>
+
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: 7,
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        {lead.phone && (
+                          <>
+                            <a
+                              href={`tel:${lead.phone}`}
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                visibility: "visible",
+                                opacity: 1,
+                                color: "#ffffff",
+                                background: "#16a34a",
+                                border:
+                                  "1px solid #16a34a",
+                                padding: "7px 11px",
+                                borderRadius: 7,
+                                fontSize: 12,
+                                fontWeight: 600,
+                                textDecoration: "none",
+                              }}
+                            >
+                              Call
+                            </a>
+
+                            {phone && (
+                              <a
+                                href={`https://wa.me/${phone}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  visibility: "visible",
+                                  opacity: 1,
+                                  color: "#ffffff",
+                                  background: "#25d366",
+                                  border:
+                                    "1px solid #25d366",
+                                  padding: "7px 11px",
+                                  borderRadius: 7,
+                                  fontSize: 12,
+                                  fontWeight: 600,
+                                  textDecoration: "none",
+                                }}
+                              >
+                                WhatsApp
+                              </a>
+                            )}
+                          </>
+                        )}
+
+                        {lead.email && (
+                          <a
+                            href={`mailto:${lead.email}`}
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              visibility: "visible",
+                              opacity: 1,
+                              color: "#ffffff",
+                              background: "#7c3aed",
+                              border: "1px solid #7c3aed",
+                              padding: "7px 11px",
+                              borderRadius: 7,
+                              fontSize: 12,
+                              fontWeight: 600,
+                              textDecoration: "none",
+                            }}
+                          >
+                            Email
+                          </a>
+                        )}
+
+                        <Link
+                          href="/leads"
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            visibility: "visible",
+                            opacity: 1,
+                            color: "#1f2937",
+                            background: "#f3f4f6",
+                            border: "1px solid #d1d5db",
+                            padding: "7px 11px",
+                            borderRadius: 7,
+                            fontSize: 12,
+                            fontWeight: 600,
+                            textDecoration: "none",
+                          }}
+                        >
+                          View Lead
+                        </Link>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* UPCOMING FOLLOW-UPS */}
+          <div
+            style={{
+              padding: 20,
+              borderTop: "1px solid #e5e7eb",
+            }}
+          >
+            <h3
+              style={{
+                margin: "0 0 14px",
+                fontSize: 16,
+                fontWeight: 700,
+              }}
+            >
+              Upcoming Follow-ups
+            </h3>
+
+            {upcomingFollowUps.length === 0 ? (
+              <div
+                style={{
+                  padding: 20,
+                  textAlign: "center",
+                  background: "#f8fafc",
+                  borderRadius: 10,
+                  color: "#64748b",
+                  fontSize: 13,
+                }}
+              >
+                No follow-ups scheduled for the next 7 days.
+              </div>
+            ) : (
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns:
+                    "repeat(auto-fit, minmax(280px, 1fr))",
+                  gap: 10,
+                }}
+              >
+                {upcomingFollowUps.map((lead) => (
+                  <div
+                    key={lead.id}
+                    style={{
+                      border: "1px solid #e5e7eb",
+                      borderRadius: 10,
+                      padding: 13,
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontWeight: 600,
+                        fontSize: 13,
+                      }}
+                    >
+                      {lead.name || "Unnamed Lead"}
+                    </div>
+
+                    <div
+                      style={{
+                        marginTop: 4,
+                        color: "#64748b",
+                        fontSize: 12,
+                      }}
+                    >
+                      {lead.product_service || "No programme"}
+                    </div>
+
+                    <div
+                      style={{
+                        marginTop: 7,
+                        color: "#16a34a",
+                        fontSize: 12,
+                        fontWeight: 600,
+                      }}
+                    >
+                      {formatDateTime(
+                        lead.next_follow_up_at
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* ADMISSION WORKSPACE */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns:
+              "minmax(0, 1fr) minmax(0, 1fr)",
+            gap: 20,
+            marginBottom: 24,
+          }}
+        >
+          {/* ADMISSION PROSPECTS */}
+          <section
+            style={{
+              background: "#ffffff",
+              border: "1px solid #e5e7eb",
+              borderRadius: 12,
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                padding: "18px 20px",
+                borderBottom: "1px solid #e5e7eb",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: 12,
+              }}
+            >
+              <div>
+                <h2
+                  style={{
+                    margin: 0,
+                    fontSize: 18,
+                    fontWeight: 700,
+                  }}
+                >
+                  Admission Prospects
+                </h2>
+
+                <p
+                  style={{
+                    margin: "4px 0 0",
+                    color: "#64748b",
+                    fontSize: 12,
+                  }}
+                >
+                  Students moving through the admissions journey.
+                </p>
+              </div>
+
+              <Link
+                href="/customers"
+                style={{
+                  color: "#2563eb",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  textDecoration: "none",
+                }}
+              >
+                View Admissions
+              </Link>
+            </div>
+
+            <div>
+              {admissionProspects.length === 0 ? (
+                <div
+                  style={{
+                    padding: 30,
+                    textAlign: "center",
+                    color: "#64748b",
+                    fontSize: 14,
+                  }}
+                >
+                  No active admission prospects.
+                </div>
+              ) : (
+                admissionProspects.slice(0, 8).map(
+                  (admission, index) => {
+                    const statusStyle = getStatusStyle(
+                      admission.stage
+                    );
+
+                    return (
+                      <div
+                        key={admission.id}
+                        style={{
+                          padding: "14px 20px",
+                          borderBottom:
+                            index ===
+                            Math.min(
+                              admissionProspects.length,
+                              8
+                            ) -
+                              1
+                              ? "none"
+                              : "1px solid #f1f5f9",
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent:
+                              "space-between",
+                            gap: 12,
+                            alignItems: "center",
+                          }}
+                        >
+                          <div>
+                            <div
+                              style={{
+                                fontSize: 14,
+                                fontWeight: 600,
+                                color: "#111827",
+                              }}
+                            >
+                              {admission.full_names ||
+                                "Unnamed Student"}
+                            </div>
+
+                            <div
+                              style={{
+                                marginTop: 4,
+                                fontSize: 12,
+                                color: "#64748b",
+                              }}
+                            >
+                              {admission.program ||
+                                "No programme"}
+
+                              {admission.ciu_number
+                                ? ` · ${admission.ciu_number}`
+                                : ""}
+                            </div>
+                          </div>
+
+                          <span
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              padding: "4px 8px",
+                              borderRadius: 999,
+                              fontSize: 11,
+                              fontWeight: 600,
+                              background:
+                                statusStyle.background,
+                              color: statusStyle.color,
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {admission.stage || "New"}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  }
+                )
+              )}
+            </div>
+          </section>
+
+          {/* ACCEPTANCE FOLLOW-UPS */}
+          <section
+            style={{
+              background: "#ffffff",
+              border: "1px solid #e5e7eb",
+              borderRadius: 12,
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                padding: "18px 20px",
+                borderBottom: "1px solid #e5e7eb",
+              }}
+            >
+              <h2
+                style={{
+                  margin: 0,
+                  fontSize: 18,
+                  fontWeight: 700,
+                }}
+              >
+                Acceptance & Fee Follow-ups
+              </h2>
+
+              <p
+                style={{
+                  margin: "4px 0 0",
+                  color: "#64748b",
+                  fontSize: 12,
+                }}
+              >
+                Admitted and acceptance-stage students requiring attention.
+              </p>
+            </div>
+
+            <div>
+              {acceptanceFollowUps.length === 0 ? (
+                <div
+                  style={{
+                    padding: 30,
+                    textAlign: "center",
+                    color: "#64748b",
+                    fontSize: 14,
+                  }}
+                >
+                  No admission fee follow-ups currently available.
+                </div>
+              ) : (
+                acceptanceFollowUps.slice(0, 8).map(
+                  (admission, index) => (
+                    <div
+                      key={admission.id}
+                      style={{
+                        padding: "14px 20px",
+                        borderBottom:
+                          index ===
+                          Math.min(
+                            acceptanceFollowUps.length,
+                            8
+                          ) -
+                            1
+                            ? "none"
+                            : "1px solid #f1f5f9",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          gap: 12,
+                        }}
+                      >
+                        <div>
+                          <div
+                            style={{
+                              fontWeight: 600,
+                              fontSize: 14,
+                            }}
+                          >
+                            {admission.full_names ||
+                              "Unnamed Student"}
+                          </div>
+
+                          <div
+                            style={{
+                              marginTop: 4,
+                              fontSize: 12,
+                              color: "#64748b",
+                            }}
+                          >
+                            {admission.program ||
+                              "No programme"}
+                          </div>
+
+                          {admission.telephone && (
+                            <div
+                              style={{
+                                marginTop: 4,
+                                fontSize: 12,
+                                color: "#64748b",
+                              }}
+                            >
+                              {admission.telephone}
+                            </div>
+                          )}
+                        </div>
+
+                        <span
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            padding: "4px 8px",
+                            borderRadius: 999,
+                            fontSize: 11,
+                            fontWeight: 600,
+                            background:
+                              admission.stage
+                                ?.toLowerCase()
+                                .includes("admitted")
+                                ? "#fff7ed"
+                                : "#dcfce7",
+                            color:
+                              admission.stage
+                                ?.toLowerCase()
+                                .includes("admitted")
+                                ? "#c2410c"
+                                : "#166534",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {admission.stage || "New"}
+                        </span>
+                      </div>
+                    </div>
+                  )
+                )
+              )}
+            </div>
+          </section>
+        </div>
+
+        {/* TODAY'S TASKS */}
+        <section
+          style={{
+            marginBottom: 24,
+            background: "#ffffff",
+            border: "1px solid #e5e7eb",
+            borderRadius: 12,
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              padding: "18px 20px",
+              borderBottom: "1px solid #e5e7eb",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 12,
+            }}
+          >
+            <div>
+              <h2
+                style={{
+                  margin: 0,
+                  fontSize: 18,
+                  fontWeight: 700,
+                }}
+              >
+                Today's Tasks
+              </h2>
+
+              <p
+                style={{
+                  margin: "4px 0 0",
+                  color: "#64748b",
+                  fontSize: 12,
+                }}
+              >
+                Tasks that need to be completed today.
+              </p>
+            </div>
+
+            <Link
+              href="/tasks"
+              style={{
+                color: "#2563eb",
+                fontSize: 13,
+                fontWeight: 600,
+                textDecoration: "none",
+              }}
+            >
+              View Tasks
+            </Link>
+          </div>
+
+          <div>
+            {todayTasks.length === 0 ? (
+              <div
+                style={{
+                  padding: 30,
+                  textAlign: "center",
+                  color: "#64748b",
+                  fontSize: 14,
+                }}
+              >
+                No pending tasks for today.
+              </div>
+            ) : (
+              todayTasks.map((task, index) => (
+                <div
+                  key={task.id}
+                  style={{
+                    padding: "14px 20px",
+                    borderBottom:
+                      index === todayTasks.length - 1
+                        ? "none"
+                        : "1px solid #f1f5f9",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      gap: 14,
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <div>
+                      <div
+                        style={{
+                          fontSize: 14,
+                          fontWeight: 600,
+                          color: "#111827",
+                        }}
+                      >
+                        {task.title || "Untitled task"}
+                      </div>
+
+                      <div
+                        style={{
+                          marginTop: 4,
+                          fontSize: 12,
+                          color: "#64748b",
+                        }}
+                      >
+                        {task.task_type || "Task"}
+
+                        {task.assigned_to
+                          ? ` · ${
+                              profileMap.get(
+                                task.assigned_to
+                              ) || "Assigned"
+                            }`
+                          : ""}
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10,
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: 12,
+                          color: "#64748b",
+                        }}
+                      >
+                        {formatDateTime(task.due_at)}
+                      </span>
+
+                      <Link
+                        href="/tasks"
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          visibility: "visible",
+                          opacity: 1,
+                          color: "#ffffff",
+                          background: "#0891b2",
+                          border: "1px solid #0891b2",
+                          padding: "7px 11px",
+                          borderRadius: 7,
+                          fontSize: 12,
+                          fontWeight: 600,
+                          textDecoration: "none",
+                        }}
+                      >
+                        Open
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
 
         {/* PIPELINE + UPCOMING TASKS */}
         <div
@@ -1051,8 +2265,6 @@ export default function DashboardPage() {
                               width: `${percentage}%`,
                               background: "#2563eb",
                               borderRadius: 999,
-                              transition:
-                                "width 0.2s ease",
                             }}
                           />
                         </div>
@@ -1171,6 +2383,7 @@ export default function DashboardPage() {
                           }}
                         >
                           {task.task_type || "Task"}
+
                           {task.assigned_to
                             ? ` · ${
                                 profileMap.get(
@@ -1262,11 +2475,7 @@ export default function DashboardPage() {
               </Link>
             </div>
 
-            <div
-              style={{
-                overflowX: "auto",
-              }}
-            >
+            <div style={{ overflowX: "auto" }}>
               {recentLeads.length === 0 ? (
                 <div
                   style={{
@@ -1298,7 +2507,6 @@ export default function DashboardPage() {
                           padding: "11px 16px",
                           color: "#64748b",
                           fontWeight: 600,
-                          whiteSpace: "nowrap",
                         }}
                       >
                         Name
@@ -1309,7 +2517,6 @@ export default function DashboardPage() {
                           padding: "11px 16px",
                           color: "#64748b",
                           fontWeight: 600,
-                          whiteSpace: "nowrap",
                         }}
                       >
                         Program
@@ -1320,7 +2527,6 @@ export default function DashboardPage() {
                           padding: "11px 16px",
                           color: "#64748b",
                           fontWeight: 600,
-                          whiteSpace: "nowrap",
                         }}
                       >
                         Status
@@ -1364,7 +2570,8 @@ export default function DashboardPage() {
                                 color: "#64748b",
                               }}
                             >
-                              {lead.ciu_number || "No CIU number"}
+                              {lead.ciu_number ||
+                                "No CIU number"}
                             </div>
                           </td>
 
@@ -1463,11 +2670,7 @@ export default function DashboardPage() {
               </Link>
             </div>
 
-            <div
-              style={{
-                overflowX: "auto",
-              }}
-            >
+            <div style={{ overflowX: "auto" }}>
               {recentCustomers.length === 0 ? (
                 <div
                   style={{
@@ -1499,7 +2702,6 @@ export default function DashboardPage() {
                           padding: "11px 16px",
                           color: "#64748b",
                           fontWeight: 600,
-                          whiteSpace: "nowrap",
                         }}
                       >
                         Student
@@ -1510,7 +2712,6 @@ export default function DashboardPage() {
                           padding: "11px 16px",
                           color: "#64748b",
                           fontWeight: 600,
-                          whiteSpace: "nowrap",
                         }}
                       >
                         Program
@@ -1521,7 +2722,6 @@ export default function DashboardPage() {
                           padding: "11px 16px",
                           color: "#64748b",
                           fontWeight: 600,
-                          whiteSpace: "nowrap",
                         }}
                       >
                         Stage
@@ -1668,11 +2868,7 @@ export default function DashboardPage() {
             </Link>
           </div>
 
-          <div
-            style={{
-              overflowX: "auto",
-            }}
-          >
+          <div style={{ overflowX: "auto" }}>
             {opportunities.length === 0 ? (
               <div
                 style={{
