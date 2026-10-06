@@ -744,39 +744,34 @@ export default function Customers() {
         </div>
       </div>
 
-      {showAddCustomer && (
+      {viewingCustomer && (
         <div
           style={{
             position: "fixed",
             inset: 0,
             zIndex: 1000,
-            background:
-              "rgba(15, 23, 42, 0.55)",
+            background: "rgba(15, 23, 42, 0.55)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             padding: 20,
           }}
           onMouseDown={(event) => {
-            if (
-              event.target ===
-              event.currentTarget
-            ) {
-              closeModal();
+            if (event.target === event.currentTarget) {
+              setViewingCustomer(null);
             }
           }}
         >
           <div
             style={{
               width: "100%",
-              maxWidth: 650,
+              maxWidth: 700,
               maxHeight: "90vh",
               overflowY: "auto",
               background: "#ffffff",
               borderRadius: 12,
               padding: 24,
-              boxShadow:
-                "0 20px 50px rgba(0,0,0,0.2)",
+              boxShadow: "0 20px 50px rgba(0,0,0,0.2)",
             }}
           >
             <div
@@ -788,34 +783,17 @@ export default function Customers() {
               }}
             >
               <div>
-                <h2
-                  style={{
-                    margin: 0,
-                    fontSize: 20,
-                    fontWeight: 700,
-                  }}
-                >
-                  {editingCustomer
-                    ? "Edit Customer"
-                    : "Add Customer"}
+                <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>
+                  Student Details
                 </h2>
-
-                <p
-                  style={{
-                    margin: "5px 0 0",
-                    fontSize: 13,
-                    opacity: 0.65,
-                  }}
-                >
-                  {editingCustomer
-                    ? "Update customer information."
-                    : "Add a new customer to the CRM."}
+                <p style={{ margin: "5px 0 0", fontSize: 13, opacity: 0.65 }}>
+                  {viewingCustomer.full_names || "Student"}
                 </p>
               </div>
 
               <button
                 type="button"
-                onClick={closeModal}
+                onClick={() => setViewingCustomer(null)}
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
@@ -824,8 +802,7 @@ export default function Customers() {
                   opacity: 1,
                   color: "#374151",
                   background: "#f3f4f6",
-                  border:
-                    "1px solid #d1d5db",
+                  border: "1px solid #d1d5db",
                   width: 36,
                   height: 36,
                   borderRadius: 8,
@@ -838,226 +815,156 @@ export default function Customers() {
               </button>
             </div>
 
-            <form
-              onSubmit={handleSaveCustomer}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                gap: 14,
+              }}
             >
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns:
-                    "repeat(2, minmax(0, 1fr))",
-                  gap: 16,
-                }}
-              >
-                <div>
-                  <label>CIU Number</label>
-
-                  <input
-                    value={form.ciu_number}
-                    onChange={(event) =>
-                      setForm({
-                        ...form,
-                        ciu_number:
-                          event.target.value,
-                      })
-                    }
-                    placeholder="e.g. CIU24567890"
-                  />
-                </div>
-
-                <div>
-                  <label>
-                    Full Names *
-                  </label>
-
-                  <input
-                    value={form.full_names}
-                    onChange={(event) =>
-                      setForm({
-                        ...form,
-                        full_names:
-                          event.target.value,
-                      })
-                    }
-                    placeholder="Full customer name"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label>
-                    Telephone
-                  </label>
-
-                  <input
-                    value={form.telephone}
-                    onChange={(event) =>
-                      setForm({
-                        ...form,
-                        telephone:
-                          event.target.value,
-                      })
-                    }
-                    placeholder="07XXXXXXXX"
-                  />
-                </div>
-
-                <div>
-                  <label>Email</label>
-
-                  <input
-                    type="email"
-                    value={form.email}
-                    onChange={(event) =>
-                      setForm({
-                        ...form,
-                        email:
-                          event.target.value,
-                      })
-                    }
-                    placeholder="customer@email.com"
-                  />
-                </div>
-
+              {[
+                ["CIU Number", viewingCustomer.ciu_number || "Not provided"],
+                ["Full Names", viewingCustomer.full_names || "Not provided"],
+                ["Telephone", viewingCustomer.telephone || "Not provided"],
+                ["Email", viewingCustomer.email || "Not provided"],
+                ["Program", viewingCustomer.program || "Not provided"],
+                ["Stage", viewingCustomer.stage || "New"],
+                ["Application Paid", formatUGX(viewingCustomer.application_paid)],
+                ["Acceptance Paid", formatUGX(viewingCustomer.acceptance_paid)],
+                ["Tuition Paid", formatUGX(viewingCustomer.tuition_paid)],
+                ["Tuition Value", formatUGX(viewingCustomer.tuition_fee)],
+                ["Follow-Up", viewingCustomer.follow_up_date ? formatDate(viewingCustomer.follow_up_date) : "Not scheduled"],
+                ["Last Contact", viewingCustomer.last_contact ? formatDate(viewingCustomer.last_contact) : "No activity"],
+              ].map(([label, value]) => (
                 <div
+                  key={label}
                   style={{
-                    gridColumn: "1 / -1",
+                    padding: 14,
+                    border: "1px solid #e5e7eb",
+                    borderRadius: 8,
+                    background: "#f9fafb",
                   }}
                 >
-                  <label>
-                    Program *
-                  </label>
-
-                  <input
-                    value={form.program}
-                    onChange={(event) =>
-                      setForm({
-                        ...form,
-                        program:
-                          event.target.value,
-                      })
-                    }
-                    placeholder="e.g. Bachelor of Nursing"
-                    required
-                  />
+                  <div style={{ fontSize: 12, opacity: 0.6, marginBottom: 4 }}>
+                    {label}
+                  </div>
+                  <strong style={{ fontSize: 14 }}>{value}</strong>
                 </div>
+              ))}
+            </div>
 
-                <div>
-                  <label>Status</label>
+            <div
+              style={{
+                marginTop: 16,
+                padding: 16,
+                border: "1px solid #dbeafe",
+                borderRadius: 8,
+                background: "#eff6ff",
+              }}
+            >
+              <strong style={{ display: "block", marginBottom: 6 }}>
+                Linked Lead
+              </strong>
 
-                  <select
-                    value={form.stage}
-                    onChange={(event) =>
-                      setForm({
-                        ...form,
-                        stage:
-                          event.target.value,
-                      })
-                    }
-                  >
-                    {STAGES.map(
-                      (stage) => (
-                        <option
-                          key={stage}
-                        >
-                          {stage}
-                        </option>
-                      )
-                    )}
-                  </select>
+              {viewingCustomer.lead ? (
+                <>
+                  <div style={{ fontSize: 14 }}>
+                    {viewingCustomer.lead.name || "Unnamed Lead"}
+                  </div>
+                  <div style={{ fontSize: 13, opacity: 0.7, marginTop: 4 }}>
+                    {viewingCustomer.lead.phone ||
+                      viewingCustomer.lead.email ||
+                      "No contact details"}
+                  </div>
+                  <div style={{ fontSize: 13, opacity: 0.7, marginTop: 4 }}>
+                    Lead status: {viewingCustomer.lead.status || "Not specified"}
+                  </div>
+                </>
+              ) : (
+                <div style={{ fontSize: 13, opacity: 0.7 }}>
+                  This admission is not currently linked to a Lead.
                 </div>
+              )}
+            </div>
 
-                <div>
-                  <label>
-                    Tuition Fee
-                  </label>
-
-                  <input
-                    type="number"
-                    min="0"
-                    value={form.tuition_fee}
-                    onChange={(event) =>
-                      setForm({
-                        ...form,
-                        tuition_fee:
-                          event.target.value,
-                      })
-                    }
-                    placeholder="e.g. 1600000"
-                  />
-                </div>
-              </div>
-
+            {viewingCustomer.notes && (
               <div
                 style={{
-                  display: "flex",
-                  justifyContent:
-                    "flex-end",
-                  gap: 10,
-                  marginTop: 24,
+                  marginTop: 16,
+                  padding: 16,
+                  border: "1px solid #e5e7eb",
+                  borderRadius: 8,
                 }}
               >
+                <strong style={{ display: "block", marginBottom: 6 }}>
+                  Notes
+                </strong>
+                <div style={{ whiteSpace: "pre-wrap", fontSize: 14 }}>
+                  {viewingCustomer.notes}
+                </div>
+              </div>
+            )}
+
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: 10,
+                marginTop: 24,
+                flexWrap: "wrap",
+              }}
+            >
+              {viewingCustomer.telephone && (
                 <button
                   type="button"
-                  onClick={closeModal}
+                  onClick={() => {
+                    window.location.href = `tel:${viewingCustomer.telephone}`;
+                  }}
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
-                    justifyContent:
-                      "center",
+                    justifyContent: "center",
                     visibility: "visible",
                     opacity: 1,
                     color: "#374151",
                     background: "#ffffff",
-                    border:
-                      "1px solid #d1d5db",
-                    padding:
-                      "10px 16px",
+                    border: "1px solid #d1d5db",
+                    padding: "10px 16px",
                     borderRadius: 8,
                     fontSize: 14,
                     fontWeight: 600,
                     cursor: "pointer",
-                    minHeight: 40,
                   }}
                 >
-                  Cancel
+                  Call
                 </button>
+              )}
 
-                <button
-                  type="submit"
-                  disabled={saving}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent:
-                      "center",
-                    visibility: "visible",
-                    opacity: 1,
-                    color: "#ffffff",
-                    background: "#2563eb",
-                    border:
-                      "1px solid #2563eb",
-                    padding:
-                      "10px 16px",
-                    borderRadius: 8,
-                    fontSize: 14,
-                    fontWeight: 600,
-                    cursor: saving
-                      ? "not-allowed"
-                      : "pointer",
-                    minHeight: 40,
-                    whiteSpace:
-                      "nowrap",
-                  }}
-                >
-                  {saving
-                    ? "Saving..."
-                    : editingCustomer
-                    ? "Update Customer"
-                    : "Create Customer"}
-                </button>
-              </div>
-            </form>
+              <button
+                type="button"
+                onClick={() => {
+                  setViewingCustomer(null);
+                  openFollowUp(viewingCustomer);
+                }}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  visibility: "visible",
+                  opacity: 1,
+                  color: "#ffffff",
+                  background: "#16a34a",
+                  border: "1px solid #16a34a",
+                  padding: "10px 16px",
+                  borderRadius: 8,
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                Follow Up
+              </button>
+            </div>
           </div>
         </div>
       )}
