@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -75,12 +75,12 @@ function cleanPhone(phone: string) {
 }
 
 function formatDate(date: string | null) {
-  if (!date) return "—";
+  if (!date) return "â€”";
 
   const parsed = new Date(date);
 
   if (Number.isNaN(parsed.getTime())) {
-    return "—";
+    return "â€”";
   }
 
   return parsed.toLocaleDateString("en-GB", {
@@ -91,12 +91,12 @@ function formatDate(date: string | null) {
 }
 
 function formatDateTime(date: string | null) {
-  if (!date) return "—";
+  if (!date) return "â€”";
 
   const parsed = new Date(date);
 
   if (Number.isNaN(parsed.getTime())) {
-    return "—";
+    return "â€”";
   }
 
   return parsed.toLocaleString("en-GB", {
@@ -111,19 +111,34 @@ function formatDateTime(date: string | null) {
 function outcomeToLeadStatus(outcome: string) {
   const value = outcome.toLowerCase();
 
-  if (value.includes("interested")) return "qualified";
   if (value.includes("not interested")) return "unqualified";
-  if (value.includes("converted")) return "converted";
-  if (value.includes("enrolled")) return "converted";
-  if (value.includes("acceptance paid")) return "converted";
-  if (value.includes("admitted")) return "qualified";
-  if (value.includes("application")) return "qualified";
-  if (value.includes("financial")) return "qualified";
   if (value.includes("dropped")) return "lost";
   if (value.includes("wrong number")) return "unqualified";
-  if (value.includes("unreachable")) return "contacted";
-  if (value.includes("no answer")) return "contacted";
-  if (value.includes("follow up")) return "contacted";
+
+  if (
+    value.includes("interested") ||
+    value.includes("application") ||
+    value.includes("admitted") ||
+    value.includes("financial")
+  ) {
+    return "qualified";
+  }
+
+  if (
+    value.includes("converted") ||
+    value.includes("enrolled") ||
+    value.includes("acceptance paid")
+  ) {
+    return "converted";
+  }
+
+  if (
+    value.includes("unreachable") ||
+    value.includes("no answer") ||
+    value.includes("follow up")
+  ) {
+    return "contacted";
+  }
 
   return "contacted";
 }
@@ -131,12 +146,9 @@ function outcomeToLeadStatus(outcome: string) {
 function outcomeToDisplayStatus(outcome: string) {
   const value = outcome.toLowerCase();
 
-  if (value.includes("interested")) return "Interested";
   if (value.includes("not interested")) return "Not interested";
+  if (value.includes("interested")) return "Interested";
   if (value.includes("financial")) return "Financial issues";
-  if (value.includes("application started")) return "Called";
-  if (value.includes("application submitted")) return "Called";
-  if (value.includes("admitted")) return "Interested";
   if (value.includes("acceptance paid")) return "Paid Fees";
   if (value.includes("enrolled")) return "Converted";
   if (value.includes("no answer")) return "No Answer";
@@ -161,8 +173,6 @@ export default function LeadsPage() {
 
   const [showAddLead, setShowAddLead] = useState(false);
   const [saving, setSaving] = useState(false);
-
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   const [showActivityModal, setShowActivityModal] = useState(false);
   const [activityLead, setActivityLead] = useState<Lead | null>(null);
@@ -254,6 +264,7 @@ export default function LeadsPage() {
           lead.email,
           lead.product_service,
           displayStatus,
+          lead.follow_up_status,
         ]
           .filter(Boolean)
           .some((value) => String(value).toLowerCase().includes(query));
@@ -283,7 +294,7 @@ export default function LeadsPage() {
   ).length;
 
   const followUps = leads.filter(
-    (lead) => lead.next_follow_up_at
+    (lead) => !!lead.next_follow_up_at
   ).length;
 
   async function handleAddLead(event: React.FormEvent) {
@@ -297,21 +308,127 @@ export default function LeadsPage() {
     try {
       setSaving(true);
 
-      const { error } = await supabase.from("leads").insert({
-        ciu_number: newLead.ciu_number.trim() || null,
-        name: newLead.name.trim(),
-        phone: newLead.phone.trim(),
-        email: newLead.email.trim() || null,
-        product_service: newLead.product_service.trim() || null,
-        status: newLead.status,
-        follow_up_status: newLead.follow_up_status.trim() || null,
-        next_follow_up_at: newLead.next_follow_up_at
-          ? new Date(newLead.next_follow_up_at).toISOString()
-          : null,
+      const { data: salespeople, error: salespersonError } =
+        await supabase
+          .from("profiles")
+          .select("id, full_name")
+          .eq("role", "salesperson")
+          .eq("is_active", true)
+          .order("full_name", { ascending: true });
+
+      if (salespersonError) {
+        throw salespersonError;
+      }
+
+      if (!salespeople || salespeople.length === 0) {
+        throw new Error(
+          "No active salesperson is available to receive this lead."
+        );
+      }
+
+      const salespersonIds = salespeople.map((person) => person.id);
+
+      const { data: assignedLeads, error: assignedLeadsError } =
+        await supabase
+          .from("leads")
+          .select("assigned_to")
+          .in("assigned_to", salespersonIds);
+
+      if (assignedLeadsError) {
+        throw assignedLeadsError;
+      }
+
+      const leadCounts = new Map<string, number>();
+
+      salespersonIds.forEach((id) => {
+        leadCounts.set(id, 0);
       });
+
+      (assignedLeads || []).forEach((lead) => {
+        if (lead.assigned_to) {
+          leadCounts.set(
+            lead.assigned_to,
+            (leadCounts.get(lead.assigned_to) || 0) + 1
+          );
+        }
+      });
+
+      const assignedSalesperson = salespeople.reduce(
+        (current, person) => {
+          const currentCount = leadCounts.get(current.id) || 0;
+          const personCount = leadCounts.get(person.id) || 0;
+
+          return personCount < currentCount ? person : current;
+        },
+        salespeople[0]
+      );
+
+      const { data: createdLead, error } = await supabase
+        .from("leads")
+        .insert({
+          ciu_number: newLead.ciu_number.trim() || null,
+          name: newLead.name.trim(),
+          phone: newLead.phone.trim(),
+          email: newLead.email.trim() || null,
+          product_service: newLead.product_service.trim() || null,
+          status: newLead.status,
+          follow_up_status: newLead.follow_up_status.trim() || null,
+          next_follow_up_at: newLead.next_follow_up_at
+            ? new Date(newLead.next_follow_up_at).toISOString()
+            : null,
+          assigned_to: assignedSalesperson.id,
+        })
+        .select("id, name, assigned_to")
+        .single();
 
       if (error) {
         throw error;
+      }
+
+      if (!createdLead?.id) {
+        throw new Error(
+          "Lead was created but its ID could not be retrieved."
+        );
+      }
+
+      let profileId: string | null = null;
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (user?.id) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (profile?.id) {
+          profileId = profile.id;
+        }
+      }
+
+      const initialTaskPayload: Record<string, any> = {
+        title: "Follow up: " + (createdLead.name || newLead.name.trim()),
+        description: "Initial follow-up for newly created Lead.",
+        task_type: "call",
+        lead_id: createdLead.id,
+        due_at: new Date().toISOString(),
+        status: "pending",
+        assigned_to: assignedSalesperson.id,
+      };
+
+      if (profileId) {
+        initialTaskPayload.created_by = profileId;
+      }
+
+      const { error: initialTaskError } = await supabase
+        .from("tasks")
+        .insert(initialTaskPayload);
+
+      if (initialTaskError) {
+        throw initialTaskError;
       }
 
       setNewLead({
@@ -327,6 +444,8 @@ export default function LeadsPage() {
 
       setShowAddLead(false);
       await loadLeads();
+
+      alert("Lead added successfully and assigned for follow-up.");
     } catch (err: any) {
       console.error(err);
       alert(err?.message || "Failed to add lead.");
@@ -354,7 +473,6 @@ export default function LeadsPage() {
       return;
     }
 
-    setOpenMenuId(null);
     setActivityLead(lead);
     setActivityType(type);
     setActivityOutcome("");
@@ -363,19 +481,19 @@ export default function LeadsPage() {
     setShowActivityModal(true);
 
     if (type === "call" && lead.phone) {
-      window.open(`tel:${lead.phone}`, "_self");
+      window.open("tel:" + lead.phone, "_self");
     }
 
     if (type === "whatsapp" && lead.phone) {
       const phone = cleanPhone(lead.phone);
 
       if (phone) {
-        window.open(`https://wa.me/${phone}`, "_blank");
+        window.open("https://wa.me/" + phone, "_blank");
       }
     }
 
     if (type === "email" && lead.email) {
-      window.location.href = `mailto:${lead.email}`;
+      window.location.href = "mailto:" + lead.email;
     }
   }
 
@@ -400,7 +518,7 @@ export default function LeadsPage() {
         const { data: profile } = await supabase
           .from("profiles")
           .select("id")
-          .eq("id", user.id)
+          .eq("user_id", user.id)
           .maybeSingle();
 
         if (profile?.id) {
@@ -418,20 +536,25 @@ export default function LeadsPage() {
       const displayOutcome = outcomeToDisplayStatus(activityOutcome);
       const leadStatus = outcomeToLeadStatus(activityOutcome);
 
+      const nextFollowUpISO = nextFollowUp
+        ? new Date(nextFollowUp).toISOString()
+        : null;
+
       const description = [
         `Outcome: ${activityOutcome}`,
         activityFeedback.trim()
           ? `Feedback: ${activityFeedback.trim()}`
           : null,
-        nextFollowUp
-          ? `Next Follow Up: ${formatDateTime(
-              new Date(nextFollowUp).toISOString()
-            )}`
+        nextFollowUpISO
+          ? `Next Follow Up: ${formatDateTime(nextFollowUpISO)}`
           : null,
       ]
         .filter(Boolean)
         .join("\n");
 
+      /*
+       * 1. SAVE COMMUNICATION HISTORY
+       */
       const { error: activityError } = await supabase
         .from("activities")
         .insert({
@@ -447,10 +570,9 @@ export default function LeadsPage() {
         throw activityError;
       }
 
-      const nextFollowUpISO = nextFollowUp
-        ? new Date(nextFollowUp).toISOString()
-        : null;
-
+      /*
+       * 2. UPDATE THE LEAD
+       */
       const { error: leadError } = await supabase
         .from("leads")
         .update({
@@ -465,20 +587,241 @@ export default function LeadsPage() {
         throw leadError;
       }
 
-      if (nextFollowUpISO) {
-        const taskPayload: Record<string, any> = {
+      /*
+       * 3. DETERMINE PIPELINE MOVEMENT
+       */
+      const pipelineOutcomeMap: Record<string, string> = {
+        "Answered - Interested": "Leads",
+        "Application started": "Applied",
+        "Application submitted": "Applied",
+        Admitted: "Applied",
+        "Acceptance paid": "Paid Acceptance Fee",
+      };
+
+      const targetStageName = pipelineOutcomeMap[activityOutcome];
+
+      /*
+       * 4. MOVE QUALIFYING LEADS INTO PIPELINE
+       */
+      if (targetStageName) {
+        const { data: leadRecord, error: leadRecordError } =
+          await supabase
+            .from("leads")
+            .select(
+              "id, organization_id, contact_id, name, product_service, assigned_to"
+            )
+            .eq("id", activityLead.id)
+            .maybeSingle();
+
+        if (leadRecordError) {
+          throw leadRecordError;
+        }
+
+        if (!leadRecord) {
+          throw new Error(
+            "The Lead could not be found for Pipeline transfer."
+          );
+        }
+
+        const { data: targetStage, error: stageError } =
+          await supabase
+            .from("pipeline_stages")
+            .select("id, name, probability")
+            .eq("name", targetStageName)
+            .maybeSingle();
+
+        if (stageError) {
+          throw stageError;
+        }
+
+        if (!targetStage) {
+          throw new Error(
+            `Pipeline stage "${targetStageName}" could not be found.`
+          );
+        }
+
+        const {
+          data: existingOpportunity,
+          error: opportunityLookupError,
+        } = await supabase
+          .from("opportunities")
+          .select(
+            "id, lead_id, organization_id, contact_id, title, value, stage_id, status"
+          )
+          .eq("lead_id", activityLead.id)
+          .maybeSingle();
+
+        if (opportunityLookupError) {
+          throw opportunityLookupError;
+        }
+
+        if (existingOpportunity) {
+          const { error: opportunityUpdateError } =
+            await supabase
+              .from("opportunities")
+              .update({
+                stage_id: targetStage.id,
+                probability: Number(targetStage.probability ?? 0),
+                status: "open",
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", existingOpportunity.id);
+
+          if (opportunityUpdateError) {
+            throw opportunityUpdateError;
+          }
+        } else {
+          if (!leadRecord.organization_id) {
+            console.warn(
+              "Lead has no organization_id. Pipeline Opportunity was not created."
+            );
+          } else {
+            const { error: opportunityCreateError } =
+              await supabase.from("opportunities").insert({
+                lead_id: leadRecord.id,
+                organization_id: leadRecord.organization_id,
+                contact_id: leadRecord.contact_id,
+                title: leadRecord.name || "Unnamed Lead",
+                value: 0,
+                currency: "UGX",
+                stage_id: targetStage.id,
+                status: "open",
+                probability: Number(targetStage.probability ?? 0),
+                notes: `Automatically moved from Leads after follow-up outcome: ${activityOutcome}.`,
+              });
+
+            if (opportunityCreateError) {
+              throw opportunityCreateError;
+            }
+          }
+        }
+      }
+
+      /*
+       * 5. AUTOMATIC NEXT TASK CONFIGURATION
+       */
+      type AutomaticTaskConfig = {
+        title: string;
+        description: string;
+        taskType: string;
+        defaultDays: number;
+      };
+
+      const automaticTaskMap: Record<string, AutomaticTaskConfig> = {
+        "Answered - Follow up later": {
           title: `Follow up: ${activityLead.name || "Lead"}`,
           description:
+            "Follow up with the Lead as requested after the previous interaction.",
+          taskType: activityType,
+          defaultDays: 3,
+        },
+
+        "No Answer": {
+          title: `Retry call: ${activityLead.name || "Lead"}`,
+          description:
+            "The previous call was not answered. Retry contacting this Lead.",
+          taskType: "call",
+          defaultDays: 1,
+        },
+
+        Unreachable: {
+          title: `Retry contact: ${activityLead.name || "Lead"}`,
+          description:
+            "The Lead was unreachable. Make another contact attempt.",
+          taskType: "call",
+          defaultDays: 1,
+        },
+
+        "Answered - Interested": {
+          title: `Pipeline follow up: ${activityLead.name || "Lead"}`,
+          description:
+            "Follow up with this interested Lead and progress the Pipeline opportunity.",
+          taskType: "call",
+          defaultDays: 2,
+        },
+
+        "Application started": {
+          title: `Application follow up: ${activityLead.name || "Lead"}`,
+          description:
+            "Follow up and support the Lead to complete the application process.",
+          taskType: "call",
+          defaultDays: 2,
+        },
+
+        "Application submitted": {
+          title: `Admission follow up: ${activityLead.name || "Lead"}`,
+          description:
+            "Follow up on the submitted application and admission process.",
+          taskType: "call",
+          defaultDays: 2,
+        },
+
+        Admitted: {
+          title: `Acceptance fee follow up: ${activityLead.name || "Lead"}`,
+          description:
+            "Follow up with the admitted student regarding acceptance fee payment.",
+          taskType: "call",
+          defaultDays: 2,
+        },
+
+        "Acceptance paid": {
+          title: `Enrollment follow up: ${activityLead.name || "Lead"}`,
+          description:
+            "Follow up with the student to complete enrollment and registration.",
+          taskType: "call",
+          defaultDays: 2,
+        },
+      };
+
+      const automaticTask = automaticTaskMap[activityOutcome];
+
+      /*
+       * 6. CREATE AUTOMATIC NEXT TASK
+       */
+      if (automaticTask) {
+        let taskDueAt = nextFollowUpISO;
+
+        if (!taskDueAt) {
+          const automaticDueDate = new Date();
+
+          automaticDueDate.setDate(
+            automaticDueDate.getDate() + automaticTask.defaultDays
+          );
+
+          automaticDueDate.setHours(9, 0, 0, 0);
+
+          taskDueAt = automaticDueDate.toISOString();
+        }
+
+        const taskPayload: Record<string, any> = {
+          title: automaticTask.title,
+          description:
             activityFeedback.trim() ||
-            `Follow up after ${channelLabel.toLowerCase()} - ${activityOutcome}`,
-          task_type: activityType,
+            automaticTask.description,
+          task_type: automaticTask.taskType,
           lead_id: activityLead.id,
-          due_at: nextFollowUpISO,
+          due_at: taskDueAt,
           status: "pending",
         };
 
-        if (profileId) {
+        const { data: leadAssignment, error: leadAssignmentError } =
+          await supabase
+            .from("leads")
+            .select("assigned_to")
+            .eq("id", activityLead.id)
+            .maybeSingle();
+
+        if (leadAssignmentError) {
+          throw leadAssignmentError;
+        }
+
+        if (leadAssignment?.assigned_to) {
+          taskPayload.assigned_to = leadAssignment.assigned_to;
+        } else if (profileId) {
           taskPayload.assigned_to = profileId;
+        }
+
+        if (profileId) {
           taskPayload.created_by = profileId;
         }
 
@@ -487,19 +830,35 @@ export default function LeadsPage() {
           .insert(taskPayload);
 
         if (taskError) {
-          console.warn("Follow-up task could not be created:", taskError);
+          throw taskError;
         }
       }
 
+      /*
+       * 7. CLOSE MODAL AND REFRESH
+       */
       setShowActivityModal(false);
       setActivityLead(null);
+      setActivityOutcome("");
+      setActivityFeedback("");
+      setNextFollowUp("");
+
       await loadLeads();
 
+      /*
+       * 8. SUCCESS MESSAGE
+       */
       alert(
         `${channelLabel} activity saved successfully.\n\n` +
           `Outcome: ${activityOutcome}\n` +
           `Status: ${displayOutcome}` +
-          (nextFollowUp
+          (targetStageName
+            ? `\nPipeline: ${targetStageName}`
+            : "") +
+          (automaticTask
+            ? `\nNext Task: ${automaticTask.title}`
+            : "") +
+          (nextFollowUpISO
             ? `\nNext Follow Up: ${formatDateTime(nextFollowUpISO)}`
             : "")
       );
@@ -512,7 +871,6 @@ export default function LeadsPage() {
   }
 
   async function openHistory(lead: Lead) {
-    setOpenMenuId(null);
     setHistoryLead(lead);
     setActivities([]);
     setShowHistoryModal(true);
@@ -542,7 +900,9 @@ export default function LeadsPage() {
       setActivities((data || []) as Activity[]);
     } catch (err: any) {
       console.error(err);
-      alert(err?.message || "Failed to load communication history.");
+      alert(
+        err?.message || "Failed to load communication history."
+      );
     } finally {
       setLoadingHistory(false);
     }
@@ -550,19 +910,19 @@ export default function LeadsPage() {
 
   function handleView(lead: Lead) {
     const status =
-      leadStatusMap[lead.status || ""] || lead.status || "Pending";
-
-    setOpenMenuId(null);
+      leadStatusMap[lead.status || ""] ||
+      lead.status ||
+      "Pending";
 
     alert(
       `LEAD DETAILS\n\n` +
-        `CIU Number: ${lead.ciu_number || "—"}\n` +
-        `Name: ${lead.name || "—"}\n` +
-        `Phone: ${lead.phone || "—"}\n` +
-        `Email: ${lead.email || "—"}\n` +
-        `Programme: ${lead.product_service || "—"}\n` +
+        `CIU Number: ${lead.ciu_number || "â€”"}\n` +
+        `Name: ${lead.name || "â€”"}\n` +
+        `Phone: ${lead.phone || "â€”"}\n` +
+        `Email: ${lead.email || "â€”"}\n` +
+        `Programme: ${lead.product_service || "â€”"}\n` +
         `Status: ${status}\n` +
-        `Follow Up: ${lead.follow_up_status || "—"}\n` +
+        `Follow Up: ${lead.follow_up_status || "â€”"}\n` +
         `Next Follow Up: ${formatDateTime(lead.next_follow_up_at)}`
     );
   }
@@ -611,8 +971,8 @@ export default function LeadsPage() {
                 fontSize: "14px",
               }}
             >
-              Manage, contact, record outcomes and follow up with prospective
-              students.
+              Manage, contact, record outcomes and follow up with
+              prospective students.
             </p>
           </div>
 
@@ -643,15 +1003,31 @@ export default function LeadsPage() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+            gridTemplateColumns:
+              "repeat(4, minmax(0, 1fr))",
             gap: "16px",
             marginBottom: "24px",
           }}
         >
-          <KpiCard label="Total Leads" value={totalLeads} />
-          <KpiCard label="Interested" value={interestedLeads} />
-          <KpiCard label="Converted" value={convertedLeads} />
-          <KpiCard label="Follow Ups" value={followUps} />
+          <KpiCard
+            label="Total Leads"
+            value={totalLeads}
+          />
+
+          <KpiCard
+            label="Interested"
+            value={interestedLeads}
+          />
+
+          <KpiCard
+            label="Converted"
+            value={convertedLeads}
+          />
+
+          <KpiCard
+            label="Follow Ups"
+            value={followUps}
+          />
         </div>
 
         {/* FILTERS */}
@@ -669,7 +1045,9 @@ export default function LeadsPage() {
         >
           <input
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) =>
+              setSearch(e.target.value)
+            }
             placeholder="Search name, phone, email, CIU number..."
             style={{
               flex: "1 1 320px",
@@ -684,7 +1062,9 @@ export default function LeadsPage() {
 
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            onChange={(e) =>
+              setStatusFilter(e.target.value)
+            }
             style={{
               padding: "11px 13px",
               border: "1px solid #d1d5db",
@@ -697,7 +1077,10 @@ export default function LeadsPage() {
             <option value="All">All Statuses</option>
 
             {displayStatuses.map((status) => (
-              <option key={status} value={status}>
+              <option
+                key={status}
+                value={status}
+              >
                 {status}
               </option>
             ))}
@@ -705,7 +1088,9 @@ export default function LeadsPage() {
 
           <select
             value={programFilter}
-            onChange={(e) => setProgramFilter(e.target.value)}
+            onChange={(e) =>
+              setProgramFilter(e.target.value)
+            }
             style={{
               padding: "11px 13px",
               border: "1px solid #d1d5db",
@@ -715,10 +1100,15 @@ export default function LeadsPage() {
               fontSize: "14px",
             }}
           >
-            <option value="All">All Programmes</option>
+            <option value="All">
+              All Programmes
+            </option>
 
             {programs.map((program) => (
-              <option key={program} value={program}>
+              <option
+                key={program}
+                value={program}
+              >
                 {program}
               </option>
             ))}
@@ -735,7 +1125,6 @@ export default function LeadsPage() {
               color: "#334155",
               fontWeight: 600,
               cursor: "pointer",
-              display: "inline-flex",
               visibility: "visible",
               opacity: 1,
             }}
@@ -772,7 +1161,8 @@ export default function LeadsPage() {
           <div
             style={{
               padding: "16px 18px",
-              borderBottom: "1px solid #e5e7eb",
+              borderBottom:
+                "1px solid #e5e7eb",
               fontWeight: 700,
             }}
           >
@@ -809,7 +1199,8 @@ export default function LeadsPage() {
               <table
                 style={{
                   width: "100%",
-                  borderCollapse: "collapse",
+                  borderCollapse:
+                    "collapse",
                   minWidth: "1150px",
                 }}
               >
@@ -817,264 +1208,240 @@ export default function LeadsPage() {
                   <tr
                     style={{
                       background: "#f8fafc",
-                      borderBottom: "1px solid #e5e7eb",
+                      borderBottom:
+                        "1px solid #e5e7eb",
                     }}
                   >
-                    <th style={thStyle}>CIU NUMBER</th>
-                    <th style={thStyle}>FULL NAMES</th>
-                    <th style={thStyle}>TELEPHONE NUMBER</th>
-                    <th style={thStyle}>EMAIL</th>
-                    <th style={thStyle}>PROGRAM</th>
-                    <th style={thStyle}>STATUS</th>
-                    <th style={thStyle}>FOLLOW UP</th>
-                    <th style={{ ...thStyle, textAlign: "center" }}>
-                      ACTIONS
+                    <th style={thStyle}>
+                      CIU NUMBER
+                    </th>
+
+                    <th style={thStyle}>
+                      FULL NAMES
+                    </th>
+
+                    <th style={thStyle}>
+                      TELEPHONE NUMBER
+                    </th>
+
+                    <th style={thStyle}>
+                      EMAIL
+                    </th>
+
+                    <th style={thStyle}>
+                      PROGRAM
+                    </th>
+
+                    <th style={thStyle}>
+                      STATUS
+                    </th>
+
+                    <th style={thStyle}>
+                      FOLLOW UP
+                    </th>
+
+                    <th
+                      style={{
+                        ...thStyle,
+                        textAlign: "center",
+                      }}
+                    >
+                      FOLLOW UP
                     </th>
                   </tr>
                 </thead>
 
                 <tbody>
-                  {filteredLeads.map((lead) => {
-                    const displayStatus =
-                      leadStatusMap[lead.status || ""] ||
-                      lead.status ||
-                      "Pending";
+                  {filteredLeads.map(
+                    (lead) => {
+                      const displayStatus =
+                        leadStatusMap[
+                          lead.status || ""
+                        ] ||
+                        lead.status ||
+                        "Pending";
 
-                    return (
-                      <tr
-                        key={lead.id}
-                        style={{
-                          borderBottom: "1px solid #eef2f7",
-                        }}
-                      >
-                        <td style={tdStyle}>
-                          {lead.ciu_number || "—"}
-                        </td>
-
-                        <td
+                      return (
+                        <tr
+                          key={lead.id}
                           style={{
-                            ...tdStyle,
-                            fontWeight: 700,
+                            borderBottom:
+                              "1px solid #eef2f7",
                           }}
                         >
-                          {lead.name || "—"}
-                        </td>
+                          <td
+                            style={tdStyle}
+                          >
+                            {lead.ciu_number ||
+                              "â€”"}
+                          </td>
 
-                        <td style={tdStyle}>
-                          {lead.phone || "—"}
-                        </td>
-
-                        <td style={tdStyle}>
-                          {lead.email || (
-                            <span
-                              style={{
-                                color: "#94a3b8",
-                                fontStyle: "italic",
-                              }}
-                            >
-                              No email
-                            </span>
-                          )}
-                        </td>
-
-                        <td style={tdStyle}>
-                          {lead.product_service || "—"}
-                        </td>
-
-                        <td style={tdStyle}>
-                          <span
+                          <td
                             style={{
-                              display: "inline-block",
-                              padding: "5px 9px",
-                              borderRadius: "999px",
-                              background:
-                                displayStatus === "Converted"
-                                  ? "#dcfce7"
-                                  : displayStatus === "Interested"
-                                  ? "#dbeafe"
-                                  : "#f1f5f9",
-                              color:
-                                displayStatus === "Converted"
-                                  ? "#166534"
-                                  : displayStatus === "Interested"
-                                  ? "#1d4ed8"
-                                  : "#475569",
-                              fontSize: "12px",
+                              ...tdStyle,
                               fontWeight: 700,
                             }}
                           >
-                            {displayStatus}
-                          </span>
-                        </td>
+                            {lead.name || "â€”"}
+                          </td>
 
-                        <td style={tdStyle}>
-                          <div>
-                            <div style={{ fontWeight: 600 }}>
-                              {lead.follow_up_status || "—"}
-                            </div>
+                          <td
+                            style={tdStyle}
+                          >
+                            {lead.phone || "â€”"}
+                          </td>
 
-                            {lead.next_follow_up_at && (
-                              <div
+                          <td
+                            style={tdStyle}
+                          >
+                            {lead.email || (
+                              <span
                                 style={{
-                                  color: "#64748b",
-                                  fontSize: "12px",
-                                  marginTop: "3px",
+                                  color:
+                                    "#94a3b8",
+                                  fontStyle:
+                                    "italic",
                                 }}
                               >
-                                {formatDateTime(lead.next_follow_up_at)}
-                              </div>
+                                No email
+                              </span>
                             )}
-                          </div>
-                        </td>
+                          </td>
 
-                        <td
-                          style={{
-                            ...tdStyle,
-                            textAlign: "center",
-                            position: "relative",
-                            minWidth: "130px",
-                          }}
-                        >
-                          <div
+                          <td
+                            style={tdStyle}
+                          >
+                            {lead.product_service ||
+                              "â€”"}
+                          </td>
+
+                          <td
+                            style={tdStyle}
+                          >
+                            <span
+                              style={{
+                                display:
+                                  "inline-block",
+                                padding:
+                                  "5px 9px",
+                                borderRadius:
+                                  "999px",
+                                background:
+                                  displayStatus ===
+                                  "Converted"
+                                    ? "#dcfce7"
+                                    : displayStatus ===
+                                      "Interested"
+                                    ? "#dbeafe"
+                                    : "#f1f5f9",
+                                color:
+                                  displayStatus ===
+                                  "Converted"
+                                    ? "#166534"
+                                    : displayStatus ===
+                                      "Interested"
+                                    ? "#1d4ed8"
+                                    : "#475569",
+                                fontSize:
+                                  "12px",
+                                fontWeight: 700,
+                              }}
+                            >
+                              {
+                                displayStatus
+                              }
+                            </span>
+                          </td>
+
+                          <td
+                            style={tdStyle}
+                          >
+                            <div>
+                              <div
+                                style={{
+                                  fontWeight: 600,
+                                }}
+                              >
+                                {lead.follow_up_status ||
+                                  "â€”"}
+                              </div>
+
+                              {lead.next_follow_up_at && (
+                                <div
+                                  style={{
+                                    color:
+                                      "#64748b",
+                                    fontSize:
+                                      "12px",
+                                    marginTop:
+                                      "3px",
+                                  }}
+                                >
+                                  {formatDateTime(
+                                    lead.next_follow_up_at
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </td>
+
+                          <td
                             style={{
-                              position: "relative",
-                              display: "inline-block",
+                              ...tdStyle,
+                              textAlign:
+                                "center",
+                              minWidth:
+                                "130px",
                             }}
                           >
                             <button
                               type="button"
                               onClick={() =>
-                                setOpenMenuId(
-                                  openMenuId === lead.id ? null : lead.id
+                                openActivityWorkflow(
+                                  lead,
+                                  "call"
                                 )
                               }
                               style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                justifyContent: "center",
+                                display:
+                                  "inline-flex",
+                                alignItems:
+                                  "center",
+                                justifyContent:
+                                  "center",
                                 gap: "7px",
-                                padding: "9px 13px",
-                                borderRadius: "8px",
-                                border: "1px solid #2563eb",
-                                background: "#2563eb",
-                                color: "#ffffff",
+                                padding:
+                                  "9px 16px",
+                                borderRadius:
+                                  "8px",
+                                border:
+                                  "1px solid #2563eb",
+                                background:
+                                  "#2563eb",
+                                color:
+                                  "#ffffff",
                                 fontWeight: 700,
-                                fontSize: "13px",
-                                cursor: "pointer",
-                                visibility: "visible",
+                                fontSize:
+                                  "13px",
+                                cursor:
+                                  "pointer",
+                                visibility:
+                                  "visible",
                                 opacity: 1,
-                                whiteSpace: "nowrap",
+                                whiteSpace:
+                                  "nowrap",
                               }}
                             >
-                              Actions
-                              <span
-                                style={{
-                                  fontSize: "11px",
-                                  transition: "transform 0.2s",
-                                  transform:
-                                    openMenuId === lead.id
-                                      ? "rotate(180deg)"
-                                      : "rotate(0deg)",
-                                }}
-                              >
-                                ▼
+                              <span>â†ª</span>
+                              <span>
+                                Follow Up
                               </span>
                             </button>
-
-                            {openMenuId === lead.id && (
-                              <div
-                                style={{
-                                  position: "absolute",
-                                  top: "calc(100% + 6px)",
-                                  right: 0,
-                                  width: "205px",
-                                  background: "#ffffff",
-                                  border: "1px solid #e2e8f0",
-                                  borderRadius: "10px",
-                                  boxShadow:
-                                    "0 12px 30px rgba(15, 23, 42, 0.15)",
-                                  zIndex: 9999,
-                                  padding: "6px",
-                                  textAlign: "left",
-                                }}
-                              >
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    openActivityWorkflow(lead, "call")
-                                  }
-                                  style={menuButtonStyle}
-                                >
-                                  <span>📞</span>
-                                  <span>Call & Record Outcome</span>
-                                </button>
-
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    openActivityWorkflow(lead, "whatsapp")
-                                  }
-                                  style={menuButtonStyle}
-                                >
-                                  <span>💬</span>
-                                  <span>WhatsApp & Record</span>
-                                </button>
-
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    openActivityWorkflow(lead, "email")
-                                  }
-                                  disabled={!lead.email}
-                                  style={{
-                                    ...menuButtonStyle,
-                                    color: lead.email
-                                      ? "#334155"
-                                      : "#94a3b8",
-                                    cursor: lead.email
-                                      ? "pointer"
-                                      : "not-allowed",
-                                    background: lead.email
-                                      ? "#ffffff"
-                                      : "#f8fafc",
-                                  }}
-                                >
-                                  <span>✉️</span>
-                                  <span>Email & Record</span>
-                                </button>
-
-                                <div
-                                  style={{
-                                    height: "1px",
-                                    background: "#e2e8f0",
-                                    margin: "5px 4px",
-                                  }}
-                                />
-
-                                <button
-                                  type="button"
-                                  onClick={() => openHistory(lead)}
-                                  style={menuButtonStyle}
-                                >
-                                  <span>📋</span>
-                                  <span>Communication History</span>
-                                </button>
-
-                                <button
-                                  type="button"
-                                  onClick={() => handleView(lead)}
-                                  style={menuButtonStyle}
-                                >
-                                  <span>👁</span>
-                                  <span>View Lead</span>
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                          </td>
+                        </tr>
+                      );
+                    }
+                  )}
                 </tbody>
               </table>
             </div>
@@ -1082,412 +1449,609 @@ export default function LeadsPage() {
         </div>
 
         {/* ACTIVITY / OUTCOME MODAL */}
-        {showActivityModal && activityLead && (
-          <ModalOverlay
-            onClose={() => {
-              if (!savingActivity) {
-                setShowActivityModal(false);
-              }
-            }}
-          >
-            <div
-              style={{
-                width: "100%",
-                maxWidth: "650px",
-                maxHeight: "90vh",
-                overflowY: "auto",
-                background: "#ffffff",
-                borderRadius: "16px",
-                padding: "24px",
-                boxShadow: "0 25px 60px rgba(15, 23, 42, 0.25)",
+        {showActivityModal &&
+          activityLead && (
+            <ModalOverlay
+              onClose={() => {
+                if (!savingActivity) {
+                  setShowActivityModal(
+                    false
+                  );
+                }
               }}
             >
               <div
                 style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "flex-start",
-                  gap: "16px",
-                  marginBottom: "20px",
+                  width: "100%",
+                  maxWidth: "650px",
+                  maxHeight: "90vh",
+                  overflowY: "auto",
+                  background: "#ffffff",
+                  borderRadius: "16px",
+                  padding: "24px",
+                  boxShadow:
+                    "0 25px 60px rgba(15, 23, 42, 0.25)",
                 }}
               >
-                <div>
-                  <h2
-                    style={{
-                      margin: 0,
-                      fontSize: "22px",
-                      fontWeight: 800,
-                    }}
-                  >
-                    Record {activityType === "call"
-                      ? "Call"
-                      : activityType === "whatsapp"
-                      ? "WhatsApp"
-                      : "Email"}
-                  </h2>
-
-                  <p
-                    style={{
-                      margin: "6px 0 0",
-                      color: "#64748b",
-                      fontSize: "13px",
-                    }}
-                  >
-                    {activityLead.name || "Lead"}{" "}
-                    {activityLead.phone
-                      ? `• ${activityLead.phone}`
-                      : ""}
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!savingActivity) {
-                      setShowActivityModal(false);
-                    }
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent:
+                      "space-between",
+                    alignItems:
+                      "flex-start",
+                    gap: "16px",
+                    marginBottom:
+                      "20px",
                   }}
-                  style={closeButtonStyle}
                 >
-                  ×
-                </button>
-              </div>
+                  <div>
+                    <h2
+                      style={{
+                        margin: 0,
+                        fontSize: "22px",
+                        fontWeight: 800,
+                      }}
+                    >
+                      Record{" "}
+                      {activityType ===
+                      "call"
+                        ? "Call"
+                        : activityType ===
+                          "whatsapp"
+                        ? "WhatsApp"
+                        : "Email"}
+                    </h2>
 
-              <div
-                style={{
-                  background: "#eff6ff",
-                  border: "1px solid #bfdbfe",
-                  borderRadius: "10px",
-                  padding: "12px",
-                  marginBottom: "18px",
-                  color: "#1e40af",
-                  fontSize: "13px",
-                }}
-              >
-                The interaction has been opened. Record what happened below so
-                the CRM keeps a complete communication history.
-              </div>
-
-              <div style={{ display: "grid", gap: "17px" }}>
-                <div>
-                  <label style={labelStyle}>
-                    Communication Outcome *
-                  </label>
-
-                  <select
-                    value={activityOutcome}
-                    onChange={(e) =>
-                      setActivityOutcome(e.target.value)
-                    }
-                    style={inputStyle}
-                  >
-                    <option value="">Select outcome...</option>
-
-                    {outcomeOptions.map((outcome) => (
-                      <option key={outcome} value={outcome}>
-                        {outcome}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label style={labelStyle}>
-                    Feedback / Notes
-                  </label>
-
-                  <textarea
-                    value={activityFeedback}
-                    onChange={(e) =>
-                      setActivityFeedback(e.target.value)
-                    }
-                    placeholder="What did the student say? What are their concerns, interests or next steps?"
-                    rows={5}
-                    style={{
-                      ...inputStyle,
-                      resize: "vertical",
-                      minHeight: "120px",
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label style={labelStyle}>
-                    Next Follow Up
-                  </label>
-
-                  <input
-                    type="datetime-local"
-                    value={nextFollowUp}
-                    onChange={(e) =>
-                      setNextFollowUp(e.target.value)
-                    }
-                    style={inputStyle}
-                  />
-
-                  <div
-                    style={{
-                      marginTop: "6px",
-                      color: "#64748b",
-                      fontSize: "12px",
-                    }}
-                  >
-                    Leave blank if no follow-up is required.
+                    <p
+                      style={{
+                        margin:
+                          "6px 0 0",
+                        color:
+                          "#64748b",
+                        fontSize:
+                          "13px",
+                      }}
+                    >
+                      {activityLead.name ||
+                        "Lead"}{" "}
+                      {activityLead.phone
+                        ? `â€¢ ${activityLead.phone}`
+                        : ""}
+                    </p>
                   </div>
-                </div>
-              </div>
 
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "flex-end",
-                  gap: "10px",
-                  marginTop: "24px",
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() => setShowActivityModal(false)}
-                  disabled={savingActivity}
-                  style={secondaryButtonStyle}
-                >
-                  Cancel
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleSaveActivity}
-                  disabled={savingActivity}
-                  style={{
-                    ...primaryButtonStyle,
-                    background: savingActivity
-                      ? "#93c5fd"
-                      : "#2563eb",
-                    cursor: savingActivity
-                      ? "not-allowed"
-                      : "pointer",
-                  }}
-                >
-                  {savingActivity
-                    ? "Saving..."
-                    : "Save Interaction"}
-                </button>
-              </div>
-            </div>
-          </ModalOverlay>
-        )}
-
-        {/* HISTORY MODAL */}
-        {showHistoryModal && historyLead && (
-          <ModalOverlay
-            onClose={() => setShowHistoryModal(false)}
-          >
-            <div
-              style={{
-                width: "100%",
-                maxWidth: "800px",
-                maxHeight: "90vh",
-                overflowY: "auto",
-                background: "#ffffff",
-                borderRadius: "16px",
-                padding: "24px",
-                boxShadow: "0 25px 60px rgba(15, 23, 42, 0.25)",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "flex-start",
-                  gap: "16px",
-                  marginBottom: "20px",
-                }}
-              >
-                <div>
-                  <h2
-                    style={{
-                      margin: 0,
-                      fontSize: "22px",
-                      fontWeight: 800,
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (
+                        !savingActivity
+                      ) {
+                        setShowActivityModal(
+                          false
+                        );
+                      }
                     }}
+                    style={
+                      closeButtonStyle
+                    }
                   >
-                    Communication History
-                  </h2>
-
-                  <p
-                    style={{
-                      margin: "6px 0 0",
-                      color: "#64748b",
-                      fontSize: "13px",
-                    }}
-                  >
-                    {historyLead.name || "Lead"}{" "}
-                    {historyLead.phone
-                      ? `• ${historyLead.phone}`
-                      : ""}
-                  </p>
+                    Ã—
+                  </button>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => setShowHistoryModal(false)}
-                  style={closeButtonStyle}
-                >
-                  ×
-                </button>
-              </div>
-
-              {loadingHistory ? (
                 <div
                   style={{
-                    padding: "45px",
-                    textAlign: "center",
-                    color: "#64748b",
+                    background:
+                      "#eff6ff",
+                    border:
+                      "1px solid #bfdbfe",
+                    borderRadius:
+                      "10px",
+                    padding: "12px",
+                    marginBottom:
+                      "18px",
+                    color:
+                      "#1e40af",
+                    fontSize:
+                      "13px",
                   }}
                 >
-                  Loading communication history...
+                  The interaction has
+                  been opened. Record
+                  what happened below so
+                  the CRM keeps a complete
+                  communication history.
                 </div>
-              ) : activities.length === 0 ? (
-                <div
-                  style={{
-                    padding: "40px",
-                    textAlign: "center",
-                    background: "#f8fafc",
-                    borderRadius: "10px",
-                    color: "#64748b",
-                  }}
-                >
-                  No communication history has been recorded for this lead
-                  yet.
-                </div>
-              ) : (
+
                 <div
                   style={{
                     display: "grid",
-                    gap: "12px",
+                    gap: "17px",
                   }}
                 >
-                  {activities.map((activity) => (
-                    <div
-                      key={activity.id}
+                  <div>
+                    <label
+                      style={
+                        labelStyle
+                      }
+                    >
+                      Communication
+                      Outcome *
+                    </label>
+
+                    <select
+                      value={
+                        activityOutcome
+                      }
+                      onChange={(e) =>
+                        setActivityOutcome(
+                          e.target.value
+                        )
+                      }
+                      style={
+                        inputStyle
+                      }
+                    >
+                      <option value="">
+                        Select outcome...
+                      </option>
+
+                      {outcomeOptions.map(
+                        (outcome) => (
+                          <option
+                            key={
+                              outcome
+                            }
+                            value={
+                              outcome
+                            }
+                          >
+                            {outcome}
+                          </option>
+                        )
+                      )}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label
+                      style={
+                        labelStyle
+                      }
+                    >
+                      Feedback / Notes
+                    </label>
+
+                    <textarea
+                      value={
+                        activityFeedback
+                      }
+                      onChange={(e) =>
+                        setActivityFeedback(
+                          e.target
+                            .value
+                        )
+                      }
+                      placeholder="What did the student say? What are their concerns, interests or next steps?"
+                      rows={5}
                       style={{
-                        border: "1px solid #e2e8f0",
-                        borderRadius: "12px",
-                        padding: "15px",
-                        background: "#ffffff",
+                        ...inputStyle,
+                        resize:
+                          "vertical",
+                        minHeight:
+                          "120px",
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      style={
+                        labelStyle
+                      }
+                    >
+                      Next Follow Up
+                    </label>
+
+                    <input
+                      type="datetime-local"
+                      value={
+                        nextFollowUp
+                      }
+                      onChange={(e) =>
+                        setNextFollowUp(
+                          e.target
+                            .value
+                        )
+                      }
+                      style={
+                        inputStyle
+                      }
+                    />
+
+                    <div
+                      style={{
+                        marginTop:
+                          "6px",
+                        color:
+                          "#64748b",
+                        fontSize:
+                          "12px",
                       }}
                     >
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          gap: "15px",
-                          flexWrap: "wrap",
-                          marginBottom: "8px",
-                        }}
-                      >
+                      Leave blank if no
+                      follow-up is
+                      required. For
+                      automatic outcomes,
+                      the CRM will create
+                      the next task
+                      automatically.
+                    </div>
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent:
+                      "flex-end",
+                    gap: "10px",
+                    marginTop:
+                      "24px",
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setShowActivityModal(
+                        false
+                      )
+                    }
+                    disabled={
+                      savingActivity
+                    }
+                    style={
+                      secondaryButtonStyle
+                    }
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={
+                      handleSaveActivity
+                    }
+                    disabled={
+                      savingActivity
+                    }
+                    style={{
+                      ...primaryButtonStyle,
+                      background:
+                        savingActivity
+                          ? "#93c5fd"
+                          : "#2563eb",
+                      cursor:
+                        savingActivity
+                          ? "not-allowed"
+                          : "pointer",
+                    }}
+                  >
+                    {savingActivity
+                      ? "Saving..."
+                      : "Save Interaction"}
+                  </button>
+                </div>
+              </div>
+            </ModalOverlay>
+          )}
+
+        {/* HISTORY MODAL */}
+        {showHistoryModal &&
+          historyLead && (
+            <ModalOverlay
+              onClose={() =>
+                setShowHistoryModal(
+                  false
+                )
+              }
+            >
+              <div
+                style={{
+                  width: "100%",
+                  maxWidth: "800px",
+                  maxHeight: "90vh",
+                  overflowY: "auto",
+                  background:
+                    "#ffffff",
+                  borderRadius:
+                    "16px",
+                  padding: "24px",
+                  boxShadow:
+                    "0 25px 60px rgba(15, 23, 42, 0.25)",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent:
+                      "space-between",
+                    alignItems:
+                      "flex-start",
+                    gap: "16px",
+                    marginBottom:
+                      "20px",
+                  }}
+                >
+                  <div>
+                    <h2
+                      style={{
+                        margin: 0,
+                        fontSize:
+                          "22px",
+                        fontWeight:
+                          800,
+                      }}
+                    >
+                      Communication
+                      History
+                    </h2>
+
+                    <p
+                      style={{
+                        margin:
+                          "6px 0 0",
+                        color:
+                          "#64748b",
+                        fontSize:
+                          "13px",
+                      }}
+                    >
+                      {historyLead.name ||
+                        "Lead"}{" "}
+                      {historyLead.phone
+                        ? `â€¢ ${historyLead.phone}`
+                        : ""}
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setShowHistoryModal(
+                        false
+                      )
+                    }
+                    style={
+                      closeButtonStyle
+                    }
+                  >
+                    Ã—
+                  </button>
+                </div>
+
+                {loadingHistory ? (
+                  <div
+                    style={{
+                      padding:
+                        "45px",
+                      textAlign:
+                        "center",
+                      color:
+                        "#64748b",
+                    }}
+                  >
+                    Loading
+                    communication
+                    history...
+                  </div>
+                ) : activities.length ===
+                  0 ? (
+                  <div
+                    style={{
+                      padding:
+                        "40px",
+                      textAlign:
+                        "center",
+                      background:
+                        "#f8fafc",
+                      borderRadius:
+                        "10px",
+                      color:
+                        "#64748b",
+                    }}
+                  >
+                    No communication
+                    history has been
+                    recorded for this
+                    lead yet.
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      display:
+                        "grid",
+                      gap: "12px",
+                    }}
+                  >
+                    {activities.map(
+                      (activity) => (
                         <div
+                          key={
+                            activity.id
+                          }
                           style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "9px",
+                            border:
+                              "1px solid #e2e8f0",
+                            borderRadius:
+                              "12px",
+                            padding:
+                              "15px",
+                            background:
+                              "#ffffff",
                           }}
                         >
-                          <span
+                          <div
                             style={{
-                              padding: "5px 9px",
-                              borderRadius: "999px",
-                              background:
-                                activity.type === "call"
-                                  ? "#dbeafe"
-                                  : activity.type === "whatsapp"
-                                  ? "#dcfce7"
-                                  : "#fef3c7",
-                              color:
-                                activity.type === "call"
-                                  ? "#1d4ed8"
-                                  : activity.type === "whatsapp"
-                                  ? "#166534"
-                                  : "#92400e",
-                              fontSize: "11px",
-                              fontWeight: 800,
-                              textTransform: "uppercase",
+                              display:
+                                "flex",
+                              justifyContent:
+                                "space-between",
+                              gap:
+                                "15px",
+                              flexWrap:
+                                "wrap",
+                              marginBottom:
+                                "8px",
                             }}
                           >
-                            {activity.type}
-                          </span>
+                            <div
+                              style={{
+                                display:
+                                  "flex",
+                                alignItems:
+                                  "center",
+                                gap:
+                                  "9px",
+                              }}
+                            >
+                              <span
+                                style={{
+                                  padding:
+                                    "5px 9px",
+                                  borderRadius:
+                                    "999px",
+                                  background:
+                                    activity.type ===
+                                    "call"
+                                      ? "#dbeafe"
+                                      : activity.type ===
+                                        "whatsapp"
+                                      ? "#dcfce7"
+                                      : "#fef3c7",
+                                  color:
+                                    activity.type ===
+                                    "call"
+                                      ? "#1d4ed8"
+                                      : activity.type ===
+                                        "whatsapp"
+                                      ? "#166534"
+                                      : "#92400e",
+                                  fontSize:
+                                    "11px",
+                                  fontWeight:
+                                    800,
+                                  textTransform:
+                                    "uppercase",
+                                }}
+                              >
+                                {
+                                  activity.type
+                                }
+                              </span>
 
-                          <strong style={{ fontSize: "14px" }}>
-                            {activity.subject}
-                          </strong>
+                              <strong
+                                style={{
+                                  fontSize:
+                                    "14px",
+                                }}
+                              >
+                                {
+                                  activity.subject
+                                }
+                              </strong>
+                            </div>
+
+                            <span
+                              style={{
+                                color:
+                                  "#64748b",
+                                fontSize:
+                                  "12px",
+                              }}
+                            >
+                              {formatDateTime(
+                                activity.activity_at
+                              )}
+                            </span>
+                          </div>
+
+                          {activity.description && (
+                            <div
+                              style={{
+                                whiteSpace:
+                                  "pre-wrap",
+                                color:
+                                  "#475569",
+                                fontSize:
+                                  "13px",
+                                lineHeight:
+                                  1.6,
+                              }}
+                            >
+                              {
+                                activity.description
+                              }
+                            </div>
+                          )}
                         </div>
-
-                        <span
-                          style={{
-                            color: "#64748b",
-                            fontSize: "12px",
-                          }}
-                        >
-                          {formatDateTime(activity.activity_at)}
-                        </span>
-                      </div>
-
-                      {activity.description && (
-                        <div
-                          style={{
-                            whiteSpace: "pre-wrap",
-                            color: "#475569",
-                            fontSize: "13px",
-                            lineHeight: 1.6,
-                          }}
-                        >
-                          {activity.description}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </ModalOverlay>
-        )}
+                      )
+                    )}
+                  </div>
+                )}
+              </div>
+            </ModalOverlay>
+          )}
 
         {/* ADD LEAD MODAL */}
         {showAddLead && (
           <ModalOverlay
             onClose={() => {
               if (!saving) {
-                setShowAddLead(false);
+                setShowAddLead(
+                  false
+                );
               }
             }}
           >
             <div
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e) =>
+                e.stopPropagation()
+              }
               style={{
                 width: "100%",
                 maxWidth: "650px",
                 maxHeight: "90vh",
                 overflowY: "auto",
-                background: "#ffffff",
-                borderRadius: "16px",
+                background:
+                  "#ffffff",
+                borderRadius:
+                  "16px",
                 padding: "24px",
-                boxShadow: "0 25px 60px rgba(15, 23, 42, 0.25)",
+                boxShadow:
+                  "0 25px 60px rgba(15, 23, 42, 0.25)",
               }}
             >
               <div
                 style={{
                   display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginBottom: "20px",
+                  justifyContent:
+                    "space-between",
+                  alignItems:
+                    "center",
+                  marginBottom:
+                    "20px",
                 }}
               >
                 <div>
                   <h2
                     style={{
                       margin: 0,
-                      fontSize: "22px",
-                      fontWeight: 800,
+                      fontSize:
+                        "22px",
+                      fontWeight:
+                        800,
                     }}
                   >
                     Add New Lead
@@ -1495,28 +2059,45 @@ export default function LeadsPage() {
 
                   <p
                     style={{
-                      margin: "5px 0 0",
-                      color: "#64748b",
-                      fontSize: "13px",
+                      margin:
+                        "5px 0 0",
+                      color:
+                        "#64748b",
+                      fontSize:
+                        "13px",
                     }}
                   >
-                    Add a new prospective student to the CRM.
+                    Add a new
+                    prospective
+                    student to the
+                    CRM.
                   </p>
                 </div>
 
                 <button
                   type="button"
-                  onClick={() => setShowAddLead(false)}
-                  style={closeButtonStyle}
+                  onClick={() =>
+                    setShowAddLead(
+                      false
+                    )
+                  }
+                  style={
+                    closeButtonStyle
+                  }
                 >
-                  ×
+                  Ã—
                 </button>
               </div>
 
-              <form onSubmit={handleAddLead}>
+              <form
+                onSubmit={
+                  handleAddLead
+                }
+              >
                 <div
                   style={{
-                    display: "grid",
+                    display:
+                      "grid",
                     gridTemplateColumns:
                       "repeat(2, minmax(0, 1fr))",
                     gap: "16px",
@@ -1524,11 +2105,16 @@ export default function LeadsPage() {
                 >
                   <FormField
                     label="CIU Number"
-                    value={newLead.ciu_number}
-                    onChange={(value) =>
+                    value={
+                      newLead.ciu_number
+                    }
+                    onChange={(
+                      value
+                    ) =>
                       setNewLead({
                         ...newLead,
-                        ciu_number: value,
+                        ciu_number:
+                          value,
                       })
                     }
                     placeholder="CIU number"
@@ -1536,8 +2122,12 @@ export default function LeadsPage() {
 
                   <FormField
                     label="Full Name *"
-                    value={newLead.name}
-                    onChange={(value) =>
+                    value={
+                      newLead.name
+                    }
+                    onChange={(
+                      value
+                    ) =>
                       setNewLead({
                         ...newLead,
                         name: value,
@@ -1548,8 +2138,12 @@ export default function LeadsPage() {
 
                   <FormField
                     label="Telephone Number *"
-                    value={newLead.phone}
-                    onChange={(value) =>
+                    value={
+                      newLead.phone
+                    }
+                    onChange={(
+                      value
+                    ) =>
                       setNewLead({
                         ...newLead,
                         phone: value,
@@ -1560,11 +2154,16 @@ export default function LeadsPage() {
 
                   <FormField
                     label="Email"
-                    value={newLead.email}
-                    onChange={(value) =>
+                    value={
+                      newLead.email
+                    }
+                    onChange={(
+                      value
+                    ) =>
                       setNewLead({
                         ...newLead,
-                        email: value,
+                        email:
+                          value,
                       })
                     }
                     placeholder="student@email.com"
@@ -1573,87 +2172,139 @@ export default function LeadsPage() {
 
                   <FormField
                     label="Programme"
-                    value={newLead.product_service}
-                    onChange={(value) =>
+                    value={
+                      newLead.product_service
+                    }
+                    onChange={(
+                      value
+                    ) =>
                       setNewLead({
                         ...newLead,
-                        product_service: value,
+                        product_service:
+                          value,
                       })
                     }
                     placeholder="Programme / course"
                   />
 
                   <div>
-                    <label style={labelStyle}>Status</label>
+                    <label
+                      style={
+                        labelStyle
+                      }
+                    >
+                      Status
+                    </label>
 
                     <select
-                      value={newLead.status}
+                      value={
+                        newLead.status
+                      }
                       onChange={(e) =>
                         setNewLead({
                           ...newLead,
-                          status: e.target.value,
+                          status:
+                            e.target
+                              .value,
                         })
                       }
-                      style={inputStyle}
+                      style={
+                        inputStyle
+                      }
                     >
-                      <option value="new">Pending</option>
-                      <option value="contacted">Called</option>
+                      <option value="new">
+                        Pending
+                      </option>
+
+                      <option value="contacted">
+                        Called
+                      </option>
+
                       <option value="qualified">
                         Interested
                       </option>
+
                       <option value="unqualified">
                         Not interested
                       </option>
+
                       <option value="converted">
                         Converted
                       </option>
-                      <option value="lost">Lost Leads</option>
+
+                      <option value="lost">
+                        Lost Leads
+                      </option>
                     </select>
                   </div>
 
                   <FormField
                     label="Follow Up Status"
-                    value={newLead.follow_up_status}
-                    onChange={(value) =>
+                    value={
+                      newLead.follow_up_status
+                    }
+                    onChange={(
+                      value
+                    ) =>
                       setNewLead({
                         ...newLead,
-                        follow_up_status: value,
+                        follow_up_status:
+                          value,
                       })
                     }
                     placeholder="e.g. Call tomorrow"
                   />
 
                   <div>
-                    <label style={labelStyle}>
+                    <label
+                      style={
+                        labelStyle
+                      }
+                    >
                       Next Follow Up
                     </label>
 
                     <input
                       type="datetime-local"
-                      value={newLead.next_follow_up_at}
+                      value={
+                        newLead.next_follow_up_at
+                      }
                       onChange={(e) =>
                         setNewLead({
                           ...newLead,
-                          next_follow_up_at: e.target.value,
+                          next_follow_up_at:
+                            e.target
+                              .value,
                         })
                       }
-                      style={inputStyle}
+                      style={
+                        inputStyle
+                      }
                     />
                   </div>
                 </div>
 
                 <div
                   style={{
-                    display: "flex",
-                    justifyContent: "flex-end",
+                    display:
+                      "flex",
+                    justifyContent:
+                      "flex-end",
                     gap: "10px",
-                    marginTop: "24px",
+                    marginTop:
+                      "24px",
                   }}
                 >
                   <button
                     type="button"
-                    onClick={() => setShowAddLead(false)}
-                    style={secondaryButtonStyle}
+                    onClick={() =>
+                      setShowAddLead(
+                        false
+                      )
+                    }
+                    style={
+                      secondaryButtonStyle
+                    }
                   >
                     Cancel
                   </button>
@@ -1663,15 +2314,19 @@ export default function LeadsPage() {
                     disabled={saving}
                     style={{
                       ...primaryButtonStyle,
-                      background: saving
-                        ? "#93c5fd"
-                        : "#2563eb",
-                      cursor: saving
-                        ? "not-allowed"
-                        : "pointer",
+                      background:
+                        saving
+                          ? "#93c5fd"
+                          : "#2563eb",
+                      cursor:
+                        saving
+                          ? "not-allowed"
+                          : "pointer",
                     }}
                   >
-                    {saving ? "Saving..." : "Save Lead"}
+                    {saving
+                      ? "Saving..."
+                      : "Save Lead"}
                   </button>
                 </div>
               </form>
@@ -1693,9 +2348,12 @@ function KpiCard({
   return (
     <div
       style={{
-        background: "#ffffff",
-        border: "1px solid #e5e7eb",
-        borderRadius: "14px",
+        background:
+          "#ffffff",
+        border:
+          "1px solid #e5e7eb",
+        borderRadius:
+          "14px",
         padding: "18px",
       }}
     >
@@ -1733,16 +2391,29 @@ function ModalOverlay({
       style={{
         position: "fixed",
         inset: 0,
-        background: "rgba(15, 23, 42, 0.5)",
+        background:
+          "rgba(15, 23, 42, 0.5)",
         display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
+        alignItems:
+          "center",
+        justifyContent:
+          "center",
         padding: "20px",
         zIndex: 10000,
       }}
       onClick={onClose}
     >
-      <div onClick={(e) => e.stopPropagation()}>
+      <div
+        onClick={(e) =>
+          e.stopPropagation()
+        }
+        style={{
+          width: "100%",
+          display: "flex",
+          justifyContent:
+            "center",
+        }}
+      >
         {children}
       </div>
     </div>
@@ -1764,24 +2435,6 @@ const tdStyle: React.CSSProperties = {
   fontSize: "13px",
   color: "#334155",
   verticalAlign: "middle",
-};
-
-const menuButtonStyle: React.CSSProperties = {
-  width: "100%",
-  display: "flex",
-  alignItems: "center",
-  gap: "10px",
-  padding: "10px 11px",
-  border: "none",
-  borderRadius: "7px",
-  background: "#ffffff",
-  color: "#334155",
-  fontSize: "13px",
-  fontWeight: 600,
-  cursor: "pointer",
-  textAlign: "left",
-  visibility: "visible",
-  opacity: 1,
 };
 
 const labelStyle: React.CSSProperties = {
@@ -1854,12 +2507,16 @@ function FormField({
 }) {
   return (
     <div>
-      <label style={labelStyle}>{label}</label>
+      <label style={labelStyle}>
+        {label}
+      </label>
 
       <input
         type={type}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) =>
+          onChange(e.target.value)
+        }
         placeholder={placeholder}
         style={inputStyle}
       />
