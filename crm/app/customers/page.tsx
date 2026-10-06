@@ -111,7 +111,24 @@ export default function Customers() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [viewingCustomer, setViewingCustomer] = useState<Customer | null>(null);
+  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [error, setError] = useState("");
+
+  const [editForm, setEditForm] = useState({
+    ciu_number: "",
+    full_names: "",
+    telephone: "",
+    email: "",
+    program: "",
+    stage: "New",
+    tuition_fee: "",
+    tuition_paid: "",
+    application_fee: "",
+    application_paid: "",
+    acceptance_fee: "",
+    acceptance_paid: "",
+    notes: "",
+  });
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] =
@@ -252,6 +269,82 @@ export default function Customers() {
       total + Number(customer.tuition_fee || 0),
     0
   );
+
+  function openEditCustomer(customer: Customer) {
+    setEditingCustomer(customer);
+    setEditForm({
+      ciu_number: customer.ciu_number || "",
+      full_names: customer.full_names || "",
+      telephone: customer.telephone || "",
+      email: customer.email || "",
+      program: customer.program || "",
+      stage: customer.stage || "New",
+      tuition_fee: String(customer.tuition_fee ?? ""),
+      tuition_paid: String(customer.tuition_paid ?? ""),
+      application_fee: String(customer.application_fee ?? ""),
+      application_paid: String(customer.application_paid ?? ""),
+      acceptance_fee: String(customer.acceptance_fee ?? ""),
+      acceptance_paid: String(customer.acceptance_paid ?? ""),
+      notes: customer.notes || "",
+    });
+    setError("");
+  }
+
+  function closeEditCustomer() {
+    if (saving) return;
+    setEditingCustomer(null);
+    setError("");
+  }
+
+  async function handleSaveCustomer(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!editingCustomer) return;
+
+    if (!editForm.full_names.trim()) {
+      setError("Full names are required.");
+      return;
+    }
+
+    if (!editForm.program.trim()) {
+      setError("Program is required.");
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+
+    const { error: updateError } = await supabase
+      .from("admissions")
+      .update({
+        ciu_number: editForm.ciu_number.trim() || null,
+        full_names: editForm.full_names.trim(),
+        telephone: editForm.telephone.trim() || null,
+        email: editForm.email.trim() || null,
+        program: editForm.program.trim(),
+        stage: editForm.stage,
+        tuition_fee: Number(editForm.tuition_fee || 0),
+        tuition_paid: Number(editForm.tuition_paid || 0),
+        application_fee: Number(editForm.application_fee || 0),
+        application_paid: Number(editForm.application_paid || 0),
+        acceptance_fee: Number(editForm.acceptance_fee || 0),
+        acceptance_paid: Number(editForm.acceptance_paid || 0),
+        notes: editForm.notes.trim() || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", editingCustomer.id);
+
+    if (updateError) {
+      console.error(updateError);
+      setError(updateError.message);
+      setSaving(false);
+      return;
+    }
+
+    setSaving(false);
+    setEditingCustomer(null);
+    await loadCustomers();
+  }
 
   function openFollowUp(customer: Customer) {
     setFollowUpCustomer(customer);
@@ -477,7 +570,7 @@ export default function Customers() {
                 <th>Status</th>
                 <th>Value</th>
                 <th>Follow-Up</th>
-                <th>Action</th>
+                <th>Actions</th>
               </tr>
             </thead>
 
@@ -649,6 +742,29 @@ export default function Customers() {
                             }}
                           >
                             View
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => openEditCustomer(customer)}
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              visibility: "visible",
+                              opacity: 1,
+                              color: "#7c3aed",
+                              background: "#f5f3ff",
+                              border: "1px solid #ddd6fe",
+                              padding: "7px 11px",
+                              borderRadius: 7,
+                              fontSize: 13,
+                              fontWeight: 600,
+                              cursor: "pointer",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            Edit
                           </button>
 
                           {customer.telephone && (
@@ -965,6 +1081,253 @@ export default function Customers() {
                 Follow Up
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {editingCustomer && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 1050,
+            background: "rgba(15, 23, 42, 0.55)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+          }}
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              closeEditCustomer();
+            }
+          }}
+        >
+          <div
+            style={{
+              width: "100%",
+              maxWidth: 760,
+              maxHeight: "90vh",
+              overflowY: "auto",
+              background: "#ffffff",
+              borderRadius: 12,
+              padding: 24,
+              boxShadow: "0 20px 50px rgba(0,0,0,0.2)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: 20,
+              }}
+            >
+              <div>
+                <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>
+                  Edit Student
+                </h2>
+                <p style={{ margin: "5px 0 0", fontSize: 13, opacity: 0.65 }}>
+                  Update admission and payment information.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={closeEditCustomer}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  visibility: "visible",
+                  opacity: 1,
+                  color: "#374151",
+                  background: "#f3f4f6",
+                  border: "1px solid #d1d5db",
+                  width: 36,
+                  height: 36,
+                  borderRadius: 8,
+                  fontSize: 22,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                ×
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveCustomer}>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                  gap: 14,
+                }}
+              >
+                {[
+                  ["CIU Number", "ciu_number", "text"],
+                  ["Full Names *", "full_names", "text"],
+                  ["Telephone", "telephone", "text"],
+                  ["Email", "email", "email"],
+                  ["Program *", "program", "text"],
+                  ["Tuition Fee", "tuition_fee", "number"],
+                  ["Tuition Paid", "tuition_paid", "number"],
+                  ["Application Fee", "application_fee", "number"],
+                  ["Application Paid", "application_paid", "number"],
+                  ["Acceptance Fee", "acceptance_fee", "number"],
+                  ["Acceptance Paid", "acceptance_paid", "number"],
+                ].map(([label, field, type]) => (
+                  <div key={field}>
+                    <label
+                      style={{
+                        display: "block",
+                        marginBottom: 6,
+                        fontWeight: 600,
+                        fontSize: 14,
+                      }}
+                    >
+                      {label}
+                    </label>
+                    <input
+                      type={type}
+                      value={editForm[field as keyof typeof editForm]}
+                      onChange={(event) =>
+                        setEditForm({
+                          ...editForm,
+                          [field]: event.target.value,
+                        })
+                      }
+                      required={field === "full_names" || field === "program"}
+                      style={{ width: "100%" }}
+                    />
+                  </div>
+                ))}
+
+                <div>
+                  <label
+                    style={{
+                      display: "block",
+                      marginBottom: 6,
+                      fontWeight: 600,
+                      fontSize: 14,
+                    }}
+                  >
+                    Stage
+                  </label>
+                  <select
+                    value={editForm.stage}
+                    onChange={(event) =>
+                      setEditForm({
+                        ...editForm,
+                        stage: event.target.value,
+                      })
+                    }
+                    style={{ width: "100%" }}
+                  >
+                    {STAGES.map((stage) => (
+                      <option key={stage} value={stage}>
+                        {stage}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ marginTop: 14 }}>
+                <label
+                  style={{
+                    display: "block",
+                    marginBottom: 6,
+                    fontWeight: 600,
+                    fontSize: 14,
+                  }}
+                >
+                  Notes
+                </label>
+                <textarea
+                  value={editForm.notes}
+                  onChange={(event) =>
+                    setEditForm({
+                      ...editForm,
+                      notes: event.target.value,
+                    })
+                  }
+                  rows={4}
+                  style={{ width: "100%", resize: "vertical" }}
+                />
+              </div>
+
+              {error && (
+                <div
+                  style={{
+                    marginTop: 14,
+                    padding: "10px 12px",
+                    borderRadius: 8,
+                    border: "1px solid #fecaca",
+                    background: "#fef2f2",
+                    color: "#b91c1c",
+                    fontSize: 13,
+                  }}
+                >
+                  {error}
+                </div>
+              )}
+
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  gap: 10,
+                  marginTop: 24,
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={closeEditCustomer}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    visibility: "visible",
+                    opacity: 1,
+                    color: "#374151",
+                    background: "#ffffff",
+                    border: "1px solid #d1d5db",
+                    padding: "10px 16px",
+                    borderRadius: 8,
+                    fontSize: 14,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    minHeight: 40,
+                  }}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={saving}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    visibility: "visible",
+                    opacity: 1,
+                    color: "#ffffff",
+                    background: "#7c3aed",
+                    border: "1px solid #7c3aed",
+                    padding: "10px 16px",
+                    borderRadius: 8,
+                    fontSize: 14,
+                    fontWeight: 600,
+                    cursor: saving ? "not-allowed" : "pointer",
+                    minHeight: 40,
+                  }}
+                >
+                  {saving ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
