@@ -723,29 +723,6 @@ export default function Customers() {
                         >
                           <button
                             type="button"
-                            onClick={() => setViewingCustomer(customer)}
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              visibility: "visible",
-                              opacity: 1,
-                              color: "#2563eb",
-                              background: "#eff6ff",
-                              border: "1px solid #bfdbfe",
-                              padding: "7px 11px",
-                              borderRadius: 7,
-                              fontSize: 13,
-                              fontWeight: 600,
-                              cursor: "pointer",
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            View
-                          </button>
-
-                          <button
-                            type="button"
                             onClick={() => openEditCustomer(customer)}
                             style={{
                               display: "inline-flex",
@@ -756,7 +733,7 @@ export default function Customers() {
                               color: "#7c3aed",
                               background: "#f5f3ff",
                               border: "1px solid #ddd6fe",
-                              padding: "7px 11px",
+                              padding: "7px 13px",
                               borderRadius: 7,
                               fontSize: 13,
                               fontWeight: 600,
@@ -764,90 +741,7 @@ export default function Customers() {
                               whiteSpace: "nowrap",
                             }}
                           >
-                            Edit
-                          </button>
-
-                          {customer.telephone && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                window.location.href = `tel:${customer.telephone}`;
-                              }}
-                              style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                visibility: "visible",
-                                opacity: 1,
-                                color: "#374151",
-                                background: "#ffffff",
-                                border: "1px solid #d1d5db",
-                                padding: "7px 11px",
-                                borderRadius: 7,
-                                fontSize: 13,
-                                fontWeight: 600,
-                                cursor: "pointer",
-                                whiteSpace: "nowrap",
-                              }}
-                            >
-                              Call
-                            </button>
-                          )}
-
-                          {customer.telephone && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const digits = customer.telephone!.replace(/\D/g, "");
-                                const normalized = digits.startsWith("0")
-                                  ? `256${digits.substring(1)}`
-                                  : digits.startsWith("256")
-                                  ? digits
-                                  : `256${digits}`;
-                                window.open(`https://wa.me/${normalized}`, "_blank");
-                              }}
-                              style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                visibility: "visible",
-                                opacity: 1,
-                                color: "#ffffff",
-                                background: "#16a34a",
-                                border: "1px solid #16a34a",
-                                padding: "7px 11px",
-                                borderRadius: 7,
-                                fontSize: 13,
-                                fontWeight: 600,
-                                cursor: "pointer",
-                                whiteSpace: "nowrap",
-                              }}
-                            >
-                              WhatsApp
-                            </button>
-                          )}
-
-                          <button
-                            type="button"
-                            onClick={() => openFollowUp(customer)}
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              visibility: "visible",
-                              opacity: 1,
-                              color: "#ffffff",
-                              background: "#16a34a",
-                              border: "1px solid #16a34a",
-                              padding: "7px 11px",
-                              borderRadius: 7,
-                              fontSize: 13,
-                              fontWeight: 600,
-                              cursor: "pointer",
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            Follow Up
+                            Edit Customer
                           </button>
                         </div>
                       </td>
