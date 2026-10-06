@@ -3,6 +3,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
+type Lead = {
+  id: string;
+  name: string | null;
+  phone: string | null;
+  email: string | null;
+  ciu_number: string | null;
+  product_service: string | null;
+  status: string | null;
+  feedback: string | null;
+};
+
 type Customer = {
   id: string;
   ciu_number: string | null;
@@ -23,23 +34,8 @@ type Customer = {
   created_at: string | null;
   updated_at: string | null;
   lead_id: string | null;
-  lead?: {
-    id: string;
-    name: string | null;
-    phone: string | null;
-    email: string | null;
-    ciu_number: string | null;
-    product_service: string | null;
-    status: string | null;
-    feedback: string | null;
-  } | null;
+  lead?: Lead | null;
 };
-
-const ACTIVE_STAGES = [
-  "Admitted",
-  "Acceptance Paid",
-  "Enrolled",
-];
 
 const STAGES = [
   "New",
@@ -51,6 +47,12 @@ const STAGES = [
   "Acceptance Paid",
   "Enrolled",
   "Lost/Dropped",
+];
+
+const ACTIVE_STAGES = [
+  "Admitted",
+  "Acceptance Paid",
+  "Enrolled",
 ];
 
 const FOLLOW_UP_REASONS = [
@@ -65,19 +67,39 @@ const FOLLOW_UP_REASONS = [
   "Other",
 ];
 
-function formatUGX(value: number | null | undefined) {
-  const amount = Number(value || 0);
+const EMPTY_EDIT_FORM = {
+  ciu_number: "",
+  full_names: "",
+  telephone: "",
+  email: "",
+  program: "",
+  stage: "New",
+  tuition_fee: "",
+  tuition_paid: "",
+  application_fee: "",
+  application_paid: "",
+  acceptance_fee: "",
+  acceptance_paid: "",
+  notes: "",
+};
 
-  return `UGX ${amount.toLocaleString("en-UG")}`;
+const EMPTY_FOLLOW_UP_FORM = {
+  date: "",
+  reason: "",
+  notes: "",
+};
+
+function formatUGX(value: number | null | undefined) {
+  return `UGX ${Number(value || 0).toLocaleString("en-UG")}`;
 }
 
-function formatDate(value: string | null) {
-  if (!value) return "No activity";
+function formatDate(value: string | null | undefined) {
+  if (!value) return "Not scheduled";
 
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
-    return "No activity";
+    return "Not scheduled";
   }
 
   return date.toLocaleDateString("en-GB", {
@@ -88,52 +110,40 @@ function formatDate(value: string | null) {
 }
 
 function getInitials(name: string | null) {
-  if (!name) return "CU";
+  if (!name?.trim()) return "ST";
 
   const parts = name.trim().split(/\s+/);
 
   if (parts.length === 1) {
-    return parts[0].substring(0, 2).toUpperCase();
+    return parts[0].slice(0, 2).toUpperCase();
   }
 
-  return `${parts[0][0]}${
-    parts[parts.length - 1][0]
-  }`.toUpperCase();
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+}
+
+function toNumber(value: string) {
+  const number = Number(value);
+
+  return Number.isFinite(number) ? number : 0;
 }
 
 export default function Customers() {
   const supabase = createClient();
 
-  const [customers, setCustomers] = useState<Customer[]>(
-    []
-  );
-
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [viewingCustomer, setViewingCustomer] = useState<Customer | null>(null);
-  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [error, setError] = useState("");
-
-  const [editForm, setEditForm] = useState({
-    ciu_number: "",
-    full_names: "",
-    telephone: "",
-    email: "",
-    program: "",
-    stage: "New",
-    tuition_fee: "",
-    tuition_paid: "",
-    application_fee: "",
-    application_paid: "",
-    acceptance_fee: "",
-    acceptance_paid: "",
-    notes: "",
-  });
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] =
     useState("All Customers");
 
+  const [viewingCustomer, setViewingCustomer] =
+    useState<Customer | null>(null);
+
+  const [editingCustomer, setEditingCustomer] =
+    useState<Customer | null>(null);
 
   const [showFollowUp, setShowFollowUp] =
     useState(false);
@@ -141,37 +151,69 @@ export default function Customers() {
   const [followUpCustomer, setFollowUpCustomer] =
     useState<Customer | null>(null);
 
-  const [followUpForm, setFollowUpForm] = useState({
-    date: "",
-    reason: "",
-    notes: "",
-  });
+  const [editForm, setEditForm] =
+    useState(EMPTY_EDIT_FORM);
+
+  const [followUpForm, setFollowUpForm] =
+    useState(EMPTY_FOLLOW_UP_FORM);
 
   async function loadCustomers() {
     setLoading(true);
     setError("");
 
-    const { data, error: loadError } = await supabase
-      .from("admissions")
-      .select(
-        "id, lead_id, ciu_number, full_names, telephone, email, program, stage, tuition_fee, tuition_paid, application_fee, application_paid, acceptance_fee, acceptance_paid, follow_up_date, last_contact, notes, created_at, updated_at"
-      )
-      .order("created_at", { ascending: false });
+    const { data, error: loadError } =
+      await supabase
+        .from("admissions")
+        .select(
+          `
+          id,
+          lead_id,
+          ciu_number,
+          full_names,
+          telephone,
+          email,
+          program,
+          stage,
+          tuition_fee,
+          tuition_paid,
+          application_fee,
+          application_paid,
+          acceptance_fee,
+          acceptance_paid,
+          follow_up_date,
+          last_contact,
+          notes,
+          created_at,
+          updated_at
+          `
+        )
+        .order("created_at", {
+          ascending: false,
+        });
 
     if (loadError) {
       console.error(loadError);
-      setError(loadError.message);
+
       setCustomers([]);
+      setError(loadError.message);
       setLoading(false);
+
       return;
     }
 
-    const admissionRows = (data || []) as Customer[];
+    const admissionRows =
+      (data || []) as Customer[];
+
     const leadIds = Array.from(
       new Set(
         admissionRows
-          .map((customer) => customer.lead_id)
-          .filter((id): id is string => Boolean(id))
+          .map(
+            (customer) => customer.lead_id
+          )
+          .filter(
+            (id): id is string =>
+              Boolean(id)
+          )
       )
     );
 
@@ -181,30 +223,56 @@ export default function Customers() {
       return;
     }
 
-    const { data: leadRows, error: leadError } = await supabase
-      .from("leads")
-      .select("id, name, phone, email, ciu_number, product_service, status, feedback")
-      .in("id", leadIds);
+    const { data: leadRows, error: leadError } =
+      await supabase
+        .from("leads")
+        .select(
+          `
+          id,
+          name,
+          phone,
+          email,
+          ciu_number,
+          product_service,
+          status,
+          feedback
+          `
+        )
+        .in("id", leadIds);
 
     if (leadError) {
       console.error(leadError);
+
       setCustomers(admissionRows);
-      setError("Customers loaded, but linked lead information could not be loaded.");
+
+      setError(
+        "Customers loaded, but linked lead information could not be loaded."
+      );
+
       setLoading(false);
       return;
     }
 
     const leadMap = new Map(
-      (leadRows || []).map((lead) => [lead.id, lead])
+      (leadRows || []).map(
+        (lead) => [
+          lead.id,
+          lead as Lead,
+        ]
+      )
     );
 
     setCustomers(
-      admissionRows.map((customer) => ({
-        ...customer,
-        lead: customer.lead_id
-          ? leadMap.get(customer.lead_id) || null
-          : null,
-      }))
+      admissionRows.map(
+        (customer) => ({
+          ...customer,
+          lead: customer.lead_id
+            ? leadMap.get(
+                customer.lead_id
+              ) || null
+            : null,
+        })
+      )
     );
 
     setLoading(false);
@@ -215,147 +283,175 @@ export default function Customers() {
   }, []);
 
   const filteredCustomers = useMemo(() => {
-    const term = search.trim().toLowerCase();
+    const term =
+      search.trim().toLowerCase();
 
-    return customers.filter((customer) => {
-      const matchesSearch =
-        !term ||
-        (customer.full_names || "")
-          .toLowerCase()
-          .includes(term) ||
-        (customer.ciu_number || "")
-          .toLowerCase()
-          .includes(term) ||
-        (customer.telephone || "")
-          .toLowerCase()
-          .includes(term) ||
-        (customer.email || "")
-          .toLowerCase()
-          .includes(term) ||
-        (customer.program || "")
-          .toLowerCase()
-          .includes(term);
+    return customers.filter(
+      (customer) => {
+        const searchable = [
+          customer.full_names,
+          customer.ciu_number,
+          customer.telephone,
+          customer.email,
+          customer.program,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
 
-      const matchesStatus =
-        statusFilter === "All Customers" ||
-        customer.stage === statusFilter;
+        const matchesSearch =
+          !term ||
+          searchable.includes(term);
 
-      return matchesSearch && matchesStatus;
-    });
-  }, [customers, search, statusFilter]);
+        const matchesStatus =
+          statusFilter ===
+            "All Customers" ||
+          customer.stage ===
+            statusFilter;
 
-  const totalCustomers = customers.length;
-
-  const activeCustomers = customers.filter((customer) =>
-    ACTIVE_STAGES.includes(customer.stage || "")
-  ).length;
-
-  const currentMonth = new Date();
-
-  const newThisMonth = customers.filter((customer) => {
-    if (!customer.created_at) return false;
-
-    const created = new Date(customer.created_at);
-
-    return (
-      created.getMonth() === currentMonth.getMonth() &&
-      created.getFullYear() ===
-        currentMonth.getFullYear()
+        return (
+          matchesSearch &&
+          matchesStatus
+        );
+      }
     );
-  }).length;
+  }, [
+    customers,
+    search,
+    statusFilter,
+  ]);
 
-  const customerValue = customers.reduce(
-    (total, customer) =>
-      total + Number(customer.tuition_fee || 0),
-    0
-  );
+  const totalCustomers =
+    customers.length;
 
-  function openEditCustomer(customer: Customer) {
-    setEditingCustomer(customer);
-    setEditForm({
-      ciu_number: customer.ciu_number || "",
-      full_names: customer.full_names || "",
-      telephone: customer.telephone || "",
-      email: customer.email || "",
-      program: customer.program || "",
-      stage: customer.stage || "New",
-      tuition_fee: String(customer.tuition_fee ?? ""),
-      tuition_paid: String(customer.tuition_paid ?? ""),
-      application_fee: String(customer.application_fee ?? ""),
-      application_paid: String(customer.application_paid ?? ""),
-      acceptance_fee: String(customer.acceptance_fee ?? ""),
-      acceptance_paid: String(customer.acceptance_paid ?? ""),
-      notes: customer.notes || "",
-    });
+  const activeStudents =
+    customers.filter((customer) =>
+      ACTIVE_STAGES.includes(
+        customer.stage || ""
+      )
+    ).length;
+
+  const newThisMonth =
+    customers.filter((customer) => {
+      if (!customer.created_at) {
+        return false;
+      }
+
+      const date = new Date(
+        customer.created_at
+      );
+
+      const now = new Date();
+
+      return (
+        date.getMonth() ===
+          now.getMonth() &&
+        date.getFullYear() ===
+          now.getFullYear()
+      );
+    }).length;
+
+  const totalTuitionValue =
+    customers.reduce(
+      (sum, customer) =>
+        sum +
+        Number(
+          customer.tuition_fee || 0
+        ),
+      0
+    );
+
+  function openViewCustomer(
+    customer: Customer
+  ) {
     setError("");
+    setViewingCustomer(customer);
+  }
+
+  function openEditCustomer(
+    customer: Customer
+  ) {
+    setError("");
+
+    setEditingCustomer(customer);
+
+    setEditForm({
+      ciu_number:
+        customer.ciu_number || "",
+
+      full_names:
+        customer.full_names || "",
+
+      telephone:
+        customer.telephone || "",
+
+      email:
+        customer.email || "",
+
+      program:
+        customer.program || "",
+
+      stage:
+        customer.stage || "New",
+
+      tuition_fee:
+        String(
+          customer.tuition_fee ?? ""
+        ),
+
+      tuition_paid:
+        String(
+          customer.tuition_paid ?? ""
+        ),
+
+      application_fee:
+        String(
+          customer.application_fee ?? ""
+        ),
+
+      application_paid:
+        String(
+          customer.application_paid ?? ""
+        ),
+
+      acceptance_fee:
+        String(
+          customer.acceptance_fee ?? ""
+        ),
+
+      acceptance_paid:
+        String(
+          customer.acceptance_paid ?? ""
+        ),
+
+      notes:
+        customer.notes || "",
+    });
   }
 
   function closeEditCustomer() {
     if (saving) return;
+
     setEditingCustomer(null);
     setError("");
   }
 
-  async function handleSaveCustomer(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    if (!editingCustomer) return;
-
-    if (!editForm.full_names.trim()) {
-      setError("Full names are required.");
-      return;
-    }
-
-    if (!editForm.program.trim()) {
-      setError("Program is required.");
-      return;
-    }
-
-    setSaving(true);
+  function openFollowUp(
+    customer: Customer
+  ) {
     setError("");
 
-    const { error: updateError } = await supabase
-      .from("admissions")
-      .update({
-        ciu_number: editForm.ciu_number.trim() || null,
-        full_names: editForm.full_names.trim(),
-        telephone: editForm.telephone.trim() || null,
-        email: editForm.email.trim() || null,
-        program: editForm.program.trim(),
-        stage: editForm.stage,
-        tuition_fee: Number(editForm.tuition_fee || 0),
-        tuition_paid: Number(editForm.tuition_paid || 0),
-        application_fee: Number(editForm.application_fee || 0),
-        application_paid: Number(editForm.application_paid || 0),
-        acceptance_fee: Number(editForm.acceptance_fee || 0),
-        acceptance_paid: Number(editForm.acceptance_paid || 0),
-        notes: editForm.notes.trim() || null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", editingCustomer.id);
-
-    if (updateError) {
-      console.error(updateError);
-      setError(updateError.message);
-      setSaving(false);
-      return;
-    }
-
-    setSaving(false);
-    setEditingCustomer(null);
-    await loadCustomers();
-  }
-
-  function openFollowUp(customer: Customer) {
     setFollowUpCustomer(customer);
 
     setFollowUpForm({
-      date: customer.follow_up_date || "",
+      date:
+        customer.follow_up_date || "",
+
       reason: "",
+
       notes: "",
     });
 
-    setError("");
     setShowFollowUp(true);
   }
 
@@ -363,15 +459,122 @@ export default function Customers() {
     if (saving) return;
 
     setShowFollowUp(false);
+
     setFollowUpCustomer(null);
 
-    setFollowUpForm({
-      date: "",
-      reason: "",
-      notes: "",
-    });
+    setFollowUpForm(
+      EMPTY_FOLLOW_UP_FORM
+    );
 
     setError("");
+  }
+
+  async function handleSaveCustomer(
+    event: React.FormEvent<HTMLFormElement>
+  ) {
+    event.preventDefault();
+
+    if (!editingCustomer) return;
+
+    if (!editForm.full_names.trim()) {
+      setError(
+        "Full names are required."
+      );
+
+      return;
+    }
+
+    if (!editForm.program.trim()) {
+      setError(
+        "Program is required."
+      );
+
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+
+    const { error: updateError } =
+      await supabase
+        .from("admissions")
+        .update({
+          ciu_number:
+            editForm.ciu_number.trim() ||
+            null,
+
+          full_names:
+            editForm.full_names.trim(),
+
+          telephone:
+            editForm.telephone.trim() ||
+            null,
+
+          email:
+            editForm.email.trim() ||
+            null,
+
+          program:
+            editForm.program.trim(),
+
+          stage: editForm.stage,
+
+          tuition_fee:
+            toNumber(
+              editForm.tuition_fee
+            ),
+
+          tuition_paid:
+            toNumber(
+              editForm.tuition_paid
+            ),
+
+          application_fee:
+            toNumber(
+              editForm.application_fee
+            ),
+
+          application_paid:
+            toNumber(
+              editForm.application_paid
+            ),
+
+          acceptance_fee:
+            toNumber(
+              editForm.acceptance_fee
+            ),
+
+          acceptance_paid:
+            toNumber(
+              editForm.acceptance_paid
+            ),
+
+          notes:
+            editForm.notes.trim() ||
+            null,
+
+          updated_at:
+            new Date().toISOString(),
+        })
+        .eq(
+          "id",
+          editingCustomer.id
+        );
+
+    if (updateError) {
+      console.error(updateError);
+
+      setError(updateError.message);
+      setSaving(false);
+
+      return;
+    }
+
+    setSaving(false);
+
+    setEditingCustomer(null);
+
+    await loadCustomers();
   }
 
   async function handleSaveFollowUp(
@@ -379,58 +582,85 @@ export default function Customers() {
   ) {
     event.preventDefault();
 
-    if (!followUpCustomer) return;
+    if (!followUpCustomer) {
+      return;
+    }
 
     if (!followUpForm.date) {
       setError(
         "Please select a follow-up date."
       );
+
       return;
     }
 
-    if (!followUpForm.reason.trim()) {
+    if (!followUpForm.reason) {
       setError(
         "Please select a reason for the follow-up."
       );
+
       return;
     }
 
     setSaving(true);
     setError("");
 
-    const followUpNote =
-      `Follow-up Date: ${followUpForm.date}\n` +
-      `Reason: ${followUpForm.reason.trim()}\n` +
-      `Notes: ${followUpForm.notes.trim()}`;
+    const existingNotes =
+      followUpCustomer.notes?.trim();
+
+    const followUpNote = [
+      existingNotes || "",
+      `Follow-up Date: ${followUpForm.date}`,
+      `Reason: ${followUpForm.reason}`,
+      `Follow-up Notes: ${
+        followUpForm.notes.trim() ||
+        "None"
+      }`,
+    ]
+      .filter(Boolean)
+      .join("\n");
 
     const { error: updateError } =
       await supabase
         .from("admissions")
         .update({
-          follow_up_date: followUpForm.date,
-          notes: followUpNote,
+          follow_up_date:
+            followUpForm.date,
+
+          notes:
+            followUpNote || null,
+
+          updated_at:
+            new Date().toISOString(),
         })
-        .eq("id", followUpCustomer.id);
+        .eq(
+          "id",
+          followUpCustomer.id
+        );
 
     if (updateError) {
       console.error(updateError);
+
       setError(updateError.message);
       setSaving(false);
+
       return;
     }
 
     setSaving(false);
 
-    setShowFollowUp(false);
-    setFollowUpCustomer(null);
-
-    setFollowUpForm({
-      date: "",
-      reason: "",
-      notes: "",
-    });
+    closeFollowUp();
 
     await loadCustomers();
+  }
+
+  function callStudent(
+    telephone: string | null
+  ) {
+    if (!telephone) return;
+
+    window.location.href =
+      `tel:${telephone}`;
   }
 
   return (
@@ -441,16 +671,29 @@ export default function Customers() {
           display: "flex",
           flexDirection: "column",
           alignItems: "flex-start",
-          gap: "4px",
+          gap: 4,
         }}
       >
-        <div>
-          <h1 style={{ marginBottom: "6px" }}>Customers</h1>
-          <p style={{ margin: 0 }}>
-            View students and admissions from the same records used across the CRM.
-          </p>
-        </div>
+        <h1
+          style={{
+            marginBottom: 6,
+          }}
+        >
+          Customers
+        </h1>
+
+        <p
+          style={{
+            margin: 0,
+          }}
+        >
+          Manage students, admissions,
+          payments and follow-ups from
+          one place.
+        </p>
       </div>
+
+      {/* KPI SECTION */}
 
       <div className="crm-kpis">
         <div className="crm-kpi">
@@ -463,27 +706,21 @@ export default function Customers() {
           </div>
 
           <span className="crm-kpi-change">
-            All records
+            All admission records
           </span>
         </div>
 
         <div className="crm-kpi">
           <span className="crm-kpi-label">
-            Active
+            Active Students
           </span>
 
           <div className="crm-kpi-value">
-            {activeCustomers}
+            {activeStudents}
           </div>
 
           <span className="crm-kpi-change">
-            {totalCustomers
-              ? `${Math.round(
-                  (activeCustomers /
-                    totalCustomers) *
-                    100
-                )}% of customers`
-              : "0% of customers"}
+            Admitted, paid or enrolled
           </span>
         </div>
 
@@ -503,11 +740,18 @@ export default function Customers() {
 
         <div className="crm-kpi">
           <span className="crm-kpi-label">
-            Customer Value
+            Total Tuition Value
           </span>
 
-          <div className="crm-kpi-value">
-            {formatUGX(customerValue)}
+          <div
+            className="crm-kpi-value"
+            style={{
+              fontSize: 22,
+            }}
+          >
+            {formatUGX(
+              totalTuitionValue
+            )}
           </div>
 
           <span className="crm-kpi-change">
@@ -522,7 +766,8 @@ export default function Customers() {
             marginBottom: 16,
             padding: "12px 14px",
             borderRadius: 8,
-            border: "1px solid #fecaca",
+            border:
+              "1px solid #fecaca",
             background: "#fef2f2",
             color: "#b91c1c",
             fontSize: 14,
@@ -531,6 +776,8 @@ export default function Customers() {
           {error}
         </div>
       )}
+
+      {/* CUSTOMER TABLE */}
 
       <div className="crm-card">
         <div
@@ -544,9 +791,11 @@ export default function Customers() {
           <input
             value={search}
             onChange={(event) =>
-              setSearch(event.target.value)
+              setSearch(
+                event.target.value
+              )
             }
-            placeholder="🔍 Search customers..."
+            placeholder="🔍 Search students..."
             style={{
               flex: 1,
               minWidth: 240,
@@ -556,13 +805,20 @@ export default function Customers() {
           <select
             value={statusFilter}
             onChange={(event) =>
-              setStatusFilter(event.target.value)
+              setStatusFilter(
+                event.target.value
+              )
             }
           >
-            <option>All Customers</option>
+            <option>
+              All Customers
+            </option>
 
             {STAGES.map((stage) => (
-              <option key={stage}>
+              <option
+                key={stage}
+                value={stage}
+              >
                 {stage}
               </option>
             ))}
@@ -573,10 +829,11 @@ export default function Customers() {
           <table className="crm-table">
             <thead>
               <tr>
-                <th>Customer</th>
-                <th>Program</th>
-                <th>Status</th>
-                <th>Value</th>
+                <th>Student</th>
+                <th>CIU Number</th>
+                <th>Programme</th>
+                <th>Stage</th>
+                <th>Tuition</th>
                 <th>Follow-Up</th>
                 <th>Actions</th>
               </tr>
@@ -586,21 +843,24 @@ export default function Customers() {
               {loading ? (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     style={{
-                      textAlign: "center",
+                      textAlign:
+                        "center",
                       padding: 30,
                     }}
                   >
                     Loading customers...
                   </td>
                 </tr>
-              ) : filteredCustomers.length === 0 ? (
+              ) : filteredCustomers.length ===
+                0 ? (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     style={{
-                      textAlign: "center",
+                      textAlign:
+                        "center",
                       padding: 30,
                     }}
                   >
@@ -610,12 +870,18 @@ export default function Customers() {
               ) : (
                 filteredCustomers.map(
                   (customer) => (
-                    <tr key={customer.id}>
+                    <tr
+                      key={
+                        customer.id
+                      }
+                    >
                       <td>
                         <div
                           style={{
-                            display: "flex",
-                            alignItems: "center",
+                            display:
+                              "flex",
+                            alignItems:
+                              "center",
                             gap: 10,
                           }}
                         >
@@ -623,12 +889,18 @@ export default function Customers() {
                             style={{
                               width: 36,
                               height: 36,
-                              borderRadius: "50%",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              background: "#eff6ff",
-                              color: "#2563eb",
+                              borderRadius:
+                                "50%",
+                              display:
+                                "flex",
+                              alignItems:
+                                "center",
+                              justifyContent:
+                                "center",
+                              background:
+                                "#eff6ff",
+                              color:
+                                "#2563eb",
                               fontWeight: 700,
                               fontSize: 13,
                               flexShrink: 0,
@@ -642,23 +914,29 @@ export default function Customers() {
                           <div>
                             <strong>
                               {customer.full_names ||
-                                "Unnamed Customer"}
+                                "Unnamed Student"}
                             </strong>
 
                             <div
                               style={{
                                 fontSize: 12,
-                                opacity: 0.65,
-                                marginTop: 3,
+                                opacity:
+                                  0.65,
+                                marginTop:
+                                  3,
                               }}
                             >
-                              {customer.ciu_number ||
-                                customer.telephone ||
+                              {customer.telephone ||
                                 customer.email ||
                                 "No contact details"}
                             </div>
                           </div>
                         </div>
+                      </td>
+
+                      <td>
+                        {customer.ciu_number ||
+                          "Not provided"}
                       </td>
 
                       <td>
@@ -675,7 +953,8 @@ export default function Customers() {
                               : ""
                           }`}
                         >
-                          {customer.stage || "New"}
+                          {customer.stage ||
+                            "New"}
                         </span>
                       </td>
 
@@ -690,7 +969,8 @@ export default function Customers() {
                           <div>
                             <strong
                               style={{
-                                display: "block",
+                                display:
+                                  "block",
                                 fontSize: 13,
                               }}
                             >
@@ -702,7 +982,8 @@ export default function Customers() {
                             <span
                               style={{
                                 fontSize: 12,
-                                opacity: 0.65,
+                                opacity:
+                                  0.65,
                               }}
                             >
                               Scheduled
@@ -720,36 +1001,132 @@ export default function Customers() {
                         )}
                       </td>
 
+                      {/* ACTIONS */}
+
                       <td>
                         <div
                           style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 8,
-                            flexWrap: "wrap",
+                            display:
+                              "flex",
+                            alignItems:
+                              "center",
+                            gap: 7,
+                            flexWrap:
+                              "wrap",
                           }}
                         >
                           <button
                             type="button"
-                            onClick={() => openEditCustomer(customer)}
+                            onClick={() =>
+                              openViewCustomer(
+                                customer
+                              )
+                            }
                             style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              visibility: "visible",
+                              display:
+                                "inline-flex",
+                              alignItems:
+                                "center",
+                              justifyContent:
+                                "center",
+                              visibility:
+                                "visible",
                               opacity: 1,
-                              color: "#7c3aed",
-                              background: "#f5f3ff",
-                              border: "1px solid #ddd6fe",
-                              padding: "7px 13px",
-                              borderRadius: 7,
+                              color:
+                                "#2563eb",
+                              background:
+                                "#eff6ff",
+                              border:
+                                "1px solid #bfdbfe",
+                              padding:
+                                "7px 12px",
+                              borderRadius:
+                                7,
                               fontSize: 13,
                               fontWeight: 600,
-                              cursor: "pointer",
-                              whiteSpace: "nowrap",
+                              cursor:
+                                "pointer",
+                              whiteSpace:
+                                "nowrap",
                             }}
                           >
-                            Edit Customer
+                            View
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              openEditCustomer(
+                                customer
+                              )
+                            }
+                            style={{
+                              display:
+                                "inline-flex",
+                              alignItems:
+                                "center",
+                              justifyContent:
+                                "center",
+                              visibility:
+                                "visible",
+                              opacity: 1,
+                              color:
+                                "#7c3aed",
+                              background:
+                                "#f5f3ff",
+                              border:
+                                "1px solid #ddd6fe",
+                              padding:
+                                "7px 12px",
+                              borderRadius:
+                                7,
+                              fontSize: 13,
+                              fontWeight: 600,
+                              cursor:
+                                "pointer",
+                              whiteSpace:
+                                "nowrap",
+                            }}
+                          >
+                            Edit
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              openFollowUp(
+                                customer
+                              )
+                            }
+                            style={{
+                              display:
+                                "inline-flex",
+                              alignItems:
+                                "center",
+                              justifyContent:
+                                "center",
+                              visibility:
+                                "visible",
+                              opacity: 1,
+                              color:
+                                "#15803d",
+                              background:
+                                "#f0fdf4",
+                              border:
+                                "1px solid #bbf7d0",
+                              padding:
+                                "7px 12px",
+                              borderRadius:
+                                7,
+                              fontSize: 13,
+                              fontWeight: 600,
+                              cursor:
+                                "pointer",
+                              whiteSpace:
+                                "nowrap",
+                            }}
+                          >
+                            Follow Up
                           </button>
                         </div>
                       </td>
@@ -762,171 +1139,333 @@ export default function Customers() {
         </div>
       </div>
 
+      {/* VIEW STUDENT MODAL */}
+
       {viewingCustomer && (
         <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 1000,
-            background: "rgba(15, 23, 42, 0.55)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 20,
-          }}
+          style={modalOverlayStyle(
+            1000
+          )}
           onMouseDown={(event) => {
-            if (event.target === event.currentTarget) {
-              setViewingCustomer(null);
+            if (
+              event.target ===
+              event.currentTarget
+            ) {
+              setViewingCustomer(
+                null
+              );
             }
           }}
         >
           <div
             style={{
-              width: "100%",
-              maxWidth: 700,
-              maxHeight: "90vh",
-              overflowY: "auto",
-              background: "#ffffff",
-              borderRadius: 12,
-              padding: 24,
-              boxShadow: "0 20px 50px rgba(0,0,0,0.2)",
+              ...modalStyle,
+              maxWidth: 780,
             }}
           >
-            <div
+            <ModalHeader
+              title="Student Details"
+              subtitle={
+                viewingCustomer.full_names ||
+                "Student"
+              }
+              onClose={() =>
+                setViewingCustomer(
+                  null
+                )
+              }
+            />
+
+            {/* PERSONAL DETAILS */}
+
+            <h3
               style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                marginBottom: 20,
+                fontSize: 15,
+                margin:
+                  "0 0 10px",
               }}
             >
-              <div>
-                <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>
-                  Student Details
-                </h2>
-                <p style={{ margin: "5px 0 0", fontSize: 13, opacity: 0.65 }}>
-                  {viewingCustomer.full_names || "Student"}
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setViewingCustomer(null)}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  visibility: "visible",
-                  opacity: 1,
-                  color: "#374151",
-                  background: "#f3f4f6",
-                  border: "1px solid #d1d5db",
-                  width: 36,
-                  height: 36,
-                  borderRadius: 8,
-                  fontSize: 22,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                }}
-              >
-                ×
-              </button>
-            </div>
+              Personal & Admission
+              Information
+            </h3>
 
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                gridTemplateColumns:
+                  "repeat(2, minmax(0, 1fr))",
                 gap: 14,
               }}
             >
-              {[
-                ["CIU Number", viewingCustomer.ciu_number || "Not provided"],
-                ["Full Names", viewingCustomer.full_names || "Not provided"],
-                ["Telephone", viewingCustomer.telephone || "Not provided"],
-                ["Email", viewingCustomer.email || "Not provided"],
-                ["Program", viewingCustomer.program || "Not provided"],
-                ["Stage", viewingCustomer.stage || "New"],
-                ["Application Paid", formatUGX(viewingCustomer.application_paid)],
-                ["Acceptance Paid", formatUGX(viewingCustomer.acceptance_paid)],
-                ["Tuition Paid", formatUGX(viewingCustomer.tuition_paid)],
-                ["Tuition Value", formatUGX(viewingCustomer.tuition_fee)],
-                ["Follow-Up", viewingCustomer.follow_up_date ? formatDate(viewingCustomer.follow_up_date) : "Not scheduled"],
-                ["Last Contact", viewingCustomer.last_contact ? formatDate(viewingCustomer.last_contact) : "No activity"],
-              ].map(([label, value]) => (
-                <div
-                  key={label}
-                  style={{
-                    padding: 14,
-                    border: "1px solid #e5e7eb",
-                    borderRadius: 8,
-                    background: "#f9fafb",
-                  }}
-                >
-                  <div style={{ fontSize: 12, opacity: 0.6, marginBottom: 4 }}>
-                    {label}
-                  </div>
-                  <strong style={{ fontSize: 14 }}>{value}</strong>
-                </div>
-              ))}
+              <DetailBox
+                label="CIU Number"
+                value={
+                  viewingCustomer.ciu_number ||
+                  "Not provided"
+                }
+              />
+
+              <DetailBox
+                label="Full Names"
+                value={
+                  viewingCustomer.full_names ||
+                  "Not provided"
+                }
+              />
+
+              <DetailBox
+                label="Telephone"
+                value={
+                  viewingCustomer.telephone ||
+                  "Not provided"
+                }
+              />
+
+              <DetailBox
+                label="Email"
+                value={
+                  viewingCustomer.email ||
+                  "Not provided"
+                }
+              />
+
+              <DetailBox
+                label="Programme"
+                value={
+                  viewingCustomer.program ||
+                  "Not provided"
+                }
+              />
+
+              <DetailBox
+                label="Admission Stage"
+                value={
+                  viewingCustomer.stage ||
+                  "New"
+                }
+              />
             </div>
+
+            {/* PAYMENT INFORMATION */}
+
+            <h3
+              style={{
+                fontSize: 15,
+                margin:
+                  "22px 0 10px",
+              }}
+            >
+              Payment Information
+            </h3>
 
             <div
               style={{
-                marginTop: 16,
-                padding: 16,
-                border: "1px solid #dbeafe",
-                borderRadius: 8,
-                background: "#eff6ff",
+                display: "grid",
+                gridTemplateColumns:
+                  "repeat(2, minmax(0, 1fr))",
+                gap: 14,
               }}
             >
-              <strong style={{ display: "block", marginBottom: 6 }}>
+              <DetailBox
+                label="Application Fee"
+                value={formatUGX(
+                  viewingCustomer.application_fee
+                )}
+              />
+
+              <DetailBox
+                label="Application Paid"
+                value={formatUGX(
+                  viewingCustomer.application_paid
+                )}
+              />
+
+              <DetailBox
+                label="Acceptance Fee"
+                value={formatUGX(
+                  viewingCustomer.acceptance_fee
+                )}
+              />
+
+              <DetailBox
+                label="Acceptance Paid"
+                value={formatUGX(
+                  viewingCustomer.acceptance_paid
+                )}
+              />
+
+              <DetailBox
+                label="Tuition Fee"
+                value={formatUGX(
+                  viewingCustomer.tuition_fee
+                )}
+              />
+
+              <DetailBox
+                label="Tuition Paid"
+                value={formatUGX(
+                  viewingCustomer.tuition_paid
+                )}
+              />
+
+              <DetailBox
+                label="Outstanding Balance"
+                value={formatUGX(
+                  Number(
+                    viewingCustomer.tuition_fee ||
+                      0
+                  ) -
+                    Number(
+                      viewingCustomer.tuition_paid ||
+                        0
+                    )
+                )}
+              />
+
+              <DetailBox
+                label="Follow-Up"
+                value={
+                  viewingCustomer.follow_up_date
+                    ? formatDate(
+                        viewingCustomer.follow_up_date
+                      )
+                    : "Not scheduled"
+                }
+              />
+            </div>
+
+            {/* LINKED LEAD */}
+
+            <div
+              style={{
+                marginTop: 18,
+                padding: 16,
+                border:
+                  "1px solid #dbeafe",
+                borderRadius: 8,
+                background:
+                  "#eff6ff",
+              }}
+            >
+              <strong
+                style={{
+                  display:
+                    "block",
+                  marginBottom: 7,
+                }}
+              >
                 Linked Lead
               </strong>
 
               {viewingCustomer.lead ? (
                 <>
-                  <div style={{ fontSize: 14 }}>
-                    {viewingCustomer.lead.name || "Unnamed Lead"}
+                  <div
+                    style={{
+                      fontSize: 14,
+                    }}
+                  >
+                    {viewingCustomer
+                      .lead.name ||
+                      "Unnamed Lead"}
                   </div>
-                  <div style={{ fontSize: 13, opacity: 0.7, marginTop: 4 }}>
-                    {viewingCustomer.lead.phone ||
-                      viewingCustomer.lead.email ||
+
+                  <div
+                    style={{
+                      fontSize: 13,
+                      opacity: 0.7,
+                      marginTop: 4,
+                    }}
+                  >
+                    {viewingCustomer
+                      .lead.phone ||
+                      viewingCustomer
+                        .lead.email ||
                       "No contact details"}
                   </div>
-                  <div style={{ fontSize: 13, opacity: 0.7, marginTop: 4 }}>
-                    Lead status: {viewingCustomer.lead.status || "Not specified"}
+
+                  <div
+                    style={{
+                      fontSize: 13,
+                      opacity: 0.7,
+                      marginTop: 4,
+                    }}
+                  >
+                    Lead status:{" "}
+                    {viewingCustomer
+                      .lead.status ||
+                      "Not specified"}
                   </div>
+
+                  {viewingCustomer
+                    .lead.feedback && (
+                    <div
+                      style={{
+                        fontSize: 13,
+                        marginTop: 8,
+                      }}
+                    >
+                      Feedback:{" "}
+                      {
+                        viewingCustomer
+                          .lead.feedback
+                      }
+                    </div>
+                  )}
                 </>
               ) : (
-                <div style={{ fontSize: 13, opacity: 0.7 }}>
-                  This admission is not currently linked to a Lead.
+                <div
+                  style={{
+                    fontSize: 13,
+                    opacity: 0.7,
+                  }}
+                >
+                  This admission is
+                  not currently linked
+                  to a Lead.
                 </div>
               )}
             </div>
 
-            {viewingCustomer.notes && (
-              <div
+            {/* NOTES */}
+
+            <div
+              style={{
+                marginTop: 16,
+                padding: 16,
+                border:
+                  "1px solid #e5e7eb",
+                borderRadius: 8,
+              }}
+            >
+              <strong
                 style={{
-                  marginTop: 16,
-                  padding: 16,
-                  border: "1px solid #e5e7eb",
-                  borderRadius: 8,
+                  display:
+                    "block",
+                  marginBottom: 7,
                 }}
               >
-                <strong style={{ display: "block", marginBottom: 6 }}>
-                  Notes
-                </strong>
-                <div style={{ whiteSpace: "pre-wrap", fontSize: 14 }}>
-                  {viewingCustomer.notes}
-                </div>
+                Notes
+              </strong>
+
+              <div
+                style={{
+                  whiteSpace:
+                    "pre-wrap",
+                  fontSize: 14,
+                }}
+              >
+                {viewingCustomer.notes ||
+                  "No notes recorded."}
               </div>
-            )}
+            </div>
+
+            {/* ACTIONS */}
 
             <div
               style={{
                 display: "flex",
-                justifyContent: "flex-end",
+                justifyContent:
+                  "flex-end",
                 gap: 10,
                 marginTop: 24,
                 flexWrap: "wrap",
@@ -935,24 +1474,14 @@ export default function Customers() {
               {viewingCustomer.telephone && (
                 <button
                   type="button"
-                  onClick={() => {
-                    window.location.href = `tel:${viewingCustomer.telephone}`;
-                  }}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    visibility: "visible",
-                    opacity: 1,
-                    color: "#374151",
-                    background: "#ffffff",
-                    border: "1px solid #d1d5db",
-                    padding: "10px 16px",
-                    borderRadius: 8,
-                    fontSize: 14,
-                    fontWeight: 600,
-                    cursor: "pointer",
-                  }}
+                  onClick={() =>
+                    callStudent(
+                      viewingCustomer.telephone
+                    )
+                  }
+                  style={
+                    secondaryButtonStyle
+                  }
                 >
                   Call
                 </button>
@@ -961,24 +1490,20 @@ export default function Customers() {
               <button
                 type="button"
                 onClick={() => {
-                  setViewingCustomer(null);
-                  openFollowUp(viewingCustomer);
+                  const customer =
+                    viewingCustomer;
+
+                  setViewingCustomer(
+                    null
+                  );
+
+                  openFollowUp(
+                    customer
+                  );
                 }}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  visibility: "visible",
-                  opacity: 1,
-                  color: "#ffffff",
-                  background: "#16a34a",
-                  border: "1px solid #16a34a",
-                  padding: "10px 16px",
-                  borderRadius: 8,
-                  fontSize: 14,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                }}
+                style={
+                  greenButtonStyle
+                }
               >
                 Follow Up
               </button>
@@ -987,267 +1512,316 @@ export default function Customers() {
         </div>
       )}
 
+      {/* EDIT STUDENT MODAL */}
+
       {editingCustomer && (
         <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 1050,
-            background: "rgba(15, 23, 42, 0.55)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 20,
-          }}
+          style={modalOverlayStyle(
+            1050
+          )}
           onMouseDown={(event) => {
-            if (event.target === event.currentTarget) {
+            if (
+              event.target ===
+              event.currentTarget
+            ) {
               closeEditCustomer();
             }
           }}
         >
           <div
             style={{
-              width: "100%",
-              maxWidth: 760,
-              maxHeight: "90vh",
-              overflowY: "auto",
-              background: "#ffffff",
-              borderRadius: 12,
-              padding: 24,
-              boxShadow: "0 20px 50px rgba(0,0,0,0.2)",
+              ...modalStyle,
+              maxWidth: 820,
             }}
           >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                marginBottom: 20,
-              }}
+            <ModalHeader
+              title="Edit Student"
+              subtitle="Update admission and payment information."
+              onClose={
+                closeEditCustomer
+              }
+            />
+
+            <form
+              onSubmit={
+                handleSaveCustomer
+              }
             >
-              <div>
-                <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>
-                  Edit Student
-                </h2>
-                <p style={{ margin: "5px 0 0", fontSize: 13, opacity: 0.65 }}>
-                  Update admission and payment information.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={closeEditCustomer}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  visibility: "visible",
-                  opacity: 1,
-                  color: "#374151",
-                  background: "#f3f4f6",
-                  border: "1px solid #d1d5db",
-                  width: 36,
-                  height: 36,
-                  borderRadius: 8,
-                  fontSize: 22,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                }}
-              >
-                ×
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveCustomer}>
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                  gridTemplateColumns:
+                    "repeat(2, minmax(0, 1fr))",
                   gap: 14,
                 }}
               >
-                {[
-                  ["CIU Number", "ciu_number", "text"],
-                  ["Full Names *", "full_names", "text"],
-                  ["Telephone", "telephone", "text"],
-                  ["Email", "email", "email"],
-                  ["Program *", "program", "text"],
-                  ["Tuition Fee", "tuition_fee", "number"],
-                  ["Tuition Paid", "tuition_paid", "number"],
-                  ["Application Fee", "application_fee", "number"],
-                  ["Application Paid", "application_paid", "number"],
-                  ["Acceptance Fee", "acceptance_fee", "number"],
-                  ["Acceptance Paid", "acceptance_paid", "number"],
-                ].map(([label, field, type]) => (
-                  <div key={field}>
-                    <label
-                      style={{
-                        display: "block",
-                        marginBottom: 6,
-                        fontWeight: 600,
-                        fontSize: 14,
-                      }}
-                    >
-                      {label}
-                    </label>
-                    <input
-                      type={type}
-                      value={editForm[field as keyof typeof editForm]}
-                      onChange={(event) =>
-                        setEditForm({
-                          ...editForm,
-                          [field]: event.target.value,
-                        })
-                      }
-                      required={field === "full_names" || field === "program"}
-                      style={{ width: "100%" }}
-                    />
-                  </div>
-                ))}
+                <FormField
+                  label="CIU Number"
+                  value={
+                    editForm.ciu_number
+                  }
+                  onChange={(value) =>
+                    setEditForm({
+                      ...editForm,
+                      ciu_number:
+                        value,
+                    })
+                  }
+                />
+
+                <FormField
+                  label="Full Names *"
+                  value={
+                    editForm.full_names
+                  }
+                  onChange={(value) =>
+                    setEditForm({
+                      ...editForm,
+                      full_names:
+                        value,
+                    })
+                  }
+                  required
+                />
+
+                <FormField
+                  label="Telephone"
+                  value={
+                    editForm.telephone
+                  }
+                  onChange={(value) =>
+                    setEditForm({
+                      ...editForm,
+                      telephone:
+                        value,
+                    })
+                  }
+                />
+
+                <FormField
+                  label="Email"
+                  type="email"
+                  value={
+                    editForm.email
+                  }
+                  onChange={(value) =>
+                    setEditForm({
+                      ...editForm,
+                      email: value,
+                    })
+                  }
+                />
+
+                <FormField
+                  label="Programme *"
+                  value={
+                    editForm.program
+                  }
+                  onChange={(value) =>
+                    setEditForm({
+                      ...editForm,
+                      program: value,
+                    })
+                  }
+                  required
+                />
 
                 <div>
                   <label
-                    style={{
-                      display: "block",
-                      marginBottom: 6,
-                      fontWeight: 600,
-                      fontSize: 14,
-                    }}
+                    style={
+                      labelStyle
+                    }
                   >
-                    Stage
+                    Admission Stage
                   </label>
+
                   <select
-                    value={editForm.stage}
-                    onChange={(event) =>
+                    value={
+                      editForm.stage
+                    }
+                    onChange={(
+                      event
+                    ) =>
                       setEditForm({
                         ...editForm,
-                        stage: event.target.value,
+                        stage:
+                          event.target
+                            .value,
                       })
                     }
-                    style={{ width: "100%" }}
+                    style={{
+                      width: "100%",
+                    }}
                   >
-                    {STAGES.map((stage) => (
-                      <option key={stage} value={stage}>
-                        {stage}
-                      </option>
-                    ))}
+                    {STAGES.map(
+                      (stage) => (
+                        <option
+                          key={
+                            stage
+                          }
+                          value={
+                            stage
+                          }
+                        >
+                          {stage}
+                        </option>
+                      )
+                    )}
                   </select>
                 </div>
-              </div>
 
-              <div style={{ marginTop: 14 }}>
-                <label
-                  style={{
-                    display: "block",
-                    marginBottom: 6,
-                    fontWeight: 600,
-                    fontSize: 14,
-                  }}
-                >
-                  Notes
-                </label>
-                <textarea
-                  value={editForm.notes}
-                  onChange={(event) =>
+                <FormField
+                  label="Tuition Fee"
+                  type="number"
+                  value={
+                    editForm.tuition_fee
+                  }
+                  onChange={(value) =>
                     setEditForm({
                       ...editForm,
-                      notes: event.target.value,
+                      tuition_fee:
+                        value,
                     })
                   }
-                  rows={4}
-                  style={{ width: "100%", resize: "vertical" }}
+                />
+
+                <FormField
+                  label="Tuition Paid"
+                  type="number"
+                  value={
+                    editForm.tuition_paid
+                  }
+                  onChange={(value) =>
+                    setEditForm({
+                      ...editForm,
+                      tuition_paid:
+                        value,
+                    })
+                  }
+                />
+
+                <FormField
+                  label="Application Fee"
+                  type="number"
+                  value={
+                    editForm.application_fee
+                  }
+                  onChange={(value) =>
+                    setEditForm({
+                      ...editForm,
+                      application_fee:
+                        value,
+                    })
+                  }
+                />
+
+                <FormField
+                  label="Application Paid"
+                  type="number"
+                  value={
+                    editForm.application_paid
+                  }
+                  onChange={(value) =>
+                    setEditForm({
+                      ...editForm,
+                      application_paid:
+                        value,
+                    })
+                  }
+                />
+
+                <FormField
+                  label="Acceptance Fee"
+                  type="number"
+                  value={
+                    editForm.acceptance_fee
+                  }
+                  onChange={(value) =>
+                    setEditForm({
+                      ...editForm,
+                      acceptance_fee:
+                        value,
+                    })
+                  }
+                />
+
+                <FormField
+                  label="Acceptance Paid"
+                  type="number"
+                  value={
+                    editForm.acceptance_paid
+                  }
+                  onChange={(value) =>
+                    setEditForm({
+                      ...editForm,
+                      acceptance_paid:
+                        value,
+                    })
+                  }
                 />
               </div>
 
-              {error && (
-                <div
-                  style={{
-                    marginTop: 14,
-                    padding: "10px 12px",
-                    borderRadius: 8,
-                    border: "1px solid #fecaca",
-                    background: "#fef2f2",
-                    color: "#b91c1c",
-                    fontSize: 13,
-                  }}
-                >
-                  {error}
-                </div>
-              )}
-
               <div
                 style={{
-                  display: "flex",
-                  justifyContent: "flex-end",
-                  gap: 10,
-                  marginTop: 24,
+                  marginTop: 14,
                 }}
               >
-                <button
-                  type="button"
-                  onClick={closeEditCustomer}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    visibility: "visible",
-                    opacity: 1,
-                    color: "#374151",
-                    background: "#ffffff",
-                    border: "1px solid #d1d5db",
-                    padding: "10px 16px",
-                    borderRadius: 8,
-                    fontSize: 14,
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    minHeight: 40,
-                  }}
+                <label
+                  style={
+                    labelStyle
+                  }
                 >
-                  Cancel
-                </button>
+                  Notes
+                </label>
 
-                <button
-                  type="submit"
-                  disabled={saving}
+                <textarea
+                  value={
+                    editForm.notes
+                  }
+                  onChange={(event) =>
+                    setEditForm({
+                      ...editForm,
+                      notes:
+                        event.target
+                          .value,
+                    })
+                  }
+                  rows={5}
                   style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    visibility: "visible",
-                    opacity: 1,
-                    color: "#ffffff",
-                    background: "#7c3aed",
-                    border: "1px solid #7c3aed",
-                    padding: "10px 16px",
-                    borderRadius: 8,
-                    fontSize: 14,
-                    fontWeight: 600,
-                    cursor: saving ? "not-allowed" : "pointer",
-                    minHeight: 40,
+                    width: "100%",
+                    resize:
+                      "vertical",
                   }}
-                >
-                  {saving ? "Saving..." : "Save Changes"}
-                </button>
+                />
               </div>
+
+              <ModalError
+                message={error}
+              />
+
+              <ModalActions
+                onCancel={
+                  closeEditCustomer
+                }
+                saving={saving}
+                submitText="Save Changes"
+                submitStyle={
+                  purpleButtonStyle
+                }
+              />
             </form>
           </div>
         </div>
       )}
 
+      {/* FOLLOW UP MODAL */}
+
       {showFollowUp &&
         followUpCustomer && (
           <div
-            style={{
-              position: "fixed",
-              inset: 0,
-              zIndex: 1100,
-              background:
-                "rgba(15, 23, 42, 0.55)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: 20,
-            }}
+            style={modalOverlayStyle(
+              1100
+            )}
             onMouseDown={(event) => {
               if (
                 event.target ===
@@ -1259,77 +1833,20 @@ export default function Customers() {
           >
             <div
               style={{
-                width: "100%",
+                ...modalStyle,
                 maxWidth: 560,
-                background: "#ffffff",
-                borderRadius: 12,
-                padding: 24,
-                boxShadow:
-                  "0 20px 50px rgba(0,0,0,0.2)",
               }}
             >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent:
-                    "space-between",
-                  marginBottom: 20,
-                }}
-              >
-                <div>
-                  <h2
-                    style={{
-                      margin: 0,
-                      fontSize: 20,
-                      fontWeight: 700,
-                    }}
-                  >
-                    Schedule Follow Up
-                  </h2>
-
-                  <p
-                    style={{
-                      margin:
-                        "5px 0 0",
-                      fontSize: 13,
-                      opacity: 0.65,
-                    }}
-                  >
-                    {followUpCustomer.full_names ||
-                      "Customer"}
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={closeFollowUp}
-                  style={{
-                    display:
-                      "inline-flex",
-                    alignItems:
-                      "center",
-                    justifyContent:
-                      "center",
-                    visibility:
-                      "visible",
-                    opacity: 1,
-                    color: "#374151",
-                    background:
-                      "#f3f4f6",
-                    border:
-                      "1px solid #d1d5db",
-                    width: 36,
-                    height: 36,
-                    borderRadius: 8,
-                    fontSize: 22,
-                    fontWeight: 600,
-                    cursor: "pointer",
-                  }}
-                >
-                  ×
-                </button>
-              </div>
+              <ModalHeader
+                title="Schedule Follow Up"
+                subtitle={
+                  followUpCustomer.full_names ||
+                  "Student"
+                }
+                onClose={
+                  closeFollowUp
+                }
+              />
 
               <form
                 onSubmit={
@@ -1344,12 +1861,9 @@ export default function Customers() {
                 >
                   <div>
                     <label
-                      style={{
-                        display: "block",
-                        marginBottom: 6,
-                        fontWeight: 600,
-                        fontSize: 14,
-                      }}
+                      style={
+                        labelStyle
+                      }
                     >
                       Follow-Up Date *
                     </label>
@@ -1359,13 +1873,17 @@ export default function Customers() {
                       value={
                         followUpForm.date
                       }
-                      onChange={(event) =>
-                        setFollowUpForm({
-                          ...followUpForm,
-                          date:
-                            event.target
-                              .value,
-                        })
+                      onChange={(
+                        event
+                      ) =>
+                        setFollowUpForm(
+                          {
+                            ...followUpForm,
+                            date:
+                              event.target
+                                .value,
+                          }
+                        )
                       }
                       required
                       style={{
@@ -1376,27 +1894,29 @@ export default function Customers() {
 
                   <div>
                     <label
-                      style={{
-                        display: "block",
-                        marginBottom: 6,
-                        fontWeight: 600,
-                        fontSize: 14,
-                      }}
+                      style={
+                        labelStyle
+                      }
                     >
-                      Reason for Follow-Up *
+                      Reason for
+                      Follow-Up *
                     </label>
 
                     <select
                       value={
                         followUpForm.reason
                       }
-                      onChange={(event) =>
-                        setFollowUpForm({
-                          ...followUpForm,
-                          reason:
-                            event.target
-                              .value,
-                        })
+                      onChange={(
+                        event
+                      ) =>
+                        setFollowUpForm(
+                          {
+                            ...followUpForm,
+                            reason:
+                              event.target
+                                .value,
+                          }
+                        )
                       }
                       required
                       style={{
@@ -1410,8 +1930,12 @@ export default function Customers() {
                       {FOLLOW_UP_REASONS.map(
                         (reason) => (
                           <option
-                            key={reason}
-                            value={reason}
+                            key={
+                              reason
+                            }
+                            value={
+                              reason
+                            }
                           >
                             {reason}
                           </option>
@@ -1422,117 +1946,366 @@ export default function Customers() {
 
                   <div>
                     <label
-                      style={{
-                        display: "block",
-                        marginBottom: 6,
-                        fontWeight: 600,
-                        fontSize: 14,
-                      }}
+                      style={
+                        labelStyle
+                      }
                     >
-                      Additional Notes
+                      Additional
+                      Notes
                     </label>
 
                     <textarea
                       value={
                         followUpForm.notes
                       }
-                      onChange={(event) =>
-                        setFollowUpForm({
-                          ...followUpForm,
-                          notes:
-                            event.target
-                              .value,
-                        })
+                      onChange={(
+                        event
+                      ) =>
+                        setFollowUpForm(
+                          {
+                            ...followUpForm,
+                            notes:
+                              event.target
+                                .value,
+                          }
+                        )
                       }
                       placeholder="Enter any additional information..."
                       rows={4}
                       style={{
                         width: "100%",
-                        resize: "vertical",
+                        resize:
+                          "vertical",
                       }}
                     />
                   </div>
                 </div>
 
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent:
-                      "flex-end",
-                    gap: 10,
-                    marginTop: 24,
-                  }}
-                >
-                  <button
-                    type="button"
-                    onClick={closeFollowUp}
-                    style={{
-                      display:
-                        "inline-flex",
-                      alignItems:
-                        "center",
-                      justifyContent:
-                        "center",
-                      visibility:
-                        "visible",
-                      opacity: 1,
-                      color: "#374151",
-                      background:
-                        "#ffffff",
-                      border:
-                        "1px solid #d1d5db",
-                      padding:
-                        "10px 16px",
-                      borderRadius: 8,
-                      fontSize: 14,
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      minHeight: 40,
-                    }}
-                  >
-                    Cancel
-                  </button>
+                <ModalError
+                  message={error}
+                />
 
-                  <button
-                    type="submit"
-                    disabled={saving}
-                    style={{
-                      display:
-                        "inline-flex",
-                      alignItems:
-                        "center",
-                      justifyContent:
-                        "center",
-                      visibility:
-                        "visible",
-                      opacity: 1,
-                      color: "#ffffff",
-                      background:
-                        "#16a34a",
-                      border:
-                        "1px solid #16a34a",
-                      padding:
-                        "10px 16px",
-                      borderRadius: 8,
-                      fontSize: 14,
-                      fontWeight: 600,
-                      cursor: saving
-                        ? "not-allowed"
-                        : "pointer",
-                      minHeight: 40,
-                      whiteSpace:
-                        "nowrap",
-                    }}
-                  >
-                    {saving
-                      ? "Saving..."
-                      : "Save Follow Up"}
-                  </button>
-                </div>
+                <ModalActions
+                  onCancel={
+                    closeFollowUp
+                  }
+                  saving={saving}
+                  submitText="Save Follow Up"
+                  submitStyle={
+                    greenButtonStyle
+                  }
+                />
               </form>
             </div>
           </div>
         )}
     </>
+  );
+}
+
+function modalOverlayStyle(
+  zIndex: number
+): React.CSSProperties {
+  return {
+    position: "fixed",
+    inset: 0,
+    zIndex,
+    background:
+      "rgba(15, 23, 42, 0.55)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 20,
+  };
+}
+
+const modalStyle: React.CSSProperties = {
+  width: "100%",
+  maxHeight: "90vh",
+  overflowY: "auto",
+  background: "#ffffff",
+  borderRadius: 12,
+  padding: 24,
+  boxShadow:
+    "0 20px 50px rgba(0,0,0,0.2)",
+};
+
+const labelStyle: React.CSSProperties = {
+  display: "block",
+  marginBottom: 6,
+  fontWeight: 600,
+  fontSize: 14,
+};
+
+const secondaryButtonStyle: React.CSSProperties =
+  {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    visibility: "visible",
+    opacity: 1,
+    color: "#374151",
+    background: "#ffffff",
+    border:
+      "1px solid #d1d5db",
+    padding: "10px 16px",
+    borderRadius: 8,
+    fontSize: 14,
+    fontWeight: 600,
+    cursor: "pointer",
+    minHeight: 40,
+  };
+
+const purpleButtonStyle: React.CSSProperties =
+  {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    visibility: "visible",
+    opacity: 1,
+    color: "#ffffff",
+    background: "#7c3aed",
+    border:
+      "1px solid #7c3aed",
+    padding: "10px 16px",
+    borderRadius: 8,
+    fontSize: 14,
+    fontWeight: 600,
+    cursor: "pointer",
+    minHeight: 40,
+  };
+
+const greenButtonStyle: React.CSSProperties =
+  {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    visibility: "visible",
+    opacity: 1,
+    color: "#ffffff",
+    background: "#16a34a",
+    border:
+      "1px solid #16a34a",
+    padding: "10px 16px",
+    borderRadius: 8,
+    fontSize: 14,
+    fontWeight: 600,
+    cursor: "pointer",
+    minHeight: 40,
+  };
+
+function ModalHeader({
+  title,
+  subtitle,
+  onClose,
+}: {
+  title: string;
+  subtitle: string;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent:
+          "space-between",
+        marginBottom: 20,
+        gap: 16,
+      }}
+    >
+      <div>
+        <h2
+          style={{
+            margin: 0,
+            fontSize: 20,
+            fontWeight: 700,
+          }}
+        >
+          {title}
+        </h2>
+
+        <p
+          style={{
+            margin:
+              "5px 0 0",
+            fontSize: 13,
+            opacity: 0.65,
+          }}
+        >
+          {subtitle}
+        </p>
+      </div>
+
+      <button
+        type="button"
+        onClick={onClose}
+        style={{
+          ...secondaryButtonStyle,
+          width: 36,
+          height: 36,
+          minHeight: 36,
+          padding: 0,
+          fontSize: 22,
+          flexShrink: 0,
+        }}
+      >
+        ×
+      </button>
+    </div>
+  );
+}
+
+function DetailBox({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div
+      style={{
+        padding: 14,
+        border:
+          "1px solid #e5e7eb",
+        borderRadius: 8,
+        background: "#f9fafb",
+      }}
+    >
+      <div
+        style={{
+          fontSize: 12,
+          opacity: 0.6,
+          marginBottom: 4,
+        }}
+      >
+        {label}
+      </div>
+
+      <strong
+        style={{
+          fontSize: 14,
+        }}
+      >
+        {value}
+      </strong>
+    </div>
+  );
+}
+
+function FormField({
+  label,
+  value,
+  onChange,
+  type = "text",
+  required = false,
+}: {
+  label: string;
+  value: string;
+  onChange: (
+    value: string
+  ) => void;
+  type?: string;
+  required?: boolean;
+}) {
+  return (
+    <div>
+      <label
+        style={labelStyle}
+      >
+        {label}
+      </label>
+
+      <input
+        type={type}
+        value={value}
+        onChange={(event) =>
+          onChange(
+            event.target.value
+          )
+        }
+        required={required}
+        style={{
+          width: "100%",
+        }}
+      />
+    </div>
+  );
+}
+
+function ModalError({
+  message,
+}: {
+  message: string;
+}) {
+  if (!message) return null;
+
+  return (
+    <div
+      style={{
+        marginTop: 14,
+        padding:
+          "10px 12px",
+        borderRadius: 8,
+        border:
+          "1px solid #fecaca",
+        background: "#fef2f2",
+        color: "#b91c1c",
+        fontSize: 13,
+      }}
+    >
+      {message}
+    </div>
+  );
+}
+
+function ModalActions({
+  onCancel,
+  saving,
+  submitText,
+  submitStyle,
+}: {
+  onCancel: () => void;
+  saving: boolean;
+  submitText: string;
+  submitStyle: React.CSSProperties;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        justifyContent:
+          "flex-end",
+        gap: 10,
+        marginTop: 24,
+        flexWrap: "wrap",
+      }}
+    >
+      <button
+        type="button"
+        onClick={onCancel}
+        style={
+          secondaryButtonStyle
+        }
+      >
+        Cancel
+      </button>
+
+      <button
+        type="submit"
+        disabled={saving}
+        style={{
+          ...submitStyle,
+          cursor: saving
+            ? "not-allowed"
+            : "pointer",
+        }}
+      >
+        {saving
+          ? "Saving..."
+          : submitText}
+      </button>
+    </div>
   );
 }

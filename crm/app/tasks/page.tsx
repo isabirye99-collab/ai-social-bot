@@ -9,6 +9,7 @@ type Task = {
   description: string | null;
   task_type: string;
   lead_id: string | null;
+  opportunity_id: string | null;
   assigned_to: string | null;
   due_at: string | null;
   status: string;
@@ -29,6 +30,21 @@ type Lead = {
   name: string | null;
   ciu_number: string | null;
   phone: string | null;
+};
+
+type Opportunity = {
+  id: string;
+  lead_id: string | null;
+  title: string | null;
+  value: number | null;
+  currency: string | null;
+  stage_id: string | null;
+};
+
+type PipelineStage = {
+  id: string;
+  name: string | null;
+  position: number | null;
 };
 
 const TASK_TYPES = [
@@ -56,6 +72,7 @@ const EMPTY_FORM = {
   status: "pending",
   assigned_to: "",
   lead_id: "",
+  opportunity_id: "",
 };
 
 function formatDateTime(value: string | null) {
@@ -140,6 +157,10 @@ export default function TasksPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
+  const [pipelineStages, setPipelineStages] = useState<
+    PipelineStage[]
+  >([]);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -163,7 +184,7 @@ export default function TasksPage() {
     const { data, error: loadError } = await supabase
       .from("tasks")
       .select(
-        "id, title, description, task_type, lead_id, assigned_to, due_at, status, completed_at, created_at, updated_at"
+        "id, title, description, task_type, lead_id, opportunity_id, assigned_to, due_at, status, completed_at, created_at, updated_at"
       )
       .order("due_at", {
         ascending: true,
@@ -211,11 +232,47 @@ export default function TasksPage() {
     setLeads((data || []) as Lead[]);
   }
 
+  async function loadOpportunities() {
+    const { data, error: opportunityError } = await supabase
+      .from("opportunities")
+      .select(
+        "id, lead_id, title, value, currency, stage_id"
+      )
+      .order("created_at", { ascending: false });
+
+    if (opportunityError) {
+      console.error(opportunityError);
+      return;
+    }
+
+    setOpportunities(
+      (data || []) as Opportunity[]
+    );
+  }
+
+  async function loadPipelineStages() {
+    const { data, error: stageError } = await supabase
+      .from("pipeline_stages")
+      .select("id, name, position")
+      .order("position", { ascending: true });
+
+    if (stageError) {
+      console.error(stageError);
+      return;
+    }
+
+    setPipelineStages(
+      (data || []) as PipelineStage[]
+    );
+  }
+
   async function loadAll() {
     await Promise.all([
       loadTasks(),
       loadProfiles(),
       loadLeads(),
+      loadOpportunities(),
+      loadPipelineStages(),
     ]);
   }
 
@@ -244,7 +301,25 @@ export default function TasksPage() {
           )?.full_name || "";
 
         const leadName =
-          leads.find((lead) => lead.id === task.lead_id)?.name || "";
+          leads.find(
+            (lead) => lead.id === task.lead_id
+          )?.name || "";
+
+        const opportunityTitle =
+          opportunities.find(
+            (opportunity) =>
+              opportunity.id === task.opportunity_id
+          )?.title || "";
+
+        const stageName =
+          pipelineStages.find(
+            (stage) =>
+              stage.id ===
+              opportunities.find(
+                (opportunity) =>
+                  opportunity.id === task.opportunity_id
+              )?.stage_id
+          )?.name || "";
 
         return [
           task.title,
@@ -253,6 +328,8 @@ export default function TasksPage() {
           task.status,
           assignedName,
           leadName,
+          opportunityTitle,
+          stageName,
         ]
           .filter(Boolean)
           .join(" ")
@@ -273,6 +350,8 @@ export default function TasksPage() {
     tasks,
     profiles,
     leads,
+    opportunities,
+    pipelineStages,
     search,
     statusFilter,
     typeFilter,
@@ -284,6 +363,7 @@ export default function TasksPage() {
 
     const dueToday = tasks.filter((task) => {
       if (!task.due_at) return false;
+
       if (
         task.status === "completed" ||
         task.status === "cancelled"
@@ -298,6 +378,7 @@ export default function TasksPage() {
 
     const overdue = tasks.filter((task) => {
       if (!task.due_at) return false;
+
       if (
         task.status === "completed" ||
         task.status === "cancelled"
@@ -337,7 +418,9 @@ export default function TasksPage() {
 
     const completionRate =
       totalForRate > 0
-        ? Math.round((completed / totalForRate) * 100)
+        ? Math.round(
+            (completed / totalForRate) * 100
+          )
         : 0;
 
     return {
@@ -347,6 +430,17 @@ export default function TasksPage() {
       completionRate,
     };
   }, [tasks]);
+
+  const availableOpportunities = useMemo(() => {
+    if (!form.lead_id) {
+      return opportunities;
+    }
+
+    return opportunities.filter(
+      (opportunity) =>
+        opportunity.lead_id === form.lead_id
+    );
+  }, [opportunities, form.lead_id]);
 
   function openNewTask() {
     setEditingTask(null);
@@ -367,6 +461,7 @@ export default function TasksPage() {
       status: task.status || "pending",
       assigned_to: task.assigned_to || "",
       lead_id: task.lead_id || "",
+      opportunity_id: task.opportunity_id || "",
     });
 
     setError("");
@@ -381,6 +476,45 @@ export default function TasksPage() {
     setEditingTask(null);
     setForm(EMPTY_FORM);
     setError("");
+  }
+
+  function handleLeadChange(value: string) {
+    const leadOpportunity =
+      opportunities.find(
+        (opportunity) =>
+          opportunity.id === form.opportunity_id &&
+          opportunity.lead_id === value
+      );
+
+    setForm({
+      ...form,
+      lead_id: value,
+      opportunity_id:
+        leadOpportunity?.id ||
+        opportunities.find(
+          (opportunity) =>
+            opportunity.lead_id === value
+        )?.id ||
+        "",
+    });
+  }
+
+  function handleOpportunityChange(
+    opportunityId: string
+  ) {
+    const selectedOpportunity =
+      opportunities.find(
+        (opportunity) =>
+          opportunity.id === opportunityId
+      );
+
+    setForm({
+      ...form,
+      opportunity_id: opportunityId,
+      lead_id:
+        selectedOpportunity?.lead_id ||
+        form.lead_id,
+    });
   }
 
   async function handleSaveTask(
@@ -399,28 +533,34 @@ export default function TasksPage() {
 
     const payload = {
       title: form.title.trim(),
-      description: form.description.trim() || null,
+      description:
+        form.description.trim() || null,
       task_type: form.task_type,
       due_at: form.due_at
         ? new Date(form.due_at).toISOString()
         : null,
       status: form.status,
-      assigned_to: form.assigned_to || null,
-      lead_id: form.lead_id || null,
+      assigned_to:
+        form.assigned_to || null,
+      lead_id:
+        form.lead_id || null,
+      opportunity_id:
+        form.opportunity_id || null,
     };
 
     if (editingTask) {
-      const { error: updateError } = await supabase
-        .from("tasks")
-        .update({
-          ...payload,
-          completed_at:
-            form.status === "completed"
-              ? editingTask.completed_at ||
-                new Date().toISOString()
-              : null,
-        })
-        .eq("id", editingTask.id);
+      const { error: updateError } =
+        await supabase
+          .from("tasks")
+          .update({
+            ...payload,
+            completed_at:
+              form.status === "completed"
+                ? editingTask.completed_at ||
+                  new Date().toISOString()
+                : null,
+          })
+          .eq("id", editingTask.id);
 
       if (updateError) {
         console.error(updateError);
@@ -435,16 +575,18 @@ export default function TasksPage() {
         data: currentUserData,
       } = await supabase.auth.getUser();
 
-      const { error: insertError } = await supabase
-        .from("tasks")
-        .insert({
-          ...payload,
-          created_by: currentUserData.user?.id || null,
-          completed_at:
-            form.status === "completed"
-              ? new Date().toISOString()
-              : null,
-        });
+      const { error: insertError } =
+        await supabase
+          .from("tasks")
+          .insert({
+            ...payload,
+            created_by:
+              currentUserData.user?.id || null,
+            completed_at:
+              form.status === "completed"
+                ? new Date().toISOString()
+                : null,
+          });
 
       if (insertError) {
         console.error(insertError);
@@ -467,13 +609,15 @@ export default function TasksPage() {
   async function markComplete(task: Task) {
     if (task.status === "completed") return;
 
-    const { error: updateError } = await supabase
-      .from("tasks")
-      .update({
-        status: "completed",
-        completed_at: new Date().toISOString(),
-      })
-      .eq("id", task.id);
+    const { error: updateError } =
+      await supabase
+        .from("tasks")
+        .update({
+          status: "completed",
+          completed_at:
+            new Date().toISOString(),
+        })
+        .eq("id", task.id);
 
     if (updateError) {
       console.error(updateError);
@@ -492,10 +636,11 @@ export default function TasksPage() {
 
     if (!confirmed) return;
 
-    const { error: deleteError } = await supabase
-      .from("tasks")
-      .delete()
-      .eq("id", task.id);
+    const { error: deleteError } =
+      await supabase
+        .from("tasks")
+        .delete()
+        .eq("id", task.id);
 
     if (deleteError) {
       console.error(deleteError);
@@ -511,21 +656,52 @@ export default function TasksPage() {
     if (!id) return "Unassigned";
 
     return (
-      profiles.find((profile) => profile.id === id)
-        ?.full_name || "Unassigned"
+      profiles.find(
+        (profile) => profile.id === id
+      )?.full_name || "Unassigned"
     );
   }
 
   function getLeadName(id: string | null) {
     if (!id) return "";
 
-    const lead = leads.find((item) => item.id === id);
+    const lead = leads.find(
+      (item) => item.id === id
+    );
 
     if (!lead) return "";
 
     return lead.ciu_number
       ? `${lead.name || "Unnamed"} (${lead.ciu_number})`
       : lead.name || "Unnamed lead";
+  }
+
+  function getOpportunityTitle(
+    id: string | null
+  ) {
+    if (!id) return "";
+
+    const opportunity =
+      opportunities.find(
+        (item) => item.id === id
+      );
+
+    if (!opportunity) return "";
+
+    const stage =
+      pipelineStages.find(
+        (item) =>
+          item.id === opportunity.stage_id
+      );
+
+    if (stage?.name) {
+      return `${opportunity.title || "Pipeline opportunity"} — ${stage.name}`;
+    }
+
+    return (
+      opportunity.title ||
+      "Pipeline opportunity"
+    );
   }
 
   function getStatusStyle(status: string) {
@@ -561,6 +737,7 @@ export default function TasksPage() {
       <div className="crm-page-heading">
         <div>
           <h1>Tasks & Follow-ups</h1>
+
           <p>
             Stay on top of activities and never miss an
             opportunity.
@@ -624,20 +801,28 @@ export default function TasksPage() {
 
       <div className="crm-kpis">
         <div className="crm-kpi">
-          <span className="crm-kpi-label">Due Today</span>
+          <span className="crm-kpi-label">
+            Due Today
+          </span>
+
           <div className="crm-kpi-value">
             {stats.dueToday}
           </div>
+
           <span className="crm-kpi-change">
             Needs attention
           </span>
         </div>
 
         <div className="crm-kpi">
-          <span className="crm-kpi-label">Overdue</span>
+          <span className="crm-kpi-label">
+            Overdue
+          </span>
+
           <div className="crm-kpi-value">
             {stats.overdue}
           </div>
+
           <span className="crm-kpi-change">
             Requires action
           </span>
@@ -647,9 +832,11 @@ export default function TasksPage() {
           <span className="crm-kpi-label">
             Completed This Month
           </span>
+
           <div className="crm-kpi-value">
             {stats.completedThisMonth}
           </div>
+
           <span className="crm-kpi-change">
             Completed tasks
           </span>
@@ -659,9 +846,11 @@ export default function TasksPage() {
           <span className="crm-kpi-label">
             Completion Rate
           </span>
+
           <div className="crm-kpi-value">
             {stats.completionRate}%
           </div>
+
           <span className="crm-kpi-change">
             Current task list
           </span>
@@ -681,7 +870,10 @@ export default function TasksPage() {
         >
           <div>
             <h2>My Tasks</h2>
-            <span>Activities and follow-ups</span>
+
+            <span>
+              Activities and follow-ups
+            </span>
           </div>
 
           <div
@@ -699,7 +891,8 @@ export default function TasksPage() {
               placeholder="Search tasks..."
               style={{
                 padding: "9px 12px",
-                border: "1px solid #d1d5db",
+                border:
+                  "1px solid #d1d5db",
                 borderRadius: 8,
                 minWidth: 220,
                 color: "#111827",
@@ -710,42 +903,54 @@ export default function TasksPage() {
             <select
               value={statusFilter}
               onChange={(event) =>
-                setStatusFilter(event.target.value)
+                setStatusFilter(
+                  event.target.value
+                )
               }
               style={{
                 padding: "9px 12px",
-                border: "1px solid #d1d5db",
+                border:
+                  "1px solid #d1d5db",
                 borderRadius: 8,
                 color: "#111827",
                 background: "#ffffff",
               }}
             >
-              <option value="all">All Statuses</option>
+              <option value="all">
+                All Statuses
+              </option>
 
-              {STATUS_OPTIONS.map((status) => (
-                <option
-                  key={status.value}
-                  value={status.value}
-                >
-                  {status.label}
-                </option>
-              ))}
+              {STATUS_OPTIONS.map(
+                (status) => (
+                  <option
+                    key={status.value}
+                    value={status.value}
+                  >
+                    {status.label}
+                  </option>
+                )
+              )}
             </select>
 
             <select
               value={typeFilter}
               onChange={(event) =>
-                setTypeFilter(event.target.value)
+                setTypeFilter(
+                  event.target.value
+                )
               }
               style={{
                 padding: "9px 12px",
-                border: "1px solid #d1d5db",
+                border:
+                  "1px solid #d1d5db",
                 borderRadius: 8,
                 color: "#111827",
                 background: "#ffffff",
               }}
             >
-              <option value="all">All Types</option>
+              <option value="all">
+                All Types
+              </option>
 
               {TASK_TYPES.map((type) => (
                 <option
@@ -788,9 +993,13 @@ export default function TasksPage() {
                 No tasks found
               </div>
 
-              <div style={{ marginBottom: 18 }}>
-                Create your first task or change your
-                filters.
+              <div
+                style={{
+                  marginBottom: 18,
+                }}
+              >
+                Create your first task or change
+                your filters.
               </div>
 
               <button
@@ -804,7 +1013,8 @@ export default function TasksPage() {
                   opacity: 1,
                   color: "#ffffff",
                   background: "#2563eb",
-                  border: "1px solid #2563eb",
+                  border:
+                    "1px solid #2563eb",
                   padding: "10px 16px",
                   borderRadius: 8,
                   fontSize: 14,
@@ -825,34 +1035,45 @@ export default function TasksPage() {
             >
               {filteredTasks.map((task) => {
                 const statusStyle =
-                  getStatusStyle(task.status);
+                  getStatusStyle(
+                    task.status
+                  );
 
                 const isOverdue =
                   task.due_at &&
-                  new Date(task.due_at) < new Date() &&
-                  task.status !== "completed" &&
-                  task.status !== "cancelled";
+                  new Date(task.due_at) <
+                    new Date() &&
+                  task.status !==
+                    "completed" &&
+                  task.status !==
+                    "cancelled";
 
                 return (
                   <div
                     key={task.id}
                     style={{
                       display: "flex",
-                      alignItems: "center",
+                      alignItems:
+                        "center",
                       gap: 16,
-                      padding: "16px 0",
+                      padding:
+                        "16px 0",
                       borderBottom:
                         "1px solid #e5e7eb",
                     }}
                   >
                     <button
                       type="button"
-                      onClick={() => markComplete(task)}
+                      onClick={() =>
+                        markComplete(task)
+                      }
                       disabled={
-                        task.status === "completed"
+                        task.status ===
+                        "completed"
                       }
                       title={
-                        task.status === "completed"
+                        task.status ===
+                        "completed"
                           ? "Completed"
                           : "Mark as completed"
                       }
@@ -860,26 +1081,35 @@ export default function TasksPage() {
                         width: 24,
                         height: 24,
                         minWidth: 24,
-                        borderRadius: "50%",
+                        borderRadius:
+                          "50%",
                         border:
-                          task.status === "completed"
+                          task.status ===
+                          "completed"
                             ? "2px solid #16a34a"
                             : "2px solid #9ca3af",
                         background:
-                          task.status === "completed"
+                          task.status ===
+                          "completed"
                             ? "#16a34a"
                             : "#ffffff",
-                        color: "#ffffff",
+                        color:
+                          "#ffffff",
                         cursor:
-                          task.status === "completed"
+                          task.status ===
+                          "completed"
                             ? "default"
                             : "pointer",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        justifyContent: "center",
+                        display:
+                          "inline-flex",
+                        alignItems:
+                          "center",
+                        justifyContent:
+                          "center",
                       }}
                     >
-                      {task.status === "completed"
+                      {task.status ===
+                      "completed"
                         ? "✓"
                         : ""}
                     </button>
@@ -892,16 +1122,21 @@ export default function TasksPage() {
                     >
                       <div
                         style={{
-                          display: "flex",
-                          alignItems: "center",
+                          display:
+                            "flex",
+                          alignItems:
+                            "center",
                           gap: 8,
-                          flexWrap: "wrap",
+                          flexWrap:
+                            "wrap",
                         }}
                       >
                         <strong
                           style={{
-                            color: "#111827",
-                            fontSize: 15,
+                            color:
+                              "#111827",
+                            fontSize:
+                              15,
                           }}
                         >
                           {task.title}
@@ -909,12 +1144,18 @@ export default function TasksPage() {
 
                         <span
                           style={{
-                            padding: "3px 8px",
-                            borderRadius: 999,
-                            fontSize: 11,
-                            fontWeight: 600,
-                            background: "#eef2ff",
-                            color: "#4338ca",
+                            padding:
+                              "3px 8px",
+                            borderRadius:
+                              999,
+                            fontSize:
+                              11,
+                            fontWeight:
+                              600,
+                            background:
+                              "#eef2ff",
+                            color:
+                              "#4338ca",
                           }}
                         >
                           {getTypeLabel(
@@ -926,7 +1167,8 @@ export default function TasksPage() {
                       <div
                         style={{
                           marginTop: 5,
-                          color: "#6b7280",
+                          color:
+                            "#6b7280",
                           fontSize: 13,
                         }}
                       >
@@ -934,16 +1176,43 @@ export default function TasksPage() {
                           task.assigned_to
                         )}
 
-                        {getLeadName(task.lead_id) && (
+                        {getLeadName(
+                          task.lead_id
+                        ) && (
                           <>
                             {" • "}
-                            {getLeadName(task.lead_id)}
+                            {getLeadName(
+                              task.lead_id
+                            )}
+                          </>
+                        )}
+
+                        {getOpportunityTitle(
+                          task.opportunity_id
+                        ) && (
+                          <>
+                            {" • "}
+                            <span
+                              style={{
+                                color:
+                                  "#4338ca",
+                                fontWeight:
+                                  600,
+                              }}
+                            >
+                              {getOpportunityTitle(
+                                task.opportunity_id
+                              )}
+                            </span>
                           </>
                         )}
 
                         {" • "}
+
                         {task.due_at
-                          ? formatDateTime(task.due_at)
+                          ? formatDateTime(
+                              task.due_at
+                            )
                           : "No due date"}
                       </div>
 
@@ -951,7 +1220,8 @@ export default function TasksPage() {
                         <div
                           style={{
                             marginTop: 5,
-                            color: "#4b5563",
+                            color:
+                              "#4b5563",
                             fontSize: 13,
                           }}
                         >
@@ -963,9 +1233,11 @@ export default function TasksPage() {
                         <div
                           style={{
                             marginTop: 5,
-                            color: "#dc2626",
+                            color:
+                              "#dc2626",
                             fontSize: 12,
-                            fontWeight: 600,
+                            fontWeight:
+                              600,
                           }}
                         >
                           Overdue
@@ -976,45 +1248,68 @@ export default function TasksPage() {
                     <span
                       style={{
                         ...statusStyle,
-                        padding: "5px 9px",
-                        borderRadius: 999,
+                        padding:
+                          "5px 9px",
+                        borderRadius:
+                          999,
                         fontSize: 12,
-                        fontWeight: 600,
-                        whiteSpace: "nowrap",
+                        fontWeight:
+                          600,
+                        whiteSpace:
+                          "nowrap",
                       }}
                     >
-                      {getStatusLabel(task.status)}
+                      {getStatusLabel(
+                        task.status
+                      )}
                     </span>
 
                     <div
                       style={{
-                        display: "flex",
+                        display:
+                          "flex",
                         gap: 7,
-                        flexWrap: "wrap",
-                        justifyContent: "flex-end",
+                        flexWrap:
+                          "wrap",
+                        justifyContent:
+                          "flex-end",
                       }}
                     >
-                      {task.status !== "completed" && (
+                      {task.status !==
+                        "completed" && (
                         <button
                           type="button"
                           onClick={() =>
-                            markComplete(task)
+                            markComplete(
+                              task
+                            )
                           }
                           style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            visibility: "visible",
+                            display:
+                              "inline-flex",
+                            alignItems:
+                              "center",
+                            justifyContent:
+                              "center",
+                            visibility:
+                              "visible",
                             opacity: 1,
-                            color: "#ffffff",
-                            background: "#16a34a",
+                            color:
+                              "#ffffff",
+                            background:
+                              "#16a34a",
                             border:
                               "1px solid #16a34a",
-                            padding: "7px 10px",
-                            borderRadius: 7,
-                            fontSize: 12,
-                            fontWeight: 600,
-                            cursor: "pointer",
+                            padding:
+                              "7px 10px",
+                            borderRadius:
+                              7,
+                            fontSize:
+                              12,
+                            fontWeight:
+                              600,
+                            cursor:
+                              "pointer",
                           }}
                         >
                           Complete
@@ -1024,23 +1319,36 @@ export default function TasksPage() {
                       <button
                         type="button"
                         onClick={() =>
-                          openEditTask(task)
+                          openEditTask(
+                            task
+                          )
                         }
                         style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          visibility: "visible",
+                          display:
+                            "inline-flex",
+                          alignItems:
+                            "center",
+                          justifyContent:
+                            "center",
+                          visibility:
+                            "visible",
                           opacity: 1,
-                          color: "#ffffff",
-                          background: "#2563eb",
+                          color:
+                            "#ffffff",
+                          background:
+                            "#2563eb",
                           border:
                             "1px solid #2563eb",
-                          padding: "7px 10px",
-                          borderRadius: 7,
-                          fontSize: 12,
-                          fontWeight: 600,
-                          cursor: "pointer",
+                          padding:
+                            "7px 10px",
+                          borderRadius:
+                            7,
+                          fontSize:
+                            12,
+                          fontWeight:
+                            600,
+                          cursor:
+                            "pointer",
                         }}
                       >
                         Edit
@@ -1049,23 +1357,36 @@ export default function TasksPage() {
                       <button
                         type="button"
                         onClick={() =>
-                          deleteTask(task)
+                          deleteTask(
+                            task
+                          )
                         }
                         style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          visibility: "visible",
+                          display:
+                            "inline-flex",
+                          alignItems:
+                            "center",
+                          justifyContent:
+                            "center",
+                          visibility:
+                            "visible",
                           opacity: 1,
-                          color: "#ffffff",
-                          background: "#dc2626",
+                          color:
+                            "#ffffff",
+                          background:
+                            "#dc2626",
                           border:
                             "1px solid #dc2626",
-                          padding: "7px 10px",
-                          borderRadius: 7,
-                          fontSize: 12,
-                          fontWeight: 600,
-                          cursor: "pointer",
+                          padding:
+                            "7px 10px",
+                          borderRadius:
+                            7,
+                          fontSize:
+                            12,
+                          fontWeight:
+                            600,
+                          cursor:
+                            "pointer",
                         }}
                       >
                         Delete
@@ -1084,10 +1405,13 @@ export default function TasksPage() {
           style={{
             position: "fixed",
             inset: 0,
-            background: "rgba(0,0,0,0.5)",
+            background:
+              "rgba(0,0,0,0.5)",
             display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
+            alignItems:
+              "center",
+            justifyContent:
+              "center",
             padding: 20,
             zIndex: 1000,
           }}
@@ -1098,7 +1422,8 @@ export default function TasksPage() {
               maxWidth: 650,
               maxHeight: "90vh",
               overflowY: "auto",
-              background: "#ffffff",
+              background:
+                "#ffffff",
               borderRadius: 12,
               boxShadow:
                 "0 20px 50px rgba(0,0,0,0.2)",
@@ -1106,12 +1431,16 @@ export default function TasksPage() {
           >
             <div
               style={{
-                padding: "18px 20px",
+                padding:
+                  "18px 20px",
                 borderBottom:
                   "1px solid #e5e7eb",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
+                display:
+                  "flex",
+                justifyContent:
+                  "space-between",
+                alignItems:
+                  "center",
               }}
             >
               <div>
@@ -1119,7 +1448,8 @@ export default function TasksPage() {
                   style={{
                     margin: 0,
                     fontSize: 20,
-                    color: "#111827",
+                    color:
+                      "#111827",
                   }}
                 >
                   {editingTask
@@ -1129,74 +1459,106 @@ export default function TasksPage() {
 
                 <p
                   style={{
-                    margin: "5px 0 0",
-                    color: "#6b7280",
+                    margin:
+                      "5px 0 0",
+                    color:
+                      "#6b7280",
                     fontSize: 13,
                   }}
                 >
-                  Create and manage CRM activities.
+                  Create and manage CRM
+                  activities.
                 </p>
               </div>
 
               <button
                 type="button"
-                onClick={closeModal}
-                disabled={saving}
+                onClick={
+                  closeModal
+                }
+                disabled={
+                  saving
+                }
                 style={{
                   width: 34,
                   height: 34,
                   borderRadius: 8,
                   border:
                     "1px solid #d1d5db",
-                  background: "#ffffff",
-                  color: "#374151",
+                  background:
+                    "#ffffff",
+                  color:
+                    "#374151",
                   fontSize: 20,
-                  cursor: "pointer",
+                  cursor:
+                    "pointer",
                 }}
               >
                 ×
               </button>
             </div>
 
-            <form onSubmit={handleSaveTask}>
+            <form
+              onSubmit={
+                handleSaveTask
+              }
+            >
               <div
                 style={{
                   padding: 20,
-                  display: "grid",
+                  display:
+                    "grid",
                   gap: 16,
                 }}
               >
                 <div>
                   <label
                     style={{
-                      display: "block",
-                      marginBottom: 6,
-                      fontWeight: 600,
-                      color: "#374151",
+                      display:
+                        "block",
+                      marginBottom:
+                        6,
+                      fontWeight:
+                        600,
+                      color:
+                        "#374151",
                     }}
                   >
                     Task Title *
                   </label>
 
                   <input
-                    value={form.title}
-                    onChange={(event) =>
+                    value={
+                      form.title
+                    }
+                    onChange={(
+                      event
+                    ) =>
                       setForm({
                         ...form,
-                        title: event.target.value,
+                        title:
+                          event
+                            .target
+                            .value,
                       })
                     }
                     placeholder="e.g. Call admitted student"
                     required
                     style={{
-                      width: "100%",
-                      padding: "10px 12px",
+                      width:
+                        "100%",
+                      padding:
+                        "10px 12px",
                       border:
                         "1px solid #d1d5db",
-                      borderRadius: 8,
-                      color: "#111827",
-                      background: "#ffffff",
-                      boxSizing: "border-box",
+                      borderRadius:
+                        8,
+                      color:
+                        "#111827",
+                      background:
+                        "#ffffff",
+                      boxSizing:
+                        "border-box",
                     }}
                   />
                 </div>
@@ -1204,43 +1566,61 @@ export default function TasksPage() {
                 <div>
                   <label
                     style={{
-                      display: "block",
-                      marginBottom: 6,
-                      fontWeight: 600,
-                      color: "#374151",
+                      display:
+                        "block",
+                      marginBottom:
+                        6,
+                      fontWeight:
+                        600,
+                      color:
+                        "#374151",
                     }}
                   >
                     Description
                   </label>
 
                   <textarea
-                    value={form.description}
-                    onChange={(event) =>
+                    value={
+                      form.description
+                    }
+                    onChange={(
+                      event
+                    ) =>
                       setForm({
                         ...form,
                         description:
-                          event.target.value,
+                          event
+                            .target
+                            .value,
                       })
                     }
                     rows={3}
                     placeholder="Add notes or instructions..."
                     style={{
-                      width: "100%",
-                      padding: "10px 12px",
+                      width:
+                        "100%",
+                      padding:
+                        "10px 12px",
                       border:
                         "1px solid #d1d5db",
-                      borderRadius: 8,
-                      color: "#111827",
-                      background: "#ffffff",
-                      boxSizing: "border-box",
-                      resize: "vertical",
+                      borderRadius:
+                        8,
+                      color:
+                        "#111827",
+                      background:
+                        "#ffffff",
+                      boxSizing:
+                        "border-box",
+                      resize:
+                        "vertical",
                     }}
                   />
                 </div>
 
                 <div
                   style={{
-                    display: "grid",
+                    display:
+                      "grid",
                     gridTemplateColumns:
                       "repeat(2, minmax(0, 1fr))",
                     gap: 16,
@@ -1249,83 +1629,131 @@ export default function TasksPage() {
                   <div>
                     <label
                       style={{
-                        display: "block",
-                        marginBottom: 6,
-                        fontWeight: 600,
-                        color: "#374151",
+                        display:
+                          "block",
+                        marginBottom:
+                          6,
+                        fontWeight:
+                          600,
+                        color:
+                          "#374151",
                       }}
                     >
                       Task Type
                     </label>
 
                     <select
-                      value={form.task_type}
-                      onChange={(event) =>
+                      value={
+                        form.task_type
+                      }
+                      onChange={(
+                        event
+                      ) =>
                         setForm({
                           ...form,
                           task_type:
-                            event.target.value,
+                            event
+                              .target
+                              .value,
                         })
                       }
                       style={{
-                        width: "100%",
-                        padding: "10px 12px",
+                        width:
+                          "100%",
+                        padding:
+                          "10px 12px",
                         border:
                           "1px solid #d1d5db",
-                        borderRadius: 8,
-                        color: "#111827",
-                        background: "#ffffff",
+                        borderRadius:
+                          8,
+                        color:
+                          "#111827",
+                        background:
+                          "#ffffff",
                       }}
                     >
-                      {TASK_TYPES.map((type) => (
-                        <option
-                          key={type.value}
-                          value={type.value}
-                        >
-                          {type.label}
-                        </option>
-                      ))}
+                      {TASK_TYPES.map(
+                        (
+                          type
+                        ) => (
+                          <option
+                            key={
+                              type.value
+                            }
+                            value={
+                              type.value
+                            }
+                          >
+                            {
+                              type.label
+                            }
+                          </option>
+                        )
+                      )}
                     </select>
                   </div>
 
                   <div>
                     <label
                       style={{
-                        display: "block",
-                        marginBottom: 6,
-                        fontWeight: 600,
-                        color: "#374151",
+                        display:
+                          "block",
+                        marginBottom:
+                          6,
+                        fontWeight:
+                          600,
+                        color:
+                          "#374151",
                       }}
                     >
                       Status
                     </label>
 
                     <select
-                      value={form.status}
-                      onChange={(event) =>
+                      value={
+                        form.status
+                      }
+                      onChange={(
+                        event
+                      ) =>
                         setForm({
                           ...form,
                           status:
-                            event.target.value,
+                            event
+                              .target
+                              .value,
                         })
                       }
                       style={{
-                        width: "100%",
-                        padding: "10px 12px",
+                        width:
+                          "100%",
+                        padding:
+                          "10px 12px",
                         border:
                           "1px solid #d1d5db",
-                        borderRadius: 8,
-                        color: "#111827",
-                        background: "#ffffff",
+                        borderRadius:
+                          8,
+                        color:
+                          "#111827",
+                        background:
+                          "#ffffff",
                       }}
                     >
                       {STATUS_OPTIONS.map(
-                        (status) => (
+                        (
+                          status
+                        ) => (
                           <option
-                            key={status.value}
-                            value={status.value}
+                            key={
+                              status.value
+                            }
+                            value={
+                              status.value
+                            }
                           >
-                            {status.label}
+                            {
+                              status.label
+                            }
                           </option>
                         )
                       )}
@@ -1335,7 +1763,8 @@ export default function TasksPage() {
 
                 <div
                   style={{
-                    display: "grid",
+                    display:
+                      "grid",
                     gridTemplateColumns:
                       "repeat(2, minmax(0, 1fr))",
                     gap: 16,
@@ -1344,10 +1773,14 @@ export default function TasksPage() {
                   <div>
                     <label
                       style={{
-                        display: "block",
-                        marginBottom: 6,
-                        fontWeight: 600,
-                        color: "#374151",
+                        display:
+                          "block",
+                        marginBottom:
+                          6,
+                        fontWeight:
+                          600,
+                        color:
+                          "#374151",
                       }}
                     >
                       Due Date & Time
@@ -1355,23 +1788,35 @@ export default function TasksPage() {
 
                     <input
                       type="datetime-local"
-                      value={form.due_at}
-                      onChange={(event) =>
+                      value={
+                        form.due_at
+                      }
+                      onChange={(
+                        event
+                      ) =>
                         setForm({
                           ...form,
                           due_at:
-                            event.target.value,
+                            event
+                              .target
+                              .value,
                         })
                       }
                       style={{
-                        width: "100%",
-                        padding: "10px 12px",
+                        width:
+                          "100%",
+                        padding:
+                          "10px 12px",
                         border:
                           "1px solid #d1d5db",
-                        borderRadius: 8,
-                        color: "#111827",
-                        background: "#ffffff",
-                        boxSizing: "border-box",
+                        borderRadius:
+                          8,
+                        color:
+                          "#111827",
+                        background:
+                          "#ffffff",
+                        boxSizing:
+                          "border-box",
                       }}
                     />
                   </div>
@@ -1379,50 +1824,73 @@ export default function TasksPage() {
                   <div>
                     <label
                       style={{
-                        display: "block",
-                        marginBottom: 6,
-                        fontWeight: 600,
-                        color: "#374151",
+                        display:
+                          "block",
+                        marginBottom:
+                          6,
+                        fontWeight:
+                          600,
+                        color:
+                          "#374151",
                       }}
                     >
                       Assign To
                     </label>
 
                     <select
-                      value={form.assigned_to}
-                      onChange={(event) =>
+                      value={
+                        form.assigned_to
+                      }
+                      onChange={(
+                        event
+                      ) =>
                         setForm({
                           ...form,
                           assigned_to:
-                            event.target.value,
+                            event
+                              .target
+                              .value,
                         })
                       }
                       style={{
-                        width: "100%",
-                        padding: "10px 12px",
+                        width:
+                          "100%",
+                        padding:
+                          "10px 12px",
                         border:
                           "1px solid #d1d5db",
-                        borderRadius: 8,
-                        color: "#111827",
-                        background: "#ffffff",
+                        borderRadius:
+                          8,
+                        color:
+                          "#111827",
+                        background:
+                          "#ffffff",
                       }}
                     >
                       <option value="">
                         Unassigned
                       </option>
 
-                      {profiles.map((profile) => (
-                        <option
-                          key={profile.id}
-                          value={profile.id}
-                        >
-                          {profile.full_name ||
-                            "Unnamed staff"}
-                          {profile.role
-                            ? ` — ${profile.role}`
-                            : ""}
-                        </option>
-                      ))}
+                      {profiles.map(
+                        (
+                          profile
+                        ) => (
+                          <option
+                            key={
+                              profile.id
+                            }
+                            value={
+                              profile.id
+                            }
+                          >
+                            {profile.full_name ||
+                              "Unnamed staff"}
+                            {profile.role
+                              ? ` — ${profile.role}`
+                              : ""}
+                          </option>
+                        )
+                      )}
                     </select>
                   </div>
                 </div>
@@ -1430,63 +1898,230 @@ export default function TasksPage() {
                 <div>
                   <label
                     style={{
-                      display: "block",
-                      marginBottom: 6,
-                      fontWeight: 600,
-                      color: "#374151",
+                      display:
+                        "block",
+                      marginBottom:
+                        6,
+                      fontWeight:
+                        600,
+                      color:
+                        "#374151",
                     }}
                   >
                     Related Lead
                   </label>
 
                   <select
-                    value={form.lead_id}
-                    onChange={(event) =>
-                      setForm({
-                        ...form,
-                        lead_id:
-                          event.target.value,
-                      })
+                    value={
+                      form.lead_id
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      handleLeadChange(
+                        event
+                          .target
+                          .value
+                      )
                     }
                     style={{
-                      width: "100%",
-                      padding: "10px 12px",
+                      width:
+                        "100%",
+                      padding:
+                        "10px 12px",
                       border:
                         "1px solid #d1d5db",
-                      borderRadius: 8,
-                      color: "#111827",
-                      background: "#ffffff",
+                      borderRadius:
+                        8,
+                      color:
+                        "#111827",
+                      background:
+                        "#ffffff",
                     }}
                   >
                     <option value="">
                       No related lead
                     </option>
 
-                    {leads.map((lead) => (
-                      <option
-                        key={lead.id}
-                        value={lead.id}
-                      >
-                        {lead.name ||
-                          "Unnamed lead"}
-                        {lead.ciu_number
-                          ? ` — ${lead.ciu_number}`
-                          : ""}
-                        {lead.phone
-                          ? ` — ${lead.phone}`
-                          : ""}
-                      </option>
-                    ))}
+                    {leads.map(
+                      (
+                        lead
+                      ) => (
+                        <option
+                          key={
+                            lead.id
+                          }
+                          value={
+                            lead.id
+                          }
+                        >
+                          {lead.name ||
+                            "Unnamed lead"}
+                          {lead.ciu_number
+                            ? ` — ${lead.ciu_number}`
+                            : ""}
+                          {lead.phone
+                            ? ` — ${lead.phone}`
+                            : ""}
+                        </option>
+                      )
+                    )}
                   </select>
                 </div>
+
+                <div>
+                  <label
+                    style={{
+                      display:
+                        "block",
+                      marginBottom:
+                        6,
+                      fontWeight:
+                        600,
+                      color:
+                        "#374151",
+                    }}
+                  >
+                    Related Pipeline Opportunity
+                  </label>
+
+                  <select
+                    value={
+                      form.opportunity_id
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      handleOpportunityChange(
+                        event
+                          .target
+                          .value
+                      )
+                    }
+                    style={{
+                      width:
+                        "100%",
+                      padding:
+                        "10px 12px",
+                      border:
+                        "1px solid #d1d5db",
+                      borderRadius:
+                        8,
+                      color:
+                        "#111827",
+                      background:
+                        "#ffffff",
+                    }}
+                  >
+                    <option value="">
+                      No related pipeline opportunity
+                    </option>
+
+                    {availableOpportunities.map(
+                      (
+                        opportunity
+                      ) => {
+                        const stage =
+                          pipelineStages.find(
+                            (
+                              item
+                            ) =>
+                              item.id ===
+                              opportunity.stage_id
+                          );
+
+                        const lead =
+                          leads.find(
+                            (
+                              item
+                            ) =>
+                              item.id ===
+                              opportunity.lead_id
+                          );
+
+                        return (
+                          <option
+                            key={
+                              opportunity.id
+                            }
+                            value={
+                              opportunity.id
+                            }
+                          >
+                            {opportunity.title ||
+                              "Pipeline opportunity"}
+                            {lead?.name
+                              ? ` — ${lead.name}`
+                              : ""}
+                            {stage?.name
+                              ? ` — ${stage.name}`
+                              : ""}
+                          </option>
+                        );
+                      }
+                    )}
+                  </select>
+
+                  <p
+                    style={{
+                      margin:
+                        "6px 0 0",
+                      fontSize:
+                        12,
+                      color:
+                        "#6b7280",
+                    }}
+                  >
+                    Link this task to the student's
+                    current Pipeline record.
+                  </p>
+                </div>
+
+                {form.opportunity_id && (
+                  <div
+                    style={{
+                      padding:
+                        "12px 14px",
+                      borderRadius:
+                        8,
+                      background:
+                        "#eef2ff",
+                      border:
+                        "1px solid #c7d2fe",
+                      color:
+                        "#3730a3",
+                      fontSize:
+                        13,
+                    }}
+                  >
+                    <strong>
+                      Pipeline linked
+                    </strong>
+
+                    <div
+                      style={{
+                        marginTop:
+                          4,
+                      }}
+                    >
+                      {getOpportunityTitle(
+                        form.opportunity_id
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {error && (
                   <div
                     style={{
-                      padding: "10px 12px",
-                      borderRadius: 8,
-                      background: "#fee2e2",
-                      color: "#991b1b",
+                      padding:
+                        "10px 12px",
+                      borderRadius:
+                        8,
+                      background:
+                        "#fee2e2",
+                      color:
+                        "#991b1b",
                       border:
                         "1px solid #fecaca",
                     }}
@@ -1498,33 +2133,51 @@ export default function TasksPage() {
 
               <div
                 style={{
-                  padding: "16px 20px",
+                  padding:
+                    "16px 20px",
                   borderTop:
                     "1px solid #e5e7eb",
-                  display: "flex",
-                  justifyContent: "flex-end",
+                  display:
+                    "flex",
+                  justifyContent:
+                    "flex-end",
                   gap: 10,
                 }}
               >
                 <button
                   type="button"
-                  onClick={closeModal}
-                  disabled={saving}
+                  onClick={
+                    closeModal
+                  }
+                  disabled={
+                    saving
+                  }
                   style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    visibility: "visible",
+                    display:
+                      "inline-flex",
+                    alignItems:
+                      "center",
+                    justifyContent:
+                      "center",
+                    visibility:
+                      "visible",
                     opacity: 1,
-                    color: "#374151",
-                    background: "#ffffff",
+                    color:
+                      "#374151",
+                    background:
+                      "#ffffff",
                     border:
                       "1px solid #d1d5db",
-                    padding: "10px 16px",
-                    borderRadius: 8,
-                    fontSize: 14,
-                    fontWeight: 600,
-                    cursor: "pointer",
+                    padding:
+                      "10px 16px",
+                    borderRadius:
+                      8,
+                    fontSize:
+                      14,
+                    fontWeight:
+                      600,
+                    cursor:
+                      "pointer",
                   }}
                 >
                   Cancel
@@ -1532,27 +2185,41 @@ export default function TasksPage() {
 
                 <button
                   type="submit"
-                  disabled={saving}
+                  disabled={
+                    saving
+                  }
                   style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    visibility: "visible",
+                    display:
+                      "inline-flex",
+                    alignItems:
+                      "center",
+                    justifyContent:
+                      "center",
+                    visibility:
+                      "visible",
                     opacity: 1,
-                    color: "#ffffff",
-                    background: saving
-                      ? "#93c5fd"
-                      : "#2563eb",
+                    color:
+                      "#ffffff",
+                    background:
+                      saving
+                        ? "#93c5fd"
+                        : "#2563eb",
                     border:
                       "1px solid #2563eb",
-                    padding: "10px 16px",
-                    borderRadius: 8,
-                    fontSize: 14,
-                    fontWeight: 600,
-                    cursor: saving
-                      ? "not-allowed"
-                      : "pointer",
-                    minWidth: 120,
+                    padding:
+                      "10px 16px",
+                    borderRadius:
+                      8,
+                    fontSize:
+                      14,
+                    fontWeight:
+                      600,
+                    cursor:
+                      saving
+                        ? "not-allowed"
+                        : "pointer",
+                    minWidth:
+                      120,
                   }}
                 >
                   {saving

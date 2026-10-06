@@ -63,6 +63,10 @@ function formatCurrency(
   }
 }
 
+function formatNumber(value: number) {
+  return Number(value || 0).toLocaleString();
+}
+
 function formatDate(value: string | null) {
   if (!value) return "—";
 
@@ -85,19 +89,15 @@ function getCampaignStatus(
 ) {
   const now = new Date();
 
-  const start = startDate
-    ? new Date(startDate)
-    : null;
-
-  const end = endDate
-    ? new Date(endDate)
-    : null;
+  const start = startDate ? new Date(startDate) : null;
+  const end = endDate ? new Date(endDate) : null;
 
   if (start && now < start) {
     return {
       label: "Scheduled",
       background: "#fef3c7",
       color: "#92400e",
+      bar: "#f59e0b",
     };
   }
 
@@ -106,6 +106,7 @@ function getCampaignStatus(
       label: "Completed",
       background: "#e5e7eb",
       color: "#374151",
+      bar: "#94a3b8",
     };
   }
 
@@ -113,6 +114,7 @@ function getCampaignStatus(
     label: "Active",
     background: "#dcfce7",
     color: "#166534",
+    bar: "#16a34a",
   };
 }
 
@@ -120,9 +122,7 @@ function getLeadCaptureUrl(
   campaignId: string,
   source: string
 ) {
-  if (
-    typeof window === "undefined"
-  ) {
+  if (typeof window === "undefined") {
     return "";
   }
 
@@ -131,39 +131,71 @@ function getLeadCaptureUrl(
   )}&source=${encodeURIComponent(source)}`;
 }
 
+function isStatus(
+  status: string | null,
+  values: string[]
+) {
+  const normalized = (status || "").toLowerCase().trim();
+
+  return values.some((value) =>
+    normalized.includes(value.toLowerCase())
+  );
+}
+
+function getPipelineStage(
+  status: string | null
+) {
+  const normalized = (status || "").toLowerCase().trim();
+
+  if (
+    normalized.includes("paid acceptance") ||
+    normalized.includes("acceptance paid") ||
+    normalized.includes("enrolled")
+  ) {
+    return "Paid Acceptance Fee";
+  }
+
+  if (
+    normalized.includes("paid application") ||
+    normalized.includes("application paid")
+  ) {
+    return "Paid Application Fee";
+  }
+
+  if (
+    normalized.includes("applied") ||
+    normalized.includes("application") ||
+    normalized.includes("submitted")
+  ) {
+    return "Applied";
+  }
+
+  return "Leads";
+}
+
 export default function MarketingPage() {
-  const [campaigns, setCampaigns] =
-    useState<Campaign[]>([]);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [campaignLeads, setCampaignLeads] = useState<CampaignLead[]>([]);
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
 
-  const [campaignLeads, setCampaignLeads] =
-    useState<CampaignLead[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
-  const [leads, setLeads] =
-    useState<Lead[]>([]);
-
-  const [profiles, setProfiles] =
-    useState<Profile[]>([]);
-
-  const [loading, setLoading] =
-    useState(true);
-
-  const [refreshing, setRefreshing] =
+  const [showCampaignModal, setShowCampaignModal] =
     useState(false);
 
-  const [error, setError] =
-    useState("");
+  const [editingCampaign, setEditingCampaign] =
+    useState<Campaign | null>(null);
 
-  const [showAddCampaign, setShowAddCampaign] =
-    useState(false);
-
-  const [saving, setSaving] =
-    useState(false);
-
-  const [search, setSearch] =
-    useState("");
-
+  const [search, setSearch] = useState("");
   const [channelFilter, setChannelFilter] =
     useState("All");
+
+  const [selectedCampaignId, setSelectedCampaignId] =
+    useState<string | null>(null);
 
   const [form, setForm] = useState({
     name: "",
@@ -267,23 +299,19 @@ export default function MarketingPage() {
       }
 
       setCampaigns(
-        (campaignsResult.data ||
-          []) as Campaign[]
+        (campaignsResult.data || []) as Campaign[]
       );
 
       setCampaignLeads(
-        (campaignLeadsResult.data ||
-          []) as CampaignLead[]
+        (campaignLeadsResult.data || []) as CampaignLead[]
       );
 
       setLeads(
-        (leadsResult.data ||
-          []) as Lead[]
+        (leadsResult.data || []) as Lead[]
       );
 
       setProfiles(
-        (profilesResult.data ||
-          []) as Profile[]
+        (profilesResult.data || []) as Profile[]
       );
     } catch (err) {
       console.error(
@@ -322,16 +350,64 @@ export default function MarketingPage() {
       notes: "",
       created_by: "",
     });
+
+    setEditingCampaign(null);
   };
 
-  const handleAddCampaign = async (
+  const openNewCampaign = () => {
+    resetForm();
+    setShowCampaignModal(true);
+  };
+
+  const openEditCampaign = (
+    campaign: Campaign
+  ) => {
+    setEditingCampaign(campaign);
+
+    setForm({
+      name: campaign.name || "",
+      channel: campaign.channel || "",
+      start_date: campaign.start_date
+        ? campaign.start_date.slice(0, 10)
+        : "",
+      end_date: campaign.end_date
+        ? campaign.end_date.slice(0, 10)
+        : "",
+      budget:
+        campaign.budget !== null &&
+        campaign.budget !== undefined
+          ? String(campaign.budget)
+          : "",
+      currency: campaign.currency || "UGX",
+      notes: campaign.notes || "",
+      created_by: campaign.created_by || "",
+    });
+
+    setShowCampaignModal(true);
+  };
+
+  const closeCampaignModal = () => {
+    setShowCampaignModal(false);
+    resetForm();
+  };
+
+  const handleSaveCampaign = async (
     event: React.FormEvent
   ) => {
     event.preventDefault();
 
     if (!form.name.trim()) {
+      setError("Campaign name is required.");
+      return;
+    }
+
+    if (
+      form.start_date &&
+      form.end_date &&
+      form.end_date < form.start_date
+    ) {
       setError(
-        "Campaign name is required."
+        "End date cannot be before the start date."
       );
       return;
     }
@@ -344,49 +420,97 @@ export default function MarketingPage() {
         ? Number(form.budget)
         : null;
 
-      const { error: insertError } =
-        await supabase
-          .from("campaigns")
-          .insert({
-            name: form.name.trim(),
-            channel:
-              form.channel.trim() || null,
-            start_date:
-              form.start_date || null,
-            end_date:
-              form.end_date || null,
-            budget: budgetValue,
-            currency:
-              form.currency.trim() || "UGX",
-            notes:
-              form.notes.trim() || null,
-            created_by:
-              form.created_by || null,
-          });
+      const payload = {
+        name: form.name.trim(),
+        channel: form.channel.trim() || null,
+        start_date: form.start_date || null,
+        end_date: form.end_date || null,
+        budget: budgetValue,
+        currency: form.currency.trim() || "UGX",
+        notes: form.notes.trim() || null,
+        created_by: form.created_by || null,
+      };
 
-      if (insertError) {
-        throw new Error(
-          insertError.message
-        );
+      if (editingCampaign) {
+        const { error: updateError } =
+          await supabase
+            .from("campaigns")
+            .update(payload)
+            .eq("id", editingCampaign.id);
+
+        if (updateError) {
+          throw new Error(updateError.message);
+        }
+      } else {
+        const { error: insertError } =
+          await supabase
+            .from("campaigns")
+            .insert(payload);
+
+        if (insertError) {
+          throw new Error(insertError.message);
+        }
       }
 
-      setShowAddCampaign(false);
-      resetForm();
+      closeCampaignModal();
 
       await loadMarketing();
     } catch (err) {
       console.error(
-        "Campaign creation error:",
+        "Campaign save error:",
         err
       );
 
       setError(
         err instanceof Error
           ? err.message
-          : "Unable to create campaign."
+          : "Unable to save campaign."
       );
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDeleteCampaign = async (
+    campaign: Campaign
+  ) => {
+    const confirmed = window.confirm(
+      `Delete the campaign "${campaign.name}"?\n\nThis will remove the campaign record.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setError("");
+
+      const { error: deleteError } =
+        await supabase
+          .from("campaigns")
+          .delete()
+          .eq("id", campaign.id);
+
+      if (deleteError) {
+        throw new Error(deleteError.message);
+      }
+
+      if (
+        selectedCampaignId === campaign.id
+      ) {
+        setSelectedCampaignId(null);
+      }
+
+      await loadMarketing();
+    } catch (err) {
+      console.error(
+        "Campaign delete error:",
+        err
+      );
+
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to delete campaign."
+      );
     }
   };
 
@@ -402,11 +526,9 @@ export default function MarketingPage() {
     if (!url) return;
 
     try {
-      await navigator.clipboard.writeText(
-        url
-      );
+      await navigator.clipboard.writeText(url);
 
-      alert(
+      window.alert(
         `${source} lead capture link copied.`
       );
     } catch (err) {
@@ -434,29 +556,55 @@ export default function MarketingPage() {
           Boolean(channel)
       );
 
-    return Array.from(
-      new Set(values)
-    );
+    return Array.from(new Set(values));
   }, [campaigns]);
 
   const campaignLeadCount =
     useMemo(() => {
-      const counts = new Map<
-        string,
-        number
-      >();
+      const counts = new Map<string, number>();
 
       campaignLeads.forEach((item) => {
         counts.set(
           item.campaign_id,
-          (counts.get(
-            item.campaign_id
-          ) || 0) + 1
+          (counts.get(item.campaign_id) || 0) + 1
         );
       });
 
       return counts;
     }, [campaignLeads]);
+
+  const campaignLeadIdsMap =
+    useMemo(() => {
+      const map = new Map<
+        string,
+        Set<string>
+      >();
+
+      campaignLeads.forEach((item) => {
+        if (!map.has(item.campaign_id)) {
+          map.set(
+            item.campaign_id,
+            new Set<string>()
+          );
+        }
+
+        map
+          .get(item.campaign_id)!
+          .add(item.lead_id);
+      });
+
+      return map;
+    }, [campaignLeads]);
+
+  const leadMap = useMemo(() => {
+    const map = new Map<string, Lead>();
+
+    leads.forEach((lead) => {
+      map.set(lead.id, lead);
+    });
+
+    return map;
+  }, [leads]);
 
   const filteredCampaigns =
     useMemo(() => {
@@ -509,42 +657,36 @@ export default function MarketingPage() {
   const totalCampaignLeads =
     campaignLeads.length;
 
-  const convertedCampaignLeads =
-    useMemo(() => {
-      const campaignLeadIds =
+  const campaignLeadSet =
+    useMemo(
+      () =>
         new Set(
           campaignLeads.map(
             (item) => item.lead_id
           )
-        );
+        ),
+      [campaignLeads]
+    );
 
-      return leads.filter((lead) => {
-        const status =
-          (
-            lead.status || ""
-          ).toLowerCase();
+  const campaignLeadsList =
+    useMemo(() => {
+      return leads.filter((lead) =>
+        campaignLeadSet.has(lead.id)
+      );
+    }, [leads, campaignLeadSet]);
 
-        return (
-          campaignLeadIds.has(
-            lead.id
-          ) &&
-          (
-            status.includes(
-              "converted"
-            ) ||
-            status.includes(
-              "paid"
-            ) ||
-            status.includes(
-              "enrolled"
-            )
-          )
-        );
-      }).length;
-    }, [
-      campaignLeads,
-      leads,
-    ]);
+  const convertedCampaignLeads =
+    useMemo(() => {
+      return campaignLeadsList.filter(
+        (lead) =>
+          isStatus(lead.status, [
+            "converted",
+            "paid",
+            "enrolled",
+            "acceptance",
+          ])
+      ).length;
+    }, [campaignLeadsList]);
 
   const conversionRate =
     totalCampaignLeads > 0
@@ -557,9 +699,7 @@ export default function MarketingPage() {
     campaigns.reduce(
       (total, campaign) =>
         total +
-        Number(
-          campaign.budget || 0
-        ),
+        Number(campaign.budget || 0),
       0
     );
 
@@ -572,13 +712,245 @@ export default function MarketingPage() {
     profiles.forEach((profile) => {
       map.set(
         profile.id,
-        profile.full_name ||
-          "Unknown"
+        profile.full_name || "Unknown"
       );
     });
 
     return map;
   }, [profiles]);
+
+  const selectedCampaign =
+    useMemo(() => {
+      if (!selectedCampaignId) {
+        return null;
+      }
+
+      return (
+        campaigns.find(
+          (campaign) =>
+            campaign.id ===
+            selectedCampaignId
+        ) || null
+      );
+    }, [
+      campaigns,
+      selectedCampaignId,
+    ]);
+
+  const selectedCampaignLeads =
+    useMemo(() => {
+      if (!selectedCampaign) {
+        return [];
+      }
+
+      const ids =
+        campaignLeadIdsMap.get(
+          selectedCampaign.id
+        );
+
+      if (!ids) return [];
+
+      return leads.filter((lead) =>
+        ids.has(lead.id)
+      );
+    }, [
+      selectedCampaign,
+      campaignLeadIdsMap,
+      leads,
+    ]);
+
+  const selectedPerformance =
+    useMemo(() => {
+      const total =
+        selectedCampaignLeads.length;
+
+      const applied =
+        selectedCampaignLeads.filter(
+          (lead) =>
+            getPipelineStage(
+              lead.status
+            ) === "Applied" ||
+            getPipelineStage(
+              lead.status
+            ) ===
+              "Paid Application Fee" ||
+            getPipelineStage(
+              lead.status
+            ) ===
+              "Paid Acceptance Fee"
+        ).length;
+
+      const applicationPaid =
+        selectedCampaignLeads.filter(
+          (lead) =>
+            getPipelineStage(
+              lead.status
+            ) ===
+            "Paid Application Fee" ||
+            getPipelineStage(
+              lead.status
+            ) ===
+              "Paid Acceptance Fee"
+        ).length;
+
+      const acceptancePaid =
+        selectedCampaignLeads.filter(
+          (lead) =>
+            getPipelineStage(
+              lead.status
+            ) ===
+            "Paid Acceptance Fee"
+        ).length;
+
+      const budget = Number(
+        selectedCampaign?.budget || 0
+      );
+
+      const costPerLead =
+        total > 0
+          ? budget / total
+          : 0;
+
+      return {
+        total,
+        applied,
+        applicationPaid,
+        acceptancePaid,
+        costPerLead,
+      };
+    }, [
+      selectedCampaign,
+      selectedCampaignLeads,
+    ]);
+
+  const sourcePerformance =
+    useMemo(() => {
+      if (!selectedCampaign) {
+        return [];
+      }
+
+      const sourceMap = new Map<
+        string,
+        {
+          source: string;
+          leads: number;
+          applied: number;
+          paidApplication: number;
+          paidAcceptance: number;
+        }
+      >();
+
+      campaignLeads
+        .filter(
+          (item) =>
+            item.campaign_id ===
+            selectedCampaign.id
+        )
+        .forEach((item) => {
+          const source =
+            "Campaign Link";
+
+          const lead =
+            leadMap.get(item.lead_id);
+
+          if (!sourceMap.has(source)) {
+            sourceMap.set(source, {
+              source,
+              leads: 0,
+              applied: 0,
+              paidApplication: 0,
+              paidAcceptance: 0,
+            });
+          }
+
+          const row =
+            sourceMap.get(source)!;
+
+          row.leads += 1;
+
+          const stage =
+            getPipelineStage(
+              lead?.status || null
+            );
+
+          if (
+            stage === "Applied" ||
+            stage ===
+              "Paid Application Fee" ||
+            stage ===
+              "Paid Acceptance Fee"
+          ) {
+            row.applied += 1;
+          }
+
+          if (
+            stage ===
+              "Paid Application Fee" ||
+            stage ===
+              "Paid Acceptance Fee"
+          ) {
+            row.paidApplication += 1;
+          }
+
+          if (
+            stage ===
+            "Paid Acceptance Fee"
+          ) {
+            row.paidAcceptance += 1;
+          }
+        });
+
+      return Array.from(
+        sourceMap.values()
+      );
+    }, [
+      selectedCampaign,
+      campaignLeads,
+      leadMap,
+    ]);
+
+  const overallPipeline =
+    useMemo(() => {
+      const result = {
+        leads: 0,
+        applied: 0,
+        applicationPaid: 0,
+        acceptancePaid: 0,
+      };
+
+      campaignLeadsList.forEach(
+        (lead) => {
+          const stage =
+            getPipelineStage(
+              lead.status
+            );
+
+          if (stage === "Leads") {
+            result.leads += 1;
+          }
+
+          if (stage === "Applied") {
+            result.applied += 1;
+          }
+
+          if (
+            stage ===
+            "Paid Application Fee"
+          ) {
+            result.applicationPaid += 1;
+          }
+
+          if (
+            stage ===
+            "Paid Acceptance Fee"
+          ) {
+            result.acceptancePaid += 1;
+          }
+        }
+      );
+
+      return result;
+    }, [campaignLeadsList]);
 
   if (loading) {
     return (
@@ -664,9 +1036,10 @@ export default function MarketingPage() {
                 fontSize: 14,
               }}
             >
-              Monitor campaigns,
-              channels and lead
-              generation.
+              Manage campaigns,
+              measure lead generation
+              and track recruitment
+              performance.
             </p>
           </div>
 
@@ -679,9 +1052,7 @@ export default function MarketingPage() {
           >
             <button
               type="button"
-              onClick={
-                handleRefresh
-              }
+              onClick={handleRefresh}
               disabled={refreshing}
               style={{
                 display:
@@ -711,8 +1082,6 @@ export default function MarketingPage() {
                     ? "not-allowed"
                     : "pointer",
                 minHeight: 40,
-                whiteSpace:
-                  "nowrap",
               }}
             >
               {refreshing
@@ -722,11 +1091,7 @@ export default function MarketingPage() {
 
             <button
               type="button"
-              onClick={() =>
-                setShowAddCampaign(
-                  true
-                )
-              }
+              onClick={openNewCampaign}
               style={{
                 display:
                   "inline-flex",
@@ -750,8 +1115,6 @@ export default function MarketingPage() {
                 cursor:
                   "pointer",
                 minHeight: 40,
-                whiteSpace:
-                  "nowrap",
               }}
             >
               + New Campaign
@@ -794,8 +1157,7 @@ export default function MarketingPage() {
         >
           <div
             style={{
-              background:
-                "#ffffff",
+              background: "#ffffff",
               border:
                 "1px solid #e5e7eb",
               borderRadius: 12,
@@ -828,10 +1190,8 @@ export default function MarketingPage() {
                 color: "#64748b",
               }}
             >
-              Across{" "}
-              {channels.length}{" "}
-              {channels.length ===
-              1
+              Across {channels.length}{" "}
+              {channels.length === 1
                 ? "channel"
                 : "channels"}
             </div>
@@ -839,8 +1199,7 @@ export default function MarketingPage() {
 
           <div
             style={{
-              background:
-                "#ffffff",
+              background: "#ffffff",
               border:
                 "1px solid #e5e7eb",
               borderRadius: 12,
@@ -863,7 +1222,9 @@ export default function MarketingPage() {
                 fontWeight: 700,
               }}
             >
-              {totalCampaignLeads.toLocaleString()}
+              {formatNumber(
+                totalCampaignLeads
+              )}
             </div>
 
             <div
@@ -879,8 +1240,7 @@ export default function MarketingPage() {
 
           <div
             style={{
-              background:
-                "#ffffff",
+              background: "#ffffff",
               border:
                 "1px solid #e5e7eb",
               borderRadius: 12,
@@ -894,7 +1254,7 @@ export default function MarketingPage() {
                 marginBottom: 10,
               }}
             >
-              Conversion Rate
+              Campaign Conversion
             </div>
 
             <div
@@ -916,17 +1276,14 @@ export default function MarketingPage() {
                 color: "#64748b",
               }}
             >
-              {
-                convertedCampaignLeads
-              }{" "}
-              converted leads
+              {convertedCampaignLeads} converted
+              leads
             </div>
           </div>
 
           <div
             style={{
-              background:
-                "#ffffff",
+              background: "#ffffff",
               border:
                 "1px solid #e5e7eb",
               borderRadius: 12,
@@ -961,17 +1318,132 @@ export default function MarketingPage() {
                 color: "#64748b",
               }}
             >
-              Total campaign
-              budgets
+              Total campaign budgets
             </div>
+          </div>
+        </div>
+
+        {/* OVERALL PIPELINE */}
+        <div
+          style={{
+            background: "#ffffff",
+            border:
+              "1px solid #e5e7eb",
+            borderRadius: 12,
+            padding: 20,
+            marginBottom: 24,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent:
+                "space-between",
+              alignItems:
+                "center",
+              gap: 12,
+              marginBottom: 18,
+              flexWrap: "wrap",
+            }}
+          >
+            <div>
+              <h2
+                style={{
+                  margin: 0,
+                  fontSize: 18,
+                  fontWeight: 700,
+                }}
+              >
+                Campaign Pipeline
+              </h2>
+
+              <p
+                style={{
+                  margin:
+                    "5px 0 0",
+                  fontSize: 12,
+                  color: "#64748b",
+                }}
+              >
+                Recruitment progress
+                from marketing leads.
+              </p>
+            </div>
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns:
+                "repeat(4, minmax(0, 1fr))",
+              gap: 12,
+            }}
+          >
+            {[
+              {
+                label: "Leads",
+                value:
+                  overallPipeline.leads,
+              },
+              {
+                label: "Applied",
+                value:
+                  overallPipeline.applied,
+              },
+              {
+                label:
+                  "Paid Application",
+                value:
+                  overallPipeline.applicationPaid,
+              },
+              {
+                label:
+                  "Paid Acceptance",
+                value:
+                  overallPipeline.acceptancePaid,
+              },
+            ].map((item) => (
+              <div
+                key={item.label}
+                style={{
+                  background:
+                    "#f8fafc",
+                  border:
+                    "1px solid #e5e7eb",
+                  borderRadius: 10,
+                  padding: 16,
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 12,
+                    color:
+                      "#64748b",
+                    marginBottom: 8,
+                  }}
+                >
+                  {item.label}
+                </div>
+
+                <div
+                  style={{
+                    fontSize: 25,
+                    fontWeight: 700,
+                  }}
+                >
+                  {formatNumber(
+                    item.value
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
         {/* FILTERS */}
         <div
           style={{
-            background:
-              "#ffffff",
+            background: "#ffffff",
             border:
               "1px solid #e5e7eb",
             borderRadius: 12,
@@ -1007,9 +1479,7 @@ export default function MarketingPage() {
           />
 
           <select
-            value={
-              channelFilter
-            }
+            value={channelFilter}
             onChange={(event) =>
               setChannelFilter(
                 event.target.value
@@ -1067,8 +1537,7 @@ export default function MarketingPage() {
                 marginBottom: 8,
               }}
             >
-              No campaigns
-              found
+              No campaigns found
             </div>
 
             <div
@@ -1079,18 +1548,14 @@ export default function MarketingPage() {
               }}
             >
               Create your first
-              marketing campaign
-              to start tracking
-              lead generation.
+              marketing campaign to
+              start tracking lead
+              generation.
             </div>
 
             <button
               type="button"
-              onClick={() =>
-                setShowAddCampaign(
-                  true
-                )
-              }
+              onClick={openNewCampaign}
               style={{
                 display:
                   "inline-flex",
@@ -1124,13 +1589,13 @@ export default function MarketingPage() {
             style={{
               display: "grid",
               gridTemplateColumns:
-                "repeat(auto-fit, minmax(320px, 1fr))",
+                "repeat(auto-fit, minmax(340px, 1fr))",
               gap: 18,
             }}
           >
             {filteredCampaigns.map(
               (campaign) => {
-                const campaignStatus =
+                const status =
                   getCampaignStatus(
                     campaign.start_date,
                     campaign.end_date
@@ -1141,11 +1606,51 @@ export default function MarketingPage() {
                     campaign.id
                   ) || 0;
 
+                const campaignIds =
+                  campaignLeadIdsMap.get(
+                    campaign.id
+                  ) ||
+                  new Set<string>();
+
+                const campaignLeadsForCard =
+                  leads.filter((lead) =>
+                    campaignIds.has(
+                      lead.id
+                    )
+                  );
+
+                const converted =
+                  campaignLeadsForCard.filter(
+                    (lead) =>
+                      isStatus(
+                        lead.status,
+                        [
+                          "converted",
+                          "paid",
+                          "enrolled",
+                          "acceptance",
+                        ]
+                      )
+                  ).length;
+
+                const campaignConversion =
+                  leadCount > 0
+                    ? (converted /
+                        leadCount) *
+                      100
+                    : 0;
+
+                const costPerLead =
+                  leadCount > 0
+                    ? Number(
+                        campaign.budget ||
+                          0
+                      ) / leadCount
+                    : 0;
+
                 return (
                   <div
-                    key={
-                      campaign.id
-                    }
+                    key={campaign.id}
                     style={{
                       background:
                         "#ffffff",
@@ -1160,13 +1665,7 @@ export default function MarketingPage() {
                       style={{
                         height: 5,
                         background:
-                          campaignStatus.label ===
-                          "Active"
-                            ? "#16a34a"
-                            : campaignStatus.label ===
-                                "Scheduled"
-                              ? "#f59e0b"
-                              : "#94a3b8",
+                          status.bar,
                       }}
                     />
 
@@ -1175,6 +1674,7 @@ export default function MarketingPage() {
                         padding: 20,
                       }}
                     >
+                      {/* CARD HEADER */}
                       <div
                         style={{
                           display:
@@ -1199,14 +1699,12 @@ export default function MarketingPage() {
                             fontSize: 11,
                             fontWeight: 700,
                             background:
-                              campaignStatus.background,
+                              status.background,
                             color:
-                              campaignStatus.color,
+                              status.color,
                           }}
                         >
-                          {
-                            campaignStatus.label
-                          }
+                          {status.label}
                         </span>
 
                         <span
@@ -1227,8 +1725,6 @@ export default function MarketingPage() {
                             "16px 0 6px",
                           fontSize: 18,
                           fontWeight: 700,
-                          color:
-                            "#111827",
                         }}
                       >
                         {campaign.name}
@@ -1246,19 +1742,18 @@ export default function MarketingPage() {
                               1.5,
                           }}
                         >
-                          {
-                            campaign.notes
-                          }
+                          {campaign.notes}
                         </p>
                       )}
 
+                      {/* PERFORMANCE */}
                       <div
                         style={{
                           display:
                             "grid",
                           gridTemplateColumns:
                             "1fr 1fr",
-                          gap: 12,
+                          gap: 10,
                           marginTop: 16,
                         }}
                       >
@@ -1280,7 +1775,7 @@ export default function MarketingPage() {
                                 5,
                             }}
                           >
-                            Leads Generated
+                            Leads
                           </div>
 
                           <div
@@ -1289,9 +1784,43 @@ export default function MarketingPage() {
                               fontWeight: 700,
                             }}
                           >
-                            {
+                            {formatNumber(
                               leadCount
-                            }
+                            )}
+                          </div>
+                        </div>
+
+                        <div
+                          style={{
+                            background:
+                              "#f8fafc",
+                            borderRadius:
+                              8,
+                            padding: 12,
+                          }}
+                        >
+                          <div
+                            style={{
+                              fontSize: 11,
+                              color:
+                                "#64748b",
+                              marginBottom:
+                                5,
+                            }}
+                          >
+                            Conversion
+                          </div>
+
+                          <div
+                            style={{
+                              fontSize: 22,
+                              fontWeight: 700,
+                            }}
+                          >
+                            {campaignConversion.toFixed(
+                              1
+                            )}
+                            %
                           </div>
                         </div>
 
@@ -1318,7 +1847,7 @@ export default function MarketingPage() {
 
                           <div
                             style={{
-                              fontSize: 16,
+                              fontSize: 15,
                               fontWeight: 700,
                             }}
                           >
@@ -1332,8 +1861,44 @@ export default function MarketingPage() {
                             )}
                           </div>
                         </div>
+
+                        <div
+                          style={{
+                            background:
+                              "#f8fafc",
+                            borderRadius:
+                              8,
+                            padding: 12,
+                          }}
+                        >
+                          <div
+                            style={{
+                              fontSize: 11,
+                              color:
+                                "#64748b",
+                              marginBottom:
+                                5,
+                            }}
+                          >
+                            Cost / Lead
+                          </div>
+
+                          <div
+                            style={{
+                              fontSize: 15,
+                              fontWeight: 700,
+                            }}
+                          >
+                            {formatCurrency(
+                              costPerLead,
+                              campaign.currency ||
+                                "UGX"
+                            )}
+                          </div>
+                        </div>
                       </div>
 
+                      {/* DATES / OWNER */}
                       <div
                         style={{
                           marginTop: 18,
@@ -1370,6 +1935,116 @@ export default function MarketingPage() {
                         )}
                       </div>
 
+                      {/* ACTIONS */}
+                      <div
+                        style={{
+                          display:
+                            "flex",
+                          gap: 8,
+                          marginTop: 16,
+                        }}
+                      >
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setSelectedCampaignId(
+                              campaign.id
+                            )
+                          }
+                          style={{
+                            flex: 1,
+                            display:
+                              "inline-flex",
+                            alignItems:
+                              "center",
+                            justifyContent:
+                              "center",
+                            color:
+                              "#1d4ed8",
+                            background:
+                              "#eff6ff",
+                            border:
+                              "1px solid #bfdbfe",
+                            padding:
+                              "9px 10px",
+                            borderRadius:
+                              7,
+                            fontSize: 12,
+                            fontWeight: 600,
+                            cursor:
+                              "pointer",
+                          }}
+                        >
+                          View Performance
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            openEditCampaign(
+                              campaign
+                            )
+                          }
+                          style={{
+                            display:
+                              "inline-flex",
+                            alignItems:
+                              "center",
+                            justifyContent:
+                              "center",
+                            color:
+                              "#374151",
+                            background:
+                              "#ffffff",
+                            border:
+                              "1px solid #d1d5db",
+                            padding:
+                              "9px 12px",
+                            borderRadius:
+                              7,
+                            fontSize: 12,
+                            fontWeight: 600,
+                            cursor:
+                              "pointer",
+                          }}
+                        >
+                          Edit
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleDeleteCampaign(
+                              campaign
+                            )
+                          }
+                          style={{
+                            display:
+                              "inline-flex",
+                            alignItems:
+                              "center",
+                            justifyContent:
+                              "center",
+                            color:
+                              "#b91c1c",
+                            background:
+                              "#fef2f2",
+                            border:
+                              "1px solid #fecaca",
+                            padding:
+                              "9px 12px",
+                            borderRadius:
+                              7,
+                            fontSize: 12,
+                            fontWeight: 600,
+                            cursor:
+                              "pointer",
+                          }}
+                        >
+                          Delete
+                        </button>
+                      </div>
+
                       {/* LEAD CAPTURE LINKS */}
                       <div
                         style={{
@@ -1396,8 +2071,6 @@ export default function MarketingPage() {
                             style={{
                               fontSize: 13,
                               fontWeight: 700,
-                              color:
-                                "#111827",
                             }}
                           >
                             Lead Capture
@@ -1445,9 +2118,6 @@ export default function MarketingPage() {
                                     "center",
                                   justifyContent:
                                     "center",
-                                  visibility:
-                                    "visible",
-                                  opacity: 1,
                                   color:
                                     "#1d4ed8",
                                   background:
@@ -1462,7 +2132,8 @@ export default function MarketingPage() {
                                   fontWeight: 600,
                                   cursor:
                                     "pointer",
-                                  minHeight: 36,
+                                  minHeight:
+                                    36,
                                 }}
                               >
                                 Copy{" "}
@@ -1481,7 +2152,8 @@ export default function MarketingPage() {
                               "#f8fafc",
                             border:
                               "1px solid #e5e7eb",
-                            borderRadius: 7,
+                            borderRadius:
+                              7,
                             fontSize: 11,
                             color:
                               "#64748b",
@@ -1489,12 +2161,11 @@ export default function MarketingPage() {
                               1.5,
                           }}
                         >
-                          Each link
-                          automatically
-                          identifies this
-                          campaign and the
-                          selected lead
-                          source.
+                          Each link identifies
+                          this campaign and
+                          selected source when
+                          a prospect submits
+                          the lead form.
                         </div>
                       </div>
                     </div>
@@ -1505,8 +2176,8 @@ export default function MarketingPage() {
           </div>
         )}
 
-        {/* ADD CAMPAIGN MODAL */}
-        {showAddCampaign && (
+        {/* PERFORMANCE MODAL */}
+        {selectedCampaign && (
           <div
             style={{
               position: "fixed",
@@ -1521,16 +2192,537 @@ export default function MarketingPage() {
                 "center",
               padding: 20,
             }}
-            onMouseDown={(
-              event
-            ) => {
+            onMouseDown={(event) => {
               if (
                 event.target ===
                 event.currentTarget
               ) {
-                setShowAddCampaign(
-                  false
+                setSelectedCampaignId(
+                  null
                 );
+              }
+            }}
+          >
+            <div
+              style={{
+                width: "100%",
+                maxWidth: 850,
+                maxHeight: "90vh",
+                overflowY: "auto",
+                background:
+                  "#ffffff",
+                borderRadius: 14,
+                boxShadow:
+                  "0 20px 50px rgba(0,0,0,0.2)",
+              }}
+            >
+              <div
+                style={{
+                  padding:
+                    "20px 22px",
+                  borderBottom:
+                    "1px solid #e5e7eb",
+                  display:
+                    "flex",
+                  alignItems:
+                    "center",
+                  justifyContent:
+                    "space-between",
+                  gap: 16,
+                }}
+              >
+                <div>
+                  <h2
+                    style={{
+                      margin: 0,
+                      fontSize: 20,
+                      fontWeight: 700,
+                    }}
+                  >
+                    {selectedCampaign.name}
+                  </h2>
+
+                  <p
+                    style={{
+                      margin:
+                        "5px 0 0",
+                      fontSize: 12,
+                      color:
+                        "#64748b",
+                    }}
+                  >
+                    Campaign performance
+                    and recruitment
+                    pipeline
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSelectedCampaignId(
+                      null
+                    )
+                  }
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 8,
+                    border:
+                      "1px solid #e5e7eb",
+                    background:
+                      "#ffffff",
+                    color:
+                      "#374151",
+                    fontSize: 20,
+                    cursor:
+                      "pointer",
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+
+              <div
+                style={{
+                  padding: 22,
+                }}
+              >
+                {/* PERFORMANCE KPIs */}
+                <div
+                  style={{
+                    display:
+                      "grid",
+                    gridTemplateColumns:
+                      "repeat(auto-fit, minmax(150px, 1fr))",
+                    gap: 12,
+                    marginBottom: 22,
+                  }}
+                >
+                  {[
+                    {
+                      label: "Leads",
+                      value:
+                        selectedPerformance.total,
+                    },
+                    {
+                      label: "Applied",
+                      value:
+                        selectedPerformance.applied,
+                    },
+                    {
+                      label:
+                        "Paid Application",
+                      value:
+                        selectedPerformance.applicationPaid,
+                    },
+                    {
+                      label:
+                        "Paid Acceptance",
+                      value:
+                        selectedPerformance.acceptancePaid,
+                    },
+                    {
+                      label:
+                        "Cost / Lead",
+                      value:
+                        formatCurrency(
+                          selectedPerformance.costPerLead,
+                          selectedCampaign.currency ||
+                            "UGX"
+                        ),
+                    },
+                  ].map((item) => (
+                    <div
+                      key={
+                        item.label
+                      }
+                      style={{
+                        background:
+                          "#f8fafc",
+                        border:
+                          "1px solid #e5e7eb",
+                        borderRadius:
+                          10,
+                        padding: 14,
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: 11,
+                          color:
+                            "#64748b",
+                          marginBottom:
+                            7,
+                        }}
+                      >
+                        {item.label}
+                      </div>
+
+                      <div
+                        style={{
+                          fontSize: 21,
+                          fontWeight: 700,
+                        }}
+                      >
+                        {item.value}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* PIPELINE */}
+                <div
+                  style={{
+                    border:
+                      "1px solid #e5e7eb",
+                    borderRadius: 10,
+                    overflow:
+                      "hidden",
+                    marginBottom: 20,
+                  }}
+                >
+                  <div
+                    style={{
+                      padding:
+                        "14px 16px",
+                      background:
+                        "#f8fafc",
+                      borderBottom:
+                        "1px solid #e5e7eb",
+                      fontWeight: 700,
+                      fontSize: 14,
+                    }}
+                  >
+                    Recruitment Pipeline
+                  </div>
+
+                  {[
+                    {
+                      label: "Leads",
+                      value:
+                        selectedPerformance.total,
+                    },
+                    {
+                      label: "Applied",
+                      value:
+                        selectedPerformance.applied,
+                    },
+                    {
+                      label:
+                        "Paid Application Fee",
+                      value:
+                        selectedPerformance.applicationPaid,
+                    },
+                    {
+                      label:
+                        "Paid Acceptance Fee",
+                      value:
+                        selectedPerformance.acceptancePaid,
+                    },
+                  ].map((item) => {
+                    const percentage =
+                      selectedPerformance.total >
+                      0
+                        ? (Number(
+                            item.value
+                          ) /
+                            selectedPerformance.total) *
+                          100
+                        : 0;
+
+                    return (
+                      <div
+                        key={
+                          item.label
+                        }
+                        style={{
+                          padding:
+                            "13px 16px",
+                          borderBottom:
+                            "1px solid #f1f5f9",
+                        }}
+                      >
+                        <div
+                          style={{
+                            display:
+                              "flex",
+                            justifyContent:
+                              "space-between",
+                            marginBottom:
+                              7,
+                            fontSize: 12,
+                          }}
+                        >
+                          <span>
+                            {item.label}
+                          </span>
+
+                          <strong>
+                            {formatNumber(
+                              Number(
+                                item.value
+                              )
+                            )}{" "}
+                            (
+                            {percentage.toFixed(
+                              1
+                            )}
+                            %)
+                          </strong>
+                        </div>
+
+                        <div
+                          style={{
+                            height: 7,
+                            background:
+                              "#e5e7eb",
+                            borderRadius:
+                              999,
+                            overflow:
+                              "hidden",
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: `${Math.min(
+                                percentage,
+                                100
+                              )}%`,
+                              height:
+                                "100%",
+                              background:
+                                "#2563eb",
+                            }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* SOURCE PERFORMANCE */}
+                <div
+                  style={{
+                    border:
+                      "1px solid #e5e7eb",
+                    borderRadius: 10,
+                    overflow:
+                      "hidden",
+                  }}
+                >
+                  <div
+                    style={{
+                      padding:
+                        "14px 16px",
+                      background:
+                        "#f8fafc",
+                      borderBottom:
+                        "1px solid #e5e7eb",
+                      fontWeight: 700,
+                      fontSize: 14,
+                    }}
+                  >
+                    Source Performance
+                  </div>
+
+                  {sourcePerformance.length ===
+                  0 ? (
+                    <div
+                      style={{
+                        padding: 20,
+                        color:
+                          "#64748b",
+                        fontSize: 13,
+                      }}
+                    >
+                      No campaign leads
+                      have been captured
+                      yet.
+                    </div>
+                  ) : (
+                    <div
+                      style={{
+                        overflowX:
+                          "auto",
+                      }}
+                    >
+                      <table
+                        style={{
+                          width:
+                            "100%",
+                          borderCollapse:
+                            "collapse",
+                          fontSize: 12,
+                        }}
+                      >
+                        <thead>
+                          <tr
+                            style={{
+                              background:
+                                "#ffffff",
+                              borderBottom:
+                                "1px solid #e5e7eb",
+                            }}
+                          >
+                            <th
+                              style={{
+                                padding:
+                                  "11px 14px",
+                                textAlign:
+                                  "left",
+                              }}
+                            >
+                              Source
+                            </th>
+                            <th
+                              style={{
+                                padding:
+                                  "11px 14px",
+                                textAlign:
+                                  "right",
+                              }}
+                            >
+                              Leads
+                            </th>
+                            <th
+                              style={{
+                                padding:
+                                  "11px 14px",
+                                textAlign:
+                                  "right",
+                              }}
+                            >
+                              Applied
+                            </th>
+                            <th
+                              style={{
+                                padding:
+                                  "11px 14px",
+                                textAlign:
+                                  "right",
+                              }}
+                            >
+                              Paid App.
+                            </th>
+                            <th
+                              style={{
+                                padding:
+                                  "11px 14px",
+                                textAlign:
+                                  "right",
+                              }}
+                            >
+                              Paid Acc.
+                            </th>
+                          </tr>
+                        </thead>
+
+                        <tbody>
+                          {sourcePerformance.map(
+                            (row) => (
+                              <tr
+                                key={
+                                  row.source
+                                }
+                                style={{
+                                  borderBottom:
+                                    "1px solid #f1f5f9",
+                                }}
+                              >
+                                <td
+                                  style={{
+                                    padding:
+                                      "11px 14px",
+                                    fontWeight:
+                                      600,
+                                  }}
+                                >
+                                  {row.source}
+                                </td>
+
+                                <td
+                                  style={{
+                                    padding:
+                                      "11px 14px",
+                                    textAlign:
+                                      "right",
+                                  }}
+                                >
+                                  {row.leads}
+                                </td>
+
+                                <td
+                                  style={{
+                                    padding:
+                                      "11px 14px",
+                                    textAlign:
+                                      "right",
+                                  }}
+                                >
+                                  {row.applied}
+                                </td>
+
+                                <td
+                                  style={{
+                                    padding:
+                                      "11px 14px",
+                                    textAlign:
+                                      "right",
+                                  }}
+                                >
+                                  {
+                                    row.paidApplication
+                                  }
+                                </td>
+
+                                <td
+                                  style={{
+                                    padding:
+                                      "11px 14px",
+                                    textAlign:
+                                      "right",
+                                  }}
+                                >
+                                  {
+                                    row.paidAcceptance
+                                  }
+                                </td>
+                              </tr>
+                            )
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* CAMPAIGN MODAL */}
+        {showCampaignModal && (
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 1000,
+              background:
+                "rgba(15, 23, 42, 0.55)",
+              display: "flex",
+              alignItems:
+                "center",
+              justifyContent:
+                "center",
+              padding: 20,
+            }}
+            onMouseDown={(event) => {
+              if (
+                event.target ===
+                event.currentTarget
+              ) {
+                closeCampaignModal();
               }
             }}
           >
@@ -1569,7 +2761,9 @@ export default function MarketingPage() {
                       fontWeight: 700,
                     }}
                   >
-                    New Campaign
+                    {editingCampaign
+                      ? "Edit Campaign"
+                      : "New Campaign"}
                   </h2>
 
                   <p
@@ -1581,17 +2775,16 @@ export default function MarketingPage() {
                         "#64748b",
                     }}
                   >
-                    Create a marketing
-                    campaign.
+                    {editingCampaign
+                      ? "Update campaign information."
+                      : "Create a marketing campaign."}
                   </p>
                 </div>
 
                 <button
                   type="button"
-                  onClick={() =>
-                    setShowAddCampaign(
-                      false
-                    )
+                  onClick={
+                    closeCampaignModal
                   }
                   style={{
                     width: 36,
@@ -1614,7 +2807,7 @@ export default function MarketingPage() {
 
               <form
                 onSubmit={
-                  handleAddCampaign
+                  handleSaveCampaign
                 }
                 style={{
                   padding: 22,
@@ -1651,12 +2844,8 @@ export default function MarketingPage() {
                     <input
                       type="text"
                       required
-                      value={
-                        form.name
-                      }
-                      onChange={(
-                        event
-                      ) =>
+                      value={form.name}
+                      onChange={(event) =>
                         setForm({
                           ...form,
                           name:
@@ -1699,9 +2888,7 @@ export default function MarketingPage() {
                       value={
                         form.channel
                       }
-                      onChange={(
-                        event
-                      ) =>
+                      onChange={(event) =>
                         setForm({
                           ...form,
                           channel:
@@ -1743,9 +2930,7 @@ export default function MarketingPage() {
                       value={
                         form.currency
                       }
-                      onChange={(
-                        event
-                      ) =>
+                      onChange={(event) =>
                         setForm({
                           ...form,
                           currency:
@@ -1802,9 +2987,7 @@ export default function MarketingPage() {
                       value={
                         form.start_date
                       }
-                      onChange={(
-                        event
-                      ) =>
+                      onChange={(event) =>
                         setForm({
                           ...form,
                           start_date:
@@ -1846,9 +3029,7 @@ export default function MarketingPage() {
                       value={
                         form.end_date
                       }
-                      onChange={(
-                        event
-                      ) =>
+                      onChange={(event) =>
                         setForm({
                           ...form,
                           end_date:
@@ -1891,9 +3072,7 @@ export default function MarketingPage() {
                       value={
                         form.budget
                       }
-                      onChange={(
-                        event
-                      ) =>
+                      onChange={(event) =>
                         setForm({
                           ...form,
                           budget:
@@ -1935,9 +3114,7 @@ export default function MarketingPage() {
                       value={
                         form.created_by
                       }
-                      onChange={(
-                        event
-                      ) =>
+                      onChange={(event) =>
                         setForm({
                           ...form,
                           created_by:
@@ -1965,9 +3142,7 @@ export default function MarketingPage() {
                       </option>
 
                       {profiles.map(
-                        (
-                          profile
-                        ) => (
+                        (profile) => (
                           <option
                             key={
                               profile.id
@@ -2007,9 +3182,7 @@ export default function MarketingPage() {
                       value={
                         form.notes
                       }
-                      onChange={(
-                        event
-                      ) =>
+                      onChange={(event) =>
                         setForm({
                           ...form,
                           notes:
@@ -2047,12 +3220,9 @@ export default function MarketingPage() {
                 >
                   <button
                     type="button"
-                    onClick={() => {
-                      setShowAddCampaign(
-                        false
-                      );
-                      resetForm();
-                    }}
+                    onClick={
+                      closeCampaignModal
+                    }
                     style={{
                       display:
                         "inline-flex",
@@ -2060,9 +3230,6 @@ export default function MarketingPage() {
                         "center",
                       justifyContent:
                         "center",
-                      visibility:
-                        "visible",
-                      opacity: 1,
                       color:
                         "#374151",
                       background:
@@ -2094,12 +3261,6 @@ export default function MarketingPage() {
                         "center",
                       justifyContent:
                         "center",
-                      visibility:
-                        "visible",
-                      opacity:
-                        saving
-                          ? 0.7
-                          : 1,
                       color:
                         "#ffffff",
                       background:
@@ -2115,12 +3276,18 @@ export default function MarketingPage() {
                         saving
                           ? "not-allowed"
                           : "pointer",
+                      opacity:
+                        saving
+                          ? 0.7
+                          : 1,
                       minHeight: 40,
                     }}
                   >
                     {saving
-                      ? "Creating..."
-                      : "Create Campaign"}
+                      ? "Saving..."
+                      : editingCampaign
+                        ? "Save Changes"
+                        : "Create Campaign"}
                   </button>
                 </div>
               </form>

@@ -1,0 +1,1116 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
+
+type Lead = {
+  id: string;
+  name: string | null;
+  phone: string | null;
+  email: string | null;
+  product_service: string | null;
+  status: string | null;
+  created_at: string | null;
+  next_follow_up_at: string | null;
+};
+
+type Customer = {
+  id: string;
+  full_names: string | null;
+  ciu_number: string | null;
+  telephone: string | null;
+  email: string | null;
+  program: string | null;
+  stage: string | null;
+  created_at: string | null;
+};
+
+type Opportunity = {
+  id: string;
+  title: string;
+  value: number | null;
+  status: string;
+  probability: number | null;
+  stage_id: string | null;
+  created_at: string | null;
+  expected_close_date: string | null;
+};
+
+type Task = {
+  id: string;
+  title: string;
+  task_type: string;
+  status: string;
+  due_at: string | null;
+  created_at: string | null;
+};
+
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat("en-UG", {
+    style: "currency",
+    currency: "UGX",
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+function formatDate(value: string | null) {
+  if (!value) return "No date";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "No date";
+  }
+
+  return date.toLocaleDateString("en-UG", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function getStatusStyle(status: string | null) {
+  const value = (status || "").toLowerCase();
+
+  if (
+    value.includes("paid") ||
+    value.includes("converted") ||
+    value.includes("won") ||
+    value.includes("enrolled") ||
+    value.includes("completed")
+  ) {
+    return {
+      background: "#dcfce7",
+      color: "#166534",
+    };
+  }
+
+  if (
+    value.includes("lost") ||
+    value.includes("dropped") ||
+    value.includes("cancelled")
+  ) {
+    return {
+      background: "#fee2e2",
+      color: "#991b1b",
+    };
+  }
+
+  if (
+    value.includes("interested") ||
+    value.includes("qualified") ||
+    value.includes("progress")
+  ) {
+    return {
+      background: "#dbeafe",
+      color: "#1d4ed8",
+    };
+  }
+
+  return {
+    background: "#fef3c7",
+    color: "#92400e",
+  };
+}
+
+export default function DashboardPage() {
+  const supabase = createClient();
+
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [opportunities, setOpportunities] =
+    useState<Opportunity[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  async function loadDashboard() {
+    setLoading(true);
+    setError("");
+
+    const [
+      leadsResult,
+      customersResult,
+      opportunitiesResult,
+      tasksResult,
+    ] = await Promise.all([
+      supabase
+        .from("leads")
+        .select(
+          "id, name, phone, email, product_service, status, created_at, next_follow_up_at"
+        )
+        .order("created_at", {
+          ascending: false,
+        }),
+
+      supabase
+        .from("admissions")
+        .select(
+          "id, full_names, ciu_number, telephone, email, program, stage, created_at"
+        )
+        .order("created_at", {
+          ascending: false,
+        }),
+
+      supabase
+       .from("opportunities")
+.select(
+  "id, title, value, status, probability, stage_id, created_at, expected_close_date"
+)
+        .order("created_at", {
+          ascending: false,
+        }),
+
+      supabase
+        .from("tasks")
+        .select(
+          "id, title, task_type, status, due_at, created_at"
+        )
+        .order("due_at", {
+          ascending: true,
+          nullsFirst: false,
+        }),
+    ]);
+
+    if (leadsResult.error) {
+      console.error("Leads:", leadsResult.error);
+      setError(leadsResult.error.message);
+    }
+
+    if (customersResult.error) {
+      console.error("Customers:", customersResult.error);
+      setError(customersResult.error.message);
+    }
+
+    if (opportunitiesResult.error) {
+      console.error(
+        "Opportunities:",
+        opportunitiesResult.error
+      );
+      setError(opportunitiesResult.error.message);
+    }
+
+    if (tasksResult.error) {
+      console.error("Tasks:", tasksResult.error);
+      setError(tasksResult.error.message);
+    }
+
+    setLeads((leadsResult.data || []) as Lead[]);
+    setCustomers(
+      (customersResult.data || []) as Customer[]
+    );
+    setOpportunities(
+      (opportunitiesResult.data || []) as Opportunity[]
+    );
+    setTasks((tasksResult.data || []) as Task[]);
+
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    loadDashboard();
+  }, []);
+
+  const stats = useMemo(() => {
+    const now = new Date();
+
+    const startOfToday = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+      0,
+      0,
+      0,
+      0
+    );
+
+    const endOfToday = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+      23,
+      59,
+      59,
+      999
+    );
+
+    const startOfMonth = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      1,
+      0,
+      0,
+      0,
+      0
+    );
+
+    const openOpportunities =
+      opportunities.filter((opportunity) => {
+        const stage = (
+        Number(opportunity.amount || 0)
+        ).toLowerCase();
+
+        return (
+          !stage.includes("won") &&
+          !stage.includes("lost") &&
+          !stage.includes("closed")
+        );
+      });
+
+    const salesForecast = openOpportunities.reduce(
+      (total, opportunity) =>
+        total + Number(opportunity.value || 0)
+      
+    );
+
+    const followUps = leads.filter((lead) => {
+      if (!lead.next_follow_up_at) return false;
+
+      const followUp = new Date(
+        lead.next_follow_up_at
+      );
+
+      return followUp <= endOfToday;
+    }).length;
+
+    const dueTodayTasks = tasks.filter((task) => {
+      if (!task.due_at) return false;
+
+      if (
+        task.status === "completed" ||
+        task.status === "cancelled"
+      ) {
+        return false;
+      }
+
+      const due = new Date(task.due_at);
+
+      return (
+        due >= startOfToday &&
+        due <= endOfToday
+      );
+    }).length;
+
+    const newLeadsThisMonth = leads.filter((lead) => {
+      if (!lead.created_at) return false;
+
+      return (
+        new Date(lead.created_at) >=
+        startOfMonth
+      );
+    }).length;
+
+    const newCustomersThisMonth =
+      customers.filter((customer) => {
+        if (!customer.created_at) return false;
+
+        return (
+          new Date(customer.created_at) >=
+          startOfMonth
+        );
+      }).length;
+
+    return {
+      totalLeads: leads.length,
+      totalCustomers: customers.length,
+      openDeals: openOpportunities.length,
+      salesForecast,
+      followUps,
+      dueTodayTasks,
+      newLeadsThisMonth,
+      newCustomersThisMonth,
+    };
+  }, [
+    leads,
+    customers,
+    opportunities,
+    tasks,
+  ]);
+
+  const recentLeads = useMemo(
+    () => leads.slice(0, 6),
+    [leads]
+  );
+
+  const recentCustomers = useMemo(
+    () => customers.slice(0, 6),
+    [customers]
+  );
+
+  const upcomingTasks = useMemo(() => {
+    return tasks
+      .filter(
+        (task) =>
+          task.status !== "completed" &&
+          task.status !== "cancelled"
+      )
+      .slice(0, 6);
+  }, [tasks]);
+
+  const pipelineSummary = useMemo(() => {
+    const stages: Record<
+      string,
+      {
+        count: number;
+        amount: number;
+      }
+    > = {};
+
+    opportunities.forEach((opportunity) => {
+      const stage =
+        opportunity.stage || "Unknown";
+
+      if (!stages[stage]) {
+        stages[stage] = {
+          count: 0,
+          amount: 0,
+        };
+      }
+
+      stages[stage].count += 1;
+      stages[stage].amount += Number(
+        opportunity.amount || 0
+      );
+    });
+
+    return Object.entries(stages)
+      .sort((a, b) => b[1].amount - a[1].amount)
+      .slice(0, 6);
+  }, [opportunities]);
+
+  return (
+    <>
+      <div className="crm-page-heading">
+        <div>
+          <h1>Dashboard</h1>
+          <p>
+            Welcome back. Here is what is happening
+            across your CRM.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={loadDashboard}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            visibility: "visible",
+            opacity: 1,
+            color: "#ffffff",
+            background: "#2563eb",
+            border: "1px solid #2563eb",
+            padding: "10px 16px",
+            borderRadius: 8,
+            fontSize: 14,
+            fontWeight: 600,
+            cursor: "pointer",
+            minHeight: 40,
+          }}
+        >
+          ↻ Refresh Dashboard
+        </button>
+      </div>
+
+      {error && (
+        <div
+          style={{
+            marginBottom: 16,
+            padding: "12px 14px",
+            borderRadius: 8,
+            background: "#fee2e2",
+            color: "#991b1b",
+            border: "1px solid #fecaca",
+          }}
+        >
+          {error}
+        </div>
+      )}
+
+      {loading ? (
+        <div
+          className="crm-card"
+          style={{
+            padding: 50,
+            textAlign: "center",
+            color: "#6b7280",
+          }}
+        >
+          Loading dashboard data...
+        </div>
+      ) : (
+        <>
+          <div className="crm-kpis">
+            <div className="crm-kpi">
+              <span className="crm-kpi-label">
+                Total Leads
+              </span>
+
+              <div className="crm-kpi-value">
+                {stats.totalLeads}
+              </div>
+
+              <span className="crm-kpi-change">
+                +{stats.newLeadsThisMonth} this month
+              </span>
+            </div>
+
+            <div className="crm-kpi">
+              <span className="crm-kpi-label">
+                Customers
+              </span>
+
+              <div className="crm-kpi-value">
+                {stats.totalCustomers}
+              </div>
+
+              <span className="crm-kpi-change">
+                +{stats.newCustomersThisMonth} this month
+              </span>
+            </div>
+
+            <div className="crm-kpi">
+              <span className="crm-kpi-label">
+                Open Deals
+              </span>
+
+              <div className="crm-kpi-value">
+                {stats.openDeals}
+              </div>
+
+              <span className="crm-kpi-change">
+                Active opportunities
+              </span>
+            </div>
+
+            <div className="crm-kpi">
+              <span className="crm-kpi-label">
+                Sales Forecast
+              </span>
+
+              <div
+                className="crm-kpi-value"
+                style={{ fontSize: 24 }}
+              >
+                {formatCurrency(
+                  stats.salesForecast
+                )}
+              </div>
+
+              <span className="crm-kpi-change">
+                Open pipeline value
+              </span>
+            </div>
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns:
+                "repeat(2, minmax(0, 1fr))",
+              gap: 20,
+              marginBottom: 20,
+            }}
+          >
+            <div className="crm-card">
+              <div className="crm-card-header">
+                <div>
+                  <h2>Follow-ups</h2>
+                  <span>
+                    Items requiring attention today
+                  </span>
+                </div>
+              </div>
+
+              <div className="crm-card-body">
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns:
+                      "repeat(2, minmax(0, 1fr))",
+                    gap: 14,
+                  }}
+                >
+                  <div
+                    style={{
+                      padding: 18,
+                      borderRadius: 10,
+                      background: "#eff6ff",
+                      border:
+                        "1px solid #dbeafe",
+                    }}
+                  >
+                    <div
+                      style={{
+                        color: "#1d4ed8",
+                        fontSize: 13,
+                        fontWeight: 600,
+                      }}
+                    >
+                      Lead Follow-ups
+                    </div>
+
+                    <div
+                      style={{
+                        fontSize: 28,
+                        fontWeight: 700,
+                        color: "#111827",
+                        marginTop: 5,
+                      }}
+                    >
+                      {stats.followUps}
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      padding: 18,
+                      borderRadius: 10,
+                      background: "#fff7ed",
+                      border:
+                        "1px solid #fed7aa",
+                    }}
+                  >
+                    <div
+                      style={{
+                        color: "#c2410c",
+                        fontSize: 13,
+                        fontWeight: 600,
+                      }}
+                    >
+                      Tasks Due Today
+                    </div>
+
+                    <div
+                      style={{
+                        fontSize: 28,
+                        fontWeight: 700,
+                        color: "#111827",
+                        marginTop: 5,
+                      }}
+                    >
+                      {stats.dueTodayTasks}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="crm-card">
+              <div className="crm-card-header">
+                <div>
+                  <h2>Pipeline Summary</h2>
+                  <span>
+                    Current opportunities by stage
+                  </span>
+                </div>
+              </div>
+
+              <div className="crm-card-body">
+                {pipelineSummary.length === 0 ? (
+                  <div
+                    style={{
+                      padding: 25,
+                      textAlign: "center",
+                      color: "#6b7280",
+                    }}
+                  >
+                    No opportunities found.
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 12,
+                    }}
+                  >
+                    {pipelineSummary.map(
+                      ([stage, data]) => (
+                        <div
+                          key={stage}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent:
+                              "space-between",
+                            gap: 12,
+                            paddingBottom: 10,
+                            borderBottom:
+                              "1px solid #f3f4f6",
+                          }}
+                        >
+                          <div>
+                            <strong
+                              style={{
+                                color: "#111827",
+                              }}
+                            >
+                              {stage}
+                            </strong>
+
+                            <div
+                              style={{
+                                color: "#6b7280",
+                                fontSize: 12,
+                                marginTop: 3,
+                              }}
+                            >
+                              {data.count}{" "}
+                              {data.count === 1
+                                ? "deal"
+                                : "deals"}
+                            </div>
+                          </div>
+
+                          <strong
+                            style={{
+                              color: "#111827",
+                            }}
+                          >
+                            {formatCurrency(
+                              data.amount
+                            )}
+                          </strong>
+                        </div>
+                      )
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns:
+                "repeat(2, minmax(0, 1fr))",
+              gap: 20,
+            }}
+          >
+            <div className="crm-card">
+              <div
+                className="crm-card-header"
+                style={{
+                  display: "flex",
+                  justifyContent:
+                    "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <div>
+                  <h2>Recent Leads</h2>
+                  <span>
+                    Latest leads entering the CRM
+                  </span>
+                </div>
+
+                <a
+                  href="/leads"
+                  style={{
+                    color: "#2563eb",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    textDecoration: "none",
+                  }}
+                >
+                  View all →
+                </a>
+              </div>
+
+              <div className="crm-card-body">
+                {recentLeads.length === 0 ? (
+                  <div
+                    style={{
+                      padding: 25,
+                      textAlign: "center",
+                      color: "#6b7280",
+                    }}
+                  >
+                    No leads found.
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                    }}
+                  >
+                    {recentLeads.map((lead) => (
+                      <div
+                        key={lead.id}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent:
+                            "space-between",
+                          gap: 12,
+                          padding: "13px 0",
+                          borderBottom:
+                            "1px solid #f3f4f6",
+                        }}
+                      >
+                        <div
+                          style={{
+                            minWidth: 0,
+                          }}
+                        >
+                          <strong
+                            style={{
+                              color: "#111827",
+                            }}
+                          >
+                            {lead.name ||
+                              "Unnamed Lead"}
+                          </strong>
+
+                          <div
+                            style={{
+                              color: "#6b7280",
+                              fontSize: 12,
+                              marginTop: 3,
+                            }}
+                          >
+                            {lead.product_service ||
+                              "No programme"}
+                            {" • "}
+                            {formatDate(
+                              lead.created_at
+                            )}
+                          </div>
+                        </div>
+
+                        <span
+                          style={{
+                            ...getStatusStyle(
+                              lead.status
+                            ),
+                            padding: "5px 8px",
+                            borderRadius: 999,
+                            fontSize: 11,
+                            fontWeight: 600,
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {lead.status ||
+                            "Pending"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="crm-card">
+              <div
+                className="crm-card-header"
+                style={{
+                  display: "flex",
+                  justifyContent:
+                    "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <div>
+                  <h2>Upcoming Tasks</h2>
+                  <span>
+                    Activities requiring action
+                  </span>
+                </div>
+
+                <a
+                  href="/tasks"
+                  style={{
+                    color: "#2563eb",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    textDecoration: "none",
+                  }}
+                >
+                  View all →
+                </a>
+              </div>
+
+              <div className="crm-card-body">
+                {upcomingTasks.length === 0 ? (
+                  <div
+                    style={{
+                      padding: 25,
+                      textAlign: "center",
+                      color: "#6b7280",
+                    }}
+                  >
+                    No upcoming tasks.
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                    }}
+                  >
+                    {upcomingTasks.map((task) => (
+                      <div
+                        key={task.id}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent:
+                            "space-between",
+                          gap: 12,
+                          padding: "13px 0",
+                          borderBottom:
+                            "1px solid #f3f4f6",
+                        }}
+                      >
+                        <div
+                          style={{
+                            minWidth: 0,
+                          }}
+                        >
+                          <strong
+                            style={{
+                              color: "#111827",
+                            }}
+                          >
+                            {task.title}
+                          </strong>
+
+                          <div
+                            style={{
+                              color: "#6b7280",
+                              fontSize: 12,
+                              marginTop: 3,
+                            }}
+                          >
+                            {task.task_type}
+                            {" • "}
+                            {task.due_at
+                              ? formatDate(
+                                  task.due_at
+                                )
+                              : "No due date"}
+                          </div>
+                        </div>
+
+                        <span
+                          style={{
+                            ...getStatusStyle(
+                              task.status
+                            ),
+                            padding: "5px 8px",
+                            borderRadius: 999,
+                            fontSize: 11,
+                            fontWeight: 600,
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {task.status}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div
+            className="crm-card"
+            style={{ marginTop: 20 }}
+          >
+            <div className="crm-card-header">
+              <div>
+                <h2>Recent Customers</h2>
+                <span>
+                  Latest admissions and customers
+                </span>
+              </div>
+
+              <a
+                href="/customers"
+                style={{
+                  color: "#2563eb",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  textDecoration: "none",
+                }}
+              >
+                View all →
+              </a>
+            </div>
+
+            <div className="crm-card-body">
+              {recentCustomers.length === 0 ? (
+                <div
+                  style={{
+                    padding: 25,
+                    textAlign: "center",
+                    color: "#6b7280",
+                  }}
+                >
+                  No customers found.
+                </div>
+              ) : (
+                <div
+                  style={{
+                    overflowX: "auto",
+                  }}
+                >
+                  <table
+                    style={{
+                      width: "100%",
+                      borderCollapse:
+                        "collapse",
+                    }}
+                  >
+                    <thead>
+                      <tr>
+                        <th
+                          style={{
+                            textAlign: "left",
+                            padding:
+                              "10px 8px",
+                            borderBottom:
+                              "1px solid #e5e7eb",
+                            color: "#6b7280",
+                            fontSize: 12,
+                          }}
+                        >
+                          Customer
+                        </th>
+
+                        <th
+                          style={{
+                            textAlign: "left",
+                            padding:
+                              "10px 8px",
+                            borderBottom:
+                              "1px solid #e5e7eb",
+                            color: "#6b7280",
+                            fontSize: 12,
+                          }}
+                        >
+                          CIU Number
+                        </th>
+
+                        <th
+                          style={{
+                            textAlign: "left",
+                            padding:
+                              "10px 8px",
+                            borderBottom:
+                              "1px solid #e5e7eb",
+                            color: "#6b7280",
+                            fontSize: 12,
+                          }}
+                        >
+                          Programme
+                        </th>
+
+                        <th
+                          style={{
+                            textAlign: "left",
+                            padding:
+                              "10px 8px",
+                            borderBottom:
+                              "1px solid #e5e7eb",
+                            color: "#6b7280",
+                            fontSize: 12,
+                          }}
+                        >
+                          Status
+                        </th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {recentCustomers.map(
+                        (customer) => (
+                          <tr key={customer.id}>
+                            <td
+                              style={{
+                                padding:
+                                  "12px 8px",
+                                borderBottom:
+                                  "1px solid #f3f4f6",
+                                color:
+                                  "#111827",
+                                fontWeight: 600,
+                              }}
+                            >
+                              {customer.full_names ||
+                                "Unnamed"}
+                            </td>
+
+                            <td
+                              style={{
+                                padding:
+                                  "12px 8px",
+                                borderBottom:
+                                  "1px solid #f3f4f6",
+                                color:
+                                  "#6b7280",
+                              }}
+                            >
+                              {customer.ciu_number ||
+                                "—"}
+                            </td>
+
+                            <td
+                              style={{
+                                padding:
+                                  "12px 8px",
+                                borderBottom:
+                                  "1px solid #f3f4f6",
+                                color:
+                                  "#6b7280",
+                              }}
+                            >
+                              {customer.program ||
+                                "—"}
+                            </td>
+
+                            <td
+                              style={{
+                                padding:
+                                  "12px 8px",
+                                borderBottom:
+                                  "1px solid #f3f4f6",
+                              }}
+                            >
+                              <span
+                                style={{
+                                  ...getStatusStyle(
+                                    customer.stage
+                                  ),
+                                  padding:
+                                    "5px 8px",
+                                  borderRadius:
+                                    999,
+                                  fontSize: 11,
+                                  fontWeight: 600,
+                                }}
+                              >
+                                {customer.stage ||
+                                  "New"}
+                              </span>
+                            </td>
+                          </tr>
+                        )
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </>
+  );
+}
