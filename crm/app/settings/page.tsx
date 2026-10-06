@@ -1,15 +1,26 @@
-﻿export default function Settings(){
+"use client";
+
+import { useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
+
+const DEFAULTS={email:true,followups:true,reports:true,marketing:true};
+
+export default function Settings(){
+ const supabase=createClient();
+ const [prefs,setPrefs]=useState(DEFAULTS); const [saved,setSaved]=useState(false); const [error,setError]=useState("");
+ const [email,setEmail]=useState(""); const [role,setRole]=useState("");
+ useEffect(()=>{supabase.auth.getUser().then(({data})=>setEmail(data.user?.email||""));supabase.from("profiles").select("role").maybeSingle().then(({data})=>setRole(data?.role||""));},[]);
+ function toggle(key:keyof typeof DEFAULTS){setPrefs(p=>({...p,[key]:!p[key]}));setSaved(false);}
+ function save(){try{localStorage.setItem("ciu_crm_preferences",JSON.stringify(prefs));setSaved(true);setError("");}catch(e){setError("Unable to save preferences in this browser.");}}
+ useEffect(()=>{try{const raw=localStorage.getItem("ciu_crm_preferences");if(raw)setPrefs({...DEFAULTS,...JSON.parse(raw)});}catch{}},[]);
+ const items:[keyof typeof DEFAULTS,string,string][]=[["email","Email notifications","Keep the browser preference ready for email workflow integrations"],["followups","Lead follow-up reminders","Highlight due and overdue follow-ups on the dashboard"],["reports","Weekly performance reports","Keep reporting preferences enabled"],["marketing","Marketing alerts","Keep campaign and lead-capture alerts enabled"]];
  return <>
-  <div className="crm-page-heading"><div><h1>Settings</h1><p>Configure your CRM and organization preferences.</p></div><button className="crm-btn">Save Changes</button></div>
+  <div className="crm-page-heading"><div><h1>Settings</h1><p>Configure your CRM and organization preferences.</p></div><button type="button" onClick={save} className="crm-btn" style={{display:"inline-flex",visibility:"visible",opacity:1}}>{saved?"Saved ✓":"Save Changes"}</button></div>
+  {error&&<div style={{marginBottom:16,padding:12,borderRadius:8,background:"#fef2f2",color:"#b91c1c",border:"1px solid #fecaca"}}>{error}</div>}
   <div className="crm-grid crm-grid-2">
-   <div className="crm-card"><div className="crm-card-header"><h2>Organization</h2></div><div className="crm-card-body" style={{display:"grid",gap:14}}>
-    <div className="crm-stat-box"><span>Organization Name</span><strong style={{fontSize:14}}>Clarke International University</strong></div>
-    <div className="crm-stat-box"><span>CRM Name</span><strong style={{fontSize:14}}>CIU Business CRM</strong></div>
-    <div className="crm-stat-box"><span>Default Currency</span><strong style={{fontSize:14}}>UGX — Ugandan Shilling</strong></div>
-   </div></div>
-   <div className="crm-card"><div className="crm-card-header"><h2>Preferences</h2></div><div className="crm-card-body" style={{display:"grid",gap:14}}>
-    {["Email notifications","Lead follow-up reminders","Weekly performance reports","Marketing alerts"].map((x,i)=><div key={x} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"13px 0",borderBottom:"1px solid var(--border)",fontSize:12}}><span>{x}</span><input type="checkbox" defaultChecked={i<3}/></div>)}
-   </div></div>
+   <div className="crm-card"><div className="crm-card-header"><h2>Organization</h2><span>Current CRM profile</span></div><div className="crm-card-body" style={{display:"grid",gap:14}}><div className="crm-stat-box"><span>Organization Name</span><strong style={{fontSize:14}}>Clarke International University</strong></div><div className="crm-stat-box"><span>CRM Name</span><strong style={{fontSize:14}}>CIU Business CRM</strong></div><div className="crm-stat-box"><span>Default Currency</span><strong style={{fontSize:14}}>UGX — Ugandan Shilling</strong></div><div className="crm-stat-box"><span>Signed-in Account</span><strong style={{fontSize:14}}>{email||"Authenticated user"}</strong></div><div className="crm-stat-box"><span>Access Level</span><strong style={{fontSize:14,textTransform:"capitalize"}}>{role?role.replaceAll("_"," "):"Loading..."}</strong></div></div></div>
+   <div className="crm-card"><div className="crm-card-header"><h2>Preferences</h2><span>Saved in this browser</span></div><div className="crm-card-body" style={{display:"grid",gap:2}}>{items.map(([key,label,help])=><label key={key} style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:16,padding:"14px 0",borderBottom:"1px solid var(--border)",fontSize:13,cursor:"pointer"}}><div><strong>{label}</strong><div style={{fontSize:11,color:"#64748b",marginTop:3}}>{help}</div></div><input type="checkbox" checked={prefs[key]} onChange={()=>toggle(key)} style={{width:18,height:18}}/></label>)}</div></div>
   </div>
+  <div className="crm-card" style={{marginTop:18}}><div className="crm-card-header"><h2>CRM Configuration</h2></div><div className="crm-card-body"><div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:14}}><div className="crm-stat-box"><span>Lead Statuses</span><strong>Managed in Leads</strong></div><div className="crm-stat-box"><span>Pipeline</span><strong>Managed in Pipeline</strong></div><div className="crm-stat-box"><span>Campaigns</span><strong>Managed in Marketing</strong></div></div></div></div>
  </>
 }
