@@ -1386,7 +1386,7 @@ export default function DashboardPage() {
                   gap: 10,
                 }}
               >
-                {priorityFollowUps.map((lead) => {
+             {priorityFollowUps.map((lead, index) => {
                   const phone = normalizeWhatsAppNumber(
                     lead.phone
                   );
@@ -1397,7 +1397,7 @@ export default function DashboardPage() {
 
                   return (
                     <div
-                      key={lead.id}
+                      key={`${lead.id}-${index}`}
                       style={{
                         display: "flex",
                         alignItems: "center",
@@ -3161,3 +3161,6 @@ export default function DashboardPage() {
     </main>
   );
 }
+
+
+
