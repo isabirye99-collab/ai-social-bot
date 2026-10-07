@@ -172,7 +172,7 @@ export default function ReportsPage() {
     <main className="ciu-page"><div className="ciu-page-inner">
       <div>
         <div className="ciu-hero" style={{marginBottom:18}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:16,flexWrap:"wrap"}}>
-          <div style={{position:"relative",zIndex:1}}><div style={{fontSize:10,fontWeight:800,letterSpacing:1.5,textTransform:"uppercase",color:"#cce8a8"}}>Clarke International University</div><h1 style={{margin:"4px 0 0",fontSize:28,fontWeight:800}}>Staff Performance Reports</h1><p style={{margin:"6px 0 0",color:"rgba(255,255,255,.78)",fontSize:13}}>Track admissions and follow-up performance by day, week or month.</p></div><div className="ciu-toolbar" style={{position:"relative",zIndex:1}}>
+          <div style={{position:"relative",zIndex:1}}><h1 style={{margin:0,fontSize:28,fontWeight:800}}>Staff Performance Reports</h1><p style={{margin:"6px 0 0",color:"rgba(255,255,255,.78)",fontSize:13}}>Track admissions and follow-up performance by day, week or month.</p></div><div className="ciu-toolbar" style={{position:"relative",zIndex:1}}>
             <select
               value={period}
               onChange={(e) => setPeriod(e.target.value as Period)}
@@ -213,6 +213,26 @@ export default function ReportsPage() {
             </div>
           </div>
           <span style={{ color: "#64748b", fontSize: 13 }}>{report.rows.length} active staff</span>
+        </div>
+
+        <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:14,marginBottom:18}}>
+          {report.rows.map((row) => (
+            <div key={row.id} className="ciu-staff-card">
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12}}>
+                <div><strong style={{fontSize:14,color:"#17322c"}}>{row.name}</strong><div style={{fontSize:10,color:"#6b7f78",marginTop:3}}>Performance for selected period</div></div>
+                <div className="ciu-staff-conversion">{row.conversion}%</div>
+              </div>
+              <div className="ciu-staff-metrics">
+                <div><strong>{row.leads}</strong><span>Leads</span></div>
+                <div><strong>{row.calls}</strong><span>Calls</span></div>
+                <div><strong>{row.followUps}</strong><span>Follow-ups</span></div>
+                <div><strong>{row.interested}</strong><span>Interested</span></div>
+                <div><strong>{row.admitted}</strong><span>Admitted</span></div>
+                <div><strong>{row.enrolled}</strong><span>Enrolled</span></div>
+                <div><strong>{row.completedTasks}</strong><span>Tasks Done</span></div>
+              </div>
+            </div>
+          ))}
         </div>
 
         <div className="ciu-card">
