@@ -169,20 +169,14 @@ export default function ReportsPage() {
   }
 
   return (
-    <main style={{ padding: "28px 32px 48px", color: "#111827" }}>
-      <div style={{ maxWidth: 1400, margin: "0 auto" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 16, marginBottom: 22, flexWrap: "wrap" }}>
-          <div>
-            <h1 style={{ margin: 0, fontSize: 28, fontWeight: 700 }}>Performance Reports</h1>
-            <p style={{ margin: "6px 0 0", color: "#64748b", fontSize: 14 }}>
-              Staff performance summary by day, week or month.
-            </p>
-          </div>
-          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+    <main className="ciu-page"><div className="ciu-page-inner">
+      <div>
+        <div className="ciu-hero" style={{marginBottom:18}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:16,flexWrap:"wrap"}}>
+          <div style={{position:"relative",zIndex:1}}><div style={{fontSize:10,fontWeight:800,letterSpacing:1.5,textTransform:"uppercase",color:"#cce8a8"}}>Clarke International University</div><h1 style={{margin:"4px 0 0",fontSize:28,fontWeight:800}}>Staff Performance Reports</h1><p style={{margin:"6px 0 0",color:"rgba(255,255,255,.78)",fontSize:13}}>Track admissions and follow-up performance by day, week or month.</p></div><div className="ciu-toolbar" style={{position:"relative",zIndex:1}}>
             <select
               value={period}
               onChange={(e) => setPeriod(e.target.value as Period)}
-              style={{ minHeight: 40, padding: "0 12px", border: "1px solid #d1d5db", borderRadius: 8, background: "#fff" }}
+              className="ciu-select"
             >
               <option value="day">Per Day</option>
               <option value="week">Per Week</option>
@@ -192,14 +186,14 @@ export default function ReportsPage() {
               type="date"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              style={{ minHeight: 40, padding: "0 12px", border: "1px solid #d1d5db", borderRadius: 8, background: "#fff" }}
+              className="ciu-select"
             />
             <button
               type="button"
               onClick={async () => { setRefreshing(true); await loadReport(); }}
               disabled={refreshing}
               className="crm-btn"
-              style={{ visibility: "visible", opacity: 1 }}
+              className="ciu-btn"
             >
               {refreshing ? "Refreshing..." : "Refresh"}
             </button>
@@ -212,7 +206,7 @@ export default function ReportsPage() {
           </div>
         )}
 
-        <div className="crm-card" style={{ padding: "16px 20px", marginBottom: 18, display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+        <div className="ciu-period-card">
           <div>
             <strong>{period === "day" ? "Daily" : period === "week" ? "Weekly" : "Monthly"} Performance</strong>
             <div style={{ color: "#64748b", fontSize: 13, marginTop: 4 }}>
@@ -222,15 +216,15 @@ export default function ReportsPage() {
           <span style={{ color: "#64748b", fontSize: 13 }}>{report.rows.length} active staff</span>
         </div>
 
-        <div className="crm-card" style={{ padding: 0, overflow: "hidden" }}>
-          <div className="crm-card-header" style={{ padding: "18px 20px" }}>
+        <div className="ciu-card">
+          <div className="ciu-card-head">
             <div>
               <h2 style={{ margin: 0 }}>Staff Performance</h2>
               <span>Summary of work and admissions results for each person.</span>
             </div>
           </div>
-          <div className="crm-table-wrap">
-            <table className="crm-table" style={{ minWidth: 1250 }}>
+          <div className="ciu-report-table-wrap">
+            <table className="ciu-report-table">
               <thead>
                 <tr>
                   <th>Staff Member</th>
@@ -287,7 +281,7 @@ export default function ReportsPage() {
           </div>
         </div>
 
-        <p style={{ marginTop: 12, color: "#64748b", fontSize: 12 }}>
+        <p style={{ marginTop: 12, color: "#6b7f78", fontSize: 11 }}>
           Activity counts use records created or completed in the selected period. Admission counts use the current stage of admission records created in that period.
         </p>
       </div>
