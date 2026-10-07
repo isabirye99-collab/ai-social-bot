@@ -167,7 +167,7 @@ function isPipelineWaiting(lead: Lead | null, task: Task) {
   );
 }
 
-function getTaskPriority(task: Task, lead: Lead | null) {
+function getTaskPriority(task: Task, lead: Lead | null | undefined) {
   const open =
     task.status !== "completed" &&
     task.status !== "cancelled";
