@@ -192,7 +192,6 @@ export default function ReportsPage() {
               type="button"
               onClick={async () => { setRefreshing(true); await loadReport(); }}
               disabled={refreshing}
-              className="crm-btn"
               className="ciu-btn"
             >
               {refreshing ? "Refreshing..." : "Refresh"}
@@ -285,6 +284,7 @@ export default function ReportsPage() {
           Activity counts use records created or completed in the selected period. Admission counts use the current stage of admission records created in that period.
         </p>
       </div>
-    </main>
+      </div>
+    </div></main>
   );
 }
