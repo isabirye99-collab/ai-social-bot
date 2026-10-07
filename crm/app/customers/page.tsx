@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -34,6 +34,7 @@ type Customer = {
   created_at: string | null;
   updated_at: string | null;
   lead_id: string | null;
+  assigned_to: string | null;
   lead?: Lead | null;
 };
 
@@ -134,6 +135,8 @@ export default function Customers() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [currentUserId, setCurrentUserId] = useState("");
+  const [currentRole, setCurrentRole] = useState("");
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] =
@@ -161,35 +164,74 @@ export default function Customers() {
     setLoading(true);
     setError("");
 
-    const { data, error: loadError } =
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      setError("You must be logged in to view customers.");
+      setLoading(false);
+      return;
+    }
+
+    setCurrentUserId(user.id);
+
+    const { data: profile, error: profileError } =
       await supabase
-        .from("admissions")
-        .select(
-          `
-          id,
-          lead_id,
-          ciu_number,
-          full_names,
-          telephone,
-          email,
-          program,
-          stage,
-          tuition_fee,
-          tuition_paid,
-          application_fee,
-          application_paid,
-          acceptance_fee,
-          acceptance_paid,
-          follow_up_date,
-          last_contact,
-          notes,
-          created_at,
-          updated_at
-          `
-        )
-        .order("created_at", {
-          ascending: false,
-        });
+        .from("profiles")
+        .select("id, full_name, role")
+        .eq("id", user.id)
+        .maybeSingle();
+
+    if (profileError) {
+      console.error(profileError);
+    }
+
+    const role = profile?.role || "";
+    setCurrentRole(role);
+
+    const isSalesperson = role === "salesperson";
+
+    let admissionsQuery = supabase
+      .from("admissions")
+      .select(
+        `
+        id,
+        lead_id,
+        assigned_to,
+        ciu_number,
+        full_names,
+        telephone,
+        email,
+        program,
+        stage,
+        tuition_fee,
+        tuition_paid,
+        application_fee,
+        application_paid,
+        acceptance_fee,
+        acceptance_paid,
+        follow_up_date,
+        last_contact,
+        notes,
+        created_at,
+        updated_at
+        `
+      )
+      .order("created_at", {
+        ascending: false,
+      });
+
+    if (isSalesperson) {
+      admissionsQuery = admissionsQuery.eq(
+        "assigned_to",
+        user.id
+      );
+    }
+
+    const { data, error: loadError } =
+      await admissionsQuery;
 
     if (loadError) {
       console.error(loadError);
@@ -235,7 +277,8 @@ export default function Customers() {
           ciu_number,
           product_service,
           status,
-          feedback
+          feedback,
+          assigned_to
           `
         )
         .in("id", leadIds);
@@ -277,7 +320,6 @@ export default function Customers() {
 
     setLoading(false);
   }
-
   useEffect(() => {
     loadCustomers();
   }, []);
@@ -475,6 +517,16 @@ export default function Customers() {
     event.preventDefault();
 
     if (!editingCustomer) return;
+
+    if (
+      currentRole === 'salesperson' &&
+      editingCustomer.assigned_to !== currentUserId
+    ) {
+      setError(
+        'You can only edit customers assigned to you.'
+      );
+      return;
+    }
 
     if (!editForm.full_names.trim()) {
       setError(
@@ -679,7 +731,7 @@ export default function Customers() {
             marginBottom: 6,
           }}
         >
-          Customers
+          {currentRole === "salesperson" ? "My Customers" : "Customers"}
         </h1>
 
         <p
@@ -687,9 +739,7 @@ export default function Customers() {
             margin: 0,
           }}
         >
-          Manage students, admissions,
-          payments and follow-ups from
-          one place.
+          {currentRole === "salesperson" ? "Manage your assigned students, admissions, payments and follow-ups." : "Manage students, admissions, payments and follow-ups from one place."}
         </p>
       </div>
 
@@ -698,7 +748,7 @@ export default function Customers() {
       <div className="crm-kpis">
         <div className="crm-kpi">
           <span className="crm-kpi-label">
-            Total Customers
+            {currentRole === "salesperson" ? "My Customers" : "Total Customers"}
           </span>
 
           <div className="crm-kpi-value">
@@ -712,7 +762,7 @@ export default function Customers() {
 
         <div className="crm-kpi">
           <span className="crm-kpi-label">
-            Active Students
+            {currentRole === "salesperson" ? "My Active Students" : "Active Students"}
           </span>
 
           <div className="crm-kpi-value">
@@ -726,7 +776,7 @@ export default function Customers() {
 
         <div className="crm-kpi">
           <span className="crm-kpi-label">
-            New This Month
+            {currentRole === "salesperson" ? "My New This Month" : "New This Month"}
           </span>
 
           <div className="crm-kpi-value">
@@ -740,7 +790,7 @@ export default function Customers() {
 
         <div className="crm-kpi">
           <span className="crm-kpi-label">
-            Total Tuition Value
+            {currentRole === "salesperson" ? "My Tuition Value" : "Total Tuition Value"}
           </span>
 
           <div
@@ -795,7 +845,7 @@ export default function Customers() {
                 event.target.value
               )
             }
-            placeholder="🔍 Search students..."
+            placeholder="ðŸ” Search students..."
             style={{
               flex: 1,
               minWidth: 240,
@@ -2150,7 +2200,7 @@ function ModalHeader({
           flexShrink: 0,
         }}
       >
-        ×
+        Ã—
       </button>
     </div>
   );
@@ -2309,3 +2359,27 @@ function ModalActions({
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
