@@ -48,6 +48,7 @@ type Lead = {
   ciu_number: string | null;
   phone: string | null;
   email: string | null;
+  assigned_to?: string | null;
 };
 
 type Opportunity = {
@@ -57,6 +58,7 @@ type Opportunity = {
   value: number | null;
   currency: string | null;
   stage_id: string | null;
+  assigned_to?: string | null;
 };
 
 type PipelineStage = {
@@ -266,6 +268,7 @@ function toDateTimeLocal(value: string | null) {
   }
 
   const offset = date.getTimezoneOffset();
+
   const localDate = new Date(
     date.getTime() - offset * 60 * 1000
   );
@@ -296,6 +299,9 @@ export default function TasksPage() {
     PipelineStage[]
   >([]);
 
+  const [currentUserId, setCurrentUserId] = useState("");
+  const [currentRole, setCurrentRole] = useState("");
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -309,18 +315,122 @@ export default function TasksPage() {
     useState("all");
 
   const [showModal, setShowModal] = useState(false);
+
   const [editingTask, setEditingTask] =
     useState<Task | null>(null);
 
-  const [form, setForm] = useState<TaskForm>(EMPTY_FORM);
+  const [form, setForm] =
+    useState<TaskForm>(EMPTY_FORM);
 
   const [selectedTask, setSelectedTask] =
     useState<Task | null>(null);
+
+  const isSalesperson =
+    currentRole === "salesperson";
+
+  const isAdmin =
+    currentRole === "admin" ||
+    currentRole === "super_admin";
 
   const loadAll = async () => {
     try {
       setLoading(true);
       setError("");
+
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError) {
+        throw userError;
+      }
+
+      if (!user) {
+        throw new Error(
+          "No authenticated user found."
+        );
+      }
+
+      const {
+        data: currentProfile,
+        error: profileError,
+      } = await supabase
+        .from("profiles")
+        .select(
+          "id,full_name,role,is_active"
+        )
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (profileError) {
+        throw profileError;
+      }
+
+      if (!currentProfile) {
+        throw new Error(
+          "Your CRM profile could not be found."
+        );
+      }
+
+      const role =
+        currentProfile.role || "";
+
+      setCurrentUserId(user.id);
+      setCurrentRole(role);
+
+      const salesperson =
+        role === "salesperson";
+
+      let tasksQuery = supabase
+        .from("tasks")
+        .select(
+          "id,title,description,task_type,lead_id,opportunity_id,assigned_to,due_at,status,completed_at,created_at,updated_at"
+        )
+        .order("due_at", {
+          ascending: true,
+          nullsFirst: false,
+        });
+
+      if (salesperson) {
+        tasksQuery = tasksQuery.eq(
+          "assigned_to",
+          user.id
+        );
+      }
+
+      let leadsQuery = supabase
+        .from("leads")
+        .select(
+          "id,name,ciu_number,phone,email,assigned_to"
+        )
+        .order("name", {
+          ascending: true,
+        });
+
+      if (salesperson) {
+        leadsQuery = leadsQuery.eq(
+          "assigned_to",
+          user.id
+        );
+      }
+
+      let opportunitiesQuery = supabase
+        .from("opportunities")
+        .select(
+          "id,lead_id,title,value,currency,stage_id,assigned_to"
+        )
+        .order("title", {
+          ascending: true,
+        });
+
+      if (salesperson) {
+        opportunitiesQuery =
+          opportunitiesQuery.eq(
+            "assigned_to",
+            user.id
+          );
+      }
 
       const [
         tasksResult,
@@ -329,15 +439,7 @@ export default function TasksPage() {
         opportunitiesResult,
         stagesResult,
       ] = await Promise.all([
-        supabase
-          .from("tasks")
-          .select(
-            "id,title,description,task_type,lead_id,opportunity_id,assigned_to,due_at,status,completed_at,created_at,updated_at"
-          )
-          .order("due_at", {
-            ascending: true,
-            nullsFirst: false,
-          }),
+        tasksQuery,
 
         supabase
           .from("profiles")
@@ -348,23 +450,9 @@ export default function TasksPage() {
             ascending: true,
           }),
 
-        supabase
-          .from("leads")
-          .select(
-            "id,name,ciu_number,phone,email"
-          )
-          .order("name", {
-            ascending: true,
-          }),
+        leadsQuery,
 
-        supabase
-          .from("opportunities")
-          .select(
-            "id,lead_id,title,value,currency,stage_id"
-          )
-          .order("title", {
-            ascending: true,
-          }),
+        opportunitiesQuery,
 
         supabase
           .from("pipeline_stages")
@@ -396,24 +484,41 @@ export default function TasksPage() {
         throw stagesResult.error;
       }
 
-      setTasks(
-        (tasksResult.data || []) as Task[]
-      );
+      const loadedTasks =
+        (tasksResult.data || []) as Task[];
+
+      const loadedProfiles =
+        (profilesResult.data ||
+          []) as Profile[];
+
+      const loadedLeads =
+        (leadsResult.data ||
+          []) as Lead[];
+
+      const loadedOpportunities =
+        (opportunitiesResult.data ||
+          []) as Opportunity[];
+
+      setTasks(loadedTasks);
 
       setProfiles(
-        (profilesResult.data || []) as Profile[]
+        salesperson
+          ? loadedProfiles.filter(
+              (profile) =>
+                profile.id === user.id
+            )
+          : loadedProfiles
       );
 
-      setLeads(
-        (leadsResult.data || []) as Lead[]
-      );
+      setLeads(loadedLeads);
 
       setOpportunities(
-        (opportunitiesResult.data || []) as Opportunity[]
+        loadedOpportunities
       );
 
       setPipelineStages(
-        (stagesResult.data || []) as PipelineStage[]
+        (stagesResult.data ||
+          []) as PipelineStage[]
       );
     } catch (err) {
       console.error(err);
@@ -437,7 +542,8 @@ export default function TasksPage() {
 
     return (
       leads.find(
-        (lead) => lead.id === task.lead_id
+        (lead) =>
+          lead.id === task.lead_id
       ) || null
     );
   };
@@ -448,7 +554,8 @@ export default function TasksPage() {
     return (
       opportunities.find(
         (opportunity) =>
-          opportunity.id === task.opportunity_id
+          opportunity.id ===
+          task.opportunity_id
       ) || null
     );
   };
@@ -464,42 +571,58 @@ export default function TasksPage() {
     );
   };
 
-  const getStage = (stageId: string | null) => {
+  const getStage = (
+    stageId: string | null
+  ) => {
     if (!stageId) return null;
 
     return (
       pipelineStages.find(
-        (stage) => stage.id === stageId
+        (stage) =>
+          stage.id === stageId
       ) || null
     );
   };
 
   const stats = useMemo(() => {
-    const activeTasks = tasks.filter(
-      (task) =>
-        task.status !== "completed" &&
-        task.status !== "cancelled"
-    );
+    const activeTasks =
+      tasks.filter(
+        (task) =>
+          task.status !== "completed" &&
+          task.status !== "cancelled"
+      );
 
-    const dueToday = activeTasks.filter(
-      (task) => isToday(task.due_at)
-    ).length;
+    const dueToday =
+      activeTasks.filter(
+        (task) =>
+          isToday(task.due_at)
+      ).length;
 
-    const overdue = activeTasks.filter(
-      (task) => isOverdue(task)
-    ).length;
+    const overdue =
+      activeTasks.filter(
+        (task) =>
+          isOverdue(task)
+      ).length;
 
-    const completed = tasks.filter(
-      (task) => task.status === "completed"
-    ).length;
+    const completed =
+      tasks.filter(
+        (task) =>
+          task.status ===
+          "completed"
+      ).length;
 
-    const completedThisMonth = tasks.filter(
-      (task) => isCompletedThisMonth(task)
-    ).length;
+    const completedThisMonth =
+      tasks.filter(
+        (task) =>
+          isCompletedThisMonth(task)
+      ).length;
 
-    const cancelled = tasks.filter(
-      (task) => task.status === "cancelled"
-    ).length;
+    const cancelled =
+      tasks.filter(
+        (task) =>
+          task.status ===
+          "cancelled"
+      ).length;
 
     const totalForRate =
       tasks.length - cancelled;
@@ -507,12 +630,15 @@ export default function TasksPage() {
     const completionRate =
       totalForRate > 0
         ? Math.round(
-            (completed / totalForRate) * 100
+            (completed /
+              totalForRate) *
+              100
           )
         : 0;
 
     return {
-      active: activeTasks.length,
+      active:
+        activeTasks.length,
       dueToday,
       overdue,
       completed,
@@ -522,138 +648,199 @@ export default function TasksPage() {
     };
   }, [tasks]);
 
-  const teamWorkload = useMemo(() => {
-    return profiles
-      .filter(
-        (profile) =>
-          profile.is_active !== false &&
-          profile.role === "salesperson"
-      )
-      .map((profile) => {
-        const staffTasks = tasks.filter(
-          (task) =>
-            task.assigned_to === profile.id
-        );
+  const teamWorkload =
+    useMemo(() => {
+      if (isSalesperson) {
+        return [];
+      }
 
-        const pending = staffTasks.filter(
-          (task) =>
-            task.status !== "completed" &&
-            task.status !== "cancelled"
-        ).length;
+      return profiles
+        .filter(
+          (profile) =>
+            profile.is_active !==
+              false &&
+            profile.role ===
+              "salesperson"
+        )
+        .map((profile) => {
+          const staffTasks =
+            tasks.filter(
+              (task) =>
+                task.assigned_to ===
+                profile.id
+            );
 
-        const overdue = staffTasks.filter(
-          (task) =>
-            task.status !== "completed" &&
-            task.status !== "cancelled" &&
-            isOverdue(task)
-        ).length;
+          const pending =
+            staffTasks.filter(
+              (task) =>
+                task.status !==
+                  "completed" &&
+                task.status !==
+                  "cancelled"
+            ).length;
 
-        return {
-          id: profile.id,
-          name:
-            profile.full_name ||
-            "Unnamed Staff",
-          pending,
-          overdue,
-        };
-      })
-      .sort((a, b) => {
-        if (b.overdue !== a.overdue) {
-          return b.overdue - a.overdue;
+          const overdue =
+            staffTasks.filter(
+              (task) =>
+                task.status !==
+                  "completed" &&
+                task.status !==
+                  "cancelled" &&
+                isOverdue(task)
+            ).length;
+
+          return {
+            id: profile.id,
+            name:
+              profile.full_name ||
+              "Unnamed Staff",
+            pending,
+            overdue,
+          };
+        })
+        .sort((a, b) => {
+          if (
+            b.overdue !==
+            a.overdue
+          ) {
+            return (
+              b.overdue -
+              a.overdue
+            );
+          }
+
+          return (
+            b.pending -
+            a.pending
+          );
+        });
+    }, [
+      profiles,
+      tasks,
+      isSalesperson,
+    ]);
+
+  const filteredTasks =
+    useMemo(() => {
+      const query =
+        search.trim().toLowerCase();
+
+      return tasks.filter(
+        (task) => {
+          if (
+            statusFilter !==
+              "all" &&
+            task.status !==
+              statusFilter
+          ) {
+            return false;
+          }
+
+          if (
+            typeFilter !==
+              "all" &&
+            task.task_type !==
+              typeFilter
+          ) {
+            return false;
+          }
+
+          if (
+            assignedFilter !==
+              "all" &&
+            task.assigned_to !==
+              assignedFilter
+          ) {
+            return false;
+          }
+
+          if (!query) {
+            return true;
+          }
+
+          const lead =
+            getLead(task);
+
+          const opportunity =
+            getOpportunity(
+              task
+            );
+
+          const staff =
+            getStaff(task);
+
+          const searchable = [
+            task.title,
+            task.description,
+            task.task_type,
+            task.status,
+            lead?.name,
+            lead?.ciu_number,
+            lead?.phone,
+            lead?.email,
+            opportunity?.title,
+            staff?.full_name,
+          ]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase();
+
+          return searchable.includes(
+            query
+          );
         }
+      );
+    }, [
+      tasks,
+      search,
+      statusFilter,
+      typeFilter,
+      assignedFilter,
+      leads,
+      opportunities,
+      profiles,
+    ]);
 
-        return b.pending - a.pending;
+  const openCreateModal =
+    () => {
+      setEditingTask(null);
+
+      setForm({
+        ...EMPTY_FORM,
+        assigned_to:
+          isSalesperson
+            ? currentUserId
+            : "",
       });
-  }, [profiles, tasks]);
 
-  const filteredTasks = useMemo(() => {
-    const query = search.trim().toLowerCase();
+      setError("");
+      setSuccess("");
+      setShowModal(true);
+    };
 
-    return tasks.filter((task) => {
-      if (
-        statusFilter !== "all" &&
-        task.status !== statusFilter
-      ) {
-        return false;
-      }
-
-      if (
-        typeFilter !== "all" &&
-        task.task_type !== typeFilter
-      ) {
-        return false;
-      }
-
-      if (
-        assignedFilter !== "all" &&
-        task.assigned_to !== assignedFilter
-      ) {
-        return false;
-      }
-
-      if (!query) {
-        return true;
-      }
-
-      const lead = getLead(task);
-      const opportunity =
-        getOpportunity(task);
-      const staff = getStaff(task);
-
-      const searchable = [
-        task.title,
-        task.description,
-        task.task_type,
-        task.status,
-        lead?.name,
-        lead?.ciu_number,
-        lead?.phone,
-        lead?.email,
-        opportunity?.title,
-        staff?.full_name,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-
-      return searchable.includes(query);
-    });
-  }, [
-    tasks,
-    search,
-    statusFilter,
-    typeFilter,
-    assignedFilter,
-    leads,
-    opportunities,
-    profiles,
-  ]);
-
-  const openCreateModal = () => {
-    setEditingTask(null);
-    setForm(EMPTY_FORM);
-    setError("");
-    setSuccess("");
-    setShowModal(true);
-  };
-
-  const openEditModal = (task: Task) => {
+  const openEditModal = (
+    task: Task
+  ) => {
     setEditingTask(task);
 
     setForm({
       title: task.title || "",
-      description: task.description || "",
+      description:
+        task.description || "",
       task_type:
         (task.task_type as TaskType) ||
         "Call",
-      lead_id: task.lead_id || "",
+      lead_id:
+        task.lead_id || "",
       opportunity_id:
-        task.opportunity_id || "",
+        task.opportunity_id ||
+        "",
       assigned_to:
         task.assigned_to || "",
-      due_at: toDateTimeLocal(
-        task.due_at
-      ),
+      due_at:
+        toDateTimeLocal(
+          task.due_at
+        ),
       status:
         (task.status as TaskStatus) ||
         "pending",
@@ -664,122 +851,165 @@ export default function TasksPage() {
     setShowModal(true);
   };
 
-  const handleSaveTask = async (
-    event: FormEvent<HTMLFormElement>
-  ) => {
-    event.preventDefault();
+  const handleSaveTask =
+    async (
+      event: FormEvent<HTMLFormElement>
+    ) => {
+      event.preventDefault();
 
-    if (!form.title.trim()) {
-      setError("Please enter a task title.");
-      return;
-    }
+      if (!form.title.trim()) {
+        setError(
+          "Please enter a task title."
+        );
+        return;
+      }
 
-    try {
-      setSaving(true);
-      setError("");
-      setSuccess("");
+      try {
+        setSaving(true);
+        setError("");
+        setSuccess("");
 
-      const payload = {
-        title: form.title.trim(),
-        description:
-          form.description.trim() || null,
-        task_type: form.task_type,
-        lead_id: form.lead_id || null,
-        opportunity_id:
-          form.opportunity_id || null,
-        assigned_to:
-          form.assigned_to || null,
-        due_at:
-          form.due_at
-            ? new Date(
-                form.due_at
-              ).toISOString()
-            : null,
-        status: form.status,
-      };
+        const finalAssignedTo =
+          isSalesperson
+            ? currentUserId
+            : form.assigned_to ||
+              null;
 
-      if (editingTask) {
-        const { error: updateError } =
-          await supabase
+        const payload = {
+          title:
+            form.title.trim(),
+
+          description:
+            form.description.trim() ||
+            null,
+
+          task_type:
+            form.task_type,
+
+          lead_id:
+            form.lead_id || null,
+
+          opportunity_id:
+            form.opportunity_id ||
+            null,
+
+          assigned_to:
+            finalAssignedTo,
+
+          due_at:
+            form.due_at
+              ? new Date(
+                  form.due_at
+                ).toISOString()
+              : null,
+
+          status:
+            form.status,
+        };
+
+        if (editingTask) {
+          const {
+            error: updateError,
+          } = await supabase
             .from("tasks")
             .update({
               ...payload,
+
               completed_at:
-                form.status === "completed"
+                form.status ===
+                "completed"
                   ? editingTask.completed_at ||
                     new Date().toISOString()
                   : null,
+
               updated_at:
                 new Date().toISOString(),
             })
-            .eq("id", editingTask.id);
+            .eq(
+              "id",
+              editingTask.id
+            );
 
-        if (updateError) {
-          throw updateError;
-        }
+          if (updateError) {
+            throw updateError;
+          }
 
-        setSuccess("Task updated successfully.");
-      } else {
-        const {
-          data: {
-            user,
-          },
-        } = await supabase.auth.getUser();
+          setSuccess(
+            "Task updated successfully."
+          );
+        } else {
+          const {
+            data: {
+              user,
+            },
+          } =
+            await supabase.auth.getUser();
 
-        const insertPayload: Record<
-          string,
-          unknown
-        > = {
-          ...payload,
-        };
+          const insertPayload:
+            Record<
+              string,
+              unknown
+            > = {
+            ...payload,
+          };
 
-        if (user?.id) {
-          insertPayload.created_by =
-            user.id;
-        }
+          if (user?.id) {
+            insertPayload.created_by =
+              user.id;
+          }
 
-        if (form.status === "completed") {
-          insertPayload.completed_at =
-            new Date().toISOString();
-        }
+          if (
+            form.status ===
+            "completed"
+          ) {
+            insertPayload.completed_at =
+              new Date().toISOString();
+          }
 
-        const { error: insertError } =
-          await supabase
+          const {
+            error: insertError,
+          } = await supabase
             .from("tasks")
-            .insert(insertPayload);
+            .insert(
+              insertPayload
+            );
 
-        if (insertError) {
-          throw insertError;
+          if (insertError) {
+            throw insertError;
+          }
+
+          setSuccess(
+            "Task created successfully."
+          );
         }
 
-        setSuccess("Task created successfully.");
+        setShowModal(false);
+        setEditingTask(null);
+        setForm(EMPTY_FORM);
+
+        await loadAll();
+      } catch (err) {
+        console.error(err);
+
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Failed to save task."
+        );
+      } finally {
+        setSaving(false);
       }
+    };
 
-      setShowModal(false);
-      setEditingTask(null);
-      setForm(EMPTY_FORM);
+  const markComplete =
+    async (task: Task) => {
+      try {
+        setError("");
+        setSuccess("");
 
-      await loadAll();
-    } catch (err) {
-      console.error(err);
-
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Failed to save task."
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const markComplete = async (task: Task) => {
-    try {
-      setError("");
-      setSuccess("");
-
-      const { error: updateError } =
-        await supabase
+        const {
+          error: updateError,
+        } = await supabase
           .from("tasks")
           .update({
             status: "completed",
@@ -788,106 +1018,134 @@ export default function TasksPage() {
             updated_at:
               new Date().toISOString(),
           })
-          .eq("id", task.id);
+          .eq(
+            "id",
+            task.id
+          );
 
-      if (updateError) {
-        throw updateError;
+        if (updateError) {
+          throw updateError;
+        }
+
+        setSuccess(
+          "Task marked as completed."
+        );
+
+        await loadAll();
+      } catch (err) {
+        console.error(err);
+
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Failed to complete task."
+        );
       }
+    };
 
-      setSuccess("Task marked as completed.");
+  const updateStatus =
+    async (
+      task: Task,
+      status: TaskStatus
+    ) => {
+      try {
+        setError("");
+        setSuccess("");
 
-      await loadAll();
-    } catch (err) {
-      console.error(err);
-
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Failed to complete task."
-      );
-    }
-  };
-
-  const updateStatus = async (
-    task: Task,
-    status: TaskStatus
-  ) => {
-    try {
-      setError("");
-      setSuccess("");
-
-      const { error: updateError } =
-        await supabase
+        const {
+          error: updateError,
+        } = await supabase
           .from("tasks")
           .update({
             status,
+
             completed_at:
-              status === "completed"
+              status ===
+              "completed"
                 ? new Date().toISOString()
                 : null,
+
             updated_at:
               new Date().toISOString(),
           })
-          .eq("id", task.id);
+          .eq(
+            "id",
+            task.id
+          );
 
-      if (updateError) {
-        throw updateError;
+        if (updateError) {
+          throw updateError;
+        }
+
+        setSuccess(
+          "Task status updated."
+        );
+
+        await loadAll();
+      } catch (err) {
+        console.error(err);
+
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Failed to update task."
+        );
       }
+    };
 
-      setSuccess("Task status updated.");
+  const deleteTask =
+    async (task: Task) => {
+      const confirmed =
+        window.confirm(
+          `Delete "${task.title}"? This action cannot be undone.`
+        );
 
-      await loadAll();
-    } catch (err) {
-      console.error(err);
+      if (!confirmed) return;
 
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Failed to update task."
-      );
-    }
-  };
+      try {
+        setError("");
+        setSuccess("");
 
-  const deleteTask = async (task: Task) => {
-    const confirmed = window.confirm(
-      `Delete "${task.title}"? This action cannot be undone.`
-    );
-
-    if (!confirmed) return;
-
-    try {
-      setError("");
-      setSuccess("");
-
-      const { error: deleteError } =
-        await supabase
+        const {
+          error: deleteError,
+        } = await supabase
           .from("tasks")
           .delete()
-          .eq("id", task.id);
+          .eq(
+            "id",
+            task.id
+          );
 
-      if (deleteError) {
-        throw deleteError;
+        if (deleteError) {
+          throw deleteError;
+        }
+
+        setSuccess(
+          "Task deleted successfully."
+        );
+
+        if (
+          selectedTask?.id ===
+          task.id
+        ) {
+          setSelectedTask(null);
+        }
+
+        await loadAll();
+      } catch (err) {
+        console.error(err);
+
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Failed to delete task."
+        );
       }
+    };
 
-      setSuccess("Task deleted successfully.");
-
-      if (selectedTask?.id === task.id) {
-        setSelectedTask(null);
-      }
-
-      await loadAll();
-    } catch (err) {
-      console.error(err);
-
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Failed to delete task."
-      );
-    }
-  };
-
-  const callLead = (lead: Lead | null) => {
+  const callLead = (
+    lead: Lead | null
+  ) => {
     if (!lead?.phone) {
       setError(
         "This lead does not have a phone number."
@@ -895,7 +1153,8 @@ export default function TasksPage() {
       return;
     }
 
-    window.location.href = `tel:${lead.phone}`;
+    window.location.href =
+      `tel:${lead.phone}`;
   };
 
   const whatsappLead = (
@@ -908,10 +1167,11 @@ export default function TasksPage() {
       return;
     }
 
-    const phone = lead.phone.replace(
-      /[^\d]/g,
-      ""
-    );
+    const phone =
+      lead.phone.replace(
+        /[^\d]/g,
+        ""
+      );
 
     if (!phone) {
       setError(
@@ -927,7 +1187,9 @@ export default function TasksPage() {
     );
   };
 
-  const emailLead = (lead: Lead | null) => {
+  const emailLead = (
+    lead: Lead | null
+  ) => {
     if (!lead?.email) {
       setError(
         "This lead does not have an email address."
@@ -939,14 +1201,16 @@ export default function TasksPage() {
       `mailto:${lead.email}`;
   };
 
-  const clearFilters = () => {
-    setSearch("");
-    setStatusFilter("all");
-    setTypeFilter("all");
-    setAssignedFilter("all");
-  };
+  const clearFilters =
+    () => {
+      setSearch("");
+      setStatusFilter("all");
+      setTypeFilter("all");
+      setAssignedFilter("all");
+    };
 
-  const inputStyle: React.CSSProperties = {
+  const inputStyle:
+    React.CSSProperties = {
     width: "100%",
     height: "42px",
     padding: "0 12px",
@@ -960,7 +1224,8 @@ export default function TasksPage() {
     boxSizing: "border-box",
   };
 
-  const smallActionButton: React.CSSProperties = {
+  const smallActionButton:
+    React.CSSProperties = {
     border:
       "1px solid #d1d5db",
     background: "#ffffff",
@@ -1010,7 +1275,9 @@ export default function TasksPage() {
                   "-0.5px",
               }}
             >
-              Tasks & Follow-ups
+              {isSalesperson
+                ? "My Tasks & Follow-ups"
+                : "Tasks & Follow-ups"}
             </h1>
 
             <p
@@ -1021,14 +1288,17 @@ export default function TasksPage() {
                 fontSize: "14px",
               }}
             >
-              Stay on top of activities
-              and never miss an opportunity.
+              {isSalesperson
+                ? "Stay on top of your activities and never miss an opportunity."
+                : "Stay on top of activities and never miss an opportunity."}
             </p>
           </div>
 
           <button
             type="button"
-            onClick={openCreateModal}
+            onClick={
+              openCreateModal
+            }
             style={{
               border: "none",
               borderRadius: "9px",
@@ -1049,12 +1319,15 @@ export default function TasksPage() {
         {error && (
           <div
             style={{
-              marginBottom: "16px",
-              padding: "12px 15px",
+              marginBottom:
+                "16px",
+              padding:
+                "12px 15px",
               borderRadius: "9px",
               border:
                 "1px solid #fecaca",
-              background: "#fef2f2",
+              background:
+                "#fef2f2",
               color: "#b91c1c",
               fontSize: "14px",
             }}
@@ -1066,12 +1339,15 @@ export default function TasksPage() {
         {success && (
           <div
             style={{
-              marginBottom: "16px",
-              padding: "12px 15px",
+              marginBottom:
+                "16px",
+              padding:
+                "12px 15px",
               borderRadius: "9px",
               border:
                 "1px solid #a7f3d0",
-              background: "#ecfdf5",
+              background:
+                "#ecfdf5",
               color: "#047857",
               fontSize: "14px",
             }}
@@ -1087,23 +1363,29 @@ export default function TasksPage() {
             gridTemplateColumns:
               "repeat(4, minmax(0, 1fr))",
             gap: "16px",
-            marginBottom: "24px",
+            marginBottom:
+              "24px",
           }}
         >
           <div
             style={{
-              background: "#ffffff",
+              background:
+                "#ffffff",
               border:
                 "1px solid #e5e7eb",
-              borderRadius: "14px",
+              borderRadius:
+                "14px",
               padding: "19px",
             }}
           >
             <div
               style={{
-                color: "#6b7280",
-                fontSize: "13px",
-                marginBottom: "8px",
+                color:
+                  "#6b7280",
+                fontSize:
+                  "13px",
+                marginBottom:
+                  "8px",
               }}
             >
               Due Today
@@ -1111,7 +1393,8 @@ export default function TasksPage() {
 
             <div
               style={{
-                fontSize: "28px",
+                fontSize:
+                  "28px",
                 fontWeight: 800,
               }}
             >
@@ -1121,18 +1404,23 @@ export default function TasksPage() {
 
           <div
             style={{
-              background: "#ffffff",
+              background:
+                "#ffffff",
               border:
                 "1px solid #e5e7eb",
-              borderRadius: "14px",
+              borderRadius:
+                "14px",
               padding: "19px",
             }}
           >
             <div
               style={{
-                color: "#6b7280",
-                fontSize: "13px",
-                marginBottom: "8px",
+                color:
+                  "#6b7280",
+                fontSize:
+                  "13px",
+                marginBottom:
+                  "8px",
               }}
             >
               Overdue
@@ -1140,10 +1428,12 @@ export default function TasksPage() {
 
             <div
               style={{
-                fontSize: "28px",
+                fontSize:
+                  "28px",
                 fontWeight: 800,
                 color:
-                  stats.overdue > 0
+                  stats.overdue >
+                  0
                     ? "#b91c1c"
                     : "#111827",
               }}
@@ -1154,18 +1444,23 @@ export default function TasksPage() {
 
           <div
             style={{
-              background: "#ffffff",
+              background:
+                "#ffffff",
               border:
                 "1px solid #e5e7eb",
-              borderRadius: "14px",
+              borderRadius:
+                "14px",
               padding: "19px",
             }}
           >
             <div
               style={{
-                color: "#6b7280",
-                fontSize: "13px",
-                marginBottom: "8px",
+                color:
+                  "#6b7280",
+                fontSize:
+                  "13px",
+                marginBottom:
+                  "8px",
               }}
             >
               Completed This Month
@@ -1173,7 +1468,8 @@ export default function TasksPage() {
 
             <div
               style={{
-                fontSize: "28px",
+                fontSize:
+                  "28px",
                 fontWeight: 800,
               }}
             >
@@ -1183,18 +1479,23 @@ export default function TasksPage() {
 
           <div
             style={{
-              background: "#ffffff",
+              background:
+                "#ffffff",
               border:
                 "1px solid #e5e7eb",
-              borderRadius: "14px",
+              borderRadius:
+                "14px",
               padding: "19px",
             }}
           >
             <div
               style={{
-                color: "#6b7280",
-                fontSize: "13px",
-                marginBottom: "8px",
+                color:
+                  "#6b7280",
+                fontSize:
+                  "13px",
+                marginBottom:
+                  "8px",
               }}
             >
               Completion Rate
@@ -1202,7 +1503,8 @@ export default function TasksPage() {
 
             <div
               style={{
-                fontSize: "28px",
+                fontSize:
+                  "28px",
                 fontWeight: 800,
               }}
             >
@@ -1212,228 +1514,279 @@ export default function TasksPage() {
         </div>
 
         {/* TEAM WORKLOAD */}
-        <div
-          style={{
-            background: "#ffffff",
-            border:
-              "1px solid #e5e7eb",
-            borderRadius: "14px",
-            padding: "20px 22px",
-            marginBottom: "24px",
-          }}
-        >
+        {!isSalesperson && (
           <div
             style={{
-              display: "flex",
-              justifyContent:
-                "space-between",
-              alignItems: "center",
-              marginBottom: "16px",
-              gap: "16px",
-              flexWrap: "wrap",
+              background:
+                "#ffffff",
+              border:
+                "1px solid #e5e7eb",
+              borderRadius:
+                "14px",
+              padding:
+                "20px 22px",
+              marginBottom:
+                "24px",
             }}
           >
-            <div>
-              <h2
+            <div
+              style={{
+                display:
+                  "flex",
+                justifyContent:
+                  "space-between",
+                alignItems:
+                  "center",
+                marginBottom:
+                  "16px",
+                gap: "16px",
+                flexWrap:
+                  "wrap",
+              }}
+            >
+              <div>
+                <h2
+                  style={{
+                    margin: 0,
+                    fontSize:
+                      "19px",
+                    fontWeight:
+                      750,
+                  }}
+                >
+                  Team Workload
+                </h2>
+
+                <p
+                  style={{
+                    margin:
+                      "5px 0 0",
+                    color:
+                      "#6b7280",
+                    fontSize:
+                      "13px",
+                  }}
+                >
+                  Pending and overdue
+                  tasks by
+                  salesperson
+                </p>
+              </div>
+
+              <div
                 style={{
-                  margin: 0,
-                  fontSize: "19px",
-                  fontWeight: 750,
+                  fontSize:
+                    "13px",
+                  color:
+                    "#6b7280",
                 }}
               >
-                Team Workload
-              </h2>
+                {
+                  teamWorkload.length
+                }{" "}
+                active
+                salesperson
+                {teamWorkload.length ===
+                1
+                  ? ""
+                  : "s"}
+              </div>
+            </div>
 
-              <p
+            {teamWorkload.length ===
+            0 ? (
+              <div
                 style={{
-                  margin:
-                    "5px 0 0",
-                  color: "#6b7280",
-                  fontSize: "13px",
+                  padding:
+                    "18px",
+                  borderRadius:
+                    "10px",
+                  background:
+                    "#f9fafb",
+                  color:
+                    "#6b7280",
+                  fontSize:
+                    "14px",
+                  textAlign:
+                    "center",
                 }}
               >
-                Pending and overdue tasks
-                by salesperson
-              </p>
-            </div>
-
-            <div
-              style={{
-                fontSize: "13px",
-                color: "#6b7280",
-              }}
-            >
-              {teamWorkload.length} active
-              salesperson
-              {teamWorkload.length === 1
-                ? ""
-                : "s"}
-            </div>
-          </div>
-
-          {teamWorkload.length === 0 ? (
-            <div
-              style={{
-                padding: "18px",
-                borderRadius: "10px",
-                background: "#f9fafb",
-                color: "#6b7280",
-                fontSize: "14px",
-                textAlign: "center",
-              }}
-            >
-              No active salespeople found.
-            </div>
-          ) : (
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns:
-                  "repeat(auto-fit, minmax(220px, 1fr))",
-                gap: "12px",
-              }}
-            >
-              {teamWorkload.map(
-                (staff) => (
-                  <button
-                    key={staff.id}
-                    type="button"
-                    onClick={() =>
-                      setAssignedFilter(
+                No active salespeople
+                found.
+              </div>
+            ) : (
+              <div
+                style={{
+                  display:
+                    "grid",
+                  gridTemplateColumns:
+                    "repeat(auto-fit, minmax(220px, 1fr))",
+                  gap: "12px",
+                }}
+              >
+                {teamWorkload.map(
+                  (staff) => (
+                    <button
+                      key={
                         staff.id
-                      )
-                    }
-                    style={{
-                      textAlign: "left",
-                      border:
-                        assignedFilter ===
-                        staff.id
-                          ? "2px solid #111827"
-                          : "1px solid #e5e7eb",
-                      borderRadius:
-                        "12px",
-                      padding: "15px",
-                      background:
-                        assignedFilter ===
-                        staff.id
-                          ? "#f9fafb"
-                          : "#ffffff",
-                      cursor: "pointer",
-                    }}
-                  >
-                    <div
+                      }
+                      type="button"
+                      onClick={() =>
+                        setAssignedFilter(
+                          staff.id
+                        )
+                      }
                       style={{
-                        fontSize:
-                          "14px",
-                        fontWeight: 700,
-                        color: "#111827",
-                        marginBottom:
+                        textAlign:
+                          "left",
+                        border:
+                          assignedFilter ===
+                          staff.id
+                            ? "2px solid #111827"
+                            : "1px solid #e5e7eb",
+                        borderRadius:
                           "12px",
-                      }}
-                    >
-                      {staff.name}
-                    </div>
-
-                    <div
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns:
-                          "1fr 1fr",
-                        gap: "10px",
+                        padding:
+                          "15px",
+                        background:
+                          assignedFilter ===
+                          staff.id
+                            ? "#f9fafb"
+                            : "#ffffff",
+                        cursor:
+                          "pointer",
                       }}
                     >
                       <div
                         style={{
-                          padding: "10px",
-                          borderRadius:
-                            "8px",
-                          background:
-                            "#f3f4f6",
+                          fontSize:
+                            "14px",
+                          fontWeight:
+                            700,
+                          color:
+                            "#111827",
+                          marginBottom:
+                            "12px",
                         }}
                       >
-                        <div
-                          style={{
-                            fontSize:
-                              "11px",
-                            color:
-                              "#6b7280",
-                            marginBottom:
-                              "3px",
-                          }}
-                        >
-                          Pending
-                        </div>
-
-                        <div
-                          style={{
-                            fontSize:
-                              "20px",
-                            fontWeight: 800,
-                          }}
-                        >
-                          {staff.pending}
-                        </div>
+                        {
+                          staff.name
+                        }
                       </div>
 
                       <div
                         style={{
-                          padding: "10px",
-                          borderRadius:
-                            "8px",
-                          background:
-                            staff.overdue >
-                            0
-                              ? "#fef2f2"
-                              : "#f3f4f6",
+                          display:
+                            "grid",
+                          gridTemplateColumns:
+                            "1fr 1fr",
+                          gap: "10px",
                         }}
                       >
                         <div
                           style={{
-                            fontSize:
-                              "11px",
-                            color:
-                              staff.overdue >
-                              0
-                                ? "#b91c1c"
-                                : "#6b7280",
-                            marginBottom:
-                              "3px",
+                            padding:
+                              "10px",
+                            borderRadius:
+                              "8px",
+                            background:
+                              "#f3f4f6",
                           }}
                         >
-                          Overdue
+                          <div
+                            style={{
+                              fontSize:
+                                "11px",
+                              color:
+                                "#6b7280",
+                              marginBottom:
+                                "3px",
+                            }}
+                          >
+                            Pending
+                          </div>
+
+                          <div
+                            style={{
+                              fontSize:
+                                "20px",
+                              fontWeight:
+                                800,
+                            }}
+                          >
+                            {
+                              staff.pending
+                            }
+                          </div>
                         </div>
 
                         <div
                           style={{
-                            fontSize:
-                              "20px",
-                            fontWeight: 800,
-                            color:
+                            padding:
+                              "10px",
+                            borderRadius:
+                              "8px",
+                            background:
                               staff.overdue >
                               0
-                                ? "#b91c1c"
-                                : "#111827",
+                                ? "#fef2f2"
+                                : "#f3f4f6",
                           }}
                         >
-                          {staff.overdue}
+                          <div
+                            style={{
+                              fontSize:
+                                "11px",
+                              color:
+                                staff.overdue >
+                                0
+                                  ? "#b91c1c"
+                                  : "#6b7280",
+                              marginBottom:
+                                "3px",
+                            }}
+                          >
+                            Overdue
+                          </div>
+
+                          <div
+                            style={{
+                              fontSize:
+                                "20px",
+                              fontWeight:
+                                800,
+                              color:
+                                staff.overdue >
+                                0
+                                  ? "#b91c1c"
+                                  : "#111827",
+                            }}
+                          >
+                            {
+                              staff.overdue
+                            }
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </button>
-                )
-              )}
-            </div>
-          )}
-        </div>
+                    </button>
+                  )
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* MAIN CARD */}
         <div
           style={{
-            background: "#ffffff",
+            background:
+              "#ffffff",
             border:
               "1px solid #e5e7eb",
-            borderRadius: "14px",
-            overflow: "hidden",
+            borderRadius:
+              "14px",
+            overflow:
+              "hidden",
           }}
         >
           <div
@@ -1446,59 +1799,87 @@ export default function TasksPage() {
           >
             <div
               style={{
-                marginBottom: "18px",
+                marginBottom:
+                  "18px",
               }}
             >
               <h2
                 style={{
                   margin: 0,
-                  fontSize: "19px",
-                  fontWeight: 750,
+                  fontSize:
+                    "19px",
+                  fontWeight:
+                    750,
                 }}
               >
-                Team Tasks
+                {isSalesperson
+                  ? "My Tasks"
+                  : "Team Tasks"}
               </h2>
 
               <p
                 style={{
                   margin:
                     "5px 0 0",
-                  color: "#6b7280",
-                  fontSize: "13px",
+                  color:
+                    "#6b7280",
+                  fontSize:
+                    "13px",
                 }}
               >
-                Activities and follow-ups
+                {isSalesperson
+                  ? "Your activities and follow-ups"
+                  : "Activities and follow-ups"}
               </p>
             </div>
 
             {/* FILTERS */}
             <div
               style={{
-                display: "grid",
+                display:
+                  "grid",
                 gridTemplateColumns:
-                  "minmax(250px, 1fr) 180px 180px 180px",
+                  isSalesperson
+                    ? "minmax(250px, 1fr) 180px 180px"
+                    : "minmax(250px, 1fr) 180px 180px 180px",
                 gap: "10px",
               }}
             >
               <input
                 value={search}
-                onChange={(event) =>
+                onChange={(
+                  event
+                ) =>
                   setSearch(
-                    event.target.value
+                    event.target
+                      .value
                   )
                 }
-                placeholder="Search tasks, leads, staff..."
-                style={inputStyle}
+                placeholder={
+                  isSalesperson
+                    ? "Search your tasks, leads..."
+                    : "Search tasks, leads, staff..."
+                }
+                style={
+                  inputStyle
+                }
               />
 
               <select
-                value={statusFilter}
-                onChange={(event) =>
+                value={
+                  statusFilter
+                }
+                onChange={(
+                  event
+                ) =>
                   setStatusFilter(
-                    event.target.value
+                    event.target
+                      .value
                   )
                 }
-                style={inputStyle}
+                style={
+                  inputStyle
+                }
               >
                 <option value="all">
                   All Statuses
@@ -1507,8 +1888,12 @@ export default function TasksPage() {
                 {TASK_STATUSES.map(
                   (status) => (
                     <option
-                      key={status}
-                      value={status}
+                      key={
+                        status
+                      }
+                      value={
+                        status
+                      }
                     >
                       {getStatusLabel(
                         status
@@ -1519,13 +1904,20 @@ export default function TasksPage() {
               </select>
 
               <select
-                value={typeFilter}
-                onChange={(event) =>
+                value={
+                  typeFilter
+                }
+                onChange={(
+                  event
+                ) =>
                   setTypeFilter(
-                    event.target.value
+                    event.target
+                      .value
                   )
                 }
-                style={inputStyle}
+                style={
+                  inputStyle
+                }
               >
                 <option value="all">
                   All Task Types
@@ -1543,71 +1935,109 @@ export default function TasksPage() {
                 )}
               </select>
 
-              <select
-                value={assignedFilter}
-                onChange={(event) =>
-                  setAssignedFilter(
-                    event.target.value
-                  )
-                }
-                style={inputStyle}
-              >
-                <option value="all">
-                  All Staff
-                </option>
+              {!isSalesperson && (
+                <select
+                  value={
+                    assignedFilter
+                  }
+                  onChange={(
+                    event
+                  ) =>
+                    setAssignedFilter(
+                      event
+                        .target
+                        .value
+                    )
+                  }
+                  style={
+                    inputStyle
+                  }
+                >
+                  <option value="all">
+                    All Staff
+                  </option>
 
-                {profiles
-                  .filter(
-                    (profile) =>
-                      profile.is_active !==
-                      false
-                  )
-                  .map((profile) => (
-                    <option
-                      key={profile.id}
-                      value={profile.id}
-                    >
-                      {profile.full_name ||
-                        "Unnamed Staff"}
-                    </option>
-                  ))}
-              </select>
+                  {profiles
+                    .filter(
+                      (profile) =>
+                        profile.is_active !==
+                        false
+                    )
+                    .map(
+                      (
+                        profile
+                      ) => (
+                        <option
+                          key={
+                            profile.id
+                          }
+                          value={
+                            profile.id
+                          }
+                        >
+                          {profile.full_name ||
+                            "Unnamed Staff"}
+                        </option>
+                      )
+                    )}
+                </select>
+              )}
             </div>
 
             {(search ||
-              statusFilter !== "all" ||
-              typeFilter !== "all" ||
-              assignedFilter !== "all") && (
+              statusFilter !==
+                "all" ||
+              typeFilter !==
+                "all" ||
+              assignedFilter !==
+                "all") && (
               <div
                 style={{
-                  marginTop: "10px",
-                  display: "flex",
+                  marginTop:
+                    "10px",
+                  display:
+                    "flex",
                   justifyContent:
                     "space-between",
-                  alignItems: "center",
+                  alignItems:
+                    "center",
                   gap: "10px",
-                  flexWrap: "wrap",
-                  fontSize: "13px",
-                  color: "#6b7280",
+                  flexWrap:
+                    "wrap",
+                  fontSize:
+                    "13px",
+                  color:
+                    "#6b7280",
                 }}
               >
                 <span>
                   Showing{" "}
-                  {filteredTasks.length} of{" "}
-                  {tasks.length} tasks
+                  {
+                    filteredTasks.length
+                  }{" "}
+                  of{" "}
+                  {tasks.length}{" "}
+                  tasks
                 </span>
 
                 <button
                   type="button"
-                  onClick={clearFilters}
+                  onClick={
+                    clearFilters
+                  }
                   style={{
-                    border: "none",
+                    border:
+                      "none",
                     background:
                       "transparent",
-                    color: "#2563eb",
-                    fontSize: "13px",
-                    fontWeight: 650,
-                    cursor: "pointer",
+                    color:
+                      "#2563eb",
+                    fontSize:
+                      "13px",
+                    fontWeight:
+                      650,
+                    cursor:
+                      "pointer",
                   }}
                 >
                   Clear filters
@@ -1619,7 +2049,8 @@ export default function TasksPage() {
           {/* TABLE */}
           <div
             style={{
-              overflowX: "auto",
+              overflowX:
+                "auto",
             }}
           >
             <table
@@ -1627,13 +2058,15 @@ export default function TasksPage() {
                 width: "100%",
                 borderCollapse:
                   "collapse",
-                minWidth: "1100px",
+                minWidth:
+                  "1100px",
               }}
             >
               <thead>
                 <tr
                   style={{
-                    background: "#f9fafb",
+                    background:
+                      "#f9fafb",
                   }}
                 >
                   {[
@@ -1644,31 +2077,40 @@ export default function TasksPage() {
                     "DUE",
                     "STATUS",
                     "ACTIONS",
-                  ].map((heading) => (
-                    <th
-                      key={heading}
-                      style={{
-                        padding:
-                          "12px 18px",
-                        textAlign:
-                          heading ===
-                          "ACTIONS"
-                            ? "right"
-                            : "left",
-                        fontSize:
-                          "11px",
-                        fontWeight: 750,
-                        color:
-                          "#6b7280",
-                        letterSpacing:
-                          "0.04em",
-                        borderBottom:
-                          "1px solid #e5e7eb",
-                      }}
-                    >
-                      {heading}
-                    </th>
-                  ))}
+                  ].map(
+                    (
+                      heading
+                    ) => (
+                      <th
+                        key={
+                          heading
+                        }
+                        style={{
+                          padding:
+                            "12px 18px",
+                          textAlign:
+                            heading ===
+                            "ACTIONS"
+                              ? "right"
+                              : "left",
+                          fontSize:
+                            "11px",
+                          fontWeight:
+                            750,
+                          color:
+                            "#6b7280",
+                          letterSpacing:
+                            "0.04em",
+                          borderBottom:
+                            "1px solid #e5e7eb",
+                        }}
+                      >
+                        {
+                          heading
+                        }
+                      </th>
+                    )
+                  )}
                 </tr>
               </thead>
 
@@ -1676,7 +2118,9 @@ export default function TasksPage() {
                 {loading ? (
                   <tr>
                     <td
-                      colSpan={7}
+                      colSpan={
+                        7
+                      }
                       style={{
                         padding:
                           "50px",
@@ -1693,7 +2137,9 @@ export default function TasksPage() {
                   0 ? (
                   <tr>
                     <td
-                      colSpan={7}
+                      colSpan={
+                        7
+                      }
                       style={{
                         padding:
                           "60px",
@@ -1734,7 +2180,9 @@ export default function TasksPage() {
                   filteredTasks.map(
                     (task) => {
                       const lead =
-                        getLead(task);
+                        getLead(
+                          task
+                        );
 
                       const opportunity =
                         getOpportunity(
@@ -1742,10 +2190,14 @@ export default function TasksPage() {
                         );
 
                       const staff =
-                        getStaff(task);
+                        getStaff(
+                          task
+                        );
 
                       const overdue =
-                        isOverdue(task);
+                        isOverdue(
+                          task
+                        );
 
                       const stage =
                         getStage(
@@ -1755,7 +2207,9 @@ export default function TasksPage() {
 
                       return (
                         <tr
-                          key={task.id}
+                          key={
+                            task.id
+                          }
                           style={{
                             borderBottom:
                               "1px solid #f1f5f9",
@@ -1851,7 +2305,9 @@ export default function TasksPage() {
                                       "4px",
                                   }}
                                 >
-                                  {task.title}
+                                  {
+                                    task.title
+                                  }
                                 </div>
 
                                 {task.description && (
@@ -2013,7 +2469,9 @@ export default function TasksPage() {
                                         "2px",
                                     }}
                                   >
-                                    {stage.name}
+                                    {
+                                      stage.name
+                                    }
                                   </div>
                                 )}
                               </div>
@@ -2373,8 +2831,10 @@ export default function TasksPage() {
               maxWidth: "700px",
               maxHeight: "90vh",
               overflowY: "auto",
-              background: "#ffffff",
-              borderRadius: "14px",
+              background:
+                "#ffffff",
+              borderRadius:
+                "14px",
               boxShadow:
                 "0 20px 50px rgba(0,0,0,0.18)",
             }}
@@ -2385,18 +2845,22 @@ export default function TasksPage() {
                   "20px 22px",
                 borderBottom:
                   "1px solid #e5e7eb",
-                display: "flex",
+                display:
+                  "flex",
                 justifyContent:
                   "space-between",
-                alignItems: "center",
+                alignItems:
+                  "center",
               }}
             >
               <div>
                 <h2
                   style={{
                     margin: 0,
-                    fontSize: "20px",
-                    fontWeight: 800,
+                    fontSize:
+                      "20px",
+                    fontWeight:
+                      800,
                   }}
                 >
                   {editingTask
@@ -2414,23 +2878,27 @@ export default function TasksPage() {
                       "13px",
                   }}
                 >
-                  Create and manage
-                  staff activities and
-                  follow-ups.
+                  {isSalesperson
+                    ? "Create and manage your activities and follow-ups."
+                    : "Create and manage staff activities and follow-ups."}
                 </p>
               </div>
 
               <button
                 type="button"
                 onClick={() =>
-                  setShowModal(false)
+                  setShowModal(
+                    false
+                  )
                 }
                 style={{
                   border: "none",
                   background:
                     "transparent",
-                  fontSize: "24px",
-                  cursor: "pointer",
+                  fontSize:
+                    "24px",
+                  cursor:
+                    "pointer",
                   color:
                     "#6b7280",
                 }}
@@ -2440,14 +2908,18 @@ export default function TasksPage() {
             </div>
 
             <form
-              onSubmit={handleSaveTask}
+              onSubmit={
+                handleSaveTask
+              }
               style={{
-                padding: "22px",
+                padding:
+                  "22px",
               }}
             >
               <div
                 style={{
-                  display: "grid",
+                  display:
+                    "grid",
                   gridTemplateColumns:
                     "1fr 1fr",
                   gap: "16px",
@@ -2482,7 +2954,9 @@ export default function TasksPage() {
                       event
                     ) =>
                       setForm(
-                        (current) => ({
+                        (
+                          current
+                        ) => ({
                           ...current,
                           title:
                             event
@@ -2522,7 +2996,9 @@ export default function TasksPage() {
                       event
                     ) =>
                       setForm(
-                        (current) => ({
+                        (
+                          current
+                        ) => ({
                           ...current,
                           task_type:
                             event
@@ -2572,7 +3048,9 @@ export default function TasksPage() {
                       event
                     ) =>
                       setForm(
-                        (current) => ({
+                        (
+                          current
+                        ) => ({
                           ...current,
                           status:
                             event
@@ -2588,8 +3066,12 @@ export default function TasksPage() {
                     {TASK_STATUSES.map(
                       (status) => (
                         <option
-                          key={status}
-                          value={status}
+                          key={
+                            status
+                          }
+                          value={
+                            status
+                          }
                         >
                           {getStatusLabel(
                             status
@@ -2624,7 +3106,9 @@ export default function TasksPage() {
                       event
                     ) =>
                       setForm(
-                        (current) => ({
+                        (
+                          current
+                        ) => ({
                           ...current,
                           lead_id:
                             event
@@ -2644,8 +3128,12 @@ export default function TasksPage() {
                     {leads.map(
                       (lead) => (
                         <option
-                          key={lead.id}
-                          value={lead.id}
+                          key={
+                            lead.id
+                          }
+                          value={
+                            lead.id
+                          }
                         >
                           {lead.name ||
                             "Unnamed Lead"}
@@ -2682,7 +3170,9 @@ export default function TasksPage() {
                       event
                     ) =>
                       setForm(
-                        (current) => ({
+                        (
+                          current
+                        ) => ({
                           ...current,
                           opportunity_id:
                             event
@@ -2719,70 +3209,78 @@ export default function TasksPage() {
                   </select>
                 </div>
 
-                <div>
-                  <label
-                    style={{
-                      display:
-                        "block",
-                      fontSize:
-                        "13px",
-                      fontWeight:
-                        700,
-                      marginBottom:
-                        "6px",
-                    }}
-                  >
-                    Assigned Staff
-                  </label>
+                {!isSalesperson && (
+                  <div>
+                    <label
+                      style={{
+                        display:
+                          "block",
+                        fontSize:
+                          "13px",
+                        fontWeight:
+                          700,
+                        marginBottom:
+                          "6px",
+                      }}
+                    >
+                      Assigned Staff
+                    </label>
 
-                  <select
-                    value={
-                      form.assigned_to
-                    }
-                    onChange={(
-                      event
-                    ) =>
-                      setForm(
-                        (current) => ({
-                          ...current,
-                          assigned_to:
-                            event
-                              .target
-                              .value,
-                        })
-                      )
-                    }
-                    style={
-                      inputStyle
-                    }
-                  >
-                    <option value="">
-                      Unassigned
-                    </option>
-
-                    {profiles
-                      .filter(
-                        (profile) =>
-                          profile.is_active !==
-                          false
-                      )
-                      .map(
-                        (profile) => (
-                          <option
-                            key={
-                              profile.id
-                            }
-                            value={
-                              profile.id
-                            }
-                          >
-                            {profile.full_name ||
-                              "Unnamed Staff"}
-                          </option>
+                    <select
+                      value={
+                        form.assigned_to
+                      }
+                      onChange={(
+                        event
+                      ) =>
+                        setForm(
+                          (
+                            current
+                          ) => ({
+                            ...current,
+                            assigned_to:
+                              event
+                                .target
+                                .value,
+                          })
                         )
-                      )}
-                  </select>
-                </div>
+                      }
+                      style={
+                        inputStyle
+                      }
+                    >
+                      <option value="">
+                        Unassigned
+                      </option>
+
+                      {profiles
+                        .filter(
+                          (
+                            profile
+                          ) =>
+                            profile.is_active !==
+                            false
+                        )
+                        .map(
+                          (
+                            profile
+                          ) => (
+                            <option
+                              key={
+                                profile.id
+                              }
+                              value={
+                                profile.id
+                              }
+                            >
+                              {profile.full_name ||
+                                "Unnamed Staff"}
+                            </option>
+                          )
+                        )}
+                    </select>
+                  </div>
+                )}
 
                 <div>
                   <label
@@ -2809,7 +3307,9 @@ export default function TasksPage() {
                       event
                     ) =>
                       setForm(
-                        (current) => ({
+                        (
+                          current
+                        ) => ({
                           ...current,
                           due_at:
                             event
@@ -2853,7 +3353,9 @@ export default function TasksPage() {
                       event
                     ) =>
                       setForm(
-                        (current) => ({
+                        (
+                          current
+                        ) => ({
                           ...current,
                           description:
                             event
@@ -2879,11 +3381,13 @@ export default function TasksPage() {
 
               <div
                 style={{
-                  display: "flex",
+                  display:
+                    "flex",
                   justifyContent:
                     "flex-end",
                   gap: "10px",
-                  marginTop: "22px",
+                  marginTop:
+                    "22px",
                 }}
               >
                 <button
@@ -2960,8 +3464,10 @@ export default function TasksPage() {
             background:
               "rgba(15,23,42,0.45)",
             display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
+            alignItems:
+              "center",
+            justifyContent:
+              "center",
             padding: "20px",
             zIndex: 1001,
           }}
@@ -2970,8 +3476,10 @@ export default function TasksPage() {
             style={{
               width: "100%",
               maxWidth: "620px",
-              background: "#ffffff",
-              borderRadius: "14px",
+              background:
+                "#ffffff",
+              borderRadius:
+                "14px",
               boxShadow:
                 "0 20px 50px rgba(0,0,0,0.18)",
             }}
@@ -2982,10 +3490,12 @@ export default function TasksPage() {
                   "20px 22px",
                 borderBottom:
                   "1px solid #e5e7eb",
-                display: "flex",
+                display:
+                  "flex",
                 justifyContent:
                   "space-between",
-                alignItems: "flex-start",
+                alignItems:
+                  "flex-start",
                 gap: "15px",
               }}
             >
@@ -3004,7 +3514,9 @@ export default function TasksPage() {
                       "6px",
                   }}
                 >
-                  {selectedTask.task_type}
+                  {
+                    selectedTask.task_type
+                  }
                 </div>
 
                 <h2
@@ -3257,7 +3769,10 @@ export default function TasksPage() {
                     selectedTask
                   );
 
-                if (!lead && !opportunity) {
+                if (
+                  !lead &&
+                  !opportunity
+                ) {
                   return null;
                 }
 
@@ -3407,10 +3922,13 @@ export default function TasksPage() {
 
               <div
                 style={{
-                  display: "flex",
+                  display:
+                    "flex",
                   gap: "8px",
-                  flexWrap: "wrap",
-                  marginTop: "22px",
+                  flexWrap:
+                    "wrap",
+                  marginTop:
+                    "22px",
                 }}
               >
                 {getLead(
@@ -3499,6 +4017,7 @@ export default function TasksPage() {
                       await markComplete(
                         selectedTask
                       );
+
                       setSelectedTask(
                         null
                       );
@@ -3523,6 +4042,7 @@ export default function TasksPage() {
                     setSelectedTask(
                       null
                     );
+
                     openEditModal(
                       selectedTask
                     );

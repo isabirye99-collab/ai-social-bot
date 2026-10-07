@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -13,6 +13,7 @@ type Lead = {
   status: string | null;
   follow_up_status: string | null;
   next_follow_up_at: string | null;
+  assigned_to: string | null;
   created_at: string;
 };
 
@@ -200,12 +201,44 @@ export default function LeadsPage() {
     next_follow_up_at: "",
   });
 
+  const [currentUserId, setCurrentUserId] = useState("");
+  const [currentRole, setCurrentRole] = useState("");
+
   async function loadLeads() {
     try {
       setLoading(true);
       setError("");
 
-      const { data, error } = await supabase
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError) {
+        throw userError;
+      }
+
+      if (!user) {
+        throw new Error("You must be signed in to view leads.");
+      }
+
+      setCurrentUserId(user.id);
+
+      const { data: profile, error: profileError } =
+        await supabase
+          .from("profiles")
+          .select("id, full_name, role")
+          .eq("id", user.id)
+          .maybeSingle();
+
+      if (profileError) {
+        throw profileError;
+      }
+
+      const role = profile?.role || "";
+      setCurrentRole(role);
+
+      let query = supabase
         .from("leads")
         .select(
           `
@@ -218,10 +251,17 @@ export default function LeadsPage() {
           status,
           follow_up_status,
           next_follow_up_at,
+          assigned_to,
           created_at
         `
         )
         .order("created_at", { ascending: false });
+
+      if (role === "salesperson") {
+        query = query.eq("assigned_to", user.id);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         throw error;
@@ -308,60 +348,92 @@ export default function LeadsPage() {
     try {
       setSaving(true);
 
-      const { data: salespeople, error: salespersonError } =
-        await supabase
-          .from("profiles")
-          .select("id, full_name")
-          .eq("role", "salesperson")
-          .eq("is_active", true)
-          .order("full_name", { ascending: true });
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
 
-      if (salespersonError) {
-        throw salespersonError;
+      if (userError) {
+        throw userError;
       }
 
-      if (!salespeople || salespeople.length === 0) {
-        throw new Error(
-          "No active salesperson is available to receive this lead."
-        );
+      if (!user) {
+        throw new Error("You must be signed in to add a lead.");
       }
 
-      const salespersonIds = salespeople.map((person) => person.id);
+      /*
+       * SALESPEOPLE:
+       * The new Lead belongs directly to the logged-in salesperson.
+       *
+       * ADMIN / SUPER ADMIN:
+       * Keep the existing automatic balanced assignment.
+       */
+      let assignedSalespersonId = user.id;
 
-      const { data: assignedLeads, error: assignedLeadsError } =
-        await supabase
-          .from("leads")
-          .select("assigned_to")
-          .in("assigned_to", salespersonIds);
+      if (currentRole !== "salesperson") {
+        const { data: salespeople, error: salespersonError } =
+          await supabase
+            .from("profiles")
+            .select("id, full_name")
+            .eq("role", "salesperson")
+            .eq("is_active", true)
+            .order("full_name", { ascending: true });
 
-      if (assignedLeadsError) {
-        throw assignedLeadsError;
-      }
+        if (salespersonError) {
+          throw salespersonError;
+        }
 
-      const leadCounts = new Map<string, number>();
-
-      salespersonIds.forEach((id) => {
-        leadCounts.set(id, 0);
-      });
-
-      (assignedLeads || []).forEach((lead) => {
-        if (lead.assigned_to) {
-          leadCounts.set(
-            lead.assigned_to,
-            (leadCounts.get(lead.assigned_to) || 0) + 1
+        if (!salespeople || salespeople.length === 0) {
+          throw new Error(
+            "No active salesperson is available to receive this lead."
           );
         }
-      });
 
-      const assignedSalesperson = salespeople.reduce(
-        (current, person) => {
-          const currentCount = leadCounts.get(current.id) || 0;
-          const personCount = leadCounts.get(person.id) || 0;
+        const salespersonIds = salespeople.map(
+          (person) => person.id
+        );
 
-          return personCount < currentCount ? person : current;
-        },
-        salespeople[0]
-      );
+        const { data: assignedLeads, error: assignedLeadsError } =
+          await supabase
+            .from("leads")
+            .select("assigned_to")
+            .in("assigned_to", salespersonIds);
+
+        if (assignedLeadsError) {
+          throw assignedLeadsError;
+        }
+
+        const leadCounts = new Map<string, number>();
+
+        salespersonIds.forEach((id) => {
+          leadCounts.set(id, 0);
+        });
+
+        (assignedLeads || []).forEach((lead) => {
+          if (lead.assigned_to) {
+            leadCounts.set(
+              lead.assigned_to,
+              (leadCounts.get(lead.assigned_to) || 0) + 1
+            );
+          }
+        });
+
+        const assignedSalesperson = salespeople.reduce(
+          (current, person) => {
+            const currentCount =
+              leadCounts.get(current.id) || 0;
+            const personCount =
+              leadCounts.get(person.id) || 0;
+
+            return personCount < currentCount
+              ? person
+              : current;
+          },
+          salespeople[0]
+        );
+
+        assignedSalespersonId = assignedSalesperson.id;
+      }
 
       const { data: createdLead, error } = await supabase
         .from("leads")
@@ -370,13 +442,17 @@ export default function LeadsPage() {
           name: newLead.name.trim(),
           phone: newLead.phone.trim(),
           email: newLead.email.trim() || null,
-          product_service: newLead.product_service.trim() || null,
+          product_service:
+            newLead.product_service.trim() || null,
           status: newLead.status,
-          follow_up_status: newLead.follow_up_status.trim() || null,
+          follow_up_status:
+            newLead.follow_up_status.trim() || null,
           next_follow_up_at: newLead.next_follow_up_at
-            ? new Date(newLead.next_follow_up_at).toISOString()
+            ? new Date(
+                newLead.next_follow_up_at
+              ).toISOString()
             : null,
-          assigned_to: assignedSalesperson.id,
+          assigned_to: assignedSalespersonId,
         })
         .select("id, name, assigned_to")
         .single();
@@ -391,41 +467,27 @@ export default function LeadsPage() {
         );
       }
 
-      let profileId: string | null = null;
-
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (user?.id) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("id")
-          .eq("user_id", user.id)
-          .maybeSingle();
-
-        if (profile?.id) {
-          profileId = profile.id;
-        }
-      }
+      const profileId = user.id;
 
       const initialTaskPayload: Record<string, any> = {
-        title: "Follow up: " + (createdLead.name || newLead.name.trim()),
-        description: "Initial follow-up for newly created Lead.",
+        title:
+          "Follow up: " +
+          (createdLead.name ||
+            newLead.name.trim()),
+        description:
+          "Initial follow-up for newly created Lead.",
         task_type: "call",
         lead_id: createdLead.id,
         due_at: new Date().toISOString(),
         status: "pending",
-        assigned_to: assignedSalesperson.id,
+        assigned_to: assignedSalespersonId,
+        created_by: profileId,
       };
 
-      if (profileId) {
-        initialTaskPayload.created_by = profileId;
-      }
-
-      const { error: initialTaskError } = await supabase
-        .from("tasks")
-        .insert(initialTaskPayload);
+      const { error: initialTaskError } =
+        await supabase
+          .from("tasks")
+          .insert(initialTaskPayload);
 
       if (initialTaskError) {
         throw initialTaskError;
@@ -445,7 +507,11 @@ export default function LeadsPage() {
       setShowAddLead(false);
       await loadLeads();
 
-      alert("Lead added successfully and assigned for follow-up.");
+      alert(
+        currentRole === "salesperson"
+          ? "Lead added successfully and assigned to you for follow-up."
+          : "Lead added successfully and assigned for follow-up."
+      );
     } catch (err: any) {
       console.error(err);
       alert(err?.message || "Failed to add lead.");
@@ -453,11 +519,18 @@ export default function LeadsPage() {
       setSaving(false);
     }
   }
-
   function openActivityWorkflow(
     lead: Lead,
     type: "call" | "whatsapp" | "email"
   ) {
+    if (
+      currentRole === "salesperson" &&
+      lead.assigned_to !== currentUserId
+    ) {
+      alert("You can only work on leads assigned to you.");
+      return;
+    }
+
     if (type === "call" && !lead.phone) {
       alert("This lead does not have a telephone number.");
       return;
@@ -518,7 +591,7 @@ export default function LeadsPage() {
         const { data: profile } = await supabase
           .from("profiles")
           .select("id")
-          .eq("user_id", user.id)
+          .eq("id", user.id)
           .maybeSingle();
 
         if (profile?.id) {
@@ -552,6 +625,15 @@ export default function LeadsPage() {
         .filter(Boolean)
         .join("\n");
 
+      if (
+        currentRole === "salesperson" &&
+        activityLead.assigned_to !== currentUserId
+      ) {
+        throw new Error(
+          "You can only record activities for leads assigned to you."
+        );
+      }
+
       /*
        * 1. SAVE COMMUNICATION HISTORY
        */
@@ -573,7 +655,7 @@ export default function LeadsPage() {
       /*
        * 2. UPDATE THE LEAD
        */
-      const { error: leadError } = await supabase
+      let leadUpdateQuery = supabase
         .from("leads")
         .update({
           status: leadStatus,
@@ -582,6 +664,16 @@ export default function LeadsPage() {
           updated_at: new Date().toISOString(),
         })
         .eq("id", activityLead.id);
+
+      if (currentRole === "salesperson") {
+        leadUpdateQuery = leadUpdateQuery.eq(
+          "assigned_to",
+          currentUserId
+        );
+      }
+
+      const { error: leadError } =
+        await leadUpdateQuery;
 
       if (leadError) {
         throw leadError;
@@ -687,6 +779,7 @@ export default function LeadsPage() {
                 stage_id: targetStage.id,
                 status: "open",
                 probability: Number(targetStage.probability ?? 0),
+                assigned_to: leadRecord.assigned_to,
                 notes: `Automatically moved from Leads after follow-up outcome: ${activityOutcome}.`,
               });
 
@@ -871,6 +964,14 @@ export default function LeadsPage() {
   }
 
   async function openHistory(lead: Lead) {
+    if (
+      currentRole === "salesperson" &&
+      lead.assigned_to !== currentUserId
+    ) {
+      alert("You can only view history for leads assigned to you.");
+      return;
+    }
+
     setHistoryLead(lead);
     setActivities([]);
     setShowHistoryModal(true);
@@ -961,7 +1062,9 @@ export default function LeadsPage() {
                 fontWeight: 800,
               }}
             >
-              Leads
+              {currentRole === "salesperson"
+                ? "My Leads"
+                : "Leads"}
             </h1>
 
             <p
@@ -971,8 +1074,9 @@ export default function LeadsPage() {
                 fontSize: "14px",
               }}
             >
-              Manage, contact, record outcomes and follow up with
-              prospective students.
+              {currentRole === "salesperson"
+                ? "Manage, contact, record outcomes and follow up with your assigned prospective students."
+                : "Manage, contact, record outcomes and follow up with prospective students."}
             </p>
           </div>
 
@@ -1010,7 +1114,11 @@ export default function LeadsPage() {
           }}
         >
           <KpiCard
-            label="Total Leads"
+            label={
+              currentRole === "salesperson"
+                ? "My Leads"
+                : "Total Leads"
+            }
             value={totalLeads}
           />
 

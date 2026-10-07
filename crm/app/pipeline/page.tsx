@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -22,6 +21,7 @@ type Lead = {
   email: string | null;
   product_service: string | null;
   contact_id: string | null;
+  assigned_to: string | null;
 };
 
 type Opportunity = {
@@ -32,8 +32,16 @@ type Opportunity = {
   probability: number | null;
   stage_id: string;
   status: string;
+  assigned_to: string | null;
   updated_at: string | null;
   created_at: string | null;
+};
+
+type Profile = {
+  id: string;
+  full_name: string | null;
+  role: string | null;
+  is_active: boolean | null;
 };
 
 export default function Pipeline() {
@@ -42,136 +50,267 @@ export default function Pipeline() {
   const [stages, setStages] = useState<PipelineStage[]>([]);
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [currentProfile, setCurrentProfile] =
+    useState<Profile | null>(null);
+
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [saving, setSaving] = useState(false);
+
+  const isSalesperson =
+    currentProfile?.role === "salesperson";
+
+  const canViewAllPipeline =
+    currentProfile?.role === "admin" ||
+    currentProfile?.role === "super_admin";
 
   async function loadPipeline() {
     setLoading(true);
     setErrorMessage("");
 
-    const { data: stageData, error: stageError } = await supabase
-      .from("pipeline_stages")
-      .select("id, name, position, probability, is_won, is_lost")
-      .order("position", { ascending: true });
+    try {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
 
-    if (stageError) {
-      console.error("Pipeline stages error:", stageError);
-      setErrorMessage(stageError.message);
-      setStages([]);
-      setLoading(false);
-      return;
-    }
+      if (userError) {
+        throw userError;
+      }
 
-    const { data: opportunityData, error: opportunityError } =
-      await supabase
+      if (!user) {
+        throw new Error(
+          "You are not authenticated."
+        );
+      }
+
+      const {
+        data: profileData,
+        error: profileError,
+      } = await supabase
+        .from("profiles")
+        .select(
+          "id, full_name, role, is_active"
+        )
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (profileError) {
+        throw profileError;
+      }
+
+      if (!profileData) {
+        throw new Error(
+          "Your CRM profile could not be found."
+        );
+      }
+
+      const profile =
+        profileData as Profile;
+
+      setCurrentProfile(profile);
+
+      const {
+        data: stageData,
+        error: stageError,
+      } = await supabase
+        .from("pipeline_stages")
+        .select(
+          "id, name, position, probability, is_won, is_lost"
+        )
+        .order("position", {
+          ascending: true,
+        });
+
+      if (stageError) {
+        throw stageError;
+      }
+
+      let opportunitiesQuery = supabase
         .from("opportunities")
         .select(
-          "id, lead_id, title, value, probability, stage_id, status, updated_at, created_at"
+          "id, lead_id, title, value, probability, stage_id, status, assigned_to, updated_at, created_at"
         )
-        .order("created_at", { ascending: false });
+        .order("created_at", {
+          ascending: false,
+        });
 
-    if (opportunityError) {
-      console.error(
-        "Pipeline opportunities error:",
-        opportunityError
+      let leadsQuery = supabase
+        .from("leads")
+        .select(
+          "id, organization_id, ciu_number, name, phone, email, product_service, contact_id, assigned_to"
+        )
+        .order("name", {
+          ascending: true,
+        });
+
+      /*
+       * SALESPEOPLE SEE ONLY THEIR OWN PIPELINE.
+       *
+       * Admin and Super Admin continue to see
+       * the complete organisation pipeline.
+       */
+      if (profile.role === "salesperson") {
+        opportunitiesQuery =
+          opportunitiesQuery.eq(
+            "assigned_to",
+            user.id
+          );
+
+        leadsQuery =
+          leadsQuery.eq(
+            "assigned_to",
+            user.id
+          );
+      }
+
+      const [
+        {
+          data: opportunityData,
+          error: opportunityError,
+        },
+        {
+          data: leadData,
+          error: leadError,
+        },
+      ] = await Promise.all([
+        opportunitiesQuery,
+        leadsQuery,
+      ]);
+
+      if (opportunityError) {
+        throw opportunityError;
+      }
+
+      if (leadError) {
+        throw leadError;
+      }
+
+      setStages(
+        (stageData as PipelineStage[]) || []
       );
 
-      setErrorMessage(opportunityError.message);
-      setOpportunities([]);
-    } else {
       setOpportunities(
-        (opportunityData as Opportunity[]) || []
+        (opportunityData as Opportunity[]) ||
+          []
       );
-    }
 
-    const { data: leadData, error: leadError } = await supabase
-      .from("leads")
-      .select(
-        "id, organization_id, ciu_number, name, phone, email, product_service, contact_id"
-      )
-      .order("name", { ascending: true });
+      setLeads(
+        (leadData as Lead[]) || []
+      );
+    } catch (error) {
+      console.error(
+        "Pipeline loading error:",
+        error
+      );
 
-    if (leadError) {
-      console.error("Pipeline leads error:", leadError);
-      setErrorMessage(leadError.message);
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "The pipeline could not be loaded."
+      );
+
+      setStages([]);
+      setOpportunities([]);
       setLeads([]);
-    } else {
-      setLeads((leadData as Lead[]) || []);
+    } finally {
+      setLoading(false);
     }
-
-    const loadedStages =
-      (stageData as PipelineStage[]) || [];
-
-    setStages(loadedStages);
-    setLoading(false);
   }
 
   useEffect(() => {
     loadPipeline();
   }, []);
 
-  const openOpportunities = opportunities.filter(
-    (opportunity) => opportunity.status === "open"
-  );
+  const openOpportunities =
+    opportunities.filter(
+      (opportunity) =>
+        opportunity.status === "open"
+    );
 
-  const wonOpportunities = opportunities.filter(
-    (opportunity) => opportunity.status === "won"
-  );
+  const wonOpportunities =
+    opportunities.filter(
+      (opportunity) =>
+        opportunity.status === "won"
+    );
 
-  const lostOpportunities = opportunities.filter(
-    (opportunity) => opportunity.status === "lost"
-  );
+  const lostOpportunities =
+    opportunities.filter(
+      (opportunity) =>
+        opportunity.status === "lost"
+    );
 
-  const pipelineValue = openOpportunities.reduce(
-    (sum, opportunity) =>
-      sum + Number(opportunity.value || 0),
-    0
-  );
-
-  const expectedRevenue = openOpportunities.reduce(
-    (sum, opportunity) => {
-      const stage = stages.find(
-        (pipelineStage) =>
-          pipelineStage.id === opportunity.stage_id
-      );
-
-      const probability =
-        opportunity.probability ??
-        stage?.probability ??
-        0;
-
-      return (
-        sum +
-        Number(opportunity.value || 0) *
-          (Number(probability) / 100)
-      );
-    },
-    0
-  );
-
-  const startOfMonth = new Date();
-
-  startOfMonth.setDate(1);
-  startOfMonth.setHours(0, 0, 0, 0);
-
-  const wonThisMonth = wonOpportunities
-    .filter((opportunity) => {
-      const dateValue =
-        opportunity.updated_at ||
-        opportunity.created_at;
-
-      if (!dateValue) {
-        return false;
-      }
-
-      return new Date(dateValue) >= startOfMonth;
-    })
-    .reduce(
+  const pipelineValue =
+    openOpportunities.reduce(
       (sum, opportunity) =>
-        sum + Number(opportunity.value || 0),
+        sum +
+        Number(
+          opportunity.value || 0
+        ),
       0
     );
+
+  const expectedRevenue =
+    openOpportunities.reduce(
+      (sum, opportunity) => {
+        const stage =
+          stages.find(
+            (pipelineStage) =>
+              pipelineStage.id ===
+              opportunity.stage_id
+          );
+
+        const probability =
+          opportunity.probability ??
+          stage?.probability ??
+          0;
+
+        return (
+          sum +
+          Number(
+            opportunity.value || 0
+          ) *
+            (Number(probability) / 100)
+        );
+      },
+      0
+    );
+
+  const startOfMonth =
+    new Date();
+
+  startOfMonth.setDate(1);
+  startOfMonth.setHours(
+    0,
+    0,
+    0,
+    0
+  );
+
+  const wonThisMonth =
+    wonOpportunities
+      .filter((opportunity) => {
+        const dateValue =
+          opportunity.updated_at ||
+          opportunity.created_at;
+
+        if (!dateValue) {
+          return false;
+        }
+
+        return (
+          new Date(dateValue) >=
+          startOfMonth
+        );
+      })
+      .reduce(
+        (sum, opportunity) =>
+          sum +
+          Number(
+            opportunity.value || 0
+          ),
+        0
+      );
 
   const totalClosedDeals =
     wonOpportunities.length +
@@ -184,13 +323,19 @@ export default function Pipeline() {
         100
       : 0;
 
-  function formatCurrency(value: number) {
+  function formatCurrency(
+    value: number
+  ) {
     if (value >= 1000000) {
-      return `UGX ${(value / 1000000).toFixed(1)}M`;
+      return `UGX ${(value / 1000000).toFixed(
+        1
+      )}M`;
     }
 
     if (value >= 1000) {
-      return `UGX ${(value / 1000).toFixed(0)}K`;
+      return `UGX ${(value / 1000).toFixed(
+        0
+      )}K`;
     }
 
     return `UGX ${value.toLocaleString()}`;
@@ -200,9 +345,11 @@ export default function Pipeline() {
     opportunityId: string,
     stageId: string
   ) {
-    const selectedStage = stages.find(
-      (stage) => stage.id === stageId
-    );
+    const selectedStage =
+      stages.find(
+        (stage) =>
+          stage.id === stageId
+      );
 
     if (!selectedStage) {
       setErrorMessage(
@@ -211,9 +358,11 @@ export default function Pipeline() {
       return;
     }
 
-    const opportunity = opportunities.find(
-      (item) => item.id === opportunityId
-    );
+    const opportunity =
+      opportunities.find(
+        (item) =>
+          item.id === opportunityId
+      );
 
     if (!opportunity) {
       setErrorMessage(
@@ -222,8 +371,26 @@ export default function Pipeline() {
       return;
     }
 
+    /*
+     * Extra client-side protection:
+     * a salesperson can only modify an opportunity
+     * assigned to themselves.
+     */
+    if (
+      isSalesperson &&
+      opportunity.assigned_to !==
+        currentProfile?.id
+    ) {
+      setErrorMessage(
+        "You can only manage opportunities assigned to you."
+      );
+      return;
+    }
+
     const isEnrolledStage =
-      selectedStage.name.trim().toLowerCase() ===
+      selectedStage.name
+        .trim()
+        .toLowerCase() ===
       "enrolled";
 
     const previousStageId =
@@ -246,9 +413,8 @@ export default function Pipeline() {
      *
      * When an opportunity reaches Enrolled:
      * 1. The opportunity becomes Won.
-     * 2. The linked admission is changed to Enrolled.
-     * 3. Customers page picks it up because Customers
-     *    now displays admissions where stage = Enrolled.
+     * 2. The linked admission becomes Enrolled.
+     * 3. Customers page picks it up.
      */
     if (isEnrolledStage) {
       if (!opportunity.lead_id) {
@@ -260,12 +426,19 @@ export default function Pipeline() {
         return;
       }
 
-      const { data: admission, error: admissionLookupError } =
-        await supabase
-          .from("admissions")
-          .select("id, lead_id, stage")
-          .eq("lead_id", opportunity.lead_id)
-          .maybeSingle();
+      const {
+        data: admission,
+        error: admissionLookupError,
+      } = await supabase
+        .from("admissions")
+        .select(
+          "id, lead_id, stage"
+        )
+        .eq(
+          "lead_id",
+          opportunity.lead_id
+        )
+        .maybeSingle();
 
       if (admissionLookupError) {
         console.error(
@@ -281,71 +454,110 @@ export default function Pipeline() {
         return;
       }
 
-      let admissionId: string | null = admission?.id ?? null;
+      let admissionId:
+        | string
+        | null =
+        admission?.id ?? null;
 
-      // Create the admission record from the linked lead when one does not yet exist.
+      /*
+       * Create an admission automatically
+       * if one does not already exist.
+       */
       if (!admission) {
-        const linkedLead = leads.find((lead) => lead.id === opportunity.lead_id);
+        const linkedLead =
+          leads.find(
+            (lead) =>
+              lead.id ===
+              opportunity.lead_id
+          );
 
         if (!linkedLead) {
           setErrorMessage(
             "The linked lead could not be found. The student cannot be moved to Enrolled."
           );
+
           setSaving(false);
           return;
         }
 
-        const { data: createdAdmission, error: admissionCreateError } =
-          await supabase
-            .from("admissions")
-            .insert({
-              lead_id: linkedLead.id,
-              contact_id: linkedLead.contact_id,
-              ciu_number: linkedLead.ciu_number,
-              full_names: linkedLead.name,
-              telephone: linkedLead.phone,
-              email: linkedLead.email,
-              program: linkedLead.product_service,
-              stage: "Enrolled",
-              application_fee: 0,
-              application_paid: 0,
-              acceptance_fee: 0,
-              acceptance_paid: 0,
-              tuition_fee: Number(opportunity.value || 0),
-              tuition_paid: 0,
-              last_contact: now,
-              notes: "Admission record created automatically when the student was moved to Enrolled from the Pipeline.",
-              created_at: now,
-              updated_at: now,
-            })
-            .select("id")
-            .single();
+        const {
+          data: createdAdmission,
+          error:
+            admissionCreateError,
+        } = await supabase
+          .from("admissions")
+          .insert({
+            lead_id:
+              linkedLead.id,
+            contact_id:
+              linkedLead.contact_id,
+            ciu_number:
+              linkedLead.ciu_number,
+            full_names:
+              linkedLead.name,
+            telephone:
+              linkedLead.phone,
+            email:
+              linkedLead.email,
+            program:
+              linkedLead.product_service,
+            stage: "Enrolled",
+            application_fee: 0,
+            application_paid: 0,
+            acceptance_fee: 0,
+            acceptance_paid: 0,
+            tuition_fee: Number(
+              opportunity.value || 0
+            ),
+            tuition_paid: 0,
+            last_contact: now,
+            notes:
+              "Admission record created automatically when the student was moved to Enrolled from the Pipeline.",
+            created_at: now,
+            updated_at: now,
+          })
+          .select("id")
+          .single();
 
-        if (admissionCreateError || !createdAdmission) {
-          console.error("Admission creation error:", admissionCreateError);
+        if (
+          admissionCreateError ||
+          !createdAdmission
+        ) {
+          console.error(
+            "Admission creation error:",
+            admissionCreateError
+          );
+
           setErrorMessage(
             admissionCreateError?.message ||
               "The admission record could not be created."
           );
+
           setSaving(false);
           return;
         }
 
-        admissionId = createdAdmission.id;
+        admissionId =
+          createdAdmission.id;
       }
 
-      const { error: opportunityError } =
-        await supabase
-          .from("opportunities")
-          .update({
-            stage_id: stageId,
-            probability: Number(
-              selectedStage.probability ?? 100
-            ),
-            status: "won",
-            updated_at: now,
-          })
-          .eq("id", opportunityId);
+      const {
+        error: opportunityError,
+      } = await supabase
+        .from("opportunities")
+        .update({
+          stage_id: stageId,
+          probability: Number(
+            selectedStage.probability ??
+              100
+          ),
+          status: "won",
+          updated_at: now,
+        })
+        .eq(
+          "id",
+          opportunityId
+        );
 
       if (opportunityError) {
         console.error(
@@ -361,14 +573,18 @@ export default function Pipeline() {
         return;
       }
 
-      const { error: admissionUpdateError } =
-        await supabase
-          .from("admissions")
-          .update({
-            stage: "Enrolled",
-            updated_at: now,
-          })
-          .eq("id", admissionId);
+      const {
+        error: admissionUpdateError,
+      } = await supabase
+        .from("admissions")
+        .update({
+          stage: "Enrolled",
+          updated_at: now,
+        })
+        .eq(
+          "id",
+          admissionId
+        );
 
       if (admissionUpdateError) {
         console.error(
@@ -377,18 +593,25 @@ export default function Pipeline() {
         );
 
         /*
-         * Roll back the opportunity if the admission
-         * could not be updated.
+         * Roll back the opportunity
+         * if admission update fails.
          */
         await supabase
           .from("opportunities")
           .update({
-            stage_id: previousStageId,
-            probability: previousProbability,
-            status: previousStatus,
-            updated_at: new Date().toISOString(),
+            stage_id:
+              previousStageId,
+            probability:
+              previousProbability,
+            status:
+              previousStatus,
+            updated_at:
+              new Date().toISOString(),
           })
-          .eq("id", opportunityId);
+          .eq(
+            "id",
+            opportunityId
+          );
 
         setErrorMessage(
           "The student could not be moved to Enrolled. The Pipeline change was rolled back."
@@ -398,20 +621,28 @@ export default function Pipeline() {
         return;
       }
 
-      setOpportunities((current) =>
-        current.map((item) =>
-          item.id === opportunityId
-            ? {
-                ...item,
-                stage_id: stageId,
-                probability: Number(
-                  selectedStage.probability ?? 100
-                ),
-                status: "won",
-                updated_at: now,
-              }
-            : item
-        )
+      setOpportunities(
+        (current) =>
+          current.map(
+            (item) =>
+              item.id ===
+              opportunityId
+                ? {
+                    ...item,
+                    stage_id:
+                      stageId,
+                    probability:
+                      Number(
+                        selectedStage.probability ??
+                          100
+                      ),
+                    status:
+                      "won",
+                    updated_at:
+                      now,
+                  }
+                : item
+          )
       );
 
       setSaving(false);
@@ -421,27 +652,29 @@ export default function Pipeline() {
 
     /*
      * NORMAL PIPELINE STAGE CHANGE
-     *
-     * If the opportunity was previously Enrolled/Won
-     * and is moved back to another active stage,
-     * return it to open status.
      */
     const nextStatus =
       selectedStage.is_lost
         ? "lost"
         : "open";
 
-    const { error } = await supabase
-      .from("opportunities")
-      .update({
-        stage_id: stageId,
-        probability: Number(
-          selectedStage.probability ?? 0
-        ),
-        status: nextStatus,
-        updated_at: now,
-      })
-      .eq("id", opportunityId);
+    const { error } =
+      await supabase
+        .from("opportunities")
+        .update({
+          stage_id: stageId,
+          probability: Number(
+            selectedStage.probability ??
+              0
+          ),
+          status:
+            nextStatus,
+          updated_at: now,
+        })
+        .eq(
+          "id",
+          opportunityId
+        );
 
     if (error) {
       console.error(
@@ -449,21 +682,25 @@ export default function Pipeline() {
         error
       );
 
-      setErrorMessage(error.message);
+      setErrorMessage(
+        error.message
+      );
+
       setSaving(false);
       return;
     }
 
     /*
-     * If the opportunity is being moved away from
-     * Enrolled, return the linked admission to the
-     * previous active admission stage rather than
-     * leaving the student incorrectly marked Enrolled.
+     * If an opportunity is moved away from
+     * Enrolled, return its admission to
+     * Acceptance Paid.
      */
-    const previousStage = stages.find(
-      (stage) =>
-        stage.id === previousStageId
-    );
+    const previousStage =
+      stages.find(
+        (stage) =>
+          stage.id ===
+          previousStageId
+      );
 
     const wasPreviouslyEnrolled =
       previousStage?.name
@@ -475,17 +712,20 @@ export default function Pipeline() {
       wasPreviouslyEnrolled &&
       opportunity.lead_id
     ) {
-      const { error: admissionResetError } =
-        await supabase
-          .from("admissions")
-          .update({
-            stage: "Acceptance Paid",
-            updated_at: now,
-          })
-          .eq(
-            "lead_id",
-            opportunity.lead_id
-          );
+      const {
+        error:
+          admissionResetError,
+      } = await supabase
+        .from("admissions")
+        .update({
+          stage:
+            "Acceptance Paid",
+          updated_at: now,
+        })
+        .eq(
+          "lead_id",
+          opportunity.lead_id
+        );
 
       if (admissionResetError) {
         console.error(
@@ -499,20 +739,28 @@ export default function Pipeline() {
       }
     }
 
-    setOpportunities((current) =>
-      current.map((item) =>
-        item.id === opportunityId
-          ? {
-              ...item,
-              stage_id: stageId,
-              probability: Number(
-                selectedStage.probability ?? 0
-              ),
-              status: nextStatus,
-              updated_at: now,
-            }
-          : item
-      )
+    setOpportunities(
+      (current) =>
+        current.map(
+          (item) =>
+            item.id ===
+            opportunityId
+              ? {
+                  ...item,
+                  stage_id:
+                    stageId,
+                  probability:
+                    Number(
+                      selectedStage.probability ??
+                        0
+                    ),
+                  status:
+                    nextStatus,
+                  updated_at:
+                    now,
+                }
+              : item
+        )
     );
 
     setSaving(false);
@@ -522,11 +770,16 @@ export default function Pipeline() {
     <>
       <div className="crm-page-heading">
         <div>
-          <h1>Sales Pipeline</h1>
+          <h1>
+            {isSalesperson
+              ? "My Sales Pipeline"
+              : "Sales Pipeline"}
+          </h1>
 
           <p>
-            Track opportunities from first contact to
-            conversion.
+            {isSalesperson
+              ? "Track your opportunities from first contact to conversion."
+              : "Track opportunities from first contact to conversion."}
           </p>
         </div>
       </div>
@@ -537,9 +790,12 @@ export default function Pipeline() {
             marginBottom: 16,
             padding: 12,
             borderRadius: 8,
-            background: "#fff1f2",
-            border: "1px solid #fecdd3",
-            color: "#be123c",
+            background:
+              "#fff1f2",
+            border:
+              "1px solid #fecdd3",
+            color:
+              "#be123c",
             fontSize: 13,
           }}
         >
@@ -550,15 +806,20 @@ export default function Pipeline() {
       <div className="crm-kpis">
         <div className="crm-kpi">
           <span className="crm-kpi-label">
-            Pipeline Value
+            {isSalesperson
+              ? "My Pipeline Value"
+              : "Pipeline Value"}
           </span>
 
           <div className="crm-kpi-value">
-            {formatCurrency(pipelineValue)}
+            {formatCurrency(
+              pipelineValue
+            )}
           </div>
 
           <span className="crm-kpi-change">
-            {openOpportunities.length} open deals
+            {openOpportunities.length}{" "}
+            open deals
           </span>
         </div>
 
@@ -568,7 +829,9 @@ export default function Pipeline() {
           </span>
 
           <div className="crm-kpi-value">
-            {formatCurrency(expectedRevenue)}
+            {formatCurrency(
+              expectedRevenue
+            )}
           </div>
 
           <span className="crm-kpi-change">
@@ -582,11 +845,14 @@ export default function Pipeline() {
           </span>
 
           <div className="crm-kpi-value">
-            {formatCurrency(wonThisMonth)}
+            {formatCurrency(
+              wonThisMonth
+            )}
           </div>
 
           <span className="crm-kpi-change">
-            {wonOpportunities.length} won deals
+            {wonOpportunities.length}{" "}
+            won deals
           </span>
         </div>
 
@@ -596,7 +862,10 @@ export default function Pipeline() {
           </span>
 
           <div className="crm-kpi-value">
-            {conversionRate.toFixed(1)}%
+            {conversionRate.toFixed(
+              1
+            )}
+            %
           </div>
 
           <span className="crm-kpi-change">
@@ -609,7 +878,8 @@ export default function Pipeline() {
         <div
           style={{
             padding: 30,
-            textAlign: "center",
+            textAlign:
+              "center",
           }}
         >
           Loading pipeline...
@@ -618,25 +888,31 @@ export default function Pipeline() {
         <div className="crm-pipeline">
           {stages
             .filter(
-              (stage) => !stage.is_lost
+              (stage) =>
+                !stage.is_lost
             )
             .map((stage) => {
-              const stageDeals = opportunities.filter(
-                (opportunity) =>
-                  opportunity.stage_id === stage.id &&
-                  (
-                    opportunity.status === "open" ||
-                    (
-                      stage.name.trim().toLowerCase() === "enrolled" &&
-                      opportunity.status === "won"
-                    )
-                  )
-              );
+              const stageDeals =
+                opportunities.filter(
+                  (opportunity) =>
+                    opportunity.stage_id ===
+                      stage.id &&
+                    (opportunity.status ===
+                      "open" ||
+                      (stage.name
+                        .trim()
+                        .toLowerCase() ===
+                        "enrolled" &&
+                        opportunity.status ===
+                          "won"))
+                );
 
               return (
                 <div
                   className="crm-stage"
-                  key={stage.id}
+                  key={
+                    stage.id
+                  }
                 >
                   <div className="crm-stage-head">
                     <strong>
@@ -644,11 +920,15 @@ export default function Pipeline() {
                     </strong>
 
                     <span>
-                      {stageDeals.length} deals
+                      {
+                        stageDeals.length
+                      }{" "}
+                      deals
                     </span>
                   </div>
 
-                  {stageDeals.length === 0 ? (
+                  {stageDeals.length ===
+                  0 ? (
                     <div
                       style={{
                         padding:
@@ -660,138 +940,190 @@ export default function Pipeline() {
                       No deals
                     </div>
                   ) : (
-                    stageDeals.map((deal) => {
-                      const probability =
-                        deal.probability ??
-                        stage.probability ??
-                        0;
+                    stageDeals.map(
+                      (deal) => {
+                        const probability =
+                          deal.probability ??
+                          stage.probability ??
+                          0;
 
-                      const linkedLead =
-                        leads.find(
-                          (lead) =>
-                            lead.id ===
-                            deal.lead_id
-                        );
+                        const linkedLead =
+                          leads.find(
+                            (lead) =>
+                              lead.id ===
+                              deal.lead_id
+                          );
 
-                      return (
-                        <div
-                          className="crm-deal"
-                          key={deal.id}
-                        >
-                          <strong>
-                            {linkedLead?.name ||
-                              deal.title}
-                          </strong>
+                        return (
+                          <div
+                            className="crm-deal"
+                            key={
+                              deal.id
+                            }
+                          >
+                            <strong>
+                              {linkedLead?.name ||
+                                deal.title}
+                            </strong>
 
-                          <small>
-                            {linkedLead?.ciu_number ||
-                              "No CIU number"}{" "}
-                            -{" "}
-                            {linkedLead?.product_service ||
-                              "Programme not set"}
-                          </small>
-
-                          {linkedLead?.phone && (
                             <small>
-                              {linkedLead.phone}
+                              {linkedLead?.ciu_number ||
+                                "No CIU number"}{" "}
+                              -{" "}
+                              {linkedLead?.product_service ||
+                                "Programme not set"}
                             </small>
-                          )}
 
-                          <div className="crm-deal-value">
-                            {formatCurrency(
-                              Number(
-                                deal.value || 0
-                              )
+                            {linkedLead?.phone && (
+                              <small>
+                                {
+                                  linkedLead.phone
+                                }
+                              </small>
                             )}
-                          </div>
 
-                          <div className="crm-progress">
+                            <div className="crm-deal-value">
+                              {formatCurrency(
+                                Number(
+                                  deal.value ||
+                                    0
+                                )
+                              )}
+                            </div>
+
+                            <div className="crm-progress">
+                              <div
+                                style={{
+                                  width: `${Math.min(
+                                    Math.max(
+                                      Number(
+                                        probability
+                                      ),
+                                      0
+                                    ),
+                                    100
+                                  )}%`,
+                                }}
+                              />
+                            </div>
+
                             <div
                               style={{
-                                width: `${Math.min(
-                                  Math.max(
-                                    Number(
-                                      probability
-                                    ),
-                                    0
-                                  ),
-                                  100
-                                )}%`,
-                              }}
-                            />
-                          </div>
-
-                          <div
-                            style={{
-                              marginTop: 12,
-                            }}
-                          >
-                            <select
-                              value={
-                                deal.stage_id
-                              }
-                              disabled={
-                                saving
-                              }
-                              onChange={(
-                                event
-                              ) =>
-                                transferOpportunity(
-                                  deal.id,
-                                  event.target.value
-                                )
-                              }
-                              style={{
-                                flex: 1,
-                                minWidth: 0,
-                                padding:
-                                  "8px 9px",
-                                border:
-                                  "1px solid #d1d5db",
-                                borderRadius: 7,
-                                background:
-                                  "#ffffff",
-                                fontSize: 12,
-                                cursor:
-                                  saving
-                                    ? "not-allowed"
-                                    : "pointer",
+                                marginTop:
+                                  12,
                               }}
                             >
-                              {stages
-                                .filter(
-                                  (stageOption) =>
-                                    !stageOption.is_lost
-                                )
-                                .map(
-                                  (
-                                    stageOption
-                                  ) => (
-                                    <option
-                                      key={
-                                        stageOption.id
-                                      }
-                                      value={
-                                        stageOption.id
-                                      }
-                                    >
-                                      {
-                                        stageOption.name
-                                      }
-                                    </option>
+                              <select
+                                value={
+                                  deal.stage_id
+                                }
+                                disabled={
+                                  saving
+                                }
+                                onChange={(
+                                  event
+                                ) =>
+                                  transferOpportunity(
+                                    deal.id,
+                                    event
+                                      .target
+                                      .value
                                   )
-                                )}
-                            </select>
+                                }
+                                style={{
+                                  flex: 1,
+                                  minWidth: 0,
+                                  padding:
+                                    "8px 9px",
+                                  border:
+                                    "1px solid #d1d5db",
+                                  borderRadius: 7,
+                                  background:
+                                    "#ffffff",
+                                  fontSize: 12,
+                                  cursor:
+                                    saving
+                                      ? "not-allowed"
+                                      : "pointer",
+                                }}
+                              >
+                                {stages
+                                  .filter(
+                                    (
+                                      stageOption
+                                    ) =>
+                                      !stageOption.is_lost
+                                  )
+                                  .map(
+                                    (
+                                      stageOption
+                                    ) => (
+                                      <option
+                                        key={
+                                          stageOption.id
+                                        }
+                                        value={
+                                          stageOption.id
+                                        }
+                                      >
+                                        {
+                                          stageOption.name
+                                        }
+                                      </option>
+                                    )
+                                  )}
+                              </select>
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })
+                        );
+                      }
+                    )
                   )}
                 </div>
               );
             })}
         </div>
       )}
+
+      {!loading &&
+        opportunities.length ===
+          0 && (
+          <div
+            style={{
+              marginTop: 20,
+              padding: 24,
+              textAlign:
+                "center",
+              background:
+                "#ffffff",
+              border:
+                "1px solid #e5e7eb",
+              borderRadius: 12,
+              color:
+                "#6b7280",
+            }}
+          >
+            {isSalesperson
+              ? "You currently have no opportunities assigned to you."
+              : "There are currently no opportunities in the pipeline."}
+          </div>
+        )}
+
+      {!loading &&
+        !isSalesperson &&
+        !canViewAllPipeline && (
+          <div
+            style={{
+              marginTop: 16,
+              fontSize: 12,
+              color:
+                "#6b7280",
+            }}
+          >
+            Your role has limited pipeline
+            visibility.
+          </div>
+        )}
     </>
   );
 }
