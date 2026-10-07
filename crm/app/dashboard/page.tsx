@@ -59,7 +59,7 @@ export default function DashboardPage(){
  return <main className="ciu-page"><div className="ciu-page-inner">
   <div className="ciu-hero">
    <div style={{position:"relative",zIndex:1,display:"flex",justifyContent:"space-between",alignItems:"center",gap:18,flexWrap:"wrap"}}>
-    <div><div style={{fontSize:10,fontWeight:800,letterSpacing:1.5,textTransform:"uppercase",color:"#cce8a8"}}>Clarke International University</div><h1>Management Dashboard</h1><p>A focused view of admissions, pipeline and follow-up activity.</p></div>
+    <div><h1>Management Dashboard</h1><p>A focused view of admissions, pipeline and follow-up activity.</p></div>
     <button type="button" onClick={async()=>{setRefreshing(true);await loadDashboard();}} disabled={refreshing} className="ciu-btn">{refreshing?"↻ Refreshing...":"↻ Refresh"}</button>
    </div>
   </div>
