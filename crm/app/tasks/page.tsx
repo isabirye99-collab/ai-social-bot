@@ -5,31 +5,18 @@ import { createClient } from "@/lib/supabase/client";
 
 const supabase = createClient();
 
-type TaskStatus =
-  | "pending"
-  | "in_progress"
-  | "completed"
-  | "cancelled";
-
-type TaskType =
-  | "Call"
-  | "Email"
-  | "WhatsApp"
-  | "Meeting"
-  | "Note"
-  | "Proposal"
-  | "Other";
+type TaskStatus = "pending" | "in_progress" | "completed" | "cancelled";
 
 type Task = {
   id: string;
   title: string;
   description: string | null;
-  task_type: TaskType | string;
+  task_type: string;
   lead_id: string | null;
   opportunity_id: string | null;
   assigned_to: string | null;
   due_at: string | null;
-  status: TaskStatus | string;
+  status: string;
   completed_at: string | null;
   created_at: string;
   updated_at: string;
@@ -48,29 +35,29 @@ type Lead = {
   ciu_number: string | null;
   phone: string | null;
   email: string | null;
-  assigned_to?: string | null;
+  status: string | null;
+  assigned_to: string | null;
 };
 
 type Opportunity = {
   id: string;
   lead_id: string | null;
   title: string | null;
-  value: number | null;
-  currency: string | null;
   stage_id: string | null;
-  assigned_to?: string | null;
+  assigned_to: string | null;
 };
 
 type PipelineStage = {
   id: string;
   name: string;
   position: number | null;
+  probability: number | null;
 };
 
 type TaskForm = {
   title: string;
   description: string;
-  task_type: TaskType;
+  task_type: string;
   lead_id: string;
   opportunity_id: string;
   assigned_to: string;
@@ -78,10 +65,10 @@ type TaskForm = {
   status: TaskStatus;
 };
 
-const TASK_TYPES: TaskType[] = [
+const TASK_TYPES = [
   "Call",
-  "Email",
   "WhatsApp",
+  "Email",
   "Meeting",
   "Note",
   "Proposal",
@@ -95,6 +82,23 @@ const TASK_STATUSES: TaskStatus[] = [
   "cancelled",
 ];
 
+const OUTCOMES = [
+  "Interested",
+  "Applied",
+  "Application Submitted",
+  "Admitted",
+  "Acceptance Fee Paid",
+  "Enrolled",
+  "Follow up later",
+  "Not interested",
+  "Financial issues",
+  "Lost Leads",
+  "No Answer",
+  "Unreachable",
+  "Wrong Number",
+  "Dropped",
+];
+
 const EMPTY_FORM: TaskForm = {
   title: "",
   description: "",
@@ -106,1173 +110,853 @@ const EMPTY_FORM: TaskForm = {
   status: "pending",
 };
 
-function formatDateTime(value: string | null) {
+function labelStatus(value: string) {
+  return value
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function formatDate(value: string | null) {
   if (!value) return "No due date";
 
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return "Invalid date";
-  }
-
-  return date.toLocaleString("en-UG", {
-    year: "numeric",
+  return new Date(value).toLocaleString([], {
+    day: "2-digit",
     month: "short",
-    day: "numeric",
+    year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
   });
 }
 
-function formatDate(value: string | null) {
-  if (!value) return "—";
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return "—";
-  }
-
-  return date.toLocaleDateString("en-UG", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-}
-
-function formatCurrency(
-  value: number | null,
-  currency = "UGX"
-) {
-  if (value === null || value === undefined) {
-    return "—";
-  }
-
-  return `${currency} ${Number(value).toLocaleString("en-UG")}`;
-}
-
-function getStatusLabel(status: string) {
-  switch (status) {
-    case "pending":
-      return "Pending";
-    case "in_progress":
-      return "In Progress";
-    case "completed":
-      return "Completed";
-    case "cancelled":
-      return "Cancelled";
-    default:
-      return status;
-  }
-}
-
-function getStatusStyle(status: string) {
-  switch (status) {
-    case "pending":
-      return {
-        background: "#fff7ed",
-        color: "#c2410c",
-      };
-
-    case "in_progress":
-      return {
-        background: "#eff6ff",
-        color: "#1d4ed8",
-      };
-
-    case "completed":
-      return {
-        background: "#ecfdf5",
-        color: "#047857",
-      };
-
-    case "cancelled":
-      return {
-        background: "#f3f4f6",
-        color: "#6b7280",
-      };
-
-    default:
-      return {
-        background: "#f3f4f6",
-        color: "#374151",
-      };
-  }
-}
-
-function getTaskTypeIcon(type: string) {
-  switch (type) {
-    case "Call":
-      return "☎";
-    case "Email":
-      return "✉";
-    case "WhatsApp":
-      return "◉";
-    case "Meeting":
-      return "◫";
-    case "Note":
-      return "▤";
-    case "Proposal":
-      return "▱";
-    default:
-      return "✓";
-  }
-}
-
-function isToday(value: string | null) {
-  if (!value) return false;
-
-  const date = new Date(value);
-  const now = new Date();
-
-  return (
-    date.getFullYear() === now.getFullYear() &&
-    date.getMonth() === now.getMonth() &&
-    date.getDate() === now.getDate()
-  );
-}
-
 function isOverdue(task: Task) {
-  if (
-    !task.due_at ||
-    task.status === "completed" ||
-    task.status === "cancelled"
-  ) {
-    return false;
-  }
-
-  return new Date(task.due_at).getTime() < Date.now();
-}
-
-function isCompletedThisMonth(task: Task) {
-  if (task.status !== "completed" || !task.completed_at) {
-    return false;
-  }
-
-  const date = new Date(task.completed_at);
-  const now = new Date();
+  if (!task.due_at) return false;
 
   return (
-    date.getFullYear() === now.getFullYear() &&
-    date.getMonth() === now.getMonth()
+    task.status !== "completed" &&
+    task.status !== "cancelled" &&
+    new Date(task.due_at).getTime() < Date.now()
   );
-}
-
-function toDateTimeLocal(value: string | null) {
-  if (!value) return "";
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return "";
-  }
-
-  const offset = date.getTimezoneOffset();
-
-  const localDate = new Date(
-    date.getTime() - offset * 60 * 1000
-  );
-
-  return localDate.toISOString().slice(0, 16);
-}
-
-function getInitials(name: string | null) {
-  if (!name) return "—";
-
-  return name
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase();
 }
 
 export default function TasksPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
-  const [opportunities, setOpportunities] = useState<
-    Opportunity[]
-  >([]);
-  const [pipelineStages, setPipelineStages] = useState<
-    PipelineStage[]
-  >([]);
+  const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
+  const [stages, setStages] = useState<PipelineStage[]>([]);
 
   const [currentUserId, setCurrentUserId] = useState("");
   const [currentRole, setCurrentRole] = useState("");
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
-  const [assignedFilter, setAssignedFilter] =
-    useState("all");
 
-  const [showModal, setShowModal] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [viewingTask, setViewingTask] = useState<Task | null>(null);
+  const [outcomeTask, setOutcomeTask] = useState<Task | null>(null);
 
-  const [editingTask, setEditingTask] =
-    useState<Task | null>(null);
+  const [outcome, setOutcome] = useState("");
+const [nextFollowUp, setNextFollowUp] = useState("");
+  const [outcomeNotes, setOutcomeNotes] = useState("");
+  const [nextDueAt, setNextDueAt] = useState("");
 
-  const [form, setForm] =
-    useState<TaskForm>(EMPTY_FORM);
+  const [form, setForm] = useState<TaskForm>(EMPTY_FORM);
 
-  const [selectedTask, setSelectedTask] =
-    useState<Task | null>(null);
+  const isSalesperson = currentRole === "salesperson";
 
-  const isSalesperson =
-    currentRole === "salesperson";
-
-  const isAdmin =
+  const canManageAll =
     currentRole === "admin" ||
-    currentRole === "super_admin";
+    currentRole === "super_admin" ||
+    currentRole === "manager";
 
-  const loadAll = async () => {
-    try {
-      setLoading(true);
-      setError("");
+  async function loadData() {
+    setLoading(true);
+    setError("");
 
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
+    const { data: authData, error: authError } =
+      await supabase.auth.getUser();
 
-      if (userError) {
-        throw userError;
-      }
+    if (authError || !authData.user) {
+      setError("Your session could not be verified.");
+      setLoading(false);
+      return;
+    }
 
-      if (!user) {
-        throw new Error(
-          "No authenticated user found."
-        );
-      }
+    const userId = authData.user.id;
 
-      const {
-        data: currentProfile,
-        error: profileError,
-      } = await supabase
+    setCurrentUserId(userId);
+
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("id, full_name, role, is_active")
+      .eq("id", userId)
+      .single();
+
+    if (profileError) {
+      setError(profileError.message);
+      setLoading(false);
+      return;
+    }
+
+    setCurrentRole(profile?.role ?? "");
+
+    let taskQuery = supabase
+      .from("tasks")
+      .select(
+        "id,title,description,task_type,lead_id,opportunity_id,assigned_to,due_at,status,completed_at,created_at,updated_at"
+      )
+      .order("due_at", {
+        ascending: true,
+        nullsFirst: false,
+      });
+
+    if (profile?.role === "salesperson") {
+      taskQuery = taskQuery.eq("assigned_to", userId);
+    }
+
+    const [
+      taskResult,
+      profileResult,
+      leadResult,
+      opportunityResult,
+      stageResult,
+    ] = await Promise.all([
+      taskQuery,
+
+      supabase
         .from("profiles")
-        .select(
-          "id,full_name,role,is_active"
-        )
-        .eq("id", user.id)
-        .maybeSingle();
+        .select("id,full_name,role,is_active")
+        .eq("is_active", true)
+        .order("full_name"),
 
-      if (profileError) {
-        throw profileError;
-      }
-
-      if (!currentProfile) {
-        throw new Error(
-          "Your CRM profile could not be found."
-        );
-      }
-
-      const role =
-        currentProfile.role || "";
-
-      setCurrentUserId(user.id);
-      setCurrentRole(role);
-
-      const salesperson =
-        role === "salesperson";
-
-      let tasksQuery = supabase
-        .from("tasks")
-        .select(
-          "id,title,description,task_type,lead_id,opportunity_id,assigned_to,due_at,status,completed_at,created_at,updated_at"
-        )
-        .order("due_at", {
-          ascending: true,
-          nullsFirst: false,
-        });
-
-      if (salesperson) {
-        tasksQuery = tasksQuery.eq(
-          "assigned_to",
-          user.id
-        );
-      }
-
-      let leadsQuery = supabase
+      supabase
         .from("leads")
         .select(
-          "id,name,ciu_number,phone,email,assigned_to"
+          "id,name,ciu_number,phone,email,status,assigned_to"
         )
-        .order("name", {
-          ascending: true,
-        });
+        .order("created_at", { ascending: false }),
 
-      if (salesperson) {
-        leadsQuery = leadsQuery.eq(
-          "assigned_to",
-          user.id
-        );
-      }
-
-      let opportunitiesQuery = supabase
+      supabase
         .from("opportunities")
         .select(
-          "id,lead_id,title,value,currency,stage_id,assigned_to"
+          "id,lead_id,title,stage_id,assigned_to"
         )
-        .order("title", {
-          ascending: true,
-        });
+        .order("created_at", { ascending: false }),
 
-      if (salesperson) {
-        opportunitiesQuery =
-          opportunitiesQuery.eq(
-            "assigned_to",
-            user.id
-          );
-      }
+      supabase
+        .from("pipeline_stages")
+        .select("id,name,position,probability")
+        .order("position"),
+    ]);
 
-      const [
-        tasksResult,
-        profilesResult,
-        leadsResult,
-        opportunitiesResult,
-        stagesResult,
-      ] = await Promise.all([
-        tasksQuery,
-
-        supabase
-          .from("profiles")
-          .select(
-            "id,full_name,role,is_active"
-          )
-          .order("full_name", {
-            ascending: true,
-          }),
-
-        leadsQuery,
-
-        opportunitiesQuery,
-
-        supabase
-          .from("pipeline_stages")
-          .select(
-            "id,name,position"
-          )
-          .order("position", {
-            ascending: true,
-          }),
-      ]);
-
-      if (tasksResult.error) {
-        throw tasksResult.error;
-      }
-
-      if (profilesResult.error) {
-        throw profilesResult.error;
-      }
-
-      if (leadsResult.error) {
-        throw leadsResult.error;
-      }
-
-      if (opportunitiesResult.error) {
-        throw opportunitiesResult.error;
-      }
-
-      if (stagesResult.error) {
-        throw stagesResult.error;
-      }
-
-      const loadedTasks =
-        (tasksResult.data || []) as Task[];
-
-      const loadedProfiles =
-        (profilesResult.data ||
-          []) as Profile[];
-
-      const loadedLeads =
-        (leadsResult.data ||
-          []) as Lead[];
-
-      const loadedOpportunities =
-        (opportunitiesResult.data ||
-          []) as Opportunity[];
-
-      setTasks(loadedTasks);
-
-      setProfiles(
-        salesperson
-          ? loadedProfiles.filter(
-              (profile) =>
-                profile.id === user.id
-            )
-          : loadedProfiles
-      );
-
-      setLeads(loadedLeads);
-
-      setOpportunities(
-        loadedOpportunities
-      );
-
-      setPipelineStages(
-        (stagesResult.data ||
-          []) as PipelineStage[]
-      );
-    } catch (err) {
-      console.error(err);
-
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Failed to load tasks."
-      );
-    } finally {
+    if (taskResult.error) {
+      setError(taskResult.error.message);
       setLoading(false);
+      return;
     }
-  };
+
+    setTasks((taskResult.data ?? []) as Task[]);
+    setProfiles((profileResult.data ?? []) as Profile[]);
+    setLeads((leadResult.data ?? []) as Lead[]);
+    setOpportunities(
+      (opportunityResult.data ?? []) as Opportunity[]
+    );
+    setStages((stageResult.data ?? []) as PipelineStage[]);
+
+    setLoading(false);
+  }
 
   useEffect(() => {
-    loadAll();
+    loadData();
   }, []);
 
-  const getLead = (task: Task) => {
-    if (!task.lead_id) return null;
+  const leadMap = useMemo(
+    () => new Map(leads.map((lead) => [lead.id, lead])),
+    [leads]
+  );
 
-    return (
-      leads.find(
-        (lead) =>
-          lead.id === task.lead_id
-      ) || null
-    );
-  };
+  const opportunityMap = useMemo(
+    () =>
+      new Map(
+        opportunities.map((opportunity) => [
+          opportunity.id,
+          opportunity,
+        ])
+      ),
+    [opportunities]
+  );
 
-  const getOpportunity = (task: Task) => {
-    if (!task.opportunity_id) return null;
+  const profileMap = useMemo(
+    () =>
+      new Map(
+        profiles.map((profile) => [profile.id, profile])
+      ),
+    [profiles]
+  );
 
-    return (
-      opportunities.find(
-        (opportunity) =>
-          opportunity.id ===
-          task.opportunity_id
-      ) || null
-    );
-  };
+  const visibleTasks = useMemo(() => {
+    const query = search.trim().toLowerCase();
 
-  const getStaff = (task: Task) => {
-    if (!task.assigned_to) return null;
+    return tasks.filter((task) => {
+      const lead = task.lead_id
+        ? leadMap.get(task.lead_id)
+        : null;
 
-    return (
-      profiles.find(
-        (profile) =>
-          profile.id === task.assigned_to
-      ) || null
-    );
-  };
+      const opportunity = task.opportunity_id
+        ? opportunityMap.get(task.opportunity_id)
+        : null;
 
-  const getStage = (
-    stageId: string | null
-  ) => {
-    if (!stageId) return null;
+      const matchesSearch =
+        !query ||
+        task.title.toLowerCase().includes(query) ||
+        (task.description ?? "").toLowerCase().includes(query) ||
+        (lead?.name ?? "").toLowerCase().includes(query) ||
+        (lead?.ciu_number ?? "").toLowerCase().includes(query) ||
+        (lead?.phone ?? "").toLowerCase().includes(query) ||
+        (opportunity?.title ?? "")
+          .toLowerCase()
+          .includes(query);
 
-    return (
-      pipelineStages.find(
-        (stage) =>
-          stage.id === stageId
-      ) || null
-    );
-  };
+      const matchesStatus =
+        statusFilter === "all" ||
+        task.status === statusFilter;
 
-  const stats = useMemo(() => {
-    const activeTasks =
-      tasks.filter(
-        (task) =>
-          task.status !== "completed" &&
-          task.status !== "cancelled"
+      const matchesType =
+        typeFilter === "all" ||
+        task.task_type.toLowerCase() ===
+          typeFilter.toLowerCase();
+
+      return (
+        matchesSearch &&
+        matchesStatus &&
+        matchesType
       );
+    });
+  }, [
+    tasks,
+    search,
+    statusFilter,
+    typeFilter,
+    leadMap,
+    opportunityMap,
+  ]);
 
-    const dueToday =
-      activeTasks.filter(
-        (task) =>
-          isToday(task.due_at)
-      ).length;
+  const counts = useMemo(() => {
+    const open = tasks.filter(
+      (task) =>
+        task.status === "pending" ||
+        task.status === "in_progress"
+    ).length;
 
-    const overdue =
-      activeTasks.filter(
-        (task) =>
-          isOverdue(task)
-      ).length;
+    const overdue = tasks.filter(isOverdue).length;
 
-    const completed =
-      tasks.filter(
-        (task) =>
-          task.status ===
-          "completed"
-      ).length;
+    const completed = tasks.filter(
+      (task) => task.status === "completed"
+    ).length;
 
-    const completedThisMonth =
-      tasks.filter(
-        (task) =>
-          isCompletedThisMonth(task)
-      ).length;
+    const today = tasks.filter((task) => {
+      if (!task.due_at) return false;
 
-    const cancelled =
-      tasks.filter(
-        (task) =>
-          task.status ===
-          "cancelled"
-      ).length;
+      const due = new Date(task.due_at);
+      const now = new Date();
 
-    const totalForRate =
-      tasks.length - cancelled;
-
-    const completionRate =
-      totalForRate > 0
-        ? Math.round(
-            (completed /
-              totalForRate) *
-              100
-          )
-        : 0;
+      return (
+        due.toDateString() === now.toDateString() &&
+        task.status !== "completed" &&
+        task.status !== "cancelled"
+      );
+    }).length;
 
     return {
-      active:
-        activeTasks.length,
-      dueToday,
+      open,
       overdue,
       completed,
-      completedThisMonth,
-      cancelled,
-      completionRate,
+      today,
     };
   }, [tasks]);
 
-  const teamWorkload =
-    useMemo(() => {
-      if (isSalesperson) {
-        return [];
-      }
+  function openCreate() {
+    setEditingTask(null);
 
-      return profiles
-        .filter(
-          (profile) =>
-            profile.is_active !==
-              false &&
-            profile.role ===
-              "salesperson"
-        )
-        .map((profile) => {
-          const staffTasks =
-            tasks.filter(
-              (task) =>
-                task.assigned_to ===
-                profile.id
-            );
+    setForm({
+      ...EMPTY_FORM,
+      assigned_to: isSalesperson
+        ? currentUserId
+        : "",
+      due_at: new Date(
+        Date.now() + 60 * 60 * 1000
+      )
+        .toISOString()
+        .slice(0, 16),
+    });
 
-          const pending =
-            staffTasks.filter(
-              (task) =>
-                task.status !==
-                  "completed" &&
-                task.status !==
-                  "cancelled"
-            ).length;
+    setShowForm(true);
+  }
 
-          const overdue =
-            staffTasks.filter(
-              (task) =>
-                task.status !==
-                  "completed" &&
-                task.status !==
-                  "cancelled" &&
-                isOverdue(task)
-            ).length;
+  function openEdit(task: Task) {
+    if (
+      isSalesperson &&
+      task.assigned_to !== currentUserId
+    ) {
+      return;
+    }
 
-          return {
-            id: profile.id,
-            name:
-              profile.full_name ||
-              "Unnamed Staff",
-            pending,
-            overdue,
-          };
-        })
-        .sort((a, b) => {
-          if (
-            b.overdue !==
-            a.overdue
-          ) {
-            return (
-              b.overdue -
-              a.overdue
-            );
-          }
-
-          return (
-            b.pending -
-            a.pending
-          );
-        });
-    }, [
-      profiles,
-      tasks,
-      isSalesperson,
-    ]);
-
-  const filteredTasks =
-    useMemo(() => {
-      const query =
-        search.trim().toLowerCase();
-
-      return tasks.filter(
-        (task) => {
-          if (
-            statusFilter !==
-              "all" &&
-            task.status !==
-              statusFilter
-          ) {
-            return false;
-          }
-
-          if (
-            typeFilter !==
-              "all" &&
-            task.task_type !==
-              typeFilter
-          ) {
-            return false;
-          }
-
-          if (
-            assignedFilter !==
-              "all" &&
-            task.assigned_to !==
-              assignedFilter
-          ) {
-            return false;
-          }
-
-          if (!query) {
-            return true;
-          }
-
-          const lead =
-            getLead(task);
-
-          const opportunity =
-            getOpportunity(
-              task
-            );
-
-          const staff =
-            getStaff(task);
-
-          const searchable = [
-            task.title,
-            task.description,
-            task.task_type,
-            task.status,
-            lead?.name,
-            lead?.ciu_number,
-            lead?.phone,
-            lead?.email,
-            opportunity?.title,
-            staff?.full_name,
-          ]
-            .filter(Boolean)
-            .join(" ")
-            .toLowerCase();
-
-          return searchable.includes(
-            query
-          );
-        }
-      );
-    }, [
-      tasks,
-      search,
-      statusFilter,
-      typeFilter,
-      assignedFilter,
-      leads,
-      opportunities,
-      profiles,
-    ]);
-
-  const openCreateModal =
-    () => {
-      setEditingTask(null);
-
-      setForm({
-        ...EMPTY_FORM,
-        assigned_to:
-          isSalesperson
-            ? currentUserId
-            : "",
-      });
-
-      setError("");
-      setSuccess("");
-      setShowModal(true);
-    };
-
-  const openEditModal = (
-    task: Task
-  ) => {
     setEditingTask(task);
 
     setForm({
-      title: task.title || "",
-      description:
-        task.description || "",
-      task_type:
-        (task.task_type as TaskType) ||
-        "Call",
-      lead_id:
-        task.lead_id || "",
-      opportunity_id:
-        task.opportunity_id ||
-        "",
+      title: task.title,
+      description: task.description ?? "",
+      task_type: task.task_type
+        ? labelStatus(task.task_type)
+        : "Call",
+      lead_id: task.lead_id ?? "",
+      opportunity_id: task.opportunity_id ?? "",
       assigned_to:
-        task.assigned_to || "",
-      due_at:
-        toDateTimeLocal(
-          task.due_at
-        ),
-      status:
-        (task.status as TaskStatus) ||
-        "pending",
+        task.assigned_to ??
+        (isSalesperson ? currentUserId : ""),
+      due_at: task.due_at
+        ? new Date(task.due_at)
+            .toISOString()
+            .slice(0, 16)
+        : "",
+      status: TASK_STATUSES.includes(
+        task.status as TaskStatus
+      )
+        ? (task.status as TaskStatus)
+        : "pending",
     });
 
+    setShowForm(true);
+  }
+
+  async function handleSaveTask(
+    event: FormEvent
+  ) {
+    event.preventDefault();
+
+    if (!form.title.trim()) return;
+
+    setSaving(true);
     setError("");
-    setSuccess("");
-    setShowModal(true);
-  };
 
-  const handleSaveTask =
-    async (
-      event: FormEvent<HTMLFormElement>
-    ) => {
-      event.preventDefault();
+    const assignedTo = isSalesperson
+      ? currentUserId
+      : form.assigned_to || null;
 
-      if (!form.title.trim()) {
-        setError(
-          "Please enter a task title."
-        );
-        return;
-      }
-
-      try {
-        setSaving(true);
-        setError("");
-        setSuccess("");
-
-        const finalAssignedTo =
-          isSalesperson
-            ? currentUserId
-            : form.assigned_to ||
-              null;
-
-        const payload = {
-          title:
-            form.title.trim(),
-
-          description:
-            form.description.trim() ||
-            null,
-
-          task_type:
-            form.task_type,
-
-          lead_id:
-            form.lead_id || null,
-
-          opportunity_id:
-            form.opportunity_id ||
-            null,
-
-          assigned_to:
-            finalAssignedTo,
-
-          due_at:
-            form.due_at
-              ? new Date(
-                  form.due_at
-                ).toISOString()
-              : null,
-
-          status:
-            form.status,
-        };
-
-        if (editingTask) {
-          const {
-            error: updateError,
-          } = await supabase
-            .from("tasks")
-            .update({
-              ...payload,
-
-              completed_at:
-                form.status ===
-                "completed"
-                  ? editingTask.completed_at ||
-                    new Date().toISOString()
-                  : null,
-
-              updated_at:
-                new Date().toISOString(),
-            })
-            .eq(
-              "id",
-              editingTask.id
-            );
-
-          if (updateError) {
-            throw updateError;
+    const payload = {
+      title: form.title.trim(),
+      description:
+        form.description.trim() || null,
+      task_type: form.task_type.toLowerCase(),
+      lead_id: form.lead_id || null,
+      opportunity_id:
+        form.opportunity_id || null,
+      assigned_to: assignedTo,
+      due_at: form.due_at
+        ? new Date(form.due_at).toISOString()
+        : null,
+      status: form.status,
+      ...(form.status === "completed"
+        ? {
+            completed_at:
+              new Date().toISOString(),
           }
-
-          setSuccess(
-            "Task updated successfully."
-          );
-        } else {
-          const {
-            data: {
-              user,
-            },
-          } =
-            await supabase.auth.getUser();
-
-          const insertPayload:
-            Record<
-              string,
-              unknown
-            > = {
-            ...payload,
-          };
-
-          if (user?.id) {
-            insertPayload.created_by =
-              user.id;
-          }
-
-          if (
-            form.status ===
-            "completed"
-          ) {
-            insertPayload.completed_at =
-              new Date().toISOString();
-          }
-
-          const {
-            error: insertError,
-          } = await supabase
-            .from("tasks")
-            .insert(
-              insertPayload
-            );
-
-          if (insertError) {
-            throw insertError;
-          }
-
-          setSuccess(
-            "Task created successfully."
-          );
-        }
-
-        setShowModal(false);
-        setEditingTask(null);
-        setForm(EMPTY_FORM);
-
-        await loadAll();
-      } catch (err) {
-        console.error(err);
-
-        setError(
-          err instanceof Error
-            ? err.message
-            : "Failed to save task."
-        );
-      } finally {
-        setSaving(false);
-      }
+        : {}),
     };
 
-  const markComplete =
-    async (task: Task) => {
-      try {
-        setError("");
-        setSuccess("");
+    const result = editingTask
+      ? await supabase
+          .from("tasks")
+          .update(payload)
+          .eq("id", editingTask.id)
+      : await supabase
+          .from("tasks")
+          .insert({
+            ...payload,
+            created_by: currentUserId,
+          });
 
-        const {
-          error: updateError,
-        } = await supabase
+    if (result.error) {
+      setError(result.error.message);
+      setSaving(false);
+      return;
+    }
+
+    setShowForm(false);
+    setEditingTask(null);
+    setForm(EMPTY_FORM);
+    setSaving(false);
+
+    await loadData();
+  }
+  async function completeTask(task: Task) {
+    if (
+      isSalesperson &&
+      task.assigned_to !== currentUserId
+    ) {
+      return;
+    }
+
+    const { error: updateError } = await supabase
+      .from("tasks")
+      .update({
+        status: "completed",
+        completed_at: new Date().toISOString(),
+      })
+      .eq("id", task.id);
+
+    if (updateError) {
+      setError(updateError.message);
+      return;
+    }
+
+    setViewingTask(null);
+
+    await loadData();
+  }
+
+  async function deleteTask(task: Task) {
+    if (
+      isSalesperson &&
+      task.assigned_to !== currentUserId
+    ) {
+      return;
+    }
+
+    if (
+      !window.confirm(
+        `Delete "${task.title}"?`
+      )
+    ) {
+      return;
+    }
+
+    const { error: deleteError } =
+      await supabase
+        .from("tasks")
+        .delete()
+        .eq("id", task.id);
+
+    if (deleteError) {
+      setError(deleteError.message);
+      return;
+    }
+
+    setViewingTask(null);
+
+    await loadData();
+  }
+
+  function openOutcome(task: Task) {
+    setViewingTask(null);
+    setOutcomeTask(task);
+    setOutcome("");
+    setOutcomeNotes("");
+    setNextDueAt("");
+  }
+
+  async function updateLeadFromOutcome(
+    task: Task,
+    selectedOutcome: string,
+    notes: string
+  ) {
+    if (!task.lead_id) return;
+
+    let leadStatus = "Pending";
+
+    switch (selectedOutcome) {
+      case "Interested":
+        leadStatus = "Interested";
+        break;
+
+      case "Applied":
+      case "Application Submitted":
+      case "Admitted":
+      case "Acceptance Fee Paid":
+      case "Enrolled":
+        leadStatus = "Converted";
+        break;
+
+      case "Not interested":
+        leadStatus = "Not interested";
+        break;
+
+      case "Financial issues":
+        leadStatus = "Financial issues";
+        break;
+
+      case "Lost Leads":
+        leadStatus = "Lost Leads";
+        break;
+
+      case "Dropped":
+        leadStatus = "Dropped";
+        break;
+
+      case "Follow up later":
+        leadStatus = "Follow up later";
+        break;
+
+      case "No Answer":
+        leadStatus = "No Answer";
+        break;
+
+      case "Unreachable":
+        leadStatus = "Unreachable";
+        break;
+
+      case "Wrong Number":
+        leadStatus = "Ineffective Data";
+        break;
+
+      default:
+        leadStatus = "Called";
+    }
+
+    const { error } = await supabase
+      .from("leads")
+      .update({
+        status: leadStatus,
+        feedback: notes.trim() || null,
+        follow_up_status: selectedOutcome,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", task.lead_id);
+
+    if (error) {
+      throw error;
+    }
+  }
+
+  async function moveToPipeline(
+    task: Task,
+    stageName: string
+  ) {
+    if (!task.lead_id) return;
+
+    const lead = leadMap.get(task.lead_id);
+
+    if (!lead) return;
+
+    const targetStage =
+      stages.find(
+        (stage) =>
+          stage.name.toLowerCase() ===
+          stageName.toLowerCase()
+      ) ??
+      stages.find(
+        (stage) =>
+          stage.name
+            .toLowerCase()
+            .includes(stageName.toLowerCase())
+      );
+
+    if (!targetStage) {
+      return;
+    }
+
+    if (task.opportunity_id) {
+      const { error } = await supabase
+        .from("opportunities")
+        .update({
+          stage_id: targetStage.id,
+          assigned_to:
+            task.assigned_to ??
+            currentUserId,
+        })
+        .eq("id", task.opportunity_id);
+
+      if (error) {
+        throw error;
+      }
+
+      return;
+    }
+
+    const { data: existingOpportunity } =
+      await supabase
+        .from("opportunities")
+        .select("id")
+        .eq("lead_id", lead.id)
+        .maybeSingle();
+
+    if (existingOpportunity?.id) {
+      const { error } = await supabase
+        .from("opportunities")
+        .update({
+          stage_id: targetStage.id,
+          assigned_to:
+            task.assigned_to ??
+            currentUserId,
+        })
+        .eq(
+          "id",
+          existingOpportunity.id
+        );
+
+      if (error) {
+        throw error;
+      }
+
+      return;
+    }
+
+    const { error } = await supabase
+      .from("opportunities")
+      .insert({
+        lead_id: lead.id,
+        title: lead.name
+          ? `${lead.name} - Admission`
+          : "Admission Opportunity",
+        stage_id: targetStage.id,
+        assigned_to:
+          task.assigned_to ??
+          currentUserId,
+        status: "open",
+        probability:
+          targetStage.probability ?? 0,
+      });
+
+    if (error) {
+      throw error;
+    }
+  }
+
+  async function saveOutcome() {
+    if (!outcomeTask || !outcome) {
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+
+    try {
+      await updateLeadFromOutcome(
+        outcomeTask,
+        outcome,
+        outcomeNotes
+      );
+
+      const pipelineOutcomes = [
+        "Interested",
+        "Applied",
+        "Application Submitted",
+        "Admitted",
+        "Acceptance Fee Paid",
+        "Enrolled",
+      ];
+
+      if (
+        pipelineOutcomes.includes(outcome)
+      ) {
+        await moveToPipeline(
+          outcomeTask,
+          outcome
+        );
+      }
+
+      const existingDescription =
+        outcomeTask.description ?? "";
+
+      const outcomeDescription =
+        `${existingDescription}\n\nOutcome: ${outcome}` +
+        (outcomeNotes.trim()
+          ? `\nNotes: ${outcomeNotes.trim()}`
+          : "");
+
+      const { error: taskError } =
+        await supabase
           .from("tasks")
           .update({
             status: "completed",
             completed_at:
               new Date().toISOString(),
-            updated_at:
-              new Date().toISOString(),
+            description:
+              outcomeDescription.trim(),
           })
-          .eq(
-            "id",
-            task.id
-          );
+          .eq("id", outcomeTask.id);
 
-        if (updateError) {
-          throw updateError;
-        }
-
-        setSuccess(
-          "Task marked as completed."
-        );
-
-        await loadAll();
-      } catch (err) {
-        console.error(err);
-
-        setError(
-          err instanceof Error
-            ? err.message
-            : "Failed to complete task."
-        );
+      if (taskError) {
+        throw taskError;
       }
-    };
 
-  const updateStatus =
-    async (
-      task: Task,
-      status: TaskStatus
-    ) => {
-      try {
-        setError("");
-        setSuccess("");
+      const needsNextTask =
+        outcome === "Follow up later" ||
+        outcome === "No Answer" ||
+        outcome === "Unreachable";
 
-        const {
-          error: updateError,
-        } = await supabase
-          .from("tasks")
-          .update({
-            status,
+      if (
+        needsNextTask &&
+        outcomeTask.assigned_to
+      ) {
+        const defaultDays =
+          outcome === "Follow up later"
+            ? 3
+            : 1;
 
-            completed_at:
-              status ===
-              "completed"
-                ? new Date().toISOString()
-                : null,
+        const dueAt = nextDueAt
+          ? new Date(nextDueAt).toISOString()
+          : new Date(
+              Date.now() +
+                defaultDays *
+                  24 *
+                  60 *
+                  60 *
+                  1000
+            ).toISOString();
 
-            updated_at:
-              new Date().toISOString(),
-          })
-          .eq(
-            "id",
-            task.id
-          );
+        const lead =
+          outcomeTask.lead_id
+            ? leadMap.get(
+                outcomeTask.lead_id
+              )
+            : null;
 
-        if (updateError) {
-          throw updateError;
+        const { error: nextTaskError } =
+          await supabase
+            .from("tasks")
+            .insert({
+              title: `Follow up: ${
+                lead?.name ?? "Student"
+              }`,
+              description:
+                `Next follow-up created automatically. Previous outcome: ${outcome}.`,
+              task_type:
+                outcomeTask.task_type,
+              lead_id:
+                outcomeTask.lead_id,
+              opportunity_id:
+                outcomeTask.opportunity_id,
+              assigned_to:
+                outcomeTask.assigned_to,
+              due_at: dueAt,
+              status: "pending",
+              created_by:
+                currentUserId,
+            });
+
+        if (nextTaskError) {
+          throw nextTaskError;
         }
-
-        setSuccess(
-          "Task status updated."
-        );
-
-        await loadAll();
-      } catch (err) {
-        console.error(err);
-
-        setError(
-          err instanceof Error
-            ? err.message
-            : "Failed to update task."
-        );
       }
-    };
 
-  const deleteTask =
-    async (task: Task) => {
-      const confirmed =
-        window.confirm(
-          `Delete "${task.title}"? This action cannot be undone.`
+      setOutcomeTask(null);
+      setOutcome("");
+      setOutcomeNotes("");
+      setNextDueAt("");
+
+      await loadData();
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to save the outcome."
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function contactStudent(
+    task: Task,
+    channel:
+      | "call"
+      | "whatsapp"
+      | "email"
+  ) {
+    const lead = task.lead_id
+      ? leadMap.get(task.lead_id)
+      : null;
+
+    if (!lead) {
+      return;
+    }
+
+    if (
+      channel === "call" &&
+      lead.phone
+    ) {
+      window.location.href =
+        `tel:${lead.phone}`;
+    }
+
+    if (
+      channel === "whatsapp" &&
+      lead.phone
+    ) {
+      const phone =
+        lead.phone.replace(
+          /[^\d]/g,
+          ""
         );
 
-      if (!confirmed) return;
-
-      try {
-        setError("");
-        setSuccess("");
-
-        const {
-          error: deleteError,
-        } = await supabase
-          .from("tasks")
-          .delete()
-          .eq(
-            "id",
-            task.id
-          );
-
-        if (deleteError) {
-          throw deleteError;
-        }
-
-        setSuccess(
-          "Task deleted successfully."
-        );
-
-        if (
-          selectedTask?.id ===
-          task.id
-        ) {
-          setSelectedTask(null);
-        }
-
-        await loadAll();
-      } catch (err) {
-        console.error(err);
-
-        setError(
-          err instanceof Error
-            ? err.message
-            : "Failed to delete task."
-        );
-      }
-    };
-
-  const callLead = (
-    lead: Lead | null
-  ) => {
-    if (!lead?.phone) {
-      setError(
-        "This lead does not have a phone number."
+      window.open(
+        `https://wa.me/${phone}`,
+        "_blank"
       );
-      return;
     }
 
-    window.location.href =
-      `tel:${lead.phone}`;
-  };
-
-  const whatsappLead = (
-    lead: Lead | null
-  ) => {
-    if (!lead?.phone) {
-      setError(
-        "This lead does not have a phone number."
-      );
-      return;
+    if (
+      channel === "email" &&
+      lead.email
+    ) {
+      window.location.href =
+        `mailto:${lead.email}`;
     }
+  }
 
-    const phone =
-      lead.phone.replace(
-        /[^\d]/g,
-        ""
-      );
+  function quickCreate(
+    type: string
+  ) {
+    setEditingTask(null);
 
-    if (!phone) {
-      setError(
-        "The lead phone number is invalid."
-      );
-      return;
-    }
+    setForm({
+      ...EMPTY_FORM,
+      task_type: type,
+      title: `${type} follow-up`,
+      assigned_to: isSalesperson
+        ? currentUserId
+        : "",
+      due_at: new Date(
+        Date.now() +
+          60 * 60 * 1000
+      )
+        .toISOString()
+        .slice(0, 16),
+    });
 
-    window.open(
-      `https://wa.me/${phone}`,
-      "_blank",
-      "noopener,noreferrer"
-    );
-  };
-
-  const emailLead = (
-    lead: Lead | null
-  ) => {
-    if (!lead?.email) {
-      setError(
-        "This lead does not have an email address."
-      );
-      return;
-    }
-
-    window.location.href =
-      `mailto:${lead.email}`;
-  };
-
-  const clearFilters =
-    () => {
-      setSearch("");
-      setStatusFilter("all");
-      setTypeFilter("all");
-      setAssignedFilter("all");
-    };
-
-  const inputStyle:
-    React.CSSProperties = {
-    width: "100%",
-    height: "42px",
-    padding: "0 12px",
-    border:
-      "1px solid #d1d5db",
-    borderRadius: "8px",
-    background: "#ffffff",
-    color: "#111827",
-    fontSize: "14px",
-    outline: "none",
-    boxSizing: "border-box",
-  };
-
-  const smallActionButton:
-    React.CSSProperties = {
-    border:
-      "1px solid #d1d5db",
-    background: "#ffffff",
-    color: "#374151",
-    borderRadius: "7px",
-    padding: "6px 9px",
-    fontSize: "12px",
-    fontWeight: 650,
-    cursor: "pointer",
-    whiteSpace: "nowrap",
-  };
+    setShowForm(true);
+  }
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        background: "#f8fafc",
-        padding: "30px",
-        color: "#111827",
-      }}
-    >
-      <div
-        style={{
-          maxWidth: "1500px",
-          margin: "0 auto",
-        }}
-      >
-        {/* HEADER */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent:
-              "space-between",
-            alignItems: "center",
-            gap: "20px",
-            flexWrap: "wrap",
-            marginBottom: "24px",
-          }}
-        >
+    <main className="ciu-page">
+      <div className="ciu-page-inner">
+
+        <section className="ciu-hero">
           <div>
+            <div
+              style={{
+                fontSize: 13,
+                fontWeight: 800,
+                color: "#8bc63f",
+                textTransform: "uppercase",
+                letterSpacing: 1,
+              }}
+            >
+              Work Centre
+            </div>
+
             <h1
               style={{
-                margin: 0,
-                fontSize: "28px",
-                fontWeight: 800,
-                letterSpacing:
-                  "-0.5px",
+                margin:
+                  "6px 0 4px",
+                fontSize: 30,
               }}
             >
               {isSalesperson
@@ -1282,835 +966,246 @@ export default function TasksPage() {
 
             <p
               style={{
-                margin:
-                  "6px 0 0",
-                color: "#6b7280",
-                fontSize: "14px",
+                margin: 0,
+                opacity: 0.82,
               }}
             >
-              {isSalesperson
-                ? "Stay on top of your activities and never miss an opportunity."
-                : "Stay on top of activities and never miss an opportunity."}
+              All calls, WhatsApp,
+              email and follow-up
+              work in one place.
             </p>
           </div>
 
           <button
-            type="button"
-            onClick={
-              openCreateModal
-            }
-            style={{
-              border: "none",
-              borderRadius: "9px",
-              background: "#111827",
-              color: "#ffffff",
-              padding:
-                "11px 17px",
-              fontSize: "14px",
-              fontWeight: 700,
-              cursor: "pointer",
-            }}
+            className="ciu-btn"
+            onClick={openCreate}
           >
             + New Task
           </button>
-        </div>
+        </section>
 
-        {/* ALERTS */}
         {error && (
           <div
             style={{
-              marginBottom:
-                "16px",
-              padding:
-                "12px 15px",
-              borderRadius: "9px",
-              border:
-                "1px solid #fecaca",
+              margin:
+                "16px 0",
+              padding: 14,
+              borderRadius: 10,
               background:
-                "#fef2f2",
-              color: "#b91c1c",
-              fontSize: "14px",
+                "#fff0f0",
+              color: "#a12626",
+              border:
+                "1px solid #f0caca",
             }}
           >
             {error}
           </div>
         )}
 
-        {success && (
-          <div
-            style={{
-              marginBottom:
-                "16px",
-              padding:
-                "12px 15px",
-              borderRadius: "9px",
-              border:
-                "1px solid #a7f3d0",
-              background:
-                "#ecfdf5",
-              color: "#047857",
-              fontSize: "14px",
-            }}
-          >
-            {success}
-          </div>
-        )}
-
-        {/* KPI CARDS */}
-        <div
+        <section
+          className="ciu-kpis"
           style={{
-            display: "grid",
-            gridTemplateColumns:
-              "repeat(4, minmax(0, 1fr))",
-            gap: "16px",
-            marginBottom:
-              "24px",
+            marginTop: 18,
           }}
         >
-          <div
-            style={{
-              background:
-                "#ffffff",
-              border:
-                "1px solid #e5e7eb",
-              borderRadius:
-                "14px",
-              padding: "19px",
-            }}
-          >
-            <div
-              style={{
-                color:
-                  "#6b7280",
-                fontSize:
-                  "13px",
-                marginBottom:
-                  "8px",
-              }}
-            >
+          <div className="ciu-kpi">
+            <span>
+              Open Tasks
+            </span>
+            <strong>
+              {counts.open}
+            </strong>
+          </div>
+
+          <div className="ciu-kpi">
+            <span>
               Due Today
-            </div>
-
-            <div
-              style={{
-                fontSize:
-                  "28px",
-                fontWeight: 800,
-              }}
-            >
-              {stats.dueToday}
-            </div>
+            </span>
+            <strong>
+              {counts.today}
+            </strong>
           </div>
 
-          <div
-            style={{
-              background:
-                "#ffffff",
-              border:
-                "1px solid #e5e7eb",
-              borderRadius:
-                "14px",
-              padding: "19px",
-            }}
-          >
-            <div
-              style={{
-                color:
-                  "#6b7280",
-                fontSize:
-                  "13px",
-                marginBottom:
-                  "8px",
-              }}
-            >
+          <div className="ciu-kpi">
+            <span>
               Overdue
-            </div>
-
-            <div
-              style={{
-                fontSize:
-                  "28px",
-                fontWeight: 800,
-                color:
-                  stats.overdue >
-                  0
-                    ? "#b91c1c"
-                    : "#111827",
-              }}
-            >
-              {stats.overdue}
-            </div>
+            </span>
+            <strong>
+              {counts.overdue}
+            </strong>
           </div>
 
-          <div
-            style={{
-              background:
-                "#ffffff",
-              border:
-                "1px solid #e5e7eb",
-              borderRadius:
-                "14px",
-              padding: "19px",
-            }}
-          >
-            <div
-              style={{
-                color:
-                  "#6b7280",
-                fontSize:
-                  "13px",
-                marginBottom:
-                  "8px",
-              }}
-            >
-              Completed This Month
-            </div>
-
-            <div
-              style={{
-                fontSize:
-                  "28px",
-                fontWeight: 800,
-              }}
-            >
-              {stats.completedThisMonth}
-            </div>
+          <div className="ciu-kpi">
+            <span>
+              Completed
+            </span>
+            <strong>
+              {counts.completed}
+            </strong>
           </div>
+        </section>
 
-          <div
-            style={{
-              background:
-                "#ffffff",
-              border:
-                "1px solid #e5e7eb",
-              borderRadius:
-                "14px",
-              padding: "19px",
-            }}
-          >
-            <div
-              style={{
-                color:
-                  "#6b7280",
-                fontSize:
-                  "13px",
-                marginBottom:
-                  "8px",
-              }}
-            >
-              Completion Rate
-            </div>
-
-            <div
-              style={{
-                fontSize:
-                  "28px",
-                fontWeight: 800,
-              }}
-            >
-              {stats.completionRate}%
-            </div>
-          </div>
-        </div>
-
-        {/* TEAM WORKLOAD */}
-        {!isSalesperson && (
-          <div
-            style={{
-              background:
-                "#ffffff",
-              border:
-                "1px solid #e5e7eb",
-              borderRadius:
-                "14px",
-              padding:
-                "20px 22px",
-              marginBottom:
-                "24px",
-            }}
-          >
-            <div
-              style={{
-                display:
-                  "flex",
-                justifyContent:
-                  "space-between",
-                alignItems:
-                  "center",
-                marginBottom:
-                  "16px",
-                gap: "16px",
-                flexWrap:
-                  "wrap",
-              }}
-            >
-              <div>
-                <h2
-                  style={{
-                    margin: 0,
-                    fontSize:
-                      "19px",
-                    fontWeight:
-                      750,
-                  }}
-                >
-                  Team Workload
-                </h2>
-
-                <p
-                  style={{
-                    margin:
-                      "5px 0 0",
-                    color:
-                      "#6b7280",
-                    fontSize:
-                      "13px",
-                  }}
-                >
-                  Pending and overdue
-                  tasks by
-                  salesperson
-                </p>
-              </div>
-
-              <div
-                style={{
-                  fontSize:
-                    "13px",
-                  color:
-                    "#6b7280",
-                }}
-              >
-                {
-                  teamWorkload.length
-                }{" "}
-                active
-                salesperson
-                {teamWorkload.length ===
-                1
-                  ? ""
-                  : "s"}
-              </div>
-            </div>
-
-            {teamWorkload.length ===
-            0 ? (
-              <div
-                style={{
-                  padding:
-                    "18px",
-                  borderRadius:
-                    "10px",
-                  background:
-                    "#f9fafb",
-                  color:
-                    "#6b7280",
-                  fontSize:
-                    "14px",
-                  textAlign:
-                    "center",
-                }}
-              >
-                No active salespeople
-                found.
-              </div>
-            ) : (
-              <div
-                style={{
-                  display:
-                    "grid",
-                  gridTemplateColumns:
-                    "repeat(auto-fit, minmax(220px, 1fr))",
-                  gap: "12px",
-                }}
-              >
-                {teamWorkload.map(
-                  (staff) => (
-                    <button
-                      key={
-                        staff.id
-                      }
-                      type="button"
-                      onClick={() =>
-                        setAssignedFilter(
-                          staff.id
-                        )
-                      }
-                      style={{
-                        textAlign:
-                          "left",
-                        border:
-                          assignedFilter ===
-                          staff.id
-                            ? "2px solid #111827"
-                            : "1px solid #e5e7eb",
-                        borderRadius:
-                          "12px",
-                        padding:
-                          "15px",
-                        background:
-                          assignedFilter ===
-                          staff.id
-                            ? "#f9fafb"
-                            : "#ffffff",
-                        cursor:
-                          "pointer",
-                      }}
-                    >
-                      <div
-                        style={{
-                          fontSize:
-                            "14px",
-                          fontWeight:
-                            700,
-                          color:
-                            "#111827",
-                          marginBottom:
-                            "12px",
-                        }}
-                      >
-                        {
-                          staff.name
-                        }
-                      </div>
-
-                      <div
-                        style={{
-                          display:
-                            "grid",
-                          gridTemplateColumns:
-                            "1fr 1fr",
-                          gap: "10px",
-                        }}
-                      >
-                        <div
-                          style={{
-                            padding:
-                              "10px",
-                            borderRadius:
-                              "8px",
-                            background:
-                              "#f3f4f6",
-                          }}
-                        >
-                          <div
-                            style={{
-                              fontSize:
-                                "11px",
-                              color:
-                                "#6b7280",
-                              marginBottom:
-                                "3px",
-                            }}
-                          >
-                            Pending
-                          </div>
-
-                          <div
-                            style={{
-                              fontSize:
-                                "20px",
-                              fontWeight:
-                                800,
-                            }}
-                          >
-                            {
-                              staff.pending
-                            }
-                          </div>
-                        </div>
-
-                        <div
-                          style={{
-                            padding:
-                              "10px",
-                            borderRadius:
-                              "8px",
-                            background:
-                              staff.overdue >
-                              0
-                                ? "#fef2f2"
-                                : "#f3f4f6",
-                          }}
-                        >
-                          <div
-                            style={{
-                              fontSize:
-                                "11px",
-                              color:
-                                staff.overdue >
-                                0
-                                  ? "#b91c1c"
-                                  : "#6b7280",
-                              marginBottom:
-                                "3px",
-                            }}
-                          >
-                            Overdue
-                          </div>
-
-                          <div
-                            style={{
-                              fontSize:
-                                "20px",
-                              fontWeight:
-                                800,
-                              color:
-                                staff.overdue >
-                                0
-                                  ? "#b91c1c"
-                                  : "#111827",
-                            }}
-                          >
-                            {
-                              staff.overdue
-                            }
-                          </div>
-                        </div>
-                      </div>
-                    </button>
-                  )
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* MAIN CARD */}
-        <div
+        <section
+          className="ciu-toolbar"
           style={{
-            background:
-              "#ffffff",
-            border:
-              "1px solid #e5e7eb",
-            borderRadius:
-              "14px",
-            overflow:
-              "hidden",
+            marginTop: 18,
+            display: "flex",
+            gap: 10,
+            flexWrap: "wrap",
           }}
         >
-          <div
+          <input
+            value={search}
+            onChange={(event) =>
+              setSearch(
+                event.target.value
+              )
+            }
+            placeholder="Search student, CIU number or task..."
             style={{
+              flex:
+                "1 1 280px",
+              minHeight: 42,
+              border:
+                "1px solid #dfe9e5",
+              borderRadius: 9,
               padding:
-                "20px 22px",
-              borderBottom:
-                "1px solid #e5e7eb",
+                "0 13px",
             }}
+          />
+
+          <select
+            className="ciu-select"
+            value={statusFilter}
+            onChange={(event) =>
+              setStatusFilter(
+                event.target.value
+              )
+            }
           >
-            <div
-              style={{
-                marginBottom:
-                  "18px",
-              }}
-            >
+            <option value="all">
+              All statuses
+            </option>
+
+            {TASK_STATUSES.map(
+              (status) => (
+                <option
+                  key={status}
+                  value={status}
+                >
+                  {labelStatus(
+                    status
+                  )}
+                </option>
+              )
+            )}
+          </select>
+
+          <select
+            className="ciu-select"
+            value={typeFilter}
+            onChange={(event) =>
+              setTypeFilter(
+                event.target.value
+              )
+            }
+          >
+            <option value="all">
+              All types
+            </option>
+
+            {TASK_TYPES.map(
+              (type) => (
+                <option
+                  key={type}
+                  value={type.toLowerCase()}
+                >
+                  {type}
+                </option>
+              )
+            )}
+          </select>
+
+          <button
+            className="ciu-btn-light"
+            onClick={loadData}
+          >
+            Refresh
+          </button>
+        </section>
+
+        <section
+          className="ciu-card"
+          style={{
+            marginTop: 18,
+          }}
+        >
+          <div className="ciu-card-head">
+            <div>
               <h2
                 style={{
                   margin: 0,
-                  fontSize:
-                    "19px",
-                  fontWeight:
-                    750,
                 }}
               >
-                {isSalesperson
-                  ? "My Tasks"
-                  : "Team Tasks"}
+                Follow-up Queue
               </h2>
 
               <p
                 style={{
                   margin:
-                    "5px 0 0",
+                    "4px 0 0",
                   color:
-                    "#6b7280",
-                  fontSize:
-                    "13px",
+                    "#6b7f78",
+                  fontSize: 13,
                 }}
               >
-                {isSalesperson
-                  ? "Your activities and follow-ups"
-                  : "Activities and follow-ups"}
+                {visibleTasks.length} task
+                {visibleTasks.length === 1
+                  ? ""
+                  : "s"}{" "}
+                shown
               </p>
             </div>
-
-            {/* FILTERS */}
-            <div
-              style={{
-                display:
-                  "grid",
-                gridTemplateColumns:
-                  isSalesperson
-                    ? "minmax(250px, 1fr) 180px 180px"
-                    : "minmax(250px, 1fr) 180px 180px 180px",
-                gap: "10px",
-              }}
-            >
-              <input
-                value={search}
-                onChange={(
-                  event
-                ) =>
-                  setSearch(
-                    event.target
-                      .value
-                  )
-                }
-                placeholder={
-                  isSalesperson
-                    ? "Search your tasks, leads..."
-                    : "Search tasks, leads, staff..."
-                }
-                style={
-                  inputStyle
-                }
-              />
-
-              <select
-                value={
-                  statusFilter
-                }
-                onChange={(
-                  event
-                ) =>
-                  setStatusFilter(
-                    event.target
-                      .value
-                  )
-                }
-                style={
-                  inputStyle
-                }
-              >
-                <option value="all">
-                  All Statuses
-                </option>
-
-                {TASK_STATUSES.map(
-                  (status) => (
-                    <option
-                      key={
-                        status
-                      }
-                      value={
-                        status
-                      }
-                    >
-                      {getStatusLabel(
-                        status
-                      )}
-                    </option>
-                  )
-                )}
-              </select>
-
-              <select
-                value={
-                  typeFilter
-                }
-                onChange={(
-                  event
-                ) =>
-                  setTypeFilter(
-                    event.target
-                      .value
-                  )
-                }
-                style={
-                  inputStyle
-                }
-              >
-                <option value="all">
-                  All Task Types
-                </option>
-
-                {TASK_TYPES.map(
-                  (type) => (
-                    <option
-                      key={type}
-                      value={type}
-                    >
-                      {type}
-                    </option>
-                  )
-                )}
-              </select>
-
-              {!isSalesperson && (
-                <select
-                  value={
-                    assignedFilter
-                  }
-                  onChange={(
-                    event
-                  ) =>
-                    setAssignedFilter(
-                      event
-                        .target
-                        .value
-                    )
-                  }
-                  style={
-                    inputStyle
-                  }
-                >
-                  <option value="all">
-                    All Staff
-                  </option>
-
-                  {profiles
-                    .filter(
-                      (profile) =>
-                        profile.is_active !==
-                        false
-                    )
-                    .map(
-                      (
-                        profile
-                      ) => (
-                        <option
-                          key={
-                            profile.id
-                          }
-                          value={
-                            profile.id
-                          }
-                        >
-                          {profile.full_name ||
-                            "Unnamed Staff"}
-                        </option>
-                      )
-                    )}
-                </select>
-              )}
-            </div>
-
-            {(search ||
-              statusFilter !==
-                "all" ||
-              typeFilter !==
-                "all" ||
-              assignedFilter !==
-                "all") && (
-              <div
-                style={{
-                  marginTop:
-                    "10px",
-                  display:
-                    "flex",
-                  justifyContent:
-                    "space-between",
-                  alignItems:
-                    "center",
-                  gap: "10px",
-                  flexWrap:
-                    "wrap",
-                  fontSize:
-                    "13px",
-                  color:
-                    "#6b7280",
-                }}
-              >
-                <span>
-                  Showing{" "}
-                  {
-                    filteredTasks.length
-                  }{" "}
-                  of{" "}
-                  {tasks.length}{" "}
-                  tasks
-                </span>
-
-                <button
-                  type="button"
-                  onClick={
-                    clearFilters
-                  }
-                  style={{
-                    border:
-                      "none",
-                    background:
-                      "transparent",
-                    color:
-                      "#2563eb",
-                    fontSize:
-                      "13px",
-                    fontWeight:
-                      650,
-                    cursor:
-                      "pointer",
-                  }}
-                >
-                  Clear filters
-                </button>
-              </div>
-            )}
           </div>
 
-          {/* TABLE */}
           <div
             style={{
               overflowX:
                 "auto",
             }}
           >
-            <table
-              style={{
-                width: "100%",
-                borderCollapse:
-                  "collapse",
-                minWidth:
-                  "1100px",
-              }}
-            >
+            <table className="ciu-report-table">
               <thead>
-                <tr
-                  style={{
-                    background:
-                      "#f9fafb",
-                  }}
-                >
-                  {[
-                    "TASK",
-                    "TYPE",
-                    "RELATED",
-                    "ASSIGNED TO",
-                    "DUE",
-                    "STATUS",
-                    "ACTIONS",
-                  ].map(
-                    (
-                      heading
-                    ) => (
-                      <th
-                        key={
-                          heading
-                        }
-                        style={{
-                          padding:
-                            "12px 18px",
-                          textAlign:
-                            heading ===
-                            "ACTIONS"
-                              ? "right"
-                              : "left",
-                          fontSize:
-                            "11px",
-                          fontWeight:
-                            750,
-                          color:
-                            "#6b7280",
-                          letterSpacing:
-                            "0.04em",
-                          borderBottom:
-                            "1px solid #e5e7eb",
-                        }}
-                      >
-                        {
-                          heading
-                        }
-                      </th>
-                    )
+                <tr>
+                  <th>
+                    Task
+                  </th>
+
+                  <th>
+                    Student
+                  </th>
+
+                  <th>
+                    Type
+                  </th>
+
+                  {!isSalesperson && (
+                    <th>
+                      Assigned To
+                    </th>
                   )}
+
+                  <th>
+                    Due
+                  </th>
+
+                  <th>
+                    Status
+                  </th>
+
+                  <th>
+                    Actions
+                  </th>
                 </tr>
               </thead>
 
@@ -2119,90 +1214,61 @@ export default function TasksPage() {
                   <tr>
                     <td
                       colSpan={
-                        7
+                        isSalesperson
+                          ? 7
+                          : 8
                       }
                       style={{
-                        padding:
-                          "50px",
+                        padding: 30,
                         textAlign:
                           "center",
-                        color:
-                          "#6b7280",
                       }}
                     >
                       Loading tasks...
                     </td>
                   </tr>
-                ) : filteredTasks.length ===
+                ) : visibleTasks.length ===
                   0 ? (
                   <tr>
                     <td
                       colSpan={
-                        7
+                        isSalesperson
+                          ? 7
+                          : 8
                       }
                       style={{
-                        padding:
-                          "60px",
+                        padding: 40,
                         textAlign:
                           "center",
                         color:
-                          "#6b7280",
+                          "#6b7f78",
                       }}
                     >
-                      <div
-                        style={{
-                          fontSize:
-                            "15px",
-                          fontWeight:
-                            650,
-                          color:
-                            "#374151",
-                          marginBottom:
-                            "5px",
-                        }}
-                      >
-                        No tasks found
-                      </div>
-
-                      <div
-                        style={{
-                          fontSize:
-                            "13px",
-                        }}
-                      >
-                        Try changing your
-                        filters or create
-                        a new task.
-                      </div>
+                      No tasks match
+                      the current
+                      filters.
                     </td>
                   </tr>
                 ) : (
-                  filteredTasks.map(
+                  visibleTasks.map(
                     (task) => {
                       const lead =
-                        getLead(
-                          task
-                        );
+                        task.lead_id
+                          ? leadMap.get(
+                              task.lead_id
+                            )
+                          : null;
 
-                      const opportunity =
-                        getOpportunity(
-                          task
-                        );
-
-                      const staff =
-                        getStaff(
-                          task
-                        );
+                      const profile =
+                        task.assigned_to
+                          ? profileMap.get(
+                              task.assigned_to
+                            )
+                          : null;
 
                       const overdue =
                         isOverdue(
                           task
-                        );
-
-                      const stage =
-                        getStage(
-                          opportunity?.stage_id ||
-                            null
                         );
 
                       return (
@@ -2210,492 +1276,139 @@ export default function TasksPage() {
                           key={
                             task.id
                           }
-                          style={{
-                            borderBottom:
-                              "1px solid #f1f5f9",
-                          }}
                         >
-                          {/* TASK */}
-                          <td
-                            style={{
-                              padding:
-                                "17px 18px",
-                              verticalAlign:
-                                "top",
-                            }}
-                          >
-                            <div
-                              style={{
-                                display:
-                                  "flex",
-                                gap: "10px",
-                                alignItems:
-                                  "flex-start",
-                              }}
-                            >
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (
-                                    task.status !==
-                                    "completed"
-                                  ) {
-                                    markComplete(
-                                      task
-                                    );
-                                  }
-                                }}
-                                title={
-                                  task.status ===
-                                  "completed"
-                                    ? "Completed"
-                                    : "Mark complete"
-                                }
-                                style={{
-                                  width:
-                                    "24px",
-                                  height:
-                                    "24px",
-                                  minWidth:
-                                    "24px",
-                                  borderRadius:
-                                    "50%",
-                                  border:
-                                    task.status ===
-                                    "completed"
-                                      ? "1px solid #10b981"
-                                      : "1px solid #d1d5db",
-                                  background:
-                                    task.status ===
-                                    "completed"
-                                      ? "#ecfdf5"
-                                      : "#ffffff",
-                                  color:
-                                    "#047857",
-                                  cursor:
-                                    task.status ===
-                                    "completed"
-                                      ? "default"
-                                      : "pointer",
-                                  display:
-                                    "flex",
-                                  alignItems:
-                                    "center",
-                                  justifyContent:
-                                    "center",
-                                  padding: 0,
-                                }}
-                              >
-                                {task.status ===
-                                "completed"
-                                  ? "✓"
-                                  : ""}
-                              </button>
+                          <td>
+                            <strong>
+                              {
+                                task.title
+                              }
+                            </strong>
 
-                              <div>
-                                <div
-                                  style={{
-                                    fontSize:
-                                      "14px",
-                                    fontWeight:
-                                      700,
-                                    color:
-                                      "#111827",
-                                    marginBottom:
-                                      "4px",
-                                  }}
-                                >
-                                  {
-                                    task.title
-                                  }
-                                </div>
-
-                                {task.description && (
-                                  <div
-                                    style={{
-                                      color:
-                                        "#6b7280",
-                                      fontSize:
-                                        "12px",
-                                      maxWidth:
-                                        "300px",
-                                      lineHeight:
-                                        1.5,
-                                    }}
-                                  >
-                                    {
-                                      task.description
-                                    }
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </td>
-
-                          {/* TYPE */}
-                          <td
-                            style={{
-                              padding:
-                                "17px 18px",
-                              verticalAlign:
-                                "top",
-                            }}
-                          >
-                            <div
-                              style={{
-                                display:
-                                  "inline-flex",
-                                alignItems:
-                                  "center",
-                                gap: "6px",
-                                fontSize:
-                                  "13px",
-                                color:
-                                  "#374151",
-                              }}
-                            >
-                              <span>
-                                {getTaskTypeIcon(
-                                  task.task_type
-                                )}
-                              </span>
-
-                              <span>
-                                {
-                                  task.task_type
-                                }
-                              </span>
-                            </div>
-                          </td>
-
-                          {/* RELATED */}
-                          <td
-                            style={{
-                              padding:
-                                "17px 18px",
-                              verticalAlign:
-                                "top",
-                            }}
-                          >
-                            {lead ? (
-                              <div>
-                                <div
-                                  style={{
-                                    fontSize:
-                                      "13px",
-                                    fontWeight:
-                                      700,
-                                  }}
-                                >
-                                  {lead.name ||
-                                    "Unnamed Lead"}
-                                </div>
-
-                                {lead.ciu_number && (
-                                  <div
-                                    style={{
-                                      color:
-                                        "#6b7280",
-                                      fontSize:
-                                        "12px",
-                                      marginTop:
-                                        "3px",
-                                    }}
-                                  >
-                                    CIU:{" "}
-                                    {
-                                      lead.ciu_number
-                                    }
-                                  </div>
-                                )}
-
-                                {lead.phone && (
-                                  <div
-                                    style={{
-                                      color:
-                                        "#6b7280",
-                                      fontSize:
-                                        "12px",
-                                      marginTop:
-                                        "2px",
-                                    }}
-                                  >
-                                    {
-                                      lead.phone
-                                    }
-                                  </div>
-                                )}
-                              </div>
-                            ) : opportunity ? (
-                              <div>
-                                <div
-                                  style={{
-                                    fontSize:
-                                      "13px",
-                                    fontWeight:
-                                      700,
-                                  }}
-                                >
-                                  {
-                                    opportunity.title
-                                  }
-                                </div>
-
-                                <div
-                                  style={{
-                                    color:
-                                      "#6b7280",
-                                    fontSize:
-                                      "12px",
-                                    marginTop:
-                                      "3px",
-                                  }}
-                                >
-                                  {formatCurrency(
-                                    opportunity.value,
-                                    opportunity.currency ||
-                                      "UGX"
-                                  )}
-                                </div>
-
-                                {stage && (
-                                  <div
-                                    style={{
-                                      color:
-                                        "#6b7280",
-                                      fontSize:
-                                        "12px",
-                                      marginTop:
-                                        "2px",
-                                    }}
-                                  >
-                                    {
-                                      stage.name
-                                    }
-                                  </div>
-                                )}
-                              </div>
-                            ) : (
-                              <span
-                                style={{
-                                  color:
-                                    "#9ca3af",
-                                  fontSize:
-                                    "13px",
-                                }}
-                              >
-                                No relation
-                              </span>
-                            )}
-                          </td>
-
-                          {/* ASSIGNED */}
-                          <td
-                            style={{
-                              padding:
-                                "17px 18px",
-                              verticalAlign:
-                                "top",
-                            }}
-                          >
-                            {staff ? (
+                            {task.description && (
                               <div
                                 style={{
-                                  display:
-                                    "flex",
-                                  alignItems:
-                                    "center",
-                                  gap: "8px",
-                                }}
-                              >
-                                <div
-                                  style={{
-                                    width:
-                                      "30px",
-                                    height:
-                                      "30px",
-                                    borderRadius:
-                                      "50%",
-                                    background:
-                                      "#f3f4f6",
-                                    display:
-                                      "flex",
-                                    alignItems:
-                                      "center",
-                                    justifyContent:
-                                      "center",
-                                    fontSize:
-                                      "11px",
-                                    fontWeight:
-                                      800,
-                                    color:
-                                      "#374151",
-                                  }}
-                                >
-                                  {getInitials(
-                                    staff.full_name
-                                  )}
-                                </div>
-
-                                <span
-                                  style={{
-                                    fontSize:
-                                      "13px",
-                                    fontWeight:
-                                      600,
-                                  }}
-                                >
-                                  {staff.full_name ||
-                                    "Unnamed Staff"}
-                                </span>
-                              </div>
-                            ) : (
-                              <span
-                                style={{
                                   color:
-                                    "#9ca3af",
+                                    "#6b7f78",
                                   fontSize:
-                                    "13px",
+                                    12,
+                                  marginTop:
+                                    4,
+                                  maxWidth:
+                                    280,
                                 }}
                               >
-                                Unassigned
-                              </span>
+                                {
+                                  task.description.split(
+                                    "\n"
+                                  )[0]
+                                }
+                              </div>
                             )}
                           </td>
 
-                          {/* DUE */}
+                          <td>
+                            <strong>
+                              {lead?.name ??
+                                "No student linked"}
+                            </strong>
+
+                            {lead?.ciu_number && (
+                              <div
+                                style={{
+                                  fontSize:
+                                    12,
+                                  color:
+                                    "#6b7f78",
+                                }}
+                              >
+                                {
+                                  lead.ciu_number
+                                }
+                              </div>
+                            )}
+                          </td>
+
+                          <td>
+                            {labelStatus(
+                              task.task_type
+                            )}
+                          </td>
+
+                          {!isSalesperson && (
+                            <td>
+                              {
+                                profile?.full_name ??
+                                "Unassigned"
+                              }
+                            </td>
+                          )}
+
                           <td
                             style={{
-                              padding:
-                                "17px 18px",
-                              verticalAlign:
-                                "top",
+                              color:
+                                overdue
+                                  ? "#b42318"
+                                  : undefined,
+                              fontWeight:
+                                overdue
+                                  ? 800
+                                  : 500,
                             }}
                           >
-                            <div
-                              style={{
-                                fontSize:
-                                  "13px",
-                                fontWeight:
-                                  600,
-                                color:
-                                  overdue
-                                    ? "#b91c1c"
-                                    : "#374151",
-                              }}
-                            >
-                              {formatDateTime(
-                                task.due_at
-                              )}
-                            </div>
+                            {formatDate(
+                              task.due_at
+                            )}
 
                             {overdue && (
                               <div
                                 style={{
-                                  marginTop:
-                                    "4px",
                                   fontSize:
-                                    "11px",
-                                  fontWeight:
-                                    700,
-                                  color:
-                                    "#b91c1c",
+                                    11,
                                 }}
                               >
-                                OVERDUE
+                                Overdue
                               </div>
                             )}
                           </td>
 
-                          {/* STATUS */}
-                          <td
-                            style={{
-                              padding:
-                                "17px 18px",
-                              verticalAlign:
-                                "top",
-                            }}
-                          >
-                            <span
-                              style={{
-                                display:
-                                  "inline-flex",
-                                alignItems:
-                                  "center",
-                                padding:
-                                  "5px 9px",
-                                borderRadius:
-                                  "999px",
-                                fontSize:
-                                  "11px",
-                                fontWeight:
-                                  700,
-                                whiteSpace:
-                                  "nowrap",
-                                ...getStatusStyle(
-                                  task.status
-                                ),
-                              }}
-                            >
-                              {getStatusLabel(
+                          <td>
+                            <span className="ciu-status">
+                              {labelStatus(
                                 task.status
                               )}
                             </span>
                           </td>
 
-                          {/* ACTIONS */}
-                          <td
-                            style={{
-                              padding:
-                                "17px 18px",
-                              verticalAlign:
-                                "top",
-                              textAlign:
-                                "right",
-                            }}
-                          >
+                          <td>
                             <div
                               style={{
                                 display:
                                   "flex",
-                                justifyContent:
-                                  "flex-end",
-                                gap: "6px",
+                                gap: 6,
                                 flexWrap:
                                   "wrap",
                               }}
                             >
                               <button
-                                type="button"
+                                className="ciu-btn-light"
                                 onClick={() =>
-                                  setSelectedTask(
+                                  setViewingTask(
                                     task
                                   )
                                 }
-                                style={
-                                  smallActionButton
-                                }
                               >
-                                View
+                                Open
                               </button>
 
                               {lead?.phone && (
                                 <button
-                                  type="button"
+                                  className="ciu-btn-light"
                                   onClick={() =>
-                                    callLead(
-                                      lead
+                                    contactStudent(
+                                      task,
+                                      "call"
                                     )
                                   }
-                                  style={{
-                                    ...smallActionButton,
-                                    color:
-                                      "#1d4ed8",
-                                    border:
-                                      "1px solid #bfdbfe",
-                                    background:
-                                      "#eff6ff",
-                                  }}
                                 >
                                   Call
                                 </button>
@@ -2703,21 +1416,13 @@ export default function TasksPage() {
 
                               {lead?.phone && (
                                 <button
-                                  type="button"
+                                  className="ciu-btn-light"
                                   onClick={() =>
-                                    whatsappLead(
-                                      lead
+                                    contactStudent(
+                                      task,
+                                      "whatsapp"
                                     )
                                   }
-                                  style={{
-                                    ...smallActionButton,
-                                    color:
-                                      "#047857",
-                                    border:
-                                      "1px solid #a7f3d0",
-                                    background:
-                                      "#ecfdf5",
-                                  }}
                                 >
                                   WhatsApp
                                 </button>
@@ -2725,78 +1430,33 @@ export default function TasksPage() {
 
                               {lead?.email && (
                                 <button
-                                  type="button"
+                                  className="ciu-btn-light"
                                   onClick={() =>
-                                    emailLead(
-                                      lead
+                                    contactStudent(
+                                      task,
+                                      "email"
                                     )
                                   }
-                                  style={{
-                                    ...smallActionButton,
-                                    color:
-                                      "#7c3aed",
-                                    border:
-                                      "1px solid #ddd6fe",
-                                    background:
-                                      "#f5f3ff",
-                                  }}
                                 >
                                   Email
                                 </button>
                               )}
 
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  openEditModal(
-                                    task
-                                  )
-                                }
-                                style={
-                                  smallActionButton
-                                }
-                              >
-                                Edit
-                              </button>
-
                               {task.status !==
-                                "completed" && (
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    markComplete(
-                                      task
-                                    )
-                                  }
-                                  style={{
-                                    ...smallActionButton,
-                                    color:
-                                      "#047857",
-                                    border:
-                                      "1px solid #a7f3d0",
-                                    background:
-                                      "#ecfdf5",
-                                  }}
-                                >
-                                  Complete
-                                </button>
-                              )}
-
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  deleteTask(
-                                    task
-                                  )
-                                }
-                                style={{
-                                  ...smallActionButton,
-                                  color:
-                                    "#b91c1c",
-                                }}
-                              >
-                                Delete
-                              </button>
+                                "completed" &&
+                                task.status !==
+                                  "cancelled" && (
+                                  <button
+                                    className="ciu-btn"
+                                    onClick={() =>
+                                      openOutcome(
+                                        task
+                                      )
+                                    }
+                                  >
+                                    Record Outcome
+                                  </button>
+                                )}
                             </div>
                           </td>
                         </tr>
@@ -2807,1273 +1467,705 @@ export default function TasksPage() {
               </tbody>
             </table>
           </div>
-        </div>
-      </div>
+        </section>
 
-      {/* CREATE / EDIT MODAL */}
-      {showModal && (
-        <div
+        <section
+          className="ciu-card"
           style={{
-            position: "fixed",
-            inset: 0,
-            background:
-              "rgba(15,23,42,0.45)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "20px",
-            zIndex: 1000,
+            marginTop: 18,
           }}
         >
+          <div className="ciu-card-head">
+            <h2
+              style={{
+                margin: 0,
+              }}
+            >
+              Quick Actions
+            </h2>
+          </div>
+
           <div
             style={{
-              width: "100%",
-              maxWidth: "700px",
-              maxHeight: "90vh",
-              overflowY: "auto",
-              background:
-                "#ffffff",
-              borderRadius:
-                "14px",
-              boxShadow:
-                "0 20px 50px rgba(0,0,0,0.18)",
+              display:
+                "flex",
+              gap: 10,
+              flexWrap:
+                "wrap",
             }}
           >
-            <div
-              style={{
-                padding:
-                  "20px 22px",
-                borderBottom:
-                  "1px solid #e5e7eb",
-                display:
-                  "flex",
-                justifyContent:
-                  "space-between",
-                alignItems:
-                  "center",
-              }}
-            >
-              <div>
-                <h2
-                  style={{
-                    margin: 0,
-                    fontSize:
-                      "20px",
-                    fontWeight:
-                      800,
-                  }}
-                >
-                  {editingTask
-                    ? "Edit Task"
-                    : "Create New Task"}
-                </h2>
-
-                <p
-                  style={{
-                    margin:
-                      "5px 0 0",
-                    color:
-                      "#6b7280",
-                    fontSize:
-                      "13px",
-                  }}
-                >
-                  {isSalesperson
-                    ? "Create and manage your activities and follow-ups."
-                    : "Create and manage staff activities and follow-ups."}
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={() =>
-                  setShowModal(
-                    false
-                  )
-                }
-                style={{
-                  border: "none",
-                  background:
-                    "transparent",
-                  fontSize:
-                    "24px",
-                  cursor:
-                    "pointer",
-                  color:
-                    "#6b7280",
-                }}
-              >
-                ×
-              </button>
-            </div>
-
-            <form
-              onSubmit={
-                handleSaveTask
-              }
-              style={{
-                padding:
-                  "22px",
-              }}
-            >
-              <div
-                style={{
-                  display:
-                    "grid",
-                  gridTemplateColumns:
-                    "1fr 1fr",
-                  gap: "16px",
-                }}
-              >
-                <div
-                  style={{
-                    gridColumn:
-                      "1 / -1",
-                  }}
-                >
-                  <label
-                    style={{
-                      display:
-                        "block",
-                      fontSize:
-                        "13px",
-                      fontWeight:
-                        700,
-                      marginBottom:
-                        "6px",
-                    }}
-                  >
-                    Task Title
-                  </label>
-
-                  <input
-                    value={
-                      form.title
-                    }
-                    onChange={(
-                      event
-                    ) =>
-                      setForm(
-                        (
-                          current
-                        ) => ({
-                          ...current,
-                          title:
-                            event
-                              .target
-                              .value,
-                        })
-                      )
-                    }
-                    placeholder="e.g. Call student about admission"
-                    style={
-                      inputStyle
-                    }
-                  />
-                </div>
-
-                <div>
-                  <label
-                    style={{
-                      display:
-                        "block",
-                      fontSize:
-                        "13px",
-                      fontWeight:
-                        700,
-                      marginBottom:
-                        "6px",
-                    }}
-                  >
-                    Task Type
-                  </label>
-
-                  <select
-                    value={
-                      form.task_type
-                    }
-                    onChange={(
-                      event
-                    ) =>
-                      setForm(
-                        (
-                          current
-                        ) => ({
-                          ...current,
-                          task_type:
-                            event
-                              .target
-                              .value as TaskType,
-                        })
-                      )
-                    }
-                    style={
-                      inputStyle
-                    }
-                  >
-                    {TASK_TYPES.map(
-                      (type) => (
-                        <option
-                          key={type}
-                          value={type}
-                        >
-                          {type}
-                        </option>
-                      )
-                    )}
-                  </select>
-                </div>
-
-                <div>
-                  <label
-                    style={{
-                      display:
-                        "block",
-                      fontSize:
-                        "13px",
-                      fontWeight:
-                        700,
-                      marginBottom:
-                        "6px",
-                    }}
-                  >
-                    Status
-                  </label>
-
-                  <select
-                    value={
-                      form.status
-                    }
-                    onChange={(
-                      event
-                    ) =>
-                      setForm(
-                        (
-                          current
-                        ) => ({
-                          ...current,
-                          status:
-                            event
-                              .target
-                              .value as TaskStatus,
-                        })
-                      )
-                    }
-                    style={
-                      inputStyle
-                    }
-                  >
-                    {TASK_STATUSES.map(
-                      (status) => (
-                        <option
-                          key={
-                            status
-                          }
-                          value={
-                            status
-                          }
-                        >
-                          {getStatusLabel(
-                            status
-                          )}
-                        </option>
-                      )
-                    )}
-                  </select>
-                </div>
-
-                <div>
-                  <label
-                    style={{
-                      display:
-                        "block",
-                      fontSize:
-                        "13px",
-                      fontWeight:
-                        700,
-                      marginBottom:
-                        "6px",
-                    }}
-                  >
-                    Lead
-                  </label>
-
-                  <select
-                    value={
-                      form.lead_id
-                    }
-                    onChange={(
-                      event
-                    ) =>
-                      setForm(
-                        (
-                          current
-                        ) => ({
-                          ...current,
-                          lead_id:
-                            event
-                              .target
-                              .value,
-                        })
-                      )
-                    }
-                    style={
-                      inputStyle
-                    }
-                  >
-                    <option value="">
-                      No Lead
-                    </option>
-
-                    {leads.map(
-                      (lead) => (
-                        <option
-                          key={
-                            lead.id
-                          }
-                          value={
-                            lead.id
-                          }
-                        >
-                          {lead.name ||
-                            "Unnamed Lead"}
-                          {lead.ciu_number
-                            ? ` — ${lead.ciu_number}`
-                            : ""}
-                        </option>
-                      )
-                    )}
-                  </select>
-                </div>
-
-                <div>
-                  <label
-                    style={{
-                      display:
-                        "block",
-                      fontSize:
-                        "13px",
-                      fontWeight:
-                        700,
-                      marginBottom:
-                        "6px",
-                    }}
-                  >
-                    Opportunity
-                  </label>
-
-                  <select
-                    value={
-                      form.opportunity_id
-                    }
-                    onChange={(
-                      event
-                    ) =>
-                      setForm(
-                        (
-                          current
-                        ) => ({
-                          ...current,
-                          opportunity_id:
-                            event
-                              .target
-                              .value,
-                        })
-                      )
-                    }
-                    style={
-                      inputStyle
-                    }
-                  >
-                    <option value="">
-                      No Opportunity
-                    </option>
-
-                    {opportunities.map(
-                      (
-                        opportunity
-                      ) => (
-                        <option
-                          key={
-                            opportunity.id
-                          }
-                          value={
-                            opportunity.id
-                          }
-                        >
-                          {opportunity.title ||
-                            "Untitled Opportunity"}
-                        </option>
-                      )
-                    )}
-                  </select>
-                </div>
-
-                {!isSalesperson && (
-                  <div>
-                    <label
-                      style={{
-                        display:
-                          "block",
-                        fontSize:
-                          "13px",
-                        fontWeight:
-                          700,
-                        marginBottom:
-                          "6px",
-                      }}
-                    >
-                      Assigned Staff
-                    </label>
-
-                    <select
-                      value={
-                        form.assigned_to
-                      }
-                      onChange={(
-                        event
-                      ) =>
-                        setForm(
-                          (
-                            current
-                          ) => ({
-                            ...current,
-                            assigned_to:
-                              event
-                                .target
-                                .value,
-                          })
-                        )
-                      }
-                      style={
-                        inputStyle
-                      }
-                    >
-                      <option value="">
-                        Unassigned
-                      </option>
-
-                      {profiles
-                        .filter(
-                          (
-                            profile
-                          ) =>
-                            profile.is_active !==
-                            false
-                        )
-                        .map(
-                          (
-                            profile
-                          ) => (
-                            <option
-                              key={
-                                profile.id
-                              }
-                              value={
-                                profile.id
-                              }
-                            >
-                              {profile.full_name ||
-                                "Unnamed Staff"}
-                            </option>
-                          )
-                        )}
-                    </select>
-                  </div>
-                )}
-
-                <div>
-                  <label
-                    style={{
-                      display:
-                        "block",
-                      fontSize:
-                        "13px",
-                      fontWeight:
-                        700,
-                      marginBottom:
-                        "6px",
-                    }}
-                  >
-                    Due Date & Time
-                  </label>
-
-                  <input
-                    type="datetime-local"
-                    value={
-                      form.due_at
-                    }
-                    onChange={(
-                      event
-                    ) =>
-                      setForm(
-                        (
-                          current
-                        ) => ({
-                          ...current,
-                          due_at:
-                            event
-                              .target
-                              .value,
-                        })
-                      )
-                    }
-                    style={
-                      inputStyle
-                    }
-                  />
-                </div>
-
-                <div
-                  style={{
-                    gridColumn:
-                      "1 / -1",
-                  }}
-                >
-                  <label
-                    style={{
-                      display:
-                        "block",
-                      fontSize:
-                        "13px",
-                      fontWeight:
-                        700,
-                      marginBottom:
-                        "6px",
-                    }}
-                  >
-                    Description
-                  </label>
-
-                  <textarea
-                    value={
-                      form.description
-                    }
-                    onChange={(
-                      event
-                    ) =>
-                      setForm(
-                        (
-                          current
-                        ) => ({
-                          ...current,
-                          description:
-                            event
-                              .target
-                              .value,
-                        })
-                      )
-                    }
-                    placeholder="Add task details, instructions or notes..."
-                    rows={5}
-                    style={{
-                      ...inputStyle,
-                      height:
-                        "auto",
-                      padding:
-                        "11px 12px",
-                      resize:
-                        "vertical",
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div
-                style={{
-                  display:
-                    "flex",
-                  justifyContent:
-                    "flex-end",
-                  gap: "10px",
-                  marginTop:
-                    "22px",
-                }}
-              >
+            {[
+              "Call",
+              "WhatsApp",
+              "Email",
+              "Meeting",
+            ].map(
+              (type) => (
                 <button
-                  type="button"
+                  key={type}
+                  className="ciu-btn-light"
                   onClick={() =>
-                    setShowModal(
-                      false
+                    quickCreate(
+                      type
                     )
                   }
-                  style={{
-                    border:
-                      "1px solid #d1d5db",
-                    background:
-                      "#ffffff",
-                    color:
-                      "#374151",
-                    borderRadius:
-                      "8px",
-                    padding:
-                      "10px 16px",
-                    fontWeight:
-                      650,
-                    cursor:
-                      "pointer",
-                  }}
                 >
-                  Cancel
+                  + {type} Task
                 </button>
-
-                <button
-                  type="submit"
-                  disabled={
-                    saving
-                  }
-                  style={{
-                    border:
-                      "none",
-                    background:
-                      saving
-                        ? "#9ca3af"
-                        : "#111827",
-                    color:
-                      "#ffffff",
-                    borderRadius:
-                      "8px",
-                    padding:
-                      "10px 17px",
-                    fontWeight:
-                      700,
-                    cursor:
-                      saving
-                        ? "not-allowed"
-                        : "pointer",
-                  }}
-                >
-                  {saving
-                    ? "Saving..."
-                    : editingTask
-                    ? "Update Task"
-                    : "Create Task"}
-                </button>
-              </div>
-            </form>
+              )
+            )}
           </div>
-        </div>
-      )}
-
-      {/* VIEW TASK MODAL */}
-      {selectedTask && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background:
-              "rgba(15,23,42,0.45)",
-            display: "flex",
-            alignItems:
-              "center",
-            justifyContent:
-              "center",
-            padding: "20px",
-            zIndex: 1001,
-          }}
-        >
-          <div
-            style={{
-              width: "100%",
-              maxWidth: "620px",
-              background:
-                "#ffffff",
-              borderRadius:
-                "14px",
-              boxShadow:
-                "0 20px 50px rgba(0,0,0,0.18)",
-            }}
-          >
-            <div
-              style={{
-                padding:
-                  "20px 22px",
-                borderBottom:
-                  "1px solid #e5e7eb",
-                display:
-                  "flex",
-                justifyContent:
-                  "space-between",
-                alignItems:
-                  "flex-start",
-                gap: "15px",
-              }}
-            >
-              <div>
-                <div
-                  style={{
-                    fontSize:
-                      "11px",
-                    fontWeight:
-                      750,
-                    color:
-                      "#6b7280",
-                    textTransform:
-                      "uppercase",
-                    marginBottom:
-                      "6px",
-                  }}
-                >
-                  {
-                    selectedTask.task_type
-                  }
+        </section>
+      </div>.
+      {(showForm || viewingTask || outcomeTask) && (
+        <div className="task-modal-backdrop">
+          <div className="task-modal">
+            {showForm && (
+              <>
+                <div className="task-modal-head">
+                  <div>
+                    <h2>{editingTask ? "Edit Task" : "Create Task"}</h2>
+                    <p>Create and manage student follow-up work.</p>
+                  </div>
+                  <button
+                    type="button"
+                    className="task-close"
+                    onClick={() => setShowForm(false)}
+                  >
+                    X
+                  </button>
                 </div>
 
-                <h2
-                  style={{
-                    margin: 0,
-                    fontSize:
-                      "21px",
-                    fontWeight:
-                      800,
-                  }}
-                >
-                  {
-                    selectedTask.title
-                  }
-                </h2>
-              </div>
-
-              <button
-                type="button"
-                onClick={() =>
-                  setSelectedTask(
-                    null
-                  )
-                }
-                style={{
-                  border: "none",
-                  background:
-                    "transparent",
-                  fontSize:
-                    "24px",
-                  cursor:
-                    "pointer",
-                  color:
-                    "#6b7280",
-                }}
-              >
-                ×
-              </button>
-            </div>
-
-            <div
-              style={{
-                padding:
-                  "22px",
-              }}
-            >
-              <div
-                style={{
-                  display:
-                    "grid",
-                  gridTemplateColumns:
-                    "1fr 1fr",
-                  gap: "18px",
-                }}
-              >
-                <div>
-                  <div
-                    style={{
-                      fontSize:
-                        "11px",
-                      color:
-                        "#6b7280",
-                      fontWeight:
-                        750,
-                      textTransform:
-                        "uppercase",
-                      marginBottom:
-                        "5px",
-                    }}
-                  >
-                    Status
-                  </div>
-
-                  <span
-                    style={{
-                      display:
-                        "inline-flex",
-                      padding:
-                        "5px 9px",
-                      borderRadius:
-                        "999px",
-                      fontSize:
-                        "11px",
-                      fontWeight:
-                        700,
-                      ...getStatusStyle(
-                        selectedTask.status
-                      ),
-                    }}
-                  >
-                    {getStatusLabel(
-                      selectedTask.status
-                    )}
-                  </span>
-                </div>
-
-                <div>
-                  <div
-                    style={{
-                      fontSize:
-                        "11px",
-                      color:
-                        "#6b7280",
-                      fontWeight:
-                        750,
-                      textTransform:
-                        "uppercase",
-                      marginBottom:
-                        "5px",
-                    }}
-                  >
-                    Due
-                  </div>
-
-                  <div
-                    style={{
-                      fontSize:
-                        "13px",
-                      fontWeight:
-                        600,
-                    }}
-                  >
-                    {formatDateTime(
-                      selectedTask.due_at
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <div
-                    style={{
-                      fontSize:
-                        "11px",
-                      color:
-                        "#6b7280",
-                      fontWeight:
-                        750,
-                      textTransform:
-                        "uppercase",
-                      marginBottom:
-                        "5px",
-                    }}
-                  >
-                    Assigned To
-                  </div>
-
-                  <div
-                    style={{
-                      fontSize:
-                        "13px",
-                      fontWeight:
-                        600,
-                    }}
-                  >
-                    {getStaff(
-                      selectedTask
-                    )?.full_name ||
-                      "Unassigned"}
-                  </div>
-                </div>
-
-                <div>
-                  <div
-                    style={{
-                      fontSize:
-                        "11px",
-                      color:
-                        "#6b7280",
-                      fontWeight:
-                        750,
-                      textTransform:
-                        "uppercase",
-                      marginBottom:
-                        "5px",
-                    }}
-                  >
-                    Created
-                  </div>
-
-                  <div
-                    style={{
-                      fontSize:
-                        "13px",
-                      fontWeight:
-                        600,
-                    }}
-                  >
-                    {formatDate(
-                      selectedTask.created_at
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {selectedTask.description && (
-                <div
-                  style={{
-                    marginTop:
-                      "22px",
-                    padding:
-                      "14px",
-                    borderRadius:
-                      "10px",
-                    background:
-                      "#f9fafb",
-                  }}
-                >
-                  <div
-                    style={{
-                      fontSize:
-                        "11px",
-                      color:
-                        "#6b7280",
-                      fontWeight:
-                        750,
-                      textTransform:
-                        "uppercase",
-                      marginBottom:
-                        "6px",
-                    }}
-                  >
-                    Description
-                  </div>
-
-                  <div
-                    style={{
-                      fontSize:
-                        "14px",
-                      lineHeight:
-                        1.6,
-                      color:
-                        "#374151",
-                    }}
-                  >
-                    {
-                      selectedTask.description
-                    }
-                  </div>
-                </div>
-              )}
-
-              {(() => {
-                const lead =
-                  getLead(
-                    selectedTask
-                  );
-
-                const opportunity =
-                  getOpportunity(
-                    selectedTask
-                  );
-
-                if (
-                  !lead &&
-                  !opportunity
-                ) {
-                  return null;
-                }
-
-                return (
-                  <div
-                    style={{
-                      marginTop:
-                        "18px",
-                      padding:
-                        "14px",
-                      borderRadius:
-                        "10px",
-                      border:
-                        "1px solid #e5e7eb",
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize:
-                          "11px",
-                        color:
-                          "#6b7280",
-                        fontWeight:
-                          750,
-                        textTransform:
-                          "uppercase",
-                        marginBottom:
-                          "7px",
-                      }}
-                    >
-                      Related Record
+                <form onSubmit={handleSaveTask}>
+                  <div className="task-form-grid">
+                    <div className="task-field task-field-full">
+                      <label>Task Title</label>
+                      <input
+                        value={form.title}
+                        onChange={(e) =>
+                          setForm({ ...form, title: e.target.value })
+                        }
+                        placeholder="e.g. Call admitted student"
+                        required
+                      />
                     </div>
 
-                    {lead && (
-                      <div>
-                        <div
-                          style={{
-                            fontSize:
-                              "14px",
-                            fontWeight:
-                              750,
-                          }}
-                        >
-                          {lead.name ||
-                            "Unnamed Lead"}
-                        </div>
-
-                        {lead.ciu_number && (
-                          <div
-                            style={{
-                              fontSize:
-                                "12px",
-                              color:
-                                "#6b7280",
-                              marginTop:
-                                "3px",
-                            }}
-                          >
-                            CIU Number:{" "}
-                            {
-                              lead.ciu_number
-                            }
-                          </div>
-                        )}
-
-                        {lead.phone && (
-                          <div
-                            style={{
-                              fontSize:
-                                "12px",
-                              color:
-                                "#6b7280",
-                              marginTop:
-                                "3px",
-                            }}
-                          >
-                            Phone:{" "}
-                            {
-                              lead.phone
-                            }
-                          </div>
-                        )}
-
-                        {lead.email && (
-                          <div
-                            style={{
-                              fontSize:
-                                "12px",
-                              color:
-                                "#6b7280",
-                              marginTop:
-                                "3px",
-                            }}
-                          >
-                            Email:{" "}
-                            {
-                              lead.email
-                            }
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {opportunity && (
-                      <div
-                        style={{
-                          marginTop:
-                            lead
-                              ? "12px"
-                              : "0",
-                        }}
+                    <div className="task-field">
+                      <label>Task Type</label>
+                      <select
+                        value={form.task_type}
+                        onChange={(e) =>
+                          setForm({
+                            ...form,
+                            task_type: e.target.value,
+                          })
+                        }
                       >
-                        <div
-                          style={{
-                            fontSize:
-                              "14px",
-                            fontWeight:
-                              750,
-                          }}
-                        >
-                          {
-                            opportunity.title
-                          }
-                        </div>
+                        {TASK_TYPES.map((type) => (
+                          <option key={type} value={type}>
+                            {labelStatus(type)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
 
-                        <div
-                          style={{
-                            fontSize:
-                              "12px",
-                            color:
-                              "#6b7280",
-                            marginTop:
-                              "3px",
-                          }}
+                    <div className="task-field">
+                      <label>Status</label>
+                      <select
+                        value={form.status}
+                        onChange={(e) =>
+                          setForm({
+                            ...form,
+                            status: e.target.value as TaskStatus,
+                          })
+                        }
+                      >
+                        {TASK_STATUSES.map((status) => (
+                          <option key={status} value={status}>
+                            {labelStatus(status)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="task-field">
+                      <label>Student / Lead</label>
+                      <select
+                        value={form.lead_id}
+                        onChange={(e) =>
+                          setForm({
+                            ...form,
+                            lead_id: e.target.value,
+                          })
+                        }
+                      >
+                        <option value="">Select student</option>
+                        {leads.map((lead) => (
+                          <option key={lead.id} value={lead.id}>
+                            {lead.name} {lead.phone ? `- ${lead.phone}` : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="task-field">
+                      <label>Pipeline Opportunity</label>
+                      <select
+                        value={form.opportunity_id}
+                        onChange={(e) =>
+                          setForm({
+                            ...form,
+                            opportunity_id: e.target.value,
+                          })
+                        }
+                      >
+                        <option value="">None</option>
+                        {opportunities.map((opportunity) => (
+                          <option key={opportunity.id} value={opportunity.id}>
+                            {opportunity.title || "Pipeline Opportunity"}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {!isSalesperson && (
+                      <div className="task-field">
+                        <label>Assign To</label>
+                        <select
+                          value={form.assigned_to}
+                          onChange={(e) =>
+                            setForm({
+                              ...form,
+                              assigned_to: e.target.value,
+                            })
+                          }
                         >
-                          {formatCurrency(
-                            opportunity.value,
-                            opportunity.currency ||
-                              "UGX"
-                          )}
-                        </div>
+                          <option value="">Select staff</option>
+                          {profiles
+                            .filter((profile) => profile.is_active !== false)
+                            .map((profile) => (
+                              <option key={profile.id} value={profile.id}>
+                                {profile.full_name || "Staff"}
+                              </option>
+                            ))}
+                        </select>
                       </div>
                     )}
+
+                    <div className="task-field">
+                      <label>Due Date & Time</label>
+                      <input
+                        type="datetime-local"
+                        value={form.due_at}
+                        onChange={(e) =>
+                          setForm({
+                            ...form,
+                            due_at: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+
+                    <div className="task-field task-field-full">
+                      <label>Description / Instructions</label>
+                      <textarea
+                        rows={4}
+                        value={form.description}
+                        onChange={(e) =>
+                          setForm({
+                            ...form,
+                            description: e.target.value,
+                          })
+                        }
+                        placeholder="Add instructions or context for the follow-up..."
+                      />
+                    </div>
                   </div>
-                );
-              })()}
 
-              <div
-                style={{
-                  display:
-                    "flex",
-                  gap: "8px",
-                  flexWrap:
-                    "wrap",
-                  marginTop:
-                    "22px",
-                }}
-              >
-                {getLead(
-                  selectedTask
-                )?.phone && (
+                  <div className="task-modal-actions">
+                    <button
+                      type="button"
+                      className="ciu-btn-light"
+                      onClick={() => setShowForm(false)}
+                    >
+                      Cancel
+                    </button>
+
+                    <button
+                      type="submit"
+                      className="ciu-btn"
+                      disabled={saving}
+                    >
+                      {saving
+                        ? "Saving..."
+                        : editingTask
+                          ? "Update Task"
+                          : "Create Task"}
+                    </button>
+                  </div>
+                </form>
+              </>
+            )}
+
+            {viewingTask && !showForm && !outcomeTask && (
+              <>
+                <div className="task-modal-head">
+                  <div>
+                    <h2>Task Details</h2>
+                    <p>{viewingTask.title}</p>
+                  </div>
+
                   <button
                     type="button"
-                    onClick={() =>
-                      callLead(
-                        getLead(
-                          selectedTask
-                        )
-                      )
-                    }
-                    style={{
-                      ...smallActionButton,
-                      color:
-                        "#1d4ed8",
-                      border:
-                        "1px solid #bfdbfe",
-                      background:
-                        "#eff6ff",
-                    }}
+                    className="task-close"
+                    onClick={() => setViewingTask(null)}
                   >
-                    Call Lead
+                    X
                   </button>
-                )}
+                </div>
 
-                {getLead(
-                  selectedTask
-                )?.phone && (
+                <div className="task-detail-grid">
+                  <div>
+                    <span>Student</span>
+                    <strong>
+                      {viewingTask.lead_id
+                        ? leadMap.get(viewingTask.lead_id)?.name || "Student"
+                        : "No student linked"}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span>Task Type</span>
+                    <strong>{labelStatus(viewingTask.task_type)}</strong>
+                  </div>
+
+                  <div>
+                    <span>Status</span>
+                    <strong>{labelStatus(viewingTask.status)}</strong>
+                  </div>
+
+                  <div>
+                    <span>Assigned To</span>
+                    <strong>
+                      {viewingTask.assigned_to
+                        ? profileMap.get(viewingTask.assigned_to)?.full_name ||
+                          "Staff"
+                        : "Unassigned"}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span>Due</span>
+                    <strong>
+                      {viewingTask.due_at
+                        ? formatDate(viewingTask.due_at)
+                        : "No due date"}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span>Created</span>
+                    <strong>{formatDate(viewingTask.created_at)}</strong>
+                  </div>
+                </div>
+
+                <div className="task-detail-description">
+                  <span>Description</span>
+                  <p>
+                    {viewingTask.description ||
+                      "No additional instructions provided."}
+                  </p>
+                </div>
+
+                <div className="task-contact-actions">
+                  {viewingTask.lead_id && leadMap.get(viewingTask.lead_id)?.phone && (
+                    <>
+                      <button
+                        type="button"
+                        className="task-action-call"
+                        onClick={() =>
+                          contactStudent(viewingTask, "call")
+                        }
+                      >
+                        Call
+                      </button>
+
+                      <button
+                        type="button"
+                        className="task-action-whatsapp"
+                        onClick={() =>
+                          contactStudent(viewingTask, "whatsapp")
+                        }
+                      >
+                        WhatsApp
+                      </button>
+                    </>
+                  )}
+
+                  {viewingTask.lead_id && leadMap.get(viewingTask.lead_id)?.email && (
+                    <button
+                      type="button"
+                      className="task-action-email"
+                      onClick={() =>
+                        contactStudent(viewingTask, "email")
+                      }
+                    >
+                      Email
+                    </button>
+                  )}
+                </div>
+
+                <div className="task-modal-actions">
                   <button
                     type="button"
-                    onClick={() =>
-                      whatsappLead(
-                        getLead(
-                          selectedTask
-                        )
-                      )
-                    }
-                    style={{
-                      ...smallActionButton,
-                      color:
-                        "#047857",
-                      border:
-                        "1px solid #a7f3d0",
-                      background:
-                        "#ecfdf5",
+                    className="ciu-btn-light"
+                    onClick={() => {
+                      openOutcome(viewingTask);
+                      setViewingTask(null);
                     }}
                   >
-                    WhatsApp
+                    Record Outcome
                   </button>
-                )}
 
-                {getLead(
-                  selectedTask
-                )?.email && (
                   <button
                     type="button"
-                    onClick={() =>
-                      emailLead(
-                        getLead(
-                          selectedTask
-                        )
-                      )
-                    }
-                    style={{
-                      ...smallActionButton,
-                      color:
-                        "#7c3aed",
-                      border:
-                        "1px solid #ddd6fe",
-                      background:
-                        "#f5f3ff",
-                    }}
+                    className="ciu-btn-light"
+                    onClick={() => openEdit(viewingTask)}
                   >
-                    Email
+                    Edit
                   </button>
-                )}
 
-                {selectedTask.status !==
-                  "completed" && (
                   <button
                     type="button"
-                    onClick={async () => {
-                      await markComplete(
-                        selectedTask
-                      );
-
-                      setSelectedTask(
-                        null
-                      );
-                    }}
-                    style={{
-                      ...smallActionButton,
-                      color:
-                        "#047857",
-                      border:
-                        "1px solid #a7f3d0",
-                      background:
-                        "#ecfdf5",
-                    }}
+                    className="ciu-btn"
+                    onClick={() => completeTask(viewingTask)}
                   >
-                    Complete Task
+                    Complete
                   </button>
-                )}
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedTask(
-                      null
-                    );
+                  <button
+                    type="button"
+                    className="task-danger-btn"
+                    onClick={() => deleteTask(viewingTask)}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </>
+            )}
 
-                    openEditModal(
-                      selectedTask
-                    );
-                  }}
-                  style={
-                    smallActionButton
-                  }
-                >
-                  Edit Task
-                </button>
-              </div>
-            </div>
+            {outcomeTask && !showForm && (
+              <>
+                <div className="task-modal-head">
+                  <div>
+                    <h2>Record Outcome</h2>
+                    <p>{outcomeTask.title}</p>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="task-close"
+                    onClick={() => setOutcomeTask(null)}
+                  >
+                    X
+                  </button>
+                </div>
+
+                <div className="task-outcome-box">
+                  <div className="task-field">
+                    <label>Outcome</label>
+                    <select
+                      value={outcome}
+                      onChange={(e) => setOutcome(e.target.value)}
+                    >
+                      {OUTCOMES.map((item) => (
+                        <option key={item} value={item}>
+                          {labelStatus(item)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {(outcome === "Follow up later" ||
+                    outcome === "No Answer" ||
+                    outcome === "Unreachable") && (
+                    <div className="task-field">
+                      <label>Next Follow-up</label>
+                      <input
+                        type="datetime-local"
+                        value={nextFollowUp}
+                        onChange={(e) => setNextFollowUp(e.target.value)}
+                      />
+                    </div>
+                  )}
+
+                  <div className="task-field">
+                    <label>Notes / Feedback</label>
+                    <textarea
+                      rows={5}
+                      value={outcomeNotes}
+                      onChange={(e) => setOutcomeNotes(e.target.value)}
+                      placeholder="Record what happened during the call, WhatsApp or email..."
+                    />
+                  </div>
+
+                  <div className="task-outcome-note">
+                    The outcome will update the related lead and complete this
+                    task. If a next follow-up is selected, a new task will be
+                    created automatically.
+                  </div>
+                </div>
+
+                <div className="task-modal-actions">
+                  <button
+                    type="button"
+                    className="ciu-btn-light"
+                    onClick={() => setOutcomeTask(null)}
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="button"
+                    className="ciu-btn"
+                    disabled={saving}
+                    onClick={saveOutcome}
+                  >
+                    {saving ? "Saving..." : "Save Outcome & Complete"}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
 
-      {/* RESPONSIVE STYLE */}
       <style jsx>{`
-        @media (max-width: 1000px) {
-          main {
-            padding: 18px !important;
-          }
-
-          .unused {
-            display: none;
-          }
+        .task-modal-backdrop {
+          position: fixed;
+          inset: 0;
+          z-index: 1000;
+          background: rgba(0, 40, 34, 0.45);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 24px;
         }
 
-        @media (max-width: 800px) {
-          div {
-            box-sizing: border-box;
+        .task-modal {
+          width: min(850px, 100%);
+          max-height: 92vh;
+          overflow-y: auto;
+          background: white;
+          border-radius: 18px;
+          padding: 28px;
+          box-shadow: 0 24px 70px rgba(0, 0, 0, 0.2);
+        }
+
+        .task-modal-head {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 20px;
+          margin-bottom: 24px;
+        }
+
+        .task-modal-head h2 {
+          margin: 0 0 6px;
+          color: #004d40;
+          font-size: 24px;
+        }
+
+        .task-modal-head p {
+          margin: 0;
+          color: #6b7f78;
+        }
+
+        .task-close {
+          width: 36px;
+          height: 36px;
+          border: 1px solid #dfe9e5;
+          border-radius: 10px;
+          background: white;
+          cursor: pointer;
+          font-weight: 700;
+          color: #004d40;
+        }
+
+        .task-form-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 18px;
+        }
+
+        .task-field {
+          display: flex;
+          flex-direction: column;
+          gap: 7px;
+        }
+
+        .task-field-full {
+          grid-column: 1 / -1;
+        }
+
+        .task-field label {
+          font-size: 13px;
+          font-weight: 700;
+          color: #17322c;
+        }
+
+        .task-field input,
+        .task-field select,
+        .task-field textarea {
+          width: 100%;
+          box-sizing: border-box;
+          border: 1px solid #dfe9e5;
+          border-radius: 10px;
+          padding: 11px 12px;
+          font: inherit;
+          color: #17322c;
+          background: white;
+          outline: none;
+        }
+
+        .task-field input:focus,
+        .task-field select:focus,
+        .task-field textarea:focus {
+          border-color: #00695c;
+          box-shadow: 0 0 0 3px rgba(0, 105, 92, 0.08);
+        }
+
+        .task-modal-actions {
+          display: flex;
+          justify-content: flex-end;
+          flex-wrap: wrap;
+          gap: 10px;
+          margin-top: 24px;
+          padding-top: 18px;
+          border-top: 1px solid #eef3f1;
+        }
+
+        .task-detail-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 16px;
+          margin-bottom: 20px;
+        }
+
+        .task-detail-grid > div {
+          padding: 15px;
+          border: 1px solid #e5eeeb;
+          border-radius: 12px;
+          background: #f8fbfa;
+        }
+
+        .task-detail-grid span,
+        .task-detail-description span {
+          display: block;
+          font-size: 12px;
+          color: #6b7f78;
+          margin-bottom: 5px;
+          font-weight: 700;
+          text-transform: uppercase;
+        }
+
+        .task-detail-grid strong {
+          color: #17322c;
+        }
+
+        .task-detail-description {
+          padding: 16px;
+          border-radius: 12px;
+          background: #eef7df;
+          margin-bottom: 18px;
+        }
+
+        .task-detail-description p {
+          margin: 0;
+          color: #17322c;
+          line-height: 1.6;
+          white-space: pre-wrap;
+        }
+
+        .task-contact-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+        }
+
+        .task-contact-actions button {
+          border: 0;
+          border-radius: 9px;
+          padding: 10px 16px;
+          cursor: pointer;
+          font-weight: 700;
+        }
+
+        .task-action-call {
+          background: #eaf5f2;
+          color: #00695c;
+        }
+
+        .task-action-whatsapp {
+          background: #eef7df;
+          color: #3d6b20;
+        }
+
+        .task-action-email {
+          background: #edf1f7;
+          color: #304b6d;
+        }
+
+        .task-danger-btn {
+          border: 0;
+          border-radius: 9px;
+          padding: 10px 16px;
+          background: #fff0ef;
+          color: #b42318;
+          cursor: pointer;
+          font-weight: 700;
+        }
+
+        .task-outcome-box {
+          display: flex;
+          flex-direction: column;
+          gap: 18px;
+        }
+
+        .task-outcome-note {
+          padding: 14px;
+          border-radius: 10px;
+          background: #eef7df;
+          color: #456052;
+          font-size: 13px;
+          line-height: 1.5;
+        }
+
+        @media (max-width: 700px) {
+          .task-modal-backdrop {
+            padding: 10px;
+          }
+
+          .task-modal {
+            padding: 20px;
+            border-radius: 14px;
+          }
+
+          .task-form-grid,
+          .task-detail-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .task-field-full {
+            grid-column: auto;
+          }
+
+          .task-modal-actions {
+            justify-content: stretch;
+          }
+
+          .task-modal-actions button {
+            flex: 1;
           }
         }
       `}</style>
