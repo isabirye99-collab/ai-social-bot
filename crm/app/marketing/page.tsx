@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 type Campaign = {
@@ -173,6 +173,13 @@ function getPipelineStage(
   return "Leads";
 }
 
+type CsvRow = Record<string,string>;
+function csvHeader(v:string){return v.trim().toLowerCase().replace(/[_-]+/g," ").replace(/\s+/g," ");}
+function csvLine(line:string){const out:string[]=[];let value="";let quoted=false;for(let i=0;i<line.length;i++){const ch=line[i];if(ch==='"'){if(quoted&&line[i+1]==='"'){value+='"';i++;}else quoted=!quoted;}else if(ch===","&&!quoted){out.push(value.trim());value="";}else value+=ch;}out.push(value.trim());return out;}
+function parseMarketingCsv(text:string):CsvRow[]{const lines=text.replace(/^\uFEFF/,"").split(/\r?\n/).filter(Boolean);if(lines.length<2)return[];const headers=csvLine(lines[0]).map(csvHeader);return lines.slice(1).map(line=>{const vals=csvLine(line);const row:CsvRow={};headers.forEach((h,i)=>row[h]=vals[i]||"");return row;});}
+function csvVal(row:CsvRow,aliases:string[]){for(const alias of aliases){const v=row[csvHeader(alias)];if(v?.trim())return v.trim();}return "";}
+function mapMarketingRow(row:CsvRow){return{ciu_number:csvVal(row,["CIU Number","CIU No","Student Number","Student ID"]),name:csvVal(row,["Full Name","Name","Student Name","Full Names"]),phone:csvVal(row,["Telephone Number","Telephone","Phone Number","Phone","Mobile","Contact"]),email:csvVal(row,["Email","Email Address"]),product_service:csvVal(row,["Programme","Program","Course","Product","Product Service"]),feedback:csvVal(row,["Feedback","Comments","Notes"])};}
+
 export default function MarketingPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [campaignLeads, setCampaignLeads] = useState<CampaignLead[]>([]);
@@ -196,6 +203,13 @@ export default function MarketingPage() {
 
   const [selectedCampaignId, setSelectedCampaignId] =
     useState<string | null>(null);
+
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importCampaignId, setImportCampaignId] = useState("");
+  const [csvRows, setCsvRows] = useState<CsvRow[]>([]);
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [importMessage, setImportMessage] = useState("");
+  const csvInputRef = useRef<HTMLInputElement | null>(null);
 
   const [form, setForm] = useState({
     name: "",
@@ -544,6 +558,9 @@ export default function MarketingPage() {
     }
   };
 
+  const openImportModal=(campaignId?:string)=>{setImportCampaignId(campaignId||selectedCampaignId||campaigns[0]?.id||"");setCsvRows([]);setCsvFile(null);setImportMessage("");setError("");if(csvInputRef.current)csvInputRef.current.value="";setShowImportModal(true);};
+  const handleMarketingCsv=async(file:File|null)=>{setCsvFile(file);setCsvRows([]);setImportMessage("");if(!file)return;if(!file.name.toLowerCase().endsWith(".csv")){setError("Please select a CSV file.");return;}try{const rows=parseMarketingCsv(await file.text());if(!rows.length)throw new Error("The CSV file contains no data rows.");if(rows.length>5000)throw new Error("A single CSV import is limited to 5,000 rows.");setCsvRows(rows);setImportMessage(`${rows.length.toLocaleString()} rows detected. Review the preview before importing.`);}catch(err){setError(err instanceof Error?err.message:"Unable to read CSV.");}};
+  const importMarketingLeads=async()=>{if(!csvFile||!importCampaignId||!csvRows.length){setError("Select a campaign and CSV file first.");return;}try{setSaving(true);setError("");setImportMessage("Importing leads and assigning salespeople...");const {data:{user}}=await supabase.auth.getUser();if(!user)throw new Error("You must be signed in.");const {data:batch,error:batchError}=await supabase.from("campaign_import_batches").insert({campaign_id:importCampaignId,file_name:csvFile.name,total_rows:csvRows.length,imported_by:user.id}).select("id").single();if(batchError)throw new Error(batchError.message);let imported=0,duplicates=0,failed=0;for(const raw of csvRows){const row=mapMarketingRow(raw);if(!row.name||!row.phone){failed++;continue;}let existing:{id:string}|null=null;if(row.ciu_number){const q=await supabase.from("leads").select("id").eq("ciu_number",row.ciu_number).maybeSingle();if(q.error)throw new Error(q.error.message);existing=q.data;}if(!existing&&row.phone){const q=await supabase.from("leads").select("id").eq("phone",row.phone).maybeSingle();if(q.error)throw new Error(q.error.message);existing=q.data;}if(!existing&&row.email){const q=await supabase.from("leads").select("id").eq("email",row.email).maybeSingle();if(q.error)throw new Error(q.error.message);existing=q.data;}let leadId=existing?.id;if(existing)duplicates++;else{const q=await supabase.from("leads").insert({ciu_number:row.ciu_number||null,name:row.name,phone:row.phone||null,email:row.email||null,product_service:row.product_service||null,feedback:row.feedback||null,status:"new"}).select("id").single();if(q.error){failed++;continue;}leadId=q.data.id;imported++;}if(!leadId)continue;const a=await supabase.from("campaign_leads").upsert({campaign_id:importCampaignId,lead_id:leadId},{onConflict:"campaign_id,lead_id"});if(a.error){failed++;continue;}const b=await supabase.from("campaign_lead_imports").upsert({campaign_id:importCampaignId,lead_id:leadId,import_batch_id:batch.id},{onConflict:"campaign_id,lead_id"});if(b.error)failed++;}const u=await supabase.from("campaign_import_batches").update({imported_rows:imported,duplicate_rows:duplicates,failed_rows:failed}).eq("id",batch.id);if(u.error)throw new Error(u.error.message);setImportMessage(`Import complete: ${imported} new leads, ${duplicates} existing leads linked, ${failed} failed rows.`);await loadMarketing();}catch(err){console.error(err);setError(err instanceof Error?err.message:"CSV import failed.");}finally{setSaving(false);}};
   const channels = useMemo(() => {
     const values = campaigns
       .map((campaign) =>
@@ -1089,6 +1106,7 @@ export default function MarketingPage() {
                 : "Refresh"}
             </button>
 
+            <button type="button" onClick={()=>openImportModal()} className="ciu-btn-light" style={{visibility:"visible",opacity:1}}>↑ Upload Leads CSV</button>
             <button
               type="button"
               onClick={openNewCampaign}
@@ -2701,6 +2719,7 @@ export default function MarketingPage() {
           </div>
         )}
 
+        {showImportModal && (<div style={{position:"fixed",inset:0,zIndex:10000,background:"rgba(15,23,42,.55)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}><div style={{width:"100%",maxWidth:760,maxHeight:"92vh",overflowY:"auto",background:"#fff",borderRadius:16,padding:24,boxShadow:"0 25px 70px rgba(15,23,42,.25)"}}><div style={{display:"flex",justifyContent:"space-between"}}><div><h2 style={{margin:0,fontSize:22}}>Upload Leads CSV</h2><p style={{margin:"6px 0 0",color:"#6b7f78",fontSize:13}}>Bulk imports are tracked through Marketing and linked to a campaign.</p></div><button type="button" onClick={()=>!saving&&setShowImportModal(false)} style={{width:36,height:36,borderRadius:8,border:"1px solid #dfe9e5",background:"#fff",fontSize:18}}>×</button></div><div style={{marginTop:20}}><label style={labelStyle}>Campaign *</label><select value={importCampaignId} onChange={e=>setImportCampaignId(e.target.value)} style={inputStyle} disabled={saving}><option value="">Select campaign</option>{campaigns.map(campaign=><option key={campaign.id} value={campaign.id}>{campaign.name}</option>)}</select></div><div style={{marginTop:15,padding:16,borderRadius:10,border:"1px dashed #9dbab1",background:"#f7fbf9"}}><input ref={csvInputRef} type="file" accept=".csv,text/csv" disabled={saving} onChange={e=>handleMarketingCsv(e.target.files?.[0]||null)}/><div style={{marginTop:8,fontSize:12,color:"#64756f"}}>Columns: CIU Number, Full Name, Telephone Number, Email, Programme, Feedback. Maximum 5,000 rows.</div></div>{csvRows.length>0&&<div style={{marginTop:18}}><strong>Preview — first 5 rows</strong><div style={{overflowX:"auto",marginTop:8}}><table style={{width:"100%",borderCollapse:"collapse"}}><thead><tr>{["Name","Phone","Email","Programme","CIU Number"].map(h=><th key={h} style={thStyle}>{h}</th>)}</tr></thead><tbody>{csvRows.slice(0,5).map((raw,i)=>{const row=mapMarketingRow(raw);return <tr key={i}><td style={tdStyle}>{row.name||"—"}</td><td style={tdStyle}>{row.phone||"—"}</td><td style={tdStyle}>{row.email||"—"}</td><td style={tdStyle}>{row.product_service||"—"}</td><td style={tdStyle}>{row.ciu_number||"—"}</td></tr>;})}</tbody></table></div></div>}{importMessage&&<div style={{marginTop:15,padding:12,borderRadius:9,background:"#edf8f4",color:"#00695c",fontSize:12}}>{importMessage}</div>}<div style={{marginTop:15,padding:12,borderRadius:9,background:"#fff8e8",color:"#795500",fontSize:12}}>New leads are automatically assigned to the salesperson with the lightest workload. Existing leads are linked to the campaign instead of being duplicated.</div><div style={{display:"flex",justifyContent:"flex-end",gap:10,marginTop:22}}><button type="button" className="ciu-btn-light" onClick={()=>setShowImportModal(false)} disabled={saving}>Cancel</button><button type="button" className="ciu-btn" onClick={importMarketingLeads} disabled={saving||!csvRows.length||!importCampaignId}>{saving?"Importing...":"Import Leads"}</button></div></div></div>)}
         {/* CAMPAIGN MODAL */}
         {showCampaignModal && (
           <div
