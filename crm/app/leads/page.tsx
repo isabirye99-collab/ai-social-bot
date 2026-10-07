@@ -15,6 +15,8 @@ type Lead = {
   next_follow_up_at: string | null;
   assigned_to: string | null;
   created_at: string;
+  organization_id?: string | null;
+  contact_id?: string | null;
 };
 
 type Activity = {
@@ -27,25 +29,14 @@ type Activity = {
   created_by: string | null;
 };
 
-const leadStatusMap: Record<string, string> = {
-  new: "Pending",
-  contacted: "Called",
-  qualified: "Interested",
-  unqualified: "Not interested",
-  converted: "Converted",
-  lost: "Lost Leads",
-};
-
 const displayStatuses = [
   "Pending",
   "Called",
   "WhatsApped",
   "Email sent",
   "Interested",
-  "Not interested",
   "Follow up later",
-  "Converted",
-  "Paid Fees",
+  "Not interested",
   "Financial issues",
   "Lost Leads",
   "Dropped",
@@ -54,34 +45,46 @@ const displayStatuses = [
   "No Answer",
 ];
 
-const outcomeOptions = [
-  "Answered - Interested",
-  "Answered - Follow up later",
-  "Answered - Not interested",
-  "Financial issues",
-  "Application started",
-  "Application submitted",
-  "Admitted",
-  "Acceptance paid",
-  "Enrolled",
-  "No Answer",
-  "Unreachable",
-  "Wrong Number",
-  "Dropped",
-  "Other",
-];
+const statusMap: Record<string, string> = {
+  new: "Pending",
+  pending: "Pending",
+  contacted: "Called",
+  called: "Called",
+  whatsapped: "WhatsApped",
+  email_sent: "Email sent",
+  "email sent": "Email sent",
+  qualified: "Interested",
+  interested: "Interested",
+  follow_up_later: "Follow up later",
+  "follow up later": "Follow up later",
+  unqualified: "Not interested",
+  financial: "Financial issues",
+  "financial issues": "Financial issues",
+  lost: "Lost Leads",
+  dropped: "Dropped",
+  ineffective: "Ineffective Data",
+  unreachable: "Unreachable",
+  "no answer": "No Answer",
+  converted: "Interested",
+};
 
-function cleanPhone(phone: string) {
-  return phone.replace(/[^\d+]/g, "").replace(/^\+/, "");
+function getDisplayStatus(status: string | null) {
+  if (!status) return "Pending";
+
+  return (
+    statusMap[status.toLowerCase()] ||
+    status ||
+    "Pending"
+  );
 }
 
 function formatDate(date: string | null) {
-  if (!date) return "â€”";
+  if (!date) return "—";
 
   const parsed = new Date(date);
 
   if (Number.isNaN(parsed.getTime())) {
-    return "â€”";
+    return "—";
   }
 
   return parsed.toLocaleDateString("en-GB", {
@@ -92,12 +95,12 @@ function formatDate(date: string | null) {
 }
 
 function formatDateTime(date: string | null) {
-  if (!date) return "â€”";
+  if (!date) return "—";
 
   const parsed = new Date(date);
 
   if (Number.isNaN(parsed.getTime())) {
-    return "â€”";
+    return "—";
   }
 
   return parsed.toLocaleString("en-GB", {
@@ -109,56 +112,20 @@ function formatDateTime(date: string | null) {
   });
 }
 
-function outcomeToLeadStatus(outcome: string) {
-  const value = outcome.toLowerCase();
-
-  if (value.includes("not interested")) return "unqualified";
-  if (value.includes("dropped")) return "lost";
-  if (value.includes("wrong number")) return "unqualified";
-
-  if (
-    value.includes("interested") ||
-    value.includes("application") ||
-    value.includes("admitted") ||
-    value.includes("financial")
-  ) {
-    return "qualified";
-  }
-
-  if (
-    value.includes("converted") ||
-    value.includes("enrolled") ||
-    value.includes("acceptance paid")
-  ) {
-    return "converted";
-  }
-
-  if (
-    value.includes("unreachable") ||
-    value.includes("no answer") ||
-    value.includes("follow up")
-  ) {
-    return "contacted";
-  }
-
-  return "contacted";
+function statusIsQualified(status: string | null) {
+  return getDisplayStatus(status) === "Interested";
 }
 
-function outcomeToDisplayStatus(outcome: string) {
-  const value = outcome.toLowerCase();
-
-  if (value.includes("not interested")) return "Not interested";
-  if (value.includes("interested")) return "Interested";
-  if (value.includes("financial")) return "Financial issues";
-  if (value.includes("acceptance paid")) return "Paid Fees";
-  if (value.includes("enrolled")) return "Converted";
-  if (value.includes("no answer")) return "No Answer";
-  if (value.includes("unreachable")) return "Unreachable";
-  if (value.includes("wrong number")) return "Ineffective Data";
-  if (value.includes("dropped")) return "Dropped";
-  if (value.includes("follow up")) return "Follow up later";
-
-  return "Called";
+function statusIsClosed(status: string | null) {
+  return [
+    "Not interested",
+    "Financial issues",
+    "Lost Leads",
+    "Dropped",
+    "Ineffective Data",
+    "Unreachable",
+    "No Answer",
+  ].includes(getDisplayStatus(status));
 }
 
 export default function LeadsPage() {
@@ -175,20 +142,23 @@ export default function LeadsPage() {
   const [showAddLead, setShowAddLead] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const [showActivityModal, setShowActivityModal] = useState(false);
-  const [activityLead, setActivityLead] = useState<Lead | null>(null);
-  const [activityType, setActivityType] = useState<
-    "call" | "whatsapp" | "email"
-  >("call");
-  const [activityOutcome, setActivityOutcome] = useState("");
-  const [activityFeedback, setActivityFeedback] = useState("");
-  const [nextFollowUp, setNextFollowUp] = useState("");
-  const [savingActivity, setSavingActivity] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [selectedLead, setSelectedLead] =
+    useState<Lead | null>(null);
 
-  const [showHistoryModal, setShowHistoryModal] = useState(false);
-  const [historyLead, setHistoryLead] = useState<Lead | null>(null);
-  const [activities, setActivities] = useState<Activity[]>([]);
-  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [showHistoryModal, setShowHistoryModal] =
+    useState(false);
+  const [historyLead, setHistoryLead] =
+    useState<Lead | null>(null);
+
+  const [activities, setActivities] =
+    useState<Activity[]>([]);
+
+  const [loadingHistory, setLoadingHistory] =
+    useState(false);
+
+  const [qualifyingLeadId, setQualifyingLeadId] =
+    useState<string | null>(null);
 
   const [newLead, setNewLead] = useState({
     ciu_number: "",
@@ -197,12 +167,13 @@ export default function LeadsPage() {
     email: "",
     product_service: "",
     status: "new",
-    follow_up_status: "",
-    next_follow_up_at: "",
   });
 
-  const [currentUserId, setCurrentUserId] = useState("");
-  const [currentRole, setCurrentRole] = useState("");
+  const [currentUserId, setCurrentUserId] =
+    useState("");
+
+  const [currentRole, setCurrentRole] =
+    useState("");
 
   async function loadLeads() {
     try {
@@ -219,29 +190,33 @@ export default function LeadsPage() {
       }
 
       if (!user) {
-        throw new Error("You must be signed in to view leads.");
+        throw new Error(
+          "You must be signed in to view leads."
+        );
       }
 
       setCurrentUserId(user.id);
 
-      const { data: profile, error: profileError } =
-        await supabase
-          .from("profiles")
-          .select("id, full_name, role")
-          .eq("id", user.id)
-          .maybeSingle();
+      const {
+        data: profile,
+        error: profileError,
+      } = await supabase
+        .from("profiles")
+        .select("id, full_name, role")
+        .eq("id", user.id)
+        .maybeSingle();
 
       if (profileError) {
         throw profileError;
       }
 
       const role = profile?.role || "";
+
       setCurrentRole(role);
 
       let query = supabase
         .from("leads")
-        .select(
-          `
+        .select(`
           id,
           ciu_number,
           name,
@@ -252,25 +227,44 @@ export default function LeadsPage() {
           follow_up_status,
           next_follow_up_at,
           assigned_to,
-          created_at
-        `
-        )
-        .order("created_at", { ascending: false });
+          created_at,
+          organization_id,
+          contact_id
+        `)
+        .order("created_at", {
+          ascending: false,
+        });
 
       if (role === "salesperson") {
-        query = query.eq("assigned_to", user.id);
+        query = query.eq(
+          "assigned_to",
+          user.id
+        );
       }
 
-      const { data, error } = await query;
+      const {
+        data,
+        error,
+      } = await query;
 
       if (error) {
         throw error;
       }
 
-      setLeads((data || []) as Lead[]);
-    } catch (err: any) {
-      console.error(err);
-      setError(err?.message || "Failed to load leads.");
+      setLeads(
+        (data || []) as Lead[]
+      );
+    } catch (err) {
+      console.error(
+        "Leads loading error:",
+        err
+      );
+
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to load leads."
+      );
     } finally {
       setLoading(false);
     }
@@ -282,18 +276,26 @@ export default function LeadsPage() {
 
   const programs = useMemo(() => {
     const values = leads
-      .map((lead) => lead.product_service)
+      .map(
+        (lead) =>
+          lead.product_service
+      )
       .filter(Boolean) as string[];
 
-    return Array.from(new Set(values)).sort();
+    return Array.from(
+      new Set(values)
+    ).sort();
   }, [leads]);
 
   const filteredLeads = useMemo(() => {
-    const query = search.trim().toLowerCase();
+    const query =
+      search.trim().toLowerCase();
 
     return leads.filter((lead) => {
       const displayStatus =
-        leadStatusMap[lead.status || ""] || lead.status || "Pending";
+        getDisplayStatus(
+          lead.status
+        );
 
       const matchesSearch =
         !query ||
@@ -304,44 +306,69 @@ export default function LeadsPage() {
           lead.email,
           lead.product_service,
           displayStatus,
-          lead.follow_up_status,
         ]
           .filter(Boolean)
-          .some((value) => String(value).toLowerCase().includes(query));
+          .some((value) =>
+            String(value)
+              .toLowerCase()
+              .includes(query)
+          );
 
       const matchesStatus =
-        statusFilter === "All" || displayStatus === statusFilter;
+        statusFilter === "All" ||
+        displayStatus === statusFilter;
 
       const matchesProgram =
         programFilter === "All" ||
-        (lead.product_service || "") === programFilter;
+        (lead.product_service || "") ===
+          programFilter;
 
-      return matchesSearch && matchesStatus && matchesProgram;
+      return (
+        matchesSearch &&
+        matchesStatus &&
+        matchesProgram
+      );
     });
-  }, [leads, search, statusFilter, programFilter]);
+  }, [
+    leads,
+    search,
+    statusFilter,
+    programFilter,
+  ]);
 
-  const totalLeads = leads.length;
-
-  const interestedLeads = leads.filter((lead) => {
-    const status = leadStatusMap[lead.status || ""] || lead.status;
-    return status === "Interested";
-  }).length;
-
-  const convertedLeads = leads.filter(
+  const activeLeads = leads.filter(
     (lead) =>
-      lead.status === "converted" ||
-      leadStatusMap[lead.status || ""] === "Converted"
+      !statusIsClosed(
+        lead.status
+      )
   ).length;
 
-  const followUps = leads.filter(
-    (lead) => !!lead.next_follow_up_at
-  ).length;
+  const interestedLeads =
+    leads.filter((lead) =>
+      statusIsQualified(
+        lead.status
+      )
+    ).length;
 
-  async function handleAddLead(event: React.FormEvent) {
+  const closedLeads =
+    leads.filter((lead) =>
+      statusIsClosed(
+        lead.status
+      )
+    ).length;
+
+  async function handleAddLead(
+    event: React.FormEvent
+  ) {
     event.preventDefault();
 
-    if (!newLead.name.trim() || !newLead.phone.trim()) {
-      alert("Please enter the student's name and telephone number.");
+    if (
+      !newLead.name.trim() ||
+      !newLead.phone.trim()
+    ) {
+      alert(
+        "Please enter the student's name and telephone number."
+      );
       return;
     }
 
@@ -358,139 +385,170 @@ export default function LeadsPage() {
       }
 
       if (!user) {
-        throw new Error("You must be signed in to add a lead.");
+        throw new Error(
+          "You must be signed in to add a lead."
+        );
       }
 
-      /*
-       * SALESPEOPLE:
-       * The new Lead belongs directly to the logged-in salesperson.
-       *
-       * ADMIN / SUPER ADMIN:
-       * Keep the existing automatic balanced assignment.
-       */
-      let assignedSalespersonId = user.id;
+      let assignedSalespersonId =
+        user.id;
 
-      if (currentRole !== "salesperson") {
-        const { data: salespeople, error: salespersonError } =
-          await supabase
-            .from("profiles")
-            .select("id, full_name")
-            .eq("role", "salesperson")
-            .eq("is_active", true)
-            .order("full_name", { ascending: true });
+      if (
+        currentRole !==
+        "salesperson"
+      ) {
+        const {
+          data: salespeople,
+          error:
+            salespersonError,
+        } = await supabase
+          .from("profiles")
+          .select(
+            "id, full_name"
+          )
+          .eq(
+            "role",
+            "salesperson"
+          )
+          .eq(
+            "is_active",
+            true
+          )
+          .order(
+            "full_name",
+            {
+              ascending: true,
+            }
+          );
 
         if (salespersonError) {
           throw salespersonError;
         }
 
-        if (!salespeople || salespeople.length === 0) {
+        if (
+          !salespeople ||
+          salespeople.length === 0
+        ) {
           throw new Error(
             "No active salesperson is available to receive this lead."
           );
         }
 
-        const salespersonIds = salespeople.map(
-          (person) => person.id
-        );
+        const ids =
+          salespeople.map(
+            (person) =>
+              person.id
+          );
 
-        const { data: assignedLeads, error: assignedLeadsError } =
-          await supabase
-            .from("leads")
-            .select("assigned_to")
-            .in("assigned_to", salespersonIds);
+        const {
+          data: assignedLeads,
+          error:
+            assignedLeadsError,
+        } = await supabase
+          .from("leads")
+          .select(
+            "assigned_to"
+          )
+          .in(
+            "assigned_to",
+            ids
+          );
 
         if (assignedLeadsError) {
           throw assignedLeadsError;
         }
 
-        const leadCounts = new Map<string, number>();
+        const counts =
+          new Map<
+            string,
+            number
+          >();
 
-        salespersonIds.forEach((id) => {
-          leadCounts.set(id, 0);
-        });
+        ids.forEach((id) =>
+          counts.set(id, 0)
+        );
 
-        (assignedLeads || []).forEach((lead) => {
-          if (lead.assigned_to) {
-            leadCounts.set(
+        (
+          assignedLeads || []
+        ).forEach((lead) => {
+          if (
+            lead.assigned_to
+          ) {
+            counts.set(
               lead.assigned_to,
-              (leadCounts.get(lead.assigned_to) || 0) + 1
+              (counts.get(
+                lead.assigned_to
+              ) || 0) + 1
             );
           }
         });
 
-        const assignedSalesperson = salespeople.reduce(
-          (current, person) => {
-            const currentCount =
-              leadCounts.get(current.id) || 0;
-            const personCount =
-              leadCounts.get(person.id) || 0;
+        const selected =
+          salespeople.reduce(
+            (
+              current,
+              person
+            ) => {
+              const currentCount =
+                counts.get(
+                  current.id
+                ) || 0;
 
-            return personCount < currentCount
-              ? person
-              : current;
-          },
-          salespeople[0]
-        );
+              const personCount =
+                counts.get(
+                  person.id
+                ) || 0;
 
-        assignedSalespersonId = assignedSalesperson.id;
+              return personCount <
+                currentCount
+                ? person
+                : current;
+            },
+            salespeople[0]
+          );
+
+        assignedSalespersonId =
+          selected.id;
       }
 
-      const { data: createdLead, error } = await supabase
+      const {
+        error,
+      } = await supabase
         .from("leads")
         .insert({
-          ciu_number: newLead.ciu_number.trim() || null,
-          name: newLead.name.trim(),
-          phone: newLead.phone.trim(),
-          email: newLead.email.trim() || null,
+          ciu_number:
+            newLead.ciu_number.trim() ||
+            null,
+
+          name:
+            newLead.name.trim(),
+
+          phone:
+            newLead.phone.trim(),
+
+          email:
+            newLead.email.trim() ||
+            null,
+
           product_service:
-            newLead.product_service.trim() || null,
-          status: newLead.status,
+            newLead.product_service.trim() ||
+            null,
+
+          status:
+            newLead.status,
+
           follow_up_status:
-            newLead.follow_up_status.trim() || null,
-          next_follow_up_at: newLead.next_follow_up_at
-            ? new Date(
-                newLead.next_follow_up_at
-              ).toISOString()
-            : null,
-          assigned_to: assignedSalespersonId,
-        })
-        .select("id, name, assigned_to")
-        .single();
+            null,
+
+          next_follow_up_at:
+            null,
+
+          assigned_to:
+            assignedSalespersonId,
+        });
 
       if (error) {
         throw error;
-      }
-
-      if (!createdLead?.id) {
-        throw new Error(
-          "Lead was created but its ID could not be retrieved."
-        );
-      }
-
-      const profileId = user.id;
-
-      const initialTaskPayload: Record<string, any> = {
-        title:
-          "Follow up: " +
-          (createdLead.name ||
-            newLead.name.trim()),
-        description:
-          "Initial follow-up for newly created Lead.",
-        task_type: "call",
-        lead_id: createdLead.id,
-        due_at: new Date().toISOString(),
-        status: "pending",
-        assigned_to: assignedSalespersonId,
-        created_by: profileId,
-      };
-
-      const { error: initialTaskError } =
-        await supabase
-          .from("tasks")
-          .insert(initialTaskPayload);
-
-      if (initialTaskError) {
-        throw initialTaskError;
       }
 
       setNewLead({
@@ -500,475 +558,53 @@ export default function LeadsPage() {
         email: "",
         product_service: "",
         status: "new",
-        follow_up_status: "",
-        next_follow_up_at: "",
       });
 
       setShowAddLead(false);
+
       await loadLeads();
 
       alert(
-        currentRole === "salesperson"
-          ? "Lead added successfully and assigned to you for follow-up."
-          : "Lead added successfully and assigned for follow-up."
+        currentRole ===
+          "salesperson"
+          ? "Lead added successfully and assigned to you."
+          : "Lead added successfully and assigned to a salesperson."
       );
-    } catch (err: any) {
-      console.error(err);
-      alert(err?.message || "Failed to add lead.");
+    } catch (err) {
+      console.error(
+        "Add lead error:",
+        err
+      );
+
+      alert(
+        err instanceof Error
+          ? err.message
+          : "Failed to add lead."
+      );
     } finally {
       setSaving(false);
     }
   }
-  function openActivityWorkflow(
-    lead: Lead,
-    type: "call" | "whatsapp" | "email"
+
+  function handleView(
+    lead: Lead
+  ) {
+    setSelectedLead(lead);
+    setShowViewModal(true);
+  }
+
+  async function openHistory(
+    lead: Lead
   ) {
     if (
-      currentRole === "salesperson" &&
-      lead.assigned_to !== currentUserId
+      currentRole ===
+        "salesperson" &&
+      lead.assigned_to !==
+        currentUserId
     ) {
-      alert("You can only work on leads assigned to you.");
-      return;
-    }
-
-    if (type === "call" && !lead.phone) {
-      alert("This lead does not have a telephone number.");
-      return;
-    }
-
-    if (type === "whatsapp" && !lead.phone) {
-      alert("This lead does not have a telephone number.");
-      return;
-    }
-
-    if (type === "email" && !lead.email) {
-      alert("This lead does not have an email address.");
-      return;
-    }
-
-    setActivityLead(lead);
-    setActivityType(type);
-    setActivityOutcome("");
-    setActivityFeedback("");
-    setNextFollowUp("");
-    setShowActivityModal(true);
-
-    if (type === "call" && lead.phone) {
-      window.open("tel:" + lead.phone, "_self");
-    }
-
-    if (type === "whatsapp" && lead.phone) {
-      const phone = cleanPhone(lead.phone);
-
-      if (phone) {
-        window.open("https://wa.me/" + phone, "_blank");
-      }
-    }
-
-    if (type === "email" && lead.email) {
-      window.location.href = "mailto:" + lead.email;
-    }
-  }
-
-  async function handleSaveActivity() {
-    if (!activityLead) return;
-
-    if (!activityOutcome) {
-      alert("Please select the outcome of the interaction.");
-      return;
-    }
-
-    try {
-      setSavingActivity(true);
-
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      let profileId: string | null = null;
-
-      if (user?.id) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("id")
-          .eq("id", user.id)
-          .maybeSingle();
-
-        if (profile?.id) {
-          profileId = profile.id;
-        }
-      }
-
-      const channelLabel =
-        activityType === "call"
-          ? "Call"
-          : activityType === "whatsapp"
-          ? "WhatsApp"
-          : "Email";
-
-      const displayOutcome = outcomeToDisplayStatus(activityOutcome);
-      const leadStatus = outcomeToLeadStatus(activityOutcome);
-
-      const nextFollowUpISO = nextFollowUp
-        ? new Date(nextFollowUp).toISOString()
-        : null;
-
-      const description = [
-        `Outcome: ${activityOutcome}`,
-        activityFeedback.trim()
-          ? `Feedback: ${activityFeedback.trim()}`
-          : null,
-        nextFollowUpISO
-          ? `Next Follow Up: ${formatDateTime(nextFollowUpISO)}`
-          : null,
-      ]
-        .filter(Boolean)
-        .join("\n");
-
-      if (
-        currentRole === "salesperson" &&
-        activityLead.assigned_to !== currentUserId
-      ) {
-        throw new Error(
-          "You can only record activities for leads assigned to you."
-        );
-      }
-
-      /*
-       * 1. SAVE COMMUNICATION HISTORY
-       */
-      const { error: activityError } = await supabase
-        .from("activities")
-        .insert({
-          lead_id: activityLead.id,
-          type: activityType,
-          subject: `${channelLabel} - ${activityOutcome}`,
-          description: description || null,
-          activity_at: new Date().toISOString(),
-          created_by: profileId,
-        });
-
-      if (activityError) {
-        throw activityError;
-      }
-
-      /*
-       * 2. UPDATE THE LEAD
-       */
-      let leadUpdateQuery = supabase
-        .from("leads")
-        .update({
-          status: leadStatus,
-          follow_up_status: displayOutcome,
-          next_follow_up_at: nextFollowUpISO,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", activityLead.id);
-
-      if (currentRole === "salesperson") {
-        leadUpdateQuery = leadUpdateQuery.eq(
-          "assigned_to",
-          currentUserId
-        );
-      }
-
-      const { error: leadError } =
-        await leadUpdateQuery;
-
-      if (leadError) {
-        throw leadError;
-      }
-
-      /*
-       * 3. DETERMINE PIPELINE MOVEMENT
-       */
-      const pipelineOutcomeMap: Record<string, string> = {
-        "Answered - Interested": "Leads",
-        "Application started": "Applied",
-        "Application submitted": "Applied",
-        Admitted: "Applied",
-        "Acceptance paid": "Paid Acceptance Fee",
-      };
-
-      const targetStageName = pipelineOutcomeMap[activityOutcome];
-
-      /*
-       * 4. MOVE QUALIFYING LEADS INTO PIPELINE
-       */
-      if (targetStageName) {
-        const { data: leadRecord, error: leadRecordError } =
-          await supabase
-            .from("leads")
-            .select(
-              "id, organization_id, contact_id, name, product_service, assigned_to"
-            )
-            .eq("id", activityLead.id)
-            .maybeSingle();
-
-        if (leadRecordError) {
-          throw leadRecordError;
-        }
-
-        if (!leadRecord) {
-          throw new Error(
-            "The Lead could not be found for Pipeline transfer."
-          );
-        }
-
-        const { data: targetStage, error: stageError } =
-          await supabase
-            .from("pipeline_stages")
-            .select("id, name, probability")
-            .eq("name", targetStageName)
-            .maybeSingle();
-
-        if (stageError) {
-          throw stageError;
-        }
-
-        if (!targetStage) {
-          throw new Error(
-            `Pipeline stage "${targetStageName}" could not be found.`
-          );
-        }
-
-        const {
-          data: existingOpportunity,
-          error: opportunityLookupError,
-        } = await supabase
-          .from("opportunities")
-          .select(
-            "id, lead_id, organization_id, contact_id, title, value, stage_id, status"
-          )
-          .eq("lead_id", activityLead.id)
-          .maybeSingle();
-
-        if (opportunityLookupError) {
-          throw opportunityLookupError;
-        }
-
-        if (existingOpportunity) {
-          const { error: opportunityUpdateError } =
-            await supabase
-              .from("opportunities")
-              .update({
-                stage_id: targetStage.id,
-                probability: Number(targetStage.probability ?? 0),
-                status: "open",
-                updated_at: new Date().toISOString(),
-              })
-              .eq("id", existingOpportunity.id);
-
-          if (opportunityUpdateError) {
-            throw opportunityUpdateError;
-          }
-        } else {
-          if (!leadRecord.organization_id) {
-            console.warn(
-              "Lead has no organization_id. Pipeline Opportunity was not created."
-            );
-          } else {
-            const { error: opportunityCreateError } =
-              await supabase.from("opportunities").insert({
-                lead_id: leadRecord.id,
-                organization_id: leadRecord.organization_id,
-                contact_id: leadRecord.contact_id,
-                title: leadRecord.name || "Unnamed Lead",
-                value: 0,
-                currency: "UGX",
-                stage_id: targetStage.id,
-                status: "open",
-                probability: Number(targetStage.probability ?? 0),
-                assigned_to: leadRecord.assigned_to,
-                notes: `Automatically moved from Leads after follow-up outcome: ${activityOutcome}.`,
-              });
-
-            if (opportunityCreateError) {
-              throw opportunityCreateError;
-            }
-          }
-        }
-      }
-
-      /*
-       * 5. AUTOMATIC NEXT TASK CONFIGURATION
-       */
-      type AutomaticTaskConfig = {
-        title: string;
-        description: string;
-        taskType: string;
-        defaultDays: number;
-      };
-
-      const automaticTaskMap: Record<string, AutomaticTaskConfig> = {
-        "Answered - Follow up later": {
-          title: `Follow up: ${activityLead.name || "Lead"}`,
-          description:
-            "Follow up with the Lead as requested after the previous interaction.",
-          taskType: activityType,
-          defaultDays: 3,
-        },
-
-        "No Answer": {
-          title: `Retry call: ${activityLead.name || "Lead"}`,
-          description:
-            "The previous call was not answered. Retry contacting this Lead.",
-          taskType: "call",
-          defaultDays: 1,
-        },
-
-        Unreachable: {
-          title: `Retry contact: ${activityLead.name || "Lead"}`,
-          description:
-            "The Lead was unreachable. Make another contact attempt.",
-          taskType: "call",
-          defaultDays: 1,
-        },
-
-        "Answered - Interested": {
-          title: `Pipeline follow up: ${activityLead.name || "Lead"}`,
-          description:
-            "Follow up with this interested Lead and progress the Pipeline opportunity.",
-          taskType: "call",
-          defaultDays: 2,
-        },
-
-        "Application started": {
-          title: `Application follow up: ${activityLead.name || "Lead"}`,
-          description:
-            "Follow up and support the Lead to complete the application process.",
-          taskType: "call",
-          defaultDays: 2,
-        },
-
-        "Application submitted": {
-          title: `Admission follow up: ${activityLead.name || "Lead"}`,
-          description:
-            "Follow up on the submitted application and admission process.",
-          taskType: "call",
-          defaultDays: 2,
-        },
-
-        Admitted: {
-          title: `Acceptance fee follow up: ${activityLead.name || "Lead"}`,
-          description:
-            "Follow up with the admitted student regarding acceptance fee payment.",
-          taskType: "call",
-          defaultDays: 2,
-        },
-
-        "Acceptance paid": {
-          title: `Enrollment follow up: ${activityLead.name || "Lead"}`,
-          description:
-            "Follow up with the student to complete enrollment and registration.",
-          taskType: "call",
-          defaultDays: 2,
-        },
-      };
-
-      const automaticTask = automaticTaskMap[activityOutcome];
-
-      /*
-       * 6. CREATE AUTOMATIC NEXT TASK
-       */
-      if (automaticTask) {
-        let taskDueAt = nextFollowUpISO;
-
-        if (!taskDueAt) {
-          const automaticDueDate = new Date();
-
-          automaticDueDate.setDate(
-            automaticDueDate.getDate() + automaticTask.defaultDays
-          );
-
-          automaticDueDate.setHours(9, 0, 0, 0);
-
-          taskDueAt = automaticDueDate.toISOString();
-        }
-
-        const taskPayload: Record<string, any> = {
-          title: automaticTask.title,
-          description:
-            activityFeedback.trim() ||
-            automaticTask.description,
-          task_type: automaticTask.taskType,
-          lead_id: activityLead.id,
-          due_at: taskDueAt,
-          status: "pending",
-        };
-
-        const { data: leadAssignment, error: leadAssignmentError } =
-          await supabase
-            .from("leads")
-            .select("assigned_to")
-            .eq("id", activityLead.id)
-            .maybeSingle();
-
-        if (leadAssignmentError) {
-          throw leadAssignmentError;
-        }
-
-        if (leadAssignment?.assigned_to) {
-          taskPayload.assigned_to = leadAssignment.assigned_to;
-        } else if (profileId) {
-          taskPayload.assigned_to = profileId;
-        }
-
-        if (profileId) {
-          taskPayload.created_by = profileId;
-        }
-
-        const { error: taskError } = await supabase
-          .from("tasks")
-          .insert(taskPayload);
-
-        if (taskError) {
-          throw taskError;
-        }
-      }
-
-      /*
-       * 7. CLOSE MODAL AND REFRESH
-       */
-      setShowActivityModal(false);
-      setActivityLead(null);
-      setActivityOutcome("");
-      setActivityFeedback("");
-      setNextFollowUp("");
-
-      await loadLeads();
-
-      /*
-       * 8. SUCCESS MESSAGE
-       */
       alert(
-        `${channelLabel} activity saved successfully.\n\n` +
-          `Outcome: ${activityOutcome}\n` +
-          `Status: ${displayOutcome}` +
-          (targetStageName
-            ? `\nPipeline: ${targetStageName}`
-            : "") +
-          (automaticTask
-            ? `\nNext Task: ${automaticTask.title}`
-            : "") +
-          (nextFollowUpISO
-            ? `\nNext Follow Up: ${formatDateTime(nextFollowUpISO)}`
-            : "")
+        "You can only view history for leads assigned to you."
       );
-    } catch (err: any) {
-      console.error(err);
-      alert(err?.message || "Failed to save the activity.");
-    } finally {
-      setSavingActivity(false);
-    }
-  }
-
-  async function openHistory(lead: Lead) {
-    if (
-      currentRole === "salesperson" &&
-      lead.assigned_to !== currentUserId
-    ) {
-      alert("You can only view history for leads assigned to you.");
       return;
     }
 
@@ -978,10 +614,12 @@ export default function LeadsPage() {
     setLoadingHistory(true);
 
     try {
-      const { data, error } = await supabase
+      const {
+        data,
+        error,
+      } = await supabase
         .from("activities")
-        .select(
-          `
+        .select(`
           id,
           lead_id,
           type,
@@ -989,255 +627,329 @@ export default function LeadsPage() {
           description,
           activity_at,
           created_by
-        `
+        `)
+        .eq(
+          "lead_id",
+          lead.id
         )
-        .eq("lead_id", lead.id)
-        .order("activity_at", { ascending: false });
+        .order(
+          "activity_at",
+          {
+            ascending: false,
+          }
+        );
 
       if (error) {
         throw error;
       }
 
-      setActivities((data || []) as Activity[]);
-    } catch (err: any) {
-      console.error(err);
+      setActivities(
+        (data || []) as Activity[]
+      );
+    } catch (err) {
+      console.error(
+        "History error:",
+        err
+      );
+
       alert(
-        err?.message || "Failed to load communication history."
+        err instanceof Error
+          ? err.message
+          : "Failed to load communication history."
       );
     } finally {
       setLoadingHistory(false);
     }
   }
 
-  function handleView(lead: Lead) {
-    const status =
-      leadStatusMap[lead.status || ""] ||
-      lead.status ||
-      "Pending";
+  async function qualifyLead(
+    lead: Lead
+  ) {
+    if (
+      currentRole ===
+        "salesperson" &&
+      lead.assigned_to !==
+        currentUserId
+    ) {
+      alert(
+        "You can only qualify leads assigned to you."
+      );
+      return;
+    }
 
-    alert(
-      `LEAD DETAILS\n\n` +
-        `CIU Number: ${lead.ciu_number || "â€”"}\n` +
-        `Name: ${lead.name || "â€”"}\n` +
-        `Phone: ${lead.phone || "â€”"}\n` +
-        `Email: ${lead.email || "â€”"}\n` +
-        `Programme: ${lead.product_service || "â€”"}\n` +
-        `Status: ${status}\n` +
-        `Follow Up: ${lead.follow_up_status || "â€”"}\n` +
-        `Next Follow Up: ${formatDateTime(lead.next_follow_up_at)}`
+    if (
+      !lead.organization_id
+    ) {
+      alert(
+        "This lead does not have an organization ID. The Pipeline opportunity cannot be created yet."
+      );
+      return;
+    }
+
+    setQualifyingLeadId(
+      lead.id
     );
+
+    setError("");
+
+    try {
+      const {
+        data: stages,
+        error:
+          stageError,
+      } = await supabase
+        .from("pipeline_stages")
+        .select(
+          "id, name, probability"
+        )
+        .order(
+          "position",
+          {
+            ascending: true,
+          }
+        );
+
+      if (stageError) {
+        throw stageError;
+      }
+
+      const interestedStage =
+        (stages || []).find(
+          (stage) =>
+            stage.name
+              .trim()
+              .toLowerCase() ===
+            "interested"
+        );
+
+      if (
+        !interestedStage
+      ) {
+        throw new Error(
+          'The "Interested" Pipeline stage could not be found.'
+        );
+      }
+
+      const {
+        data:
+          existingOpportunity,
+        error:
+          opportunityLookupError,
+      } = await supabase
+        .from("opportunities")
+        .select(
+          "id, stage_id, status"
+        )
+        .eq(
+          "lead_id",
+          lead.id
+        )
+        .maybeSingle();
+
+      if (
+        opportunityLookupError
+      ) {
+        throw opportunityLookupError;
+      }
+
+      if (
+        existingOpportunity
+      ) {
+        const {
+          error:
+            opportunityUpdateError,
+        } = await supabase
+          .from("opportunities")
+          .update({
+            stage_id:
+              interestedStage.id,
+
+            probability:
+              Number(
+                interestedStage.probability ||
+                  0
+              ),
+
+            status:
+              "open",
+
+            updated_at:
+              new Date().toISOString(),
+          })
+          .eq(
+            "id",
+            existingOpportunity.id
+          );
+
+        if (
+          opportunityUpdateError
+        ) {
+          throw opportunityUpdateError;
+        }
+      } else {
+        const {
+          error:
+            opportunityCreateError,
+        } = await supabase
+          .from("opportunities")
+          .insert({
+            lead_id:
+              lead.id,
+
+            organization_id:
+              lead.organization_id,
+
+            contact_id:
+              lead.contact_id ||
+              null,
+
+            title:
+              lead.name ||
+              "Unnamed Lead",
+
+            value: 0,
+
+            currency:
+              "UGX",
+
+            stage_id:
+              interestedStage.id,
+
+            status:
+              "open",
+
+            probability:
+              Number(
+                interestedStage.probability ||
+                  0
+              ),
+
+            assigned_to:
+              lead.assigned_to,
+
+            notes:
+              "Qualified from Leads and moved into the Pipeline at Interested stage.",
+          });
+
+        if (
+          opportunityCreateError
+        ) {
+          throw opportunityCreateError;
+        }
+      }
+
+      const {
+        error:
+          leadUpdateError,
+      } = await supabase
+        .from("leads")
+        .update({
+          status:
+            "qualified",
+
+          follow_up_status:
+            "Moved to Pipeline",
+
+          next_follow_up_at:
+            null,
+
+          updated_at:
+            new Date().toISOString(),
+        })
+        .eq(
+          "id",
+          lead.id
+        );
+
+      if (leadUpdateError) {
+        throw leadUpdateError;
+      }
+
+      await loadLeads();
+
+      alert(
+        `${lead.name || "Lead"} has been qualified and moved to the Interested stage in Pipeline.`
+      );
+    } catch (err) {
+      console.error(
+        "Qualify lead error:",
+        err
+      );
+
+      setError(
+        err instanceof Error
+          ? err.message
+          : "The lead could not be moved to Pipeline."
+      );
+    } finally {
+      setQualifyingLeadId(
+        null
+      );
+    }
   }
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "#f6f8fb",
-        padding: "24px",
-        color: "#172033",
-      }}
-    >
-      <div
-        style={{
-          maxWidth: "1600px",
-          margin: "0 auto",
-        }}
-      >
+    <div className="ciu-page">
+      <div className="ciu-page-inner">
+
         {/* HEADER */}
         <div
+          className="ciu-hero"
           style={{
             display: "flex",
-            justifyContent: "space-between",
             alignItems: "center",
-            gap: "16px",
-            marginBottom: "24px",
+            justifyContent: "space-between",
+            gap: 20,
             flexWrap: "wrap",
           }}
         >
           <div>
-            <h1
+            <div
               style={{
-                margin: 0,
-                fontSize: "30px",
+                fontSize: 12,
                 fontWeight: 800,
+                color: "#8bc63f",
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
+                marginBottom: 6,
               }}
             >
-              {currentRole === "salesperson"
+              Prospecting
+            </div>
+
+            <h1>
+              {currentRole ===
+              "salesperson"
                 ? "My Leads"
                 : "Leads"}
             </h1>
 
-            <p
-              style={{
-                margin: "6px 0 0",
-                color: "#64748b",
-                fontSize: "14px",
-              }}
-            >
-              {currentRole === "salesperson"
-                ? "Manage, contact, record outcomes and follow up with your assigned prospective students."
-                : "Manage, contact, record outcomes and follow up with prospective students."}
+            <p>
+              Manage new prospects,
+              identify interest and
+              qualify students for the
+              admissions Pipeline.
             </p>
           </div>
 
+          {/* ADD NEW LEAD ON LEFT/HEADER AREA */}
           <button
             type="button"
-            onClick={() => setShowAddLead(true)}
+            onClick={() =>
+              setShowAddLead(true)
+            }
+            className="ciu-btn"
             style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "8px",
-              padding: "12px 18px",
-              borderRadius: "10px",
-              border: "1px solid #2563eb",
-              background: "#2563eb",
-              color: "#ffffff",
-              fontWeight: 700,
-              cursor: "pointer",
               visibility: "visible",
               opacity: 1,
+              minWidth: 150,
+              height: 44,
+              fontSize: 14,
+              fontWeight: 800,
+              whiteSpace: "nowrap",
             }}
           >
             + Add New Lead
-          </button>
-        </div>
-
-        {/* KPI CARDS */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns:
-              "repeat(4, minmax(0, 1fr))",
-            gap: "16px",
-            marginBottom: "24px",
-          }}
-        >
-          <KpiCard
-            label={
-              currentRole === "salesperson"
-                ? "My Leads"
-                : "Total Leads"
-            }
-            value={totalLeads}
-          />
-
-          <KpiCard
-            label="Interested"
-            value={interestedLeads}
-          />
-
-          <KpiCard
-            label="Converted"
-            value={convertedLeads}
-          />
-
-          <KpiCard
-            label="Follow Ups"
-            value={followUps}
-          />
-        </div>
-
-        {/* FILTERS */}
-        <div
-          style={{
-            background: "#ffffff",
-            border: "1px solid #e5e7eb",
-            borderRadius: "14px",
-            padding: "16px",
-            marginBottom: "18px",
-            display: "flex",
-            gap: "12px",
-            flexWrap: "wrap",
-          }}
-        >
-          <input
-            value={search}
-            onChange={(e) =>
-              setSearch(e.target.value)
-            }
-            placeholder="Search name, phone, email, CIU number..."
-            style={{
-              flex: "1 1 320px",
-              minWidth: "240px",
-              padding: "11px 13px",
-              border: "1px solid #d1d5db",
-              borderRadius: "9px",
-              outline: "none",
-              fontSize: "14px",
-            }}
-          />
-
-          <select
-            value={statusFilter}
-            onChange={(e) =>
-              setStatusFilter(e.target.value)
-            }
-            style={{
-              padding: "11px 13px",
-              border: "1px solid #d1d5db",
-              borderRadius: "9px",
-              background: "#ffffff",
-              minWidth: "170px",
-              fontSize: "14px",
-            }}
-          >
-            <option value="All">All Statuses</option>
-
-            {displayStatuses.map((status) => (
-              <option
-                key={status}
-                value={status}
-              >
-                {status}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={programFilter}
-            onChange={(e) =>
-              setProgramFilter(e.target.value)
-            }
-            style={{
-              padding: "11px 13px",
-              border: "1px solid #d1d5db",
-              borderRadius: "9px",
-              background: "#ffffff",
-              minWidth: "190px",
-              fontSize: "14px",
-            }}
-          >
-            <option value="All">
-              All Programmes
-            </option>
-
-            {programs.map((program) => (
-              <option
-                key={program}
-                value={program}
-              >
-                {program}
-              </option>
-            ))}
-          </select>
-
-          <button
-            type="button"
-            onClick={loadLeads}
-            style={{
-              padding: "11px 16px",
-              border: "1px solid #cbd5e1",
-              borderRadius: "9px",
-              background: "#ffffff",
-              color: "#334155",
-              fontWeight: 600,
-              cursor: "pointer",
-              visibility: "visible",
-              opacity: 1,
-            }}
-          >
-            Refresh
           </button>
         </div>
 
@@ -1245,116 +957,332 @@ export default function LeadsPage() {
         {error && (
           <div
             style={{
-              background: "#fef2f2",
-              color: "#b91c1c",
-              border: "1px solid #fecaca",
-              borderRadius: "10px",
-              padding: "14px",
-              marginBottom: "18px",
+              marginTop: 16,
+              padding: 13,
+              borderRadius: 9,
+              background: "#fff1f2",
+              border:
+                "1px solid #fecdd3",
+              color: "#be123c",
+              fontSize: 13,
             }}
           >
             {error}
           </div>
         )}
 
-        {/* TABLE */}
+        {/* KPI SECTION */}
         <div
           style={{
-            background: "#ffffff",
-            border: "1px solid #e5e7eb",
-            borderRadius: "14px",
-            overflow: "visible",
+            display: "grid",
+            gridTemplateColumns:
+              "repeat(4, minmax(0, 1fr))",
+            gap: 16,
+            marginTop: 20,
+          }}
+        >
+          <KpiCard
+            label={
+              currentRole ===
+              "salesperson"
+                ? "My Leads"
+                : "Total Leads"
+            }
+            value={leads.length}
+            description="Current CRM records"
+            type="total"
+          />
+
+          <KpiCard
+            label="Active Prospects"
+            value={activeLeads}
+            description="Current CRM records"
+            type="active"
+          />
+
+          <KpiCard
+            label="Interested"
+            value={interestedLeads}
+            description="Current CRM records"
+            type="interested"
+          />
+
+          <KpiCard
+            label="Closed / Unqualified"
+            value={closedLeads}
+            description="Current CRM records"
+            type="closed"
+          />
+        </div>
+
+        {/* RESPONSIVE KPI STYLE */}
+        <style jsx>{`
+          @media (max-width: 1000px) {
+            .ciu-page-inner
+              > div:nth-child(3) {
+              grid-template-columns: repeat(
+                2,
+                minmax(0, 1fr)
+              ) !important;
+            }
+          }
+
+          @media (max-width: 600px) {
+            .ciu-page-inner
+              > div:nth-child(3) {
+              grid-template-columns: 1fr !important;
+            }
+          }
+        `}</style>
+
+        {/* WORKFLOW STRIP */}
+        <div
+          className="ciu-strip"
+          style={{
+            marginTop: 18,
           }}
         >
           <div
             style={{
-              padding: "16px 18px",
-              borderBottom:
-                "1px solid #e5e7eb",
-              fontWeight: 700,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 20,
+              flexWrap: "wrap",
             }}
           >
-            Lead Records ({filteredLeads.length})
+            <div>
+              <strong>
+                Lead workflow
+              </strong>
+
+              <span
+                style={{
+                  marginLeft: 12,
+                }}
+              >
+                Prospect → Contacted →
+                Interested → Pipeline
+              </span>
+            </div>
+
+            <div
+              style={{
+                fontSize: 12,
+                fontWeight: 700,
+                color: "#00695c",
+              }}
+            >
+              Follow-ups are managed in Tasks
+            </div>
+          </div>
+        </div>
+
+        {/* FILTERS */}
+        <div
+          className="ciu-card"
+          style={{
+            marginTop: 18,
+            padding: 16,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              gap: 12,
+              flexWrap: "wrap",
+            }}
+          >
+            <input
+              value={search}
+              onChange={(event) =>
+                setSearch(
+                  event.target.value
+                )
+              }
+              placeholder="Search name, phone, email, CIU number..."
+              style={{
+                ...inputStyle,
+                flex: "1 1 320px",
+                minWidth: 240,
+              }}
+            />
+
+            <select
+              value={statusFilter}
+              onChange={(event) =>
+                setStatusFilter(
+                  event.target.value
+                )
+              }
+              style={{
+                ...inputStyle,
+                width: "auto",
+                minWidth: 180,
+              }}
+            >
+              <option value="All">
+                All Statuses
+              </option>
+
+              {displayStatuses.map(
+                (status) => (
+                  <option
+                    key={status}
+                    value={status}
+                  >
+                    {status}
+                  </option>
+                )
+              )}
+            </select>
+
+            <select
+              value={programFilter}
+              onChange={(event) =>
+                setProgramFilter(
+                  event.target.value
+                )
+              }
+              style={{
+                ...inputStyle,
+                width: "auto",
+                minWidth: 190,
+              }}
+            >
+              <option value="All">
+                All Programmes
+              </option>
+
+              {programs.map(
+                (program) => (
+                  <option
+                    key={program}
+                    value={program}
+                  >
+                    {program}
+                  </option>
+                )
+              )}
+            </select>
+
+            <button
+              type="button"
+              onClick={loadLeads}
+              className="ciu-btn-light"
+              style={{
+                visibility: "visible",
+                opacity: 1,
+              }}
+            >
+              Refresh
+            </button>
+          </div>
+        </div>
+
+        {/* LEADS TABLE */}
+        <div
+          className="ciu-card"
+          style={{
+            marginTop: 18,
+            overflow: "hidden",
+          }}
+        >
+          <div className="ciu-card-head">
+            <div>
+              <strong>
+                Lead Records
+              </strong>
+
+              <span>
+                {filteredLeads.length}{" "}
+                prospect
+                {filteredLeads.length ===
+                1
+                  ? ""
+                  : "s"}
+              </span>
+            </div>
           </div>
 
           {loading ? (
             <div
               style={{
-                padding: "50px",
+                padding: 50,
                 textAlign: "center",
-                color: "#64748b",
+                color: "#6b7f78",
               }}
             >
               Loading leads...
             </div>
-          ) : filteredLeads.length === 0 ? (
+          ) : filteredLeads.length ===
+            0 ? (
             <div
               style={{
-                padding: "50px",
+                padding: 50,
                 textAlign: "center",
-                color: "#64748b",
+                color: "#6b7f78",
               }}
             >
-              No leads found.
+              <strong>
+                No leads found
+              </strong>
+
+              <div
+                style={{
+                  marginTop: 6,
+                  fontSize: 13,
+                }}
+              >
+                Try changing your
+                search or filters,
+                or add a new lead.
+              </div>
             </div>
           ) : (
             <div
               style={{
                 overflowX: "auto",
-                overflowY: "visible",
               }}
             >
               <table
+                className="ciu-report-table"
                 style={{
-                  width: "100%",
-                  borderCollapse:
-                    "collapse",
-                  minWidth: "1150px",
+                  minWidth: 1200,
                 }}
               >
                 <thead>
-                  <tr
-                    style={{
-                      background: "#f8fafc",
-                      borderBottom:
-                        "1px solid #e5e7eb",
-                    }}
-                  >
-                    <th style={thStyle}>
+                  <tr>
+                    <th>
                       CIU NUMBER
                     </th>
 
-                    <th style={thStyle}>
+                    <th>
                       FULL NAMES
                     </th>
 
-                    <th style={thStyle}>
+                    <th>
                       TELEPHONE NUMBER
                     </th>
 
-                    <th style={thStyle}>
+                    <th>
                       EMAIL
                     </th>
 
-                    <th style={thStyle}>
+                    <th>
                       PROGRAM
                     </th>
 
-                    <th style={thStyle}>
+                    <th>
                       STATUS
                     </th>
 
-                    <th style={thStyle}>
-                      FOLLOW UP
+                    <th>
+                      CREATED
                     </th>
 
-                    <th
-                      style={{
-                        ...thStyle,
-                        textAlign: "center",
-                      }}
-                    >
-                      FOLLOW UP
+                    <th>
+                      ACTIONS
                     </th>
                   </tr>
                 </thead>
@@ -1363,188 +1291,147 @@ export default function LeadsPage() {
                   {filteredLeads.map(
                     (lead) => {
                       const displayStatus =
-                        leadStatusMap[
-                          lead.status || ""
-                        ] ||
-                        lead.status ||
-                        "Pending";
+                        getDisplayStatus(
+                          lead.status
+                        );
+
+                      const isInterested =
+                        statusIsQualified(
+                          lead.status
+                        );
+
+                      const isClosed =
+                        statusIsClosed(
+                          lead.status
+                        );
 
                       return (
                         <tr
-                          key={lead.id}
-                          style={{
-                            borderBottom:
-                              "1px solid #eef2f7",
-                          }}
+                          key={
+                            lead.id
+                          }
                         >
-                          <td
-                            style={tdStyle}
-                          >
+                          <td>
                             {lead.ciu_number ||
-                              "â€”"}
+                              "—"}
                           </td>
 
                           <td
                             style={{
-                              ...tdStyle,
                               fontWeight: 700,
                             }}
                           >
-                            {lead.name || "â€”"}
+                            {lead.name ||
+                              "—"}
                           </td>
 
-                          <td
-                            style={tdStyle}
-                          >
-                            {lead.phone || "â€”"}
+                          <td>
+                            {lead.phone ||
+                              "—"}
                           </td>
 
-                          <td
-                            style={tdStyle}
-                          >
-                            {lead.email || (
-                              <span
-                                style={{
-                                  color:
-                                    "#94a3b8",
-                                  fontStyle:
-                                    "italic",
-                                }}
-                              >
-                                No email
-                              </span>
+                          <td>
+                            {lead.email ||
+                              "—"}
+                          </td>
+
+                          <td>
+                            {lead.product_service ||
+                              "—"}
+                          </td>
+
+                          <td>
+                            <StatusBadge
+                              status={
+                                displayStatus
+                              }
+                            />
+                          </td>
+
+                          <td>
+                            {formatDate(
+                              lead.created_at
                             )}
                           </td>
 
-                          <td
-                            style={tdStyle}
-                          >
-                            {lead.product_service ||
-                              "â€”"}
-                          </td>
-
-                          <td
-                            style={tdStyle}
-                          >
-                            <span
+                          <td>
+                            <div
                               style={{
                                 display:
-                                  "inline-block",
-                                padding:
-                                  "5px 9px",
-                                borderRadius:
-                                  "999px",
-                                background:
-                                  displayStatus ===
-                                  "Converted"
-                                    ? "#dcfce7"
-                                    : displayStatus ===
-                                      "Interested"
-                                    ? "#dbeafe"
-                                    : "#f1f5f9",
-                                color:
-                                  displayStatus ===
-                                  "Converted"
-                                    ? "#166534"
-                                    : displayStatus ===
-                                      "Interested"
-                                    ? "#1d4ed8"
-                                    : "#475569",
-                                fontSize:
-                                  "12px",
-                                fontWeight: 700,
+                                  "flex",
+                                gap: 7,
+                                flexWrap:
+                                  "wrap",
                               }}
                             >
-                              {
-                                displayStatus
-                              }
-                            </span>
-                          </td>
-
-                          <td
-                            style={tdStyle}
-                          >
-                            <div>
-                              <div
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleView(
+                                    lead
+                                  )
+                                }
+                                className="ciu-btn-light"
                                 style={{
-                                  fontWeight: 600,
+                                  padding:
+                                    "7px 10px",
+                                  fontSize:
+                                    12,
                                 }}
                               >
-                                {lead.follow_up_status ||
-                                  "â€”"}
-                              </div>
+                                View
+                              </button>
 
-                              {lead.next_follow_up_at && (
-                                <div
-                                  style={{
-                                    color:
-                                      "#64748b",
-                                    fontSize:
-                                      "12px",
-                                    marginTop:
-                                      "3px",
-                                  }}
-                                >
-                                  {formatDateTime(
-                                    lead.next_follow_up_at
-                                  )}
-                                </div>
-                              )}
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  openHistory(
+                                    lead
+                                  )
+                                }
+                                className="ciu-btn-light"
+                                style={{
+                                  padding:
+                                    "7px 10px",
+                                  fontSize:
+                                    12,
+                                }}
+                              >
+                                History
+                              </button>
+
+                              {isInterested &&
+                                !isClosed && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      qualifyLead(
+                                        lead
+                                      )
+                                    }
+                                    disabled={
+                                      qualifyingLeadId ===
+                                      lead.id
+                                    }
+                                    className="ciu-btn"
+                                    style={{
+                                      padding:
+                                        "7px 11px",
+                                      fontSize:
+                                        12,
+                                      visibility:
+                                        "visible",
+                                      opacity:
+                                        1,
+                                    }}
+                                  >
+                                    {qualifyingLeadId ===
+                                    lead.id
+                                      ? "Moving..."
+                                      : "Move to Pipeline"}
+                                  </button>
+                                )}
                             </div>
-                          </td>
-
-                          <td
-                            style={{
-                              ...tdStyle,
-                              textAlign:
-                                "center",
-                              minWidth:
-                                "130px",
-                            }}
-                          >
-                            <button
-                              type="button"
-                              onClick={() =>
-                                openActivityWorkflow(
-                                  lead,
-                                  "call"
-                                )
-                              }
-                              style={{
-                                display:
-                                  "inline-flex",
-                                alignItems:
-                                  "center",
-                                justifyContent:
-                                  "center",
-                                gap: "7px",
-                                padding:
-                                  "9px 16px",
-                                borderRadius:
-                                  "8px",
-                                border:
-                                  "1px solid #2563eb",
-                                background:
-                                  "#2563eb",
-                                color:
-                                  "#ffffff",
-                                fontWeight: 700,
-                                fontSize:
-                                  "13px",
-                                cursor:
-                                  "pointer",
-                                visibility:
-                                  "visible",
-                                opacity: 1,
-                                whiteSpace:
-                                  "nowrap",
-                              }}
-                            >
-                              <span>â†ª</span>
-                              <span>
-                                Follow Up
-                              </span>
-                            </button>
                           </td>
                         </tr>
                       );
@@ -1556,300 +1443,121 @@ export default function LeadsPage() {
           )}
         </div>
 
-        {/* ACTIVITY / OUTCOME MODAL */}
-        {showActivityModal &&
-          activityLead && (
+        {/* VIEW LEAD MODAL */}
+        {showViewModal &&
+          selectedLead && (
             <ModalOverlay
-              onClose={() => {
-                if (!savingActivity) {
-                  setShowActivityModal(
-                    false
-                  );
-                }
-              }}
+              onClose={() =>
+                setShowViewModal(
+                  false
+                )
+              }
             >
               <div
                 style={{
                   width: "100%",
-                  maxWidth: "650px",
-                  maxHeight: "90vh",
-                  overflowY: "auto",
+                  maxWidth: 620,
                   background: "#ffffff",
-                  borderRadius: "16px",
-                  padding: "24px",
+                  borderRadius: 16,
+                  padding: 24,
                   boxShadow:
                     "0 25px 60px rgba(15, 23, 42, 0.25)",
                 }}
               >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent:
-                      "space-between",
-                    alignItems:
-                      "flex-start",
-                    gap: "16px",
-                    marginBottom:
-                      "20px",
-                  }}
-                >
-                  <div>
-                    <h2
-                      style={{
-                        margin: 0,
-                        fontSize: "22px",
-                        fontWeight: 800,
-                      }}
-                    >
-                      Record{" "}
-                      {activityType ===
-                      "call"
-                        ? "Call"
-                        : activityType ===
-                          "whatsapp"
-                        ? "WhatsApp"
-                        : "Email"}
-                    </h2>
-
-                    <p
-                      style={{
-                        margin:
-                          "6px 0 0",
-                        color:
-                          "#64748b",
-                        fontSize:
-                          "13px",
-                      }}
-                    >
-                      {activityLead.name ||
-                        "Lead"}{" "}
-                      {activityLead.phone
-                        ? `â€¢ ${activityLead.phone}`
-                        : ""}
-                    </p>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (
-                        !savingActivity
-                      ) {
-                        setShowActivityModal(
-                          false
-                        );
-                      }
-                    }}
-                    style={
-                      closeButtonStyle
-                    }
-                  >
-                    Ã—
-                  </button>
-                </div>
-
-                <div
-                  style={{
-                    background:
-                      "#eff6ff",
-                    border:
-                      "1px solid #bfdbfe",
-                    borderRadius:
-                      "10px",
-                    padding: "12px",
-                    marginBottom:
-                      "18px",
-                    color:
-                      "#1e40af",
-                    fontSize:
-                      "13px",
-                  }}
-                >
-                  The interaction has
-                  been opened. Record
-                  what happened below so
-                  the CRM keeps a complete
-                  communication history.
-                </div>
+                <ModalHeader
+                  title="Lead Details"
+                  subtitle="Prospect information"
+                  onClose={() =>
+                    setShowViewModal(
+                      false
+                    )
+                  }
+                />
 
                 <div
                   style={{
                     display: "grid",
-                    gap: "17px",
+                    gridTemplateColumns:
+                      "repeat(2, minmax(0, 1fr))",
+                    gap: 14,
+                    marginTop: 22,
                   }}
                 >
-                  <div>
-                    <label
-                      style={
-                        labelStyle
-                      }
-                    >
-                      Communication
-                      Outcome *
-                    </label>
+                  <DetailItem
+                    label="CIU Number"
+                    value={
+                      selectedLead.ciu_number
+                    }
+                  />
 
-                    <select
-                      value={
-                        activityOutcome
-                      }
-                      onChange={(e) =>
-                        setActivityOutcome(
-                          e.target.value
-                        )
-                      }
-                      style={
-                        inputStyle
-                      }
-                    >
-                      <option value="">
-                        Select outcome...
-                      </option>
+                  <DetailItem
+                    label="Full Name"
+                    value={
+                      selectedLead.name
+                    }
+                  />
 
-                      {outcomeOptions.map(
-                        (outcome) => (
-                          <option
-                            key={
-                              outcome
-                            }
-                            value={
-                              outcome
-                            }
-                          >
-                            {outcome}
-                          </option>
-                        )
-                      )}
-                    </select>
-                  </div>
+                  <DetailItem
+                    label="Telephone"
+                    value={
+                      selectedLead.phone
+                    }
+                  />
 
-                  <div>
-                    <label
-                      style={
-                        labelStyle
-                      }
-                    >
-                      Feedback / Notes
-                    </label>
+                  <DetailItem
+                    label="Email"
+                    value={
+                      selectedLead.email
+                    }
+                  />
 
-                    <textarea
-                      value={
-                        activityFeedback
-                      }
-                      onChange={(e) =>
-                        setActivityFeedback(
-                          e.target
-                            .value
-                        )
-                      }
-                      placeholder="What did the student say? What are their concerns, interests or next steps?"
-                      rows={5}
-                      style={{
-                        ...inputStyle,
-                        resize:
-                          "vertical",
-                        minHeight:
-                          "120px",
-                      }}
-                    />
-                  </div>
+                  <DetailItem
+                    label="Programme"
+                    value={
+                      selectedLead.product_service
+                    }
+                  />
 
-                  <div>
-                    <label
-                      style={
-                        labelStyle
-                      }
-                    >
-                      Next Follow Up
-                    </label>
+                  <DetailItem
+                    label="Status"
+                    value={getDisplayStatus(
+                      selectedLead.status
+                    )}
+                  />
 
-                    <input
-                      type="datetime-local"
-                      value={
-                        nextFollowUp
-                      }
-                      onChange={(e) =>
-                        setNextFollowUp(
-                          e.target
-                            .value
-                        )
-                      }
-                      style={
-                        inputStyle
-                      }
-                    />
+                  <DetailItem
+                    label="Created"
+                    value={formatDateTime(
+                      selectedLead.created_at
+                    )}
+                  />
 
-                    <div
-                      style={{
-                        marginTop:
-                          "6px",
-                        color:
-                          "#64748b",
-                        fontSize:
-                          "12px",
-                      }}
-                    >
-                      Leave blank if no
-                      follow-up is
-                      required. For
-                      automatic outcomes,
-                      the CRM will create
-                      the next task
-                      automatically.
-                    </div>
-                  </div>
+                  <DetailItem
+                    label="Follow-up"
+                    value="Managed from Tasks"
+                  />
                 </div>
 
                 <div
                   style={{
-                    display: "flex",
-                    justifyContent:
-                      "flex-end",
-                    gap: "10px",
-                    marginTop:
-                      "24px",
+                    marginTop: 22,
+                    padding: 13,
+                    borderRadius: 9,
+                    background:
+                      "#eaf5f2",
+                    color: "#00695c",
+                    fontSize: 13,
                   }}
                 >
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setShowActivityModal(
-                        false
-                      )
-                    }
-                    disabled={
-                      savingActivity
-                    }
-                    style={
-                      secondaryButtonStyle
-                    }
-                  >
-                    Cancel
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={
-                      handleSaveActivity
-                    }
-                    disabled={
-                      savingActivity
-                    }
-                    style={{
-                      ...primaryButtonStyle,
-                      background:
-                        savingActivity
-                          ? "#93c5fd"
-                          : "#2563eb",
-                      cursor:
-                        savingActivity
-                          ? "not-allowed"
-                          : "pointer",
-                    }}
-                  >
-                    {savingActivity
-                      ? "Saving..."
-                      : "Save Interaction"}
-                  </button>
+                  <strong>
+                    CRM workflow:
+                  </strong>{" "}
+                  Lead prospecting is
+                  handled here. Actual
+                  calls, WhatsApp,
+                  email follow-ups and
+                  scheduled work are
+                  managed from Tasks.
                 </div>
               </div>
             </ModalOverlay>
@@ -1868,86 +1576,36 @@ export default function LeadsPage() {
               <div
                 style={{
                   width: "100%",
-                  maxWidth: "800px",
+                  maxWidth: 800,
                   maxHeight: "90vh",
                   overflowY: "auto",
-                  background:
-                    "#ffffff",
-                  borderRadius:
-                    "16px",
-                  padding: "24px",
+                  background: "#ffffff",
+                  borderRadius: 16,
+                  padding: 24,
                   boxShadow:
                     "0 25px 60px rgba(15, 23, 42, 0.25)",
                 }}
               >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent:
-                      "space-between",
-                    alignItems:
-                      "flex-start",
-                    gap: "16px",
-                    marginBottom:
-                      "20px",
-                  }}
-                >
-                  <div>
-                    <h2
-                      style={{
-                        margin: 0,
-                        fontSize:
-                          "22px",
-                        fontWeight:
-                          800,
-                      }}
-                    >
-                      Communication
-                      History
-                    </h2>
-
-                    <p
-                      style={{
-                        margin:
-                          "6px 0 0",
-                        color:
-                          "#64748b",
-                        fontSize:
-                          "13px",
-                      }}
-                    >
-                      {historyLead.name ||
-                        "Lead"}{" "}
-                      {historyLead.phone
-                        ? `â€¢ ${historyLead.phone}`
-                        : ""}
-                    </p>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setShowHistoryModal(
-                        false
-                      )
-                    }
-                    style={
-                      closeButtonStyle
-                    }
-                  >
-                    Ã—
-                  </button>
-                </div>
+                <ModalHeader
+                  title="Communication History"
+                  subtitle={
+                    historyLead.name ||
+                    "Lead"
+                  }
+                  onClose={() =>
+                    setShowHistoryModal(
+                      false
+                    )
+                  }
+                />
 
                 {loadingHistory ? (
                   <div
                     style={{
-                      padding:
-                        "45px",
-                      textAlign:
-                        "center",
+                      padding: 45,
+                      textAlign: "center",
                       color:
-                        "#64748b",
+                        "#6b7f78",
                     }}
                   >
                     Loading
@@ -1958,16 +1616,15 @@ export default function LeadsPage() {
                   0 ? (
                   <div
                     style={{
-                      padding:
-                        "40px",
+                      marginTop: 20,
+                      padding: 40,
                       textAlign:
                         "center",
                       background:
-                        "#f8fafc",
-                      borderRadius:
-                        "10px",
+                        "#f5f8f7",
+                      borderRadius: 10,
                       color:
-                        "#64748b",
+                        "#6b7f78",
                     }}
                   >
                     No communication
@@ -1978,9 +1635,9 @@ export default function LeadsPage() {
                 ) : (
                   <div
                     style={{
-                      display:
-                        "grid",
-                      gap: "12px",
+                      display: "grid",
+                      gap: 12,
+                      marginTop: 20,
                     }}
                   >
                     {activities.map(
@@ -1991,13 +1648,10 @@ export default function LeadsPage() {
                           }
                           style={{
                             border:
-                              "1px solid #e2e8f0",
+                              "1px solid #dfe9e5",
                             borderRadius:
-                              "12px",
-                            padding:
-                              "15px",
-                            background:
-                              "#ffffff",
+                              12,
+                            padding: 15,
                           }}
                         >
                           <div
@@ -2006,77 +1660,25 @@ export default function LeadsPage() {
                                 "flex",
                               justifyContent:
                                 "space-between",
-                              gap:
-                                "15px",
+                              gap: 15,
                               flexWrap:
                                 "wrap",
                               marginBottom:
-                                "8px",
+                                8,
                             }}
                           >
-                            <div
-                              style={{
-                                display:
-                                  "flex",
-                                alignItems:
-                                  "center",
-                                gap:
-                                  "9px",
-                              }}
-                            >
-                              <span
-                                style={{
-                                  padding:
-                                    "5px 9px",
-                                  borderRadius:
-                                    "999px",
-                                  background:
-                                    activity.type ===
-                                    "call"
-                                      ? "#dbeafe"
-                                      : activity.type ===
-                                        "whatsapp"
-                                      ? "#dcfce7"
-                                      : "#fef3c7",
-                                  color:
-                                    activity.type ===
-                                    "call"
-                                      ? "#1d4ed8"
-                                      : activity.type ===
-                                        "whatsapp"
-                                      ? "#166534"
-                                      : "#92400e",
-                                  fontSize:
-                                    "11px",
-                                  fontWeight:
-                                    800,
-                                  textTransform:
-                                    "uppercase",
-                                }}
-                              >
-                                {
-                                  activity.type
-                                }
-                              </span>
-
-                              <strong
-                                style={{
-                                  fontSize:
-                                    "14px",
-                                }}
-                              >
-                                {
-                                  activity.subject
-                                }
-                              </strong>
-                            </div>
+                            <strong>
+                              {
+                                activity.subject
+                              }
+                            </strong>
 
                             <span
                               style={{
                                 color:
-                                  "#64748b",
+                                  "#6b7f78",
                                 fontSize:
-                                  "12px",
+                                  12,
                               }}
                             >
                               {formatDateTime(
@@ -2091,9 +1693,9 @@ export default function LeadsPage() {
                                 whiteSpace:
                                   "pre-wrap",
                                 color:
-                                  "#475569",
+                                  "#53665f",
                                 fontSize:
-                                  "13px",
+                                  13,
                                 lineHeight:
                                   1.6,
                               }}
@@ -2124,78 +1726,30 @@ export default function LeadsPage() {
             }}
           >
             <div
-              onClick={(e) =>
-                e.stopPropagation()
+              onClick={(event) =>
+                event.stopPropagation()
               }
               style={{
                 width: "100%",
-                maxWidth: "650px",
+                maxWidth: 650,
                 maxHeight: "90vh",
                 overflowY: "auto",
-                background:
-                  "#ffffff",
-                borderRadius:
-                  "16px",
-                padding: "24px",
+                background: "#ffffff",
+                borderRadius: 16,
+                padding: 24,
                 boxShadow:
                   "0 25px 60px rgba(15, 23, 42, 0.25)",
               }}
             >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent:
-                    "space-between",
-                  alignItems:
-                    "center",
-                  marginBottom:
-                    "20px",
-                }}
-              >
-                <div>
-                  <h2
-                    style={{
-                      margin: 0,
-                      fontSize:
-                        "22px",
-                      fontWeight:
-                        800,
-                    }}
-                  >
-                    Add New Lead
-                  </h2>
-
-                  <p
-                    style={{
-                      margin:
-                        "5px 0 0",
-                      color:
-                        "#64748b",
-                      fontSize:
-                        "13px",
-                    }}
-                  >
-                    Add a new
-                    prospective
-                    student to the
-                    CRM.
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    setShowAddLead(
-                      false
-                    )
-                  }
-                  style={
-                    closeButtonStyle
-                  }
-                >
-                  Ã—
-                </button>
-              </div>
+              <ModalHeader
+                title="Add New Lead"
+                subtitle="Add a new prospective student to the CRM."
+                onClose={() =>
+                  setShowAddLead(
+                    false
+                  )
+                }
+              />
 
               <form
                 onSubmit={
@@ -2204,11 +1758,11 @@ export default function LeadsPage() {
               >
                 <div
                   style={{
-                    display:
-                      "grid",
+                    display: "grid",
                     gridTemplateColumns:
                       "repeat(2, minmax(0, 1fr))",
-                    gap: "16px",
+                    gap: 16,
+                    marginTop: 22,
                   }}
                 >
                   <FormField
@@ -2216,9 +1770,7 @@ export default function LeadsPage() {
                     value={
                       newLead.ciu_number
                     }
-                    onChange={(
-                      value
-                    ) =>
+                    onChange={(value) =>
                       setNewLead({
                         ...newLead,
                         ciu_number:
@@ -2233,9 +1785,7 @@ export default function LeadsPage() {
                     value={
                       newLead.name
                     }
-                    onChange={(
-                      value
-                    ) =>
+                    onChange={(value) =>
                       setNewLead({
                         ...newLead,
                         name: value,
@@ -2249,9 +1799,7 @@ export default function LeadsPage() {
                     value={
                       newLead.phone
                     }
-                    onChange={(
-                      value
-                    ) =>
+                    onChange={(value) =>
                       setNewLead({
                         ...newLead,
                         phone: value,
@@ -2265,9 +1813,7 @@ export default function LeadsPage() {
                     value={
                       newLead.email
                     }
-                    onChange={(
-                      value
-                    ) =>
+                    onChange={(value) =>
                       setNewLead({
                         ...newLead,
                         email:
@@ -2283,9 +1829,7 @@ export default function LeadsPage() {
                     value={
                       newLead.product_service
                     }
-                    onChange={(
-                      value
-                    ) =>
+                    onChange={(value) =>
                       setNewLead({
                         ...newLead,
                         product_service:
@@ -2301,18 +1845,21 @@ export default function LeadsPage() {
                         labelStyle
                       }
                     >
-                      Status
+                      Initial Status
                     </label>
 
                     <select
                       value={
                         newLead.status
                       }
-                      onChange={(e) =>
+                      onChange={(
+                        event
+                      ) =>
                         setNewLead({
                           ...newLead,
                           status:
-                            e.target
+                            event
+                              .target
                               .value,
                         })
                       }
@@ -2335,72 +1882,37 @@ export default function LeadsPage() {
                       <option value="unqualified">
                         Not interested
                       </option>
-
-                      <option value="converted">
-                        Converted
-                      </option>
-
-                      <option value="lost">
-                        Lost Leads
-                      </option>
                     </select>
-                  </div>
-
-                  <FormField
-                    label="Follow Up Status"
-                    value={
-                      newLead.follow_up_status
-                    }
-                    onChange={(
-                      value
-                    ) =>
-                      setNewLead({
-                        ...newLead,
-                        follow_up_status:
-                          value,
-                      })
-                    }
-                    placeholder="e.g. Call tomorrow"
-                  />
-
-                  <div>
-                    <label
-                      style={
-                        labelStyle
-                      }
-                    >
-                      Next Follow Up
-                    </label>
-
-                    <input
-                      type="datetime-local"
-                      value={
-                        newLead.next_follow_up_at
-                      }
-                      onChange={(e) =>
-                        setNewLead({
-                          ...newLead,
-                          next_follow_up_at:
-                            e.target
-                              .value,
-                        })
-                      }
-                      style={
-                        inputStyle
-                      }
-                    />
                   </div>
                 </div>
 
                 <div
                   style={{
-                    display:
-                      "flex",
+                    marginTop: 15,
+                    padding: 12,
+                    borderRadius: 9,
+                    background:
+                      "#f5f8f7",
+                    color:
+                      "#53665f",
+                    fontSize: 12,
+                  }}
+                >
+                  Follow-up scheduling
+                  is handled in the
+                  Tasks module, so
+                  Leads are not assigned
+                  duplicate follow-up
+                  work here.
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
                     justifyContent:
                       "flex-end",
-                    gap: "10px",
-                    marginTop:
-                      "24px",
+                    gap: 10,
+                    marginTop: 24,
                   }}
                 >
                   <button
@@ -2410,26 +1922,24 @@ export default function LeadsPage() {
                         false
                       )
                     }
-                    style={
-                      secondaryButtonStyle
+                    disabled={
+                      saving
                     }
+                    className="ciu-btn-light"
                   >
                     Cancel
                   </button>
 
                   <button
                     type="submit"
-                    disabled={saving}
+                    disabled={
+                      saving
+                    }
+                    className="ciu-btn"
                     style={{
-                      ...primaryButtonStyle,
-                      background:
-                        saving
-                          ? "#93c5fd"
-                          : "#2563eb",
-                      cursor:
-                        saving
-                          ? "not-allowed"
-                          : "pointer",
+                      visibility:
+                        "visible",
+                      opacity: 1,
                     }}
                   >
                     {saving
@@ -2446,29 +1956,92 @@ export default function LeadsPage() {
   );
 }
 
+/* =========================
+   KPI CARD
+========================= */
+
 function KpiCard({
   label,
   value,
+  description,
+  type,
 }: {
   label: string;
   value: number;
+  description: string;
+  type:
+    | "total"
+    | "active"
+    | "interested"
+    | "closed";
 }) {
+  const styles = {
+    total: {
+      border: "#dbe8e4",
+      background: "#ffffff",
+      accent: "#00695c",
+    },
+
+    active: {
+      border: "#dcebd4",
+      background: "#fbfdf9",
+      accent: "#5d8f1f",
+    },
+
+    interested: {
+      border: "#cfe7df",
+      background: "#f8fcfa",
+      accent: "#00866f",
+    },
+
+    closed: {
+      border: "#eadbdd",
+      background: "#fffafa",
+      accent: "#b45363",
+    },
+  };
+
+  const selected =
+    styles[type];
+
   return (
     <div
       style={{
-        background:
-          "#ffffff",
+        position: "relative",
+        minWidth: 0,
+        minHeight: 132,
+        padding: "20px 20px 18px",
         border:
-          "1px solid #e5e7eb",
-        borderRadius:
-          "14px",
-        padding: "18px",
+          `1px solid ${selected.border}`,
+        borderRadius: 14,
+        background:
+          selected.background,
+        boxShadow:
+          "0 5px 18px rgba(23, 50, 44, 0.06)",
+        overflow: "hidden",
       }}
     >
       <div
         style={{
-          color: "#64748b",
-          fontSize: "13px",
+          position: "absolute",
+          left: 0,
+          top: 0,
+          bottom: 0,
+          width: 4,
+          background:
+            selected.accent,
+        }}
+      />
+
+      <div
+        style={{
+          fontSize: 12,
+          fontWeight: 800,
+          color: "#6b7f78",
+          textTransform:
+            "uppercase",
+          letterSpacing:
+            "0.04em",
         }}
       >
         {label}
@@ -2476,16 +2049,191 @@ function KpiCard({
 
       <div
         style={{
-          fontSize: "28px",
-          fontWeight: 800,
-          marginTop: "5px",
+          marginTop: 9,
+          fontSize: 34,
+          lineHeight: 1,
+          fontWeight: 900,
+          color: "#17322c",
         }}
       >
         {value}
       </div>
+
+      <div
+        style={{
+          marginTop: 9,
+          fontSize: 12,
+          color: "#6b7f78",
+        }}
+      >
+        {description}
+      </div>
     </div>
   );
 }
+
+/* =========================
+   STATUS BADGE
+========================= */
+
+function StatusBadge({
+  status,
+}: {
+  status: string;
+}) {
+  const positive =
+    status === "Interested";
+
+  const closed = [
+    "Not interested",
+    "Financial issues",
+    "Lost Leads",
+    "Dropped",
+    "Ineffective Data",
+    "Unreachable",
+    "No Answer",
+  ].includes(status);
+
+  return (
+    <span
+      style={{
+        display: "inline-block",
+        padding: "5px 9px",
+        borderRadius: 999,
+        background: positive
+          ? "#eaf5f2"
+          : closed
+          ? "#fff1f2"
+          : "#f1f5f3",
+        color: positive
+          ? "#00695c"
+          : closed
+          ? "#be123c"
+          : "#53665f",
+        fontSize: 12,
+        fontWeight: 700,
+        whiteSpace: "nowrap",
+      }}
+    >
+      {status}
+    </span>
+  );
+}
+
+/* =========================
+   MODAL HEADER
+========================= */
+
+function ModalHeader({
+  title,
+  subtitle,
+  onClose,
+}: {
+  title: string;
+  subtitle: string;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        justifyContent:
+          "space-between",
+        alignItems:
+          "flex-start",
+        gap: 15,
+      }}
+    >
+      <div>
+        <h2
+          style={{
+            margin: 0,
+            fontSize: 22,
+            fontWeight: 800,
+          }}
+        >
+          {title}
+        </h2>
+
+        <p
+          style={{
+            margin:
+              "6px 0 0",
+            color:
+              "#6b7f78",
+            fontSize: 13,
+          }}
+        >
+          {subtitle}
+        </p>
+      </div>
+
+      <button
+        type="button"
+        onClick={onClose}
+        style={
+          closeButtonStyle
+        }
+      >
+        ×
+      </button>
+    </div>
+  );
+}
+
+/* =========================
+   DETAIL ITEM
+========================= */
+
+function DetailItem({
+  label,
+  value,
+}: {
+  label: string;
+  value:
+    | string
+    | null
+    | undefined;
+}) {
+  return (
+    <div
+      style={{
+        padding: 13,
+        border:
+          "1px solid #dfe9e5",
+        borderRadius: 9,
+        background: "#f8fbfa",
+      }}
+    >
+      <div
+        style={{
+          fontSize: 11,
+          fontWeight: 800,
+          color: "#6b7f78",
+          textTransform:
+            "uppercase",
+          marginBottom: 5,
+        }}
+      >
+        {label}
+      </div>
+
+      <div
+        style={{
+          fontSize: 14,
+          fontWeight: 600,
+          color: "#17322c",
+        }}
+      >
+        {value || "—"}
+      </div>
+    </div>
+  );
+}
+
+/* =========================
+   MODAL OVERLAY
+========================= */
 
 function ModalOverlay({
   children,
@@ -2502,18 +2250,17 @@ function ModalOverlay({
         background:
           "rgba(15, 23, 42, 0.5)",
         display: "flex",
-        alignItems:
-          "center",
+        alignItems: "center",
         justifyContent:
           "center",
-        padding: "20px",
+        padding: 20,
         zIndex: 10000,
       }}
       onClick={onClose}
     >
       <div
-        onClick={(e) =>
-          e.stopPropagation()
+        onClick={(event) =>
+          event.stopPropagation()
         }
         style={{
           width: "100%",
@@ -2528,77 +2275,9 @@ function ModalOverlay({
   );
 }
 
-const thStyle: React.CSSProperties = {
-  padding: "13px 14px",
-  textAlign: "left",
-  fontSize: "11px",
-  fontWeight: 800,
-  color: "#64748b",
-  letterSpacing: "0.04em",
-  whiteSpace: "nowrap",
-};
-
-const tdStyle: React.CSSProperties = {
-  padding: "14px",
-  fontSize: "13px",
-  color: "#334155",
-  verticalAlign: "middle",
-};
-
-const labelStyle: React.CSSProperties = {
-  display: "block",
-  marginBottom: "6px",
-  fontSize: "13px",
-  fontWeight: 700,
-  color: "#334155",
-};
-
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  boxSizing: "border-box",
-  padding: "11px 12px",
-  border: "1px solid #d1d5db",
-  borderRadius: "8px",
-  background: "#ffffff",
-  color: "#172033",
-  fontSize: "14px",
-  outline: "none",
-};
-
-const primaryButtonStyle: React.CSSProperties = {
-  padding: "11px 18px",
-  border: "1px solid #2563eb",
-  borderRadius: "9px",
-  background: "#2563eb",
-  color: "#ffffff",
-  fontWeight: 700,
-  cursor: "pointer",
-  visibility: "visible",
-  opacity: 1,
-};
-
-const secondaryButtonStyle: React.CSSProperties = {
-  padding: "11px 17px",
-  border: "1px solid #cbd5e1",
-  borderRadius: "9px",
-  background: "#ffffff",
-  color: "#334155",
-  fontWeight: 700,
-  cursor: "pointer",
-  visibility: "visible",
-  opacity: 1,
-};
-
-const closeButtonStyle: React.CSSProperties = {
-  width: "36px",
-  height: "36px",
-  borderRadius: "8px",
-  border: "1px solid #e2e8f0",
-  background: "#ffffff",
-  cursor: "pointer",
-  fontSize: "18px",
-  color: "#64748b",
-};
+/* =========================
+   FORM FIELD
+========================= */
 
 function FormField({
   label,
@@ -2609,25 +2288,76 @@ function FormField({
 }: {
   label: string;
   value: string;
-  onChange: (value: string) => void;
+  onChange: (
+    value: string
+  ) => void;
   placeholder?: string;
   type?: string;
 }) {
   return (
     <div>
-      <label style={labelStyle}>
+      <label
+        style={labelStyle}
+      >
         {label}
       </label>
 
       <input
         type={type}
         value={value}
-        onChange={(e) =>
-          onChange(e.target.value)
+        onChange={(event) =>
+          onChange(
+            event.target.value
+          )
         }
-        placeholder={placeholder}
+        placeholder={
+          placeholder
+        }
         style={inputStyle}
       />
     </div>
   );
 }
+
+/* =========================
+   STYLES
+========================= */
+
+const labelStyle: React.CSSProperties =
+  {
+    display: "block",
+    marginBottom: 6,
+    fontSize: 13,
+    fontWeight: 700,
+    color: "#334155",
+  };
+
+const inputStyle: React.CSSProperties =
+  {
+    width: "100%",
+    boxSizing: "border-box",
+    padding:
+      "11px 12px",
+    border:
+      "1px solid #d1d5db",
+    borderRadius: 8,
+    background:
+      "#ffffff",
+    color: "#172033",
+    fontSize: 14,
+    outline: "none",
+  };
+
+const closeButtonStyle: React.CSSProperties =
+  {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    border:
+      "1px solid #dfe9e5",
+    background:
+      "#ffffff",
+    cursor: "pointer",
+    fontSize: 18,
+    color: "#6b7f78",
+  };
