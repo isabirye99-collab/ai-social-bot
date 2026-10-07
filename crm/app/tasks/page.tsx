@@ -142,6 +142,57 @@ function isOverdue(task: Task) {
   );
 }
 
+const PIPELINE_WAITING_OUTCOMES = [
+  "Interested",
+  "Applied",
+  "Application Submitted",
+  "Admitted",
+  "Acceptance Fee Paid",
+];
+
+function isToday(value: string | null) {
+  if (!value) return false;
+
+  const date = new Date(value);
+  const now = new Date();
+
+  return date.toDateString() === now.toDateString();
+}
+
+function isPipelineWaiting(lead: Lead | null, task: Task) {
+  if (!lead || task.status !== "completed") return false;
+
+  return PIPELINE_WAITING_OUTCOMES.includes(
+    lead.follow_up_status ?? ""
+  );
+}
+
+function getTaskPriority(task: Task, lead: Lead | null) {
+  const open =
+    task.status !== "completed" &&
+    task.status !== "cancelled";
+
+  const nextDate =
+    lead?.next_follow_up_at || task.due_at;
+
+  if (
+    open &&
+    task.title.toLowerCase().startsWith("new lead:")
+  ) {
+    return 1;
+  }
+
+  if (open && isOverdue(task)) return 2;
+
+  if (open && isToday(nextDate)) return 3;
+
+  if (open) return 4;
+
+  if (isPipelineWaiting(lead, task)) return 5;
+
+  return 6;
+}
+
 export default function TasksPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
@@ -376,7 +427,7 @@ const [nextFollowUp, setNextFollowUp] = useState("");
         ? opportunityMap.get(task.opportunity_id)
         : null;
 
-      const matchesSearch =
+        const matchesSearch =
         !query ||
         task.title.toLowerCase().includes(query) ||
         (task.description ?? "").toLowerCase().includes(query) ||
@@ -396,10 +447,49 @@ const [nextFollowUp, setNextFollowUp] = useState("");
         task.task_type.toLowerCase() ===
           typeFilter.toLowerCase();
 
+      if (
+        isSalesperson &&
+        lead?.follow_up_status === "Enrolled"
+      ) {
+        return false;
+      }
+
       return (
         matchesSearch &&
         matchesStatus &&
         matchesType
+      );
+    })
+    .sort((a, b) => {
+      const leadA = a.lead_id ? leadMap.get(a.lead_id) : null;
+      const leadB = b.lead_id ? leadMap.get(b.lead_id) : null;
+
+      const priorityDifference =
+        getTaskPriority(a, leadA) -
+        getTaskPriority(b, leadB);
+
+      if (priorityDifference !== 0) {
+        return priorityDifference;
+      }
+
+      const dateA =
+        leadA?.next_follow_up_at || a.due_at;
+      const dateB =
+        leadB?.next_follow_up_at || b.due_at;
+
+      if (dateA && dateB) {
+        return (
+          new Date(dateA).getTime() -
+          new Date(dateB).getTime()
+        );
+      }
+
+      if (dateA) return -1;
+      if (dateB) return 1;
+
+      return (
+        new Date(b.created_at).getTime() -
+        new Date(a.created_at).getTime()
       );
     });
   }, [
@@ -622,6 +712,7 @@ const [nextFollowUp, setNextFollowUp] = useState("");
     setOutcomeTask(task);
     setOutcome("");
     setOutcomeNotes("");
+    setNextFollowUp("");
     setNextDueAt("");
   }
 
@@ -689,6 +780,7 @@ const [nextFollowUp, setNextFollowUp] = useState("");
         status: leadStatus,
         feedback: notes.trim() || null,
         follow_up_status: selectedOutcome,
+        next_follow_up_at: null,
         updated_at: new Date().toISOString(),
       })
       .eq("id", task.lead_id);
@@ -864,8 +956,8 @@ const [nextFollowUp, setNextFollowUp] = useState("");
             ? 3
             : 1;
 
-        const dueAt = nextDueAt
-          ? new Date(nextDueAt).toISOString()
+        const dueAt = nextFollowUp
+          ? new Date(nextFollowUp).toISOString()
           : new Date(
               Date.now() +
                 defaultDays *
@@ -907,6 +999,20 @@ const [nextFollowUp, setNextFollowUp] = useState("");
 
         if (nextTaskError) {
           throw nextTaskError;
+        }
+
+        if (outcomeTask.lead_id) {
+          const { error: followUpLeadError } = await supabase
+            .from("leads")
+            .update({
+              next_follow_up_at: dueAt,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", outcomeTask.lead_id);
+
+          if (followUpLeadError) {
+            throw followUpLeadError;
+          }
         }
       }
 
@@ -1005,9 +1111,12 @@ const [nextFollowUp, setNextFollowUp] = useState("");
         <section
           className="ciu-hero"
           style={{
+            display: "flex",
+            flexDirection: "row",
             justifyContent: "space-between",
             alignItems: "flex-start",
             gap: 20,
+            width: "100%",
           }}
         >
           <div>
@@ -1332,6 +1441,50 @@ const [nextFollowUp, setNextFollowUp] = useState("");
                           >
                             {lead?.name ?? "No student linked"}
                           </strong>
+
+                          {(() => {
+                            const priority = getTaskPriority(task, lead);
+                            const priorityLabel =
+                              priority === 1
+                                ? "NEW"
+                                : priority === 2
+                                  ? "OVERDUE"
+                                  : priority === 3
+                                    ? "DUE TODAY"
+                                    : priority === 5
+                                      ? "PIPELINE"
+                                      : "";
+
+                            if (!priorityLabel) return null;
+
+                            return (
+                              <span
+                                style={{
+                                  display: "inline-block",
+                                  marginTop: 4,
+                                  padding: "2px 6px",
+                                  borderRadius: 999,
+                                  background:
+                                    priority === 5
+                                      ? "#edf1f7"
+                                      : priority === 1
+                                        ? "#fff4d6"
+                                        : "#fff0ef",
+                                  color:
+                                    priority === 5
+                                      ? "#304b6d"
+                                      : priority === 1
+                                        ? "#8a5a00"
+                                        : "#b42318",
+                                  fontSize: 9,
+                                  fontWeight: 800,
+                                  letterSpacing: 0.4,
+                                }}
+                              >
+                                {priorityLabel}
+                              </span>
+                            );
+                          })()}
                           {lead?.ciu_number && (
                             <div
                               style={{
@@ -1913,7 +2066,10 @@ const [nextFollowUp, setNextFollowUp] = useState("");
                       <input
                         type="datetime-local"
                         value={nextFollowUp}
-                        onChange={(e) => setNextFollowUp(e.target.value)}
+                        onChange={(e) => {
+                          setNextFollowUp(e.target.value);
+                          setNextDueAt(e.target.value);
+                        }}
                       />
                     </div>
                   )}
