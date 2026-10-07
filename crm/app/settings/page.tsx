@@ -13,10 +13,24 @@ type Preferences = {
 type Profile = {
   id: string;
   full_name: string | null;
-  email: string | null;
   phone: string | null;
   role: string | null;
   is_active: boolean | null;
+};
+
+type EditProfile = {
+  id: string;
+  full_name: string;
+  phone: string;
+  role: string;
+  is_active: boolean;
+};
+
+type CrmSettings = {
+  logo_data_url: string | null;
+  logo_name: string | null;
+  preferences: Partial<Preferences> | null;
+  updated_at?: string | null;
 };
 
 const DEFAULT_PREFERENCES: Preferences = {
@@ -34,47 +48,69 @@ const ROLES = [
   {
     value: "super_admin",
     label: "Super Admin",
-    description: "Full system access and administration.",
+    description:
+      "Full system access, administration and security control.",
   },
   {
     value: "admin",
     label: "Admin",
-    description: "Manage CRM operations, users and records.",
+    description:
+      "Manage CRM operations and organization-wide records.",
   },
   {
     value: "manager",
     label: "Manager",
-    description: "Manage teams, leads, tasks and performance.",
+    description:
+      "Manage teams, leads, tasks and performance.",
   },
   {
     value: "salesperson",
     label: "Salesperson",
-    description: "Manage leads, follow-ups and opportunities.",
+    description:
+      "Manage assigned leads, opportunities and follow-ups.",
   },
   {
     value: "marketing",
     label: "Marketing",
-    description: "Manage campaigns and marketing activities.",
+    description:
+      "Manage campaigns and marketing activities.",
   },
   {
     value: "finance",
     label: "Finance",
-    description: "Manage financial and payment information.",
+    description:
+      "Manage financial and payment information.",
   },
   {
     value: "viewer",
     label: "Viewer",
-    description: "View CRM information without management access.",
+    description:
+      "View CRM information without management access.",
   },
 ];
+
+function roleLabel(value: string | null | undefined) {
+  const found = ROLES.find((item) => item.value === value);
+
+  if (found) return found.label;
+
+  return value
+    ? value
+        .replaceAll("_", " ")
+        .replace(/\b\w/g, (letter) => letter.toUpperCase())
+    : "No role";
+}
 
 export default function Settings() {
   const supabase = createClient();
 
-  const [activeSection, setActiveSection] = useState("general");
+  const [activeSection, setActiveSection] =
+    useState("general");
 
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("");
+  const [currentUserId, setCurrentUserId] =
+    useState("");
 
   const [logo, setLogo] = useState("");
   const [logoName, setLogoName] = useState("");
@@ -82,13 +118,41 @@ export default function Settings() {
   const [preferences, setPreferences] =
     useState<Preferences>(DEFAULT_PREFERENCES);
 
-  const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [profilesLoading, setProfilesLoading] = useState(false);
+  const [profiles, setProfiles] =
+    useState<Profile[]>([]);
 
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [error, setError] = useState("");
+  const [profilesLoading, setProfilesLoading] =
+    useState(false);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [saving, setSaving] =
+    useState(false);
+
+  const [saved, setSaved] =
+    useState(false);
+
+  const [error, setError] =
+    useState("");
+
+  const [successMessage, setSuccessMessage] =
+    useState("");
+
+  const [editProfile, setEditProfile] =
+    useState<EditProfile | null>(null);
+
+  const [editSaving, setEditSaving] =
+    useState(false);
+
+  const [profileSearch, setProfileSearch] =
+    useState("");
+
+  const [lastSavedAt, setLastSavedAt] =
+    useState<string | null>(null);
+
+  const isSuperAdmin =
+    role === "super_admin";
 
   useEffect(() => {
     let mounted = true;
@@ -97,6 +161,7 @@ export default function Settings() {
       try {
         setLoading(true);
         setError("");
+        setSuccessMessage("");
 
         const {
           data: { user },
@@ -108,29 +173,34 @@ export default function Settings() {
         }
 
         if (!user) {
-          throw new Error("You are not signed in.");
+          throw new Error(
+            "You are not signed in.",
+          );
         }
 
         if (!mounted) return;
 
+        setCurrentUserId(user.id);
         setEmail(user.email || "");
 
-        const [profileResult, settingsResult] =
-          await Promise.all([
-            supabase
-              .from("profiles")
-              .select("role")
-              .eq("id", user.id)
-              .maybeSingle(),
+        const [
+          profileResult,
+          settingsResult,
+        ] = await Promise.all([
+          supabase
+            .from("profiles")
+            .select("role")
+            .eq("id", user.id)
+            .maybeSingle(),
 
-            supabase
-              .from("crm_settings")
-              .select(
-                "logo_data_url, logo_name, preferences",
-              )
-              .eq("id", 1)
-              .maybeSingle(),
-          ]);
+          supabase
+            .from("crm_settings")
+            .select(
+              "logo_data_url, logo_name, preferences, updated_at",
+            )
+            .eq("id", 1)
+            .maybeSingle(),
+        ]);
 
         if (profileResult.error) {
           throw profileResult.error;
@@ -142,24 +212,35 @@ export default function Settings() {
 
         if (!mounted) return;
 
-        setRole(profileResult.data?.role || "");
+        const currentRole =
+          profileResult.data?.role || "";
+
+        setRole(currentRole);
 
         if (settingsResult.data) {
+          const settings =
+            settingsResult.data as CrmSettings;
+
           const centralLogo =
-            settingsResult.data.logo_data_url || "";
+            settings.logo_data_url || "";
 
           const centralLogoName =
-            settingsResult.data.logo_name || "";
+            settings.logo_name || "";
 
           const centralPreferences: Preferences = {
             ...DEFAULT_PREFERENCES,
-            ...((settingsResult.data.preferences ||
-              {}) as Partial<Preferences>),
+            ...(settings.preferences || {}),
           };
 
           setLogo(centralLogo);
           setLogoName(centralLogoName);
-          setPreferences(centralPreferences);
+          setPreferences(
+            centralPreferences,
+          );
+
+          setLastSavedAt(
+            settings.updated_at || null,
+          );
 
           try {
             localStorage.setItem(
@@ -174,19 +255,27 @@ export default function Settings() {
 
             localStorage.setItem(
               PREFERENCES_KEY,
-              JSON.stringify(centralPreferences),
+              JSON.stringify(
+                centralPreferences,
+              ),
             );
           } catch {}
         } else {
           try {
             const localLogo =
-              localStorage.getItem(LOGO_STORAGE_KEY) || "";
+              localStorage.getItem(
+                LOGO_STORAGE_KEY,
+              ) || "";
 
             const localLogoName =
-              localStorage.getItem(LOGO_NAME_KEY) || "";
+              localStorage.getItem(
+                LOGO_NAME_KEY,
+              ) || "";
 
             const localPreferences =
-              localStorage.getItem(PREFERENCES_KEY);
+              localStorage.getItem(
+                PREFERENCES_KEY,
+              );
 
             setLogo(localLogo);
             setLogoName(localLogoName);
@@ -194,13 +283,22 @@ export default function Settings() {
             if (localPreferences) {
               setPreferences({
                 ...DEFAULT_PREFERENCES,
-                ...JSON.parse(localPreferences),
+                ...JSON.parse(
+                  localPreferences,
+                ),
               });
             }
           } catch {}
         }
+
+        if (currentRole !== "super_admin") {
+          setActiveSection("general");
+        }
       } catch (err) {
-        console.error("Settings loading error:", err);
+        console.error(
+          "Settings loading error:",
+          err,
+        );
 
         if (mounted) {
           setError(
@@ -224,27 +322,37 @@ export default function Settings() {
   }, []);
 
   async function loadProfiles() {
+    if (!isSuperAdmin) return;
+
     try {
       setProfilesLoading(true);
       setError("");
+      setSuccessMessage("");
 
-      const { data, error: profilesError } =
-        await supabase
-          .from("profiles")
-          .select(
-            "id, full_name, email, phone, role, is_active",
-          )
-          .order("full_name", {
-            ascending: true,
-          });
+      const {
+        data,
+        error: profilesError,
+      } = await supabase
+        .from("profiles")
+        .select(
+          "id, full_name, phone, role, is_active",
+        )
+        .order("full_name", {
+          ascending: true,
+        });
 
       if (profilesError) {
         throw profilesError;
       }
 
-      setProfiles((data || []) as Profile[]);
+      setProfiles(
+        (data || []) as Profile[],
+      );
     } catch (err) {
-      console.error("Profiles loading error:", err);
+      console.error(
+        "Profiles loading error:",
+        err,
+      );
 
       setError(
         err instanceof Error
@@ -258,25 +366,35 @@ export default function Settings() {
 
   useEffect(() => {
     if (
-      activeSection === "users" ||
-      activeSection === "staff"
+      isSuperAdmin &&
+      activeSection === "users"
     ) {
       loadProfiles();
     }
-  }, [activeSection]);
+  }, [
+    activeSection,
+    isSuperAdmin,
+  ]);
 
   function handleLogoChange(
     event: React.ChangeEvent<HTMLInputElement>,
   ) {
-    const file = event.target.files?.[0];
+    if (!isSuperAdmin) return;
+
+    const file =
+      event.target.files?.[0];
 
     if (!file) return;
 
     setError("");
+    setSuccessMessage("");
     setSaved(false);
 
     if (file.size > 1024 * 1024) {
-      setError("Please choose a logo smaller than 1 MB.");
+      setError(
+        "Please choose a logo smaller than 1 MB.",
+      );
+
       event.target.value = "";
       return;
     }
@@ -292,17 +410,25 @@ export default function Settings() {
       setError(
         "Please choose a PNG, JPG, WEBP or SVG logo.",
       );
+
       event.target.value = "";
       return;
     }
 
-    const reader = new FileReader();
+    const reader =
+      new FileReader();
 
     reader.onload = () => {
-      const result = reader.result;
+      const result =
+        reader.result;
 
-      if (typeof result !== "string" || !result) {
-        setError("Unable to read the selected logo.");
+      if (
+        typeof result !== "string" ||
+        !result
+      ) {
+        setError(
+          "Unable to read the selected logo.",
+        );
         return;
       }
 
@@ -323,7 +449,9 @@ export default function Settings() {
     };
 
     reader.onerror = () => {
-      setError("Unable to read the selected logo.");
+      setError(
+        "Unable to read the selected logo.",
+      );
     };
 
     reader.readAsDataURL(file);
@@ -332,51 +460,70 @@ export default function Settings() {
   function togglePreference(
     key: keyof Preferences,
   ) {
+    if (!isSuperAdmin) return;
+
     setPreferences((current) => ({
       ...current,
       [key]: !current[key],
     }));
 
     setSaved(false);
+    setSuccessMessage("");
   }
 
   async function saveChanges() {
-    if (saving) return;
+    if (
+      saving ||
+      !isSuperAdmin
+    ) {
+      return;
+    }
 
     try {
       setSaving(true);
       setSaved(false);
       setError("");
+      setSuccessMessage("");
 
       const {
         data: { user },
         error: userError,
       } = await supabase.auth.getUser();
 
-      if (userError) throw userError;
-
-      if (!user) {
-        throw new Error("You are not signed in.");
+      if (userError) {
+        throw userError;
       }
 
-      const { error: saveError } =
-        await supabase
-          .from("crm_settings")
-          .upsert(
-            {
-              id: 1,
-              logo_data_url: logo || null,
-              logo_name: logoName || null,
-              preferences,
-              updated_by: user.id,
-              updated_at: new Date().toISOString(),
-            },
-            {
-              onConflict: "id",
-            },
-          );
+      if (!user) {
+        throw new Error(
+          "You are not signed in.",
+        );
+      }
 
-      if (saveError) throw saveError;
+      const {
+        error: saveError,
+      } = await supabase
+        .from("crm_settings")
+        .upsert(
+          {
+            id: 1,
+            logo_data_url:
+              logo || null,
+            logo_name:
+              logoName || null,
+            preferences,
+            updated_by: user.id,
+            updated_at:
+              new Date().toISOString(),
+          },
+          {
+            onConflict: "id",
+          },
+        );
+
+      if (saveError) {
+        throw saveError;
+      }
 
       const {
         data: verifiedSettings,
@@ -400,20 +547,33 @@ export default function Settings() {
       }
 
       const verifiedLogo =
-        verifiedSettings.logo_data_url || "";
+        verifiedSettings.logo_data_url ||
+        "";
 
       const verifiedLogoName =
-        verifiedSettings.logo_name || "";
+        verifiedSettings.logo_name ||
+        "";
 
-      const verifiedPreferences: Preferences = {
-        ...DEFAULT_PREFERENCES,
-        ...((verifiedSettings.preferences ||
-          {}) as Partial<Preferences>),
-      };
+      const verifiedPreferences: Preferences =
+        {
+          ...DEFAULT_PREFERENCES,
+          ...((verifiedSettings.preferences ||
+            {}) as Partial<Preferences>),
+        };
 
       setLogo(verifiedLogo);
-      setLogoName(verifiedLogoName);
-      setPreferences(verifiedPreferences);
+      setLogoName(
+        verifiedLogoName,
+      );
+
+      setPreferences(
+        verifiedPreferences,
+      );
+
+      setLastSavedAt(
+        verifiedSettings.updated_at ||
+          null,
+      );
 
       try {
         localStorage.setItem(
@@ -428,22 +588,35 @@ export default function Settings() {
 
         localStorage.setItem(
           PREFERENCES_KEY,
-          JSON.stringify(verifiedPreferences),
+          JSON.stringify(
+            verifiedPreferences,
+          ),
         );
       } catch {}
 
       window.dispatchEvent(
-        new CustomEvent("ciu-crm-logo-updated", {
-          detail: {
-            logo: verifiedLogo,
-            logoName: verifiedLogoName,
+        new CustomEvent(
+          "ciu-crm-logo-updated",
+          {
+            detail: {
+              logo: verifiedLogo,
+              logoName:
+                verifiedLogoName,
+            },
           },
-        }),
+        ),
       );
 
       setSaved(true);
+
+      setSuccessMessage(
+        "CRM settings saved successfully.",
+      );
     } catch (err) {
-      console.error("Settings save error:", err);
+      console.error(
+        "Settings save error:",
+        err,
+      );
 
       setSaved(false);
 
@@ -456,6 +629,147 @@ export default function Settings() {
       setSaving(false);
     }
   }
+
+  function openEditProfile(
+    profile: Profile,
+  ) {
+    if (!isSuperAdmin) return;
+
+    setError("");
+    setSuccessMessage("");
+
+    setEditProfile({
+      id: profile.id,
+      full_name:
+        profile.full_name || "",
+      phone:
+        profile.phone || "",
+      role:
+        profile.role ||
+        "salesperson",
+      is_active:
+        profile.is_active !== false,
+    });
+  }
+
+  function closeEditProfile() {
+    if (editSaving) return;
+
+    setEditProfile(null);
+  }
+
+  async function saveProfile() {
+    if (
+      !editProfile ||
+      editSaving ||
+      !isSuperAdmin
+    ) {
+      return;
+    }
+
+    if (
+      !editProfile.full_name.trim()
+    ) {
+      setError(
+        "Staff name is required.",
+      );
+      return;
+    }
+
+    if (!editProfile.role) {
+      setError(
+        "Please select a role.",
+      );
+      return;
+    }
+
+    if (
+      editProfile.id ===
+        currentUserId &&
+      (
+        !editProfile.is_active ||
+        editProfile.role !==
+          "super_admin"
+      )
+    ) {
+      setError(
+        "You cannot deactivate yourself or remove your own Super Admin role.",
+      );
+      return;
+    }
+
+    try {
+      setEditSaving(true);
+      setError("");
+      setSuccessMessage("");
+
+      const {
+        error: updateError,
+      } = await supabase
+        .from("profiles")
+        .update({
+          full_name:
+            editProfile.full_name.trim(),
+          phone:
+            editProfile.phone.trim() ||
+            null,
+          role:
+            editProfile.role,
+          is_active:
+            editProfile.is_active,
+        })
+        .eq(
+          "id",
+          editProfile.id,
+        );
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      await loadProfiles();
+
+      setEditProfile(null);
+
+      setSuccessMessage(
+        "User profile updated successfully.",
+      );
+    } catch (err) {
+      console.error(
+        "Profile update error:",
+        err,
+      );
+
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to update this user.",
+      );
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
+  const filteredProfiles =
+    profiles.filter(
+      (profile) => {
+        const search =
+          profileSearch
+            .trim()
+            .toLowerCase();
+
+        if (!search) return true;
+
+        return [
+          profile.full_name || "",
+          profile.phone || "",
+          profile.role || "",
+        ]
+          .join(" ")
+          .toLowerCase()
+          .includes(search);
+      },
+    );
 
   const preferenceItems: [
     keyof Preferences,
@@ -488,47 +802,197 @@ export default function Settings() {
     {
       id: "general",
       label: "General",
-      icon: "⚙",
-      description: "CRM and organization information",
+      icon: "G",
+      description:
+        "CRM and organization information",
     },
     {
       id: "branding",
       label: "Branding",
-      icon: "◈",
-      description: "Logo and visual identity",
+      icon: "B",
+      description:
+        "Logo and visual identity",
     },
     {
       id: "users",
-      label: "Users & Roles",
-      icon: "♟",
-      description: "Accounts, roles and access",
-    },
-    {
-      id: "staff",
-      label: "Staff",
-      icon: "◉",
-      description: "Staff records and management",
+      label: "Users & Staff",
+      icon: "U",
+      description:
+        "Users, staff, roles and access",
     },
     {
       id: "notifications",
       label: "Notifications",
-      icon: "◌",
-      description: "CRM alerts and preferences",
+      icon: "N",
+      description:
+        "CRM alerts and preferences",
     },
     {
       id: "security",
       label: "Security",
-      icon: "◇",
-      description: "Access and security controls",
+      icon: "X",
+      description:
+        "Access and security controls",
     },
   ];
+
+  if (loading) {
+    return (
+      <div className="ciu-page">
+        <div
+          className="ciu-page-inner"
+          style={{
+            minHeight: "60vh",
+            display: "grid",
+            placeItems: "center",
+          }}
+        >
+          <div
+            className="crm-card"
+            style={{
+              width: "100%",
+              maxWidth: 520,
+              textAlign: "center",
+            }}
+          >
+            <div className="crm-card-body">
+              <strong
+                style={{
+                  display: "block",
+                  color: "#17322c",
+                  fontSize: 16,
+                }}
+              >
+                Loading Settings
+              </strong>
+
+              <span
+                style={{
+                  display: "block",
+                  marginTop: 6,
+                  color: "#6b7f78",
+                  fontSize: 13,
+                }}
+              >
+                Checking your CRM access...
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error && !role) {
+    return (
+      <div className="ciu-page">
+        <div className="ciu-page-inner">
+          <div
+            style={{
+              marginTop: 30,
+              padding: 18,
+              borderRadius: 12,
+              background: "#fef2f2",
+              color: "#b91c1c",
+              border:
+                "1px solid #fecaca",
+            }}
+          >
+            {error}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isSuperAdmin) {
+    return (
+      <div className="ciu-page">
+        <div className="ciu-page-inner">
+          <div
+            className="crm-card"
+            style={{
+              maxWidth: 720,
+              margin: "40px auto",
+              border:
+                "1px solid #fecaca",
+            }}
+          >
+            <div
+              className="crm-card-body"
+              style={{
+                padding: 30,
+                textAlign: "center",
+              }}
+            >
+              <div
+                style={{
+                  width: 58,
+                  height: 58,
+                  borderRadius: "50%",
+                  background: "#fef2f2",
+                  color: "#b91c1c",
+                  display: "grid",
+                  placeItems: "center",
+                  margin:
+                    "0 auto 16px",
+                  fontSize: 22,
+                  fontWeight: 900,
+                }}
+              >
+                !
+              </div>
+
+              <h2
+                style={{
+                  margin: "0 0 8px",
+                  color: "#17322c",
+                }}
+              >
+                Access Restricted
+              </h2>
+
+              <p
+                style={{
+                  margin: 0,
+                  color: "#6b7f78",
+                  lineHeight: 1.7,
+                  fontSize: 13,
+                }}
+              >
+                Settings and system
+                administration are
+                restricted to active
+                Super Admin accounts.
+              </p>
+
+              <div
+                style={{
+                  marginTop: 18,
+                  padding: 12,
+                  borderRadius: 9,
+                  background: "#f5f8f7",
+                  color: "#17322c",
+                  fontSize: 12,
+                }}
+              >
+                Your current access
+                level:{" "}
+                <strong>
+                  {roleLabel(role)}
+                </strong>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
       <div className="ciu-page">
         <div className="ciu-page-inner">
-
-          {/* HEADER */}
           <div
             className="ciu-hero"
             style={{
@@ -542,28 +1006,87 @@ export default function Settings() {
                   fontWeight: 800,
                   color: "#00695c",
                   marginBottom: 5,
-                  textTransform: "uppercase",
+                  textTransform:
+                    "uppercase",
                   letterSpacing: ".08em",
                 }}
               >
-                Administration
+                Super Admin
               </div>
 
               <h1>Settings</h1>
 
               <p>
-                Manage your CRM configuration, users,
-                roles, staff and preferences.
+                Manage CRM configuration,
+                branding, users, staff,
+                roles and system
+                preferences.
               </p>
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                padding:
+                  "8px 12px",
+                borderRadius: 999,
+                background:
+                  "#eaf5f2",
+                color: "#00695c",
+                fontSize: 11,
+                fontWeight: 800,
+                whiteSpace:
+                  "nowrap",
+              }}
+            >
+              Super Admin Access
             </div>
           </div>
 
-          {/* SAVE BAR */}
+          {successMessage && (
+            <div
+              style={{
+                marginBottom: 16,
+                padding: 12,
+                borderRadius: 8,
+                background:
+                  "#eaf5f2",
+                color: "#00695c",
+                border:
+                  "1px solid #cfe5de",
+                fontSize: 13,
+                fontWeight: 700,
+              }}
+            >
+              {successMessage}
+            </div>
+          )}
+
+          {error && (
+            <div
+              style={{
+                marginBottom: 16,
+                padding: 12,
+                borderRadius: 8,
+                background:
+                  "#fef2f2",
+                color: "#b91c1c",
+                border:
+                  "1px solid #fecaca",
+              }}
+            >
+              {error}
+            </div>
+          )}
+
           <div
             className="crm-card"
             style={{
               marginBottom: 18,
-              border: "1px solid #cfe5de",
+              border:
+                "1px solid #cfe5de",
             }}
           >
             <div
@@ -571,11 +1094,14 @@ export default function Settings() {
               style={{
                 display: "flex",
                 alignItems: "center",
-                justifyContent: "space-between",
+                justifyContent:
+                  "space-between",
                 gap: 16,
                 flexWrap: "wrap",
-                padding: "15px 20px",
-                background: "#f7fbf9",
+                padding:
+                  "15px 20px",
+                background:
+                  "#f7fbf9",
               }}
             >
               <div>
@@ -597,27 +1123,50 @@ export default function Settings() {
                     marginTop: 4,
                   }}
                 >
-                  Save branding and CRM preferences centrally.
+                  Save branding and
+                  CRM preferences
+                  centrally.
                 </span>
+
+                {lastSavedAt && (
+                  <span
+                    style={{
+                      display: "block",
+                      fontSize: 10,
+                      color: "#94a3b8",
+                      marginTop: 3,
+                    }}
+                  >
+                    Last saved:{" "}
+                    {new Date(
+                      lastSavedAt,
+                    ).toLocaleString()}
+                  </span>
+                )}
               </div>
 
               <button
                 type="button"
                 onClick={saveChanges}
-                disabled={saving || loading}
+                disabled={saving}
                 className="crm-btn"
                 style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
+                  display:
+                    "inline-flex",
+                  alignItems:
+                    "center",
+                  justifyContent:
+                    "center",
                   minHeight: 42,
                   minWidth: 150,
-                  padding: "0 20px",
+                  padding:
+                    "0 20px",
                   background: saving
                     ? "#94a3b8"
                     : "#00695c",
                   color: "#ffffff",
-                  border: "1px solid #004d40",
+                  border:
+                    "1px solid #004d40",
                   borderRadius: 9,
                   fontWeight: 700,
                   cursor: saving
@@ -629,111 +1178,124 @@ export default function Settings() {
                 {saving
                   ? "Saving..."
                   : saved
-                    ? "Saved ✓"
+                    ? "Saved"
                     : "Save Changes"}
               </button>
             </div>
           </div>
 
-          {/* ERROR */}
-          {error && (
-            <div
-              style={{
-                marginBottom: 16,
-                padding: 12,
-                borderRadius: 8,
-                background: "#fef2f2",
-                color: "#b91c1c",
-                border: "1px solid #fecaca",
-              }}
-            >
-              {error}
-            </div>
-          )}
-
-          {/* SETTINGS NAVIGATION */}
           <div
             style={{
               display: "grid",
               gridTemplateColumns:
-                "repeat(6,minmax(145px,1fr))",
+                "repeat(5,minmax(145px,1fr))",
               gap: 10,
               marginBottom: 20,
               overflowX: "auto",
             }}
           >
-            {sectionItems.map((item) => {
-              const active =
-                activeSection === item.id;
+            {sectionItems.map(
+              (item) => {
+                const active =
+                  activeSection ===
+                  item.id;
 
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() =>
-                    setActiveSection(item.id)
-                  }
-                  style={{
-                    textAlign: "left",
-                    border: active
-                      ? "1px solid #00695c"
-                      : "1px solid #dfe9e5",
-                    background: active
-                      ? "#eaf5f2"
-                      : "#ffffff",
-                    borderRadius: 12,
-                    padding: "13px 14px",
-                    cursor: "pointer",
-                    minWidth: 145,
-                  }}
-                >
-                  <div
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() =>
+                      setActiveSection(
+                        item.id,
+                      )
+                    }
                     style={{
-                      fontSize: 18,
-                      marginBottom: 5,
+                      textAlign:
+                        "left",
+                      border: active
+                        ? "1px solid #00695c"
+                        : "1px solid #dfe9e5",
+                      background: active
+                        ? "#eaf5f2"
+                        : "#ffffff",
+                      borderRadius: 12,
+                      padding:
+                        "13px 14px",
+                      cursor:
+                        "pointer",
+                      minWidth: 145,
                     }}
                   >
-                    {item.icon}
-                  </div>
+                    <div
+                      style={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: 8,
+                        display:
+                          "grid",
+                        placeItems:
+                          "center",
+                        marginBottom: 7,
+                        background:
+                          active
+                            ? "#00695c"
+                            : "#eef7df",
+                        color: active
+                          ? "#ffffff"
+                          : "#00695c",
+                        fontSize: 12,
+                        fontWeight: 900,
+                      }}
+                    >
+                      {item.icon}
+                    </div>
 
-                  <strong
-                    style={{
-                      display: "block",
-                      color: active
-                        ? "#00695c"
-                        : "#17322c",
-                      fontSize: 13,
-                    }}
-                  >
-                    {item.label}
-                  </strong>
+                    <strong
+                      style={{
+                        display:
+                          "block",
+                        color: active
+                          ? "#00695c"
+                          : "#17322c",
+                        fontSize: 13,
+                      }}
+                    >
+                      {item.label}
+                    </strong>
 
-                  <span
-                    style={{
-                      display: "block",
-                      marginTop: 3,
-                      color: "#6b7f78",
-                      fontSize: 10,
-                      lineHeight: 1.4,
-                    }}
-                  >
-                    {item.description}
-                  </span>
-                </button>
-              );
-            })}
+                    <span
+                      style={{
+                        display:
+                          "block",
+                        marginTop: 3,
+                        color:
+                          "#6b7f78",
+                        fontSize: 10,
+                        lineHeight: 1.4,
+                      }}
+                    >
+                      {item.description}
+                    </span>
+                  </button>
+                );
+              },
+            )}
           </div>
 
-          {/* GENERAL */}
-          {activeSection === "general" && (
+          {activeSection ===
+            "general" && (
             <div className="crm-grid crm-grid-2">
-
               <div className="crm-card">
                 <div className="crm-card-header">
                   <div>
-                    <h2>Organization</h2>
+                    <h2>
+                      Organization
+                    </h2>
+
                     <span>
-                      Current CRM organization profile
+                      Current CRM
+                      organization
+                      profile
                     </span>
                   </div>
                 </div>
@@ -741,28 +1303,42 @@ export default function Settings() {
                 <div
                   className="crm-card-body"
                   style={{
-                    display: "grid",
+                    display:
+                      "grid",
                     gap: 14,
                   }}
                 >
                   <div className="crm-stat-box">
-                    <span>Organization</span>
+                    <span>
+                      Organization
+                    </span>
+
                     <strong>
-                      Clarke International University
+                      Clarke
+                      International
+                      University
                     </strong>
                   </div>
 
                   <div className="crm-stat-box">
-                    <span>CRM</span>
+                    <span>
+                      CRM
+                    </span>
+
                     <strong>
-                      CIU Business CRM
+                      CIU Business
+                      CRM
                     </strong>
                   </div>
 
                   <div className="crm-stat-box">
-                    <span>Currency</span>
+                    <span>
+                      Currency
+                    </span>
+
                     <strong>
-                      UGX — Ugandan Shilling
+                      UGX — Ugandan
+                      Shilling
                     </strong>
                   </div>
                 </div>
@@ -771,9 +1347,13 @@ export default function Settings() {
               <div className="crm-card">
                 <div className="crm-card-header">
                   <div>
-                    <h2>My Account</h2>
+                    <h2>
+                      My Account
+                    </h2>
+
                     <span>
-                      Current signed-in account
+                      Current signed-in
+                      account
                     </span>
                   </div>
                 </div>
@@ -781,38 +1361,43 @@ export default function Settings() {
                 <div
                   className="crm-card-body"
                   style={{
-                    display: "grid",
+                    display:
+                      "grid",
                     gap: 14,
                   }}
                 >
                   <div className="crm-stat-box">
-                    <span>Email</span>
+                    <span>
+                      Email
+                    </span>
+
                     <strong>
-                      {email || "Loading..."}
+                      {email ||
+                        "Loading..."}
                     </strong>
                   </div>
 
                   <div className="crm-stat-box">
-                    <span>Access Level</span>
-                    <strong
-                      style={{
-                        textTransform: "capitalize",
-                      }}
-                    >
-                      {role
-                        ? role.replaceAll(
-                            "_",
-                            " ",
-                          )
-                        : "Loading..."}
+                    <span>
+                      Access Level
+                    </span>
+
+                    <strong>
+                      {roleLabel(
+                        role,
+                      )}
                     </strong>
                   </div>
 
                   <div className="crm-stat-box">
-                    <span>Account Status</span>
+                    <span>
+                      Account Status
+                    </span>
+
                     <strong
                       style={{
-                        color: "#00695c",
+                        color:
+                          "#00695c",
                       }}
                     >
                       Active
@@ -820,24 +1405,29 @@ export default function Settings() {
                   </div>
                 </div>
               </div>
-
             </div>
           )}
 
-          {/* BRANDING */}
-          {activeSection === "branding" && (
+          {activeSection ===
+            "branding" && (
             <div
               className="crm-card"
               style={{
-                border: "1px solid #cfe5de",
+                border:
+                  "1px solid #cfe5de",
               }}
             >
               <div className="crm-card-header">
                 <div>
-                  <h2>CRM Branding</h2>
+                  <h2>
+                    CRM Branding
+                  </h2>
+
                   <span>
-                    Manage the logo displayed throughout
-                    the CRM.
+                    Manage the logo
+                    displayed
+                    throughout the
+                    CRM.
                   </span>
                 </div>
               </div>
@@ -845,10 +1435,13 @@ export default function Settings() {
               <div className="crm-card-body">
                 <div
                   style={{
-                    display: "flex",
-                    alignItems: "center",
+                    display:
+                      "flex",
+                    alignItems:
+                      "center",
                     gap: 24,
-                    flexWrap: "wrap",
+                    flexWrap:
+                      "wrap",
                   }}
                 >
                   <div
@@ -856,12 +1449,17 @@ export default function Settings() {
                       width: 260,
                       height: 130,
                       borderRadius: 14,
-                      background: "#ffffff",
-                      border: "1px solid #cfe5de",
-                      display: "grid",
-                      placeItems: "center",
+                      background:
+                        "#ffffff",
+                      border:
+                        "1px solid #cfe5de",
+                      display:
+                        "grid",
+                      placeItems:
+                        "center",
                       padding: 12,
-                      overflow: "hidden",
+                      overflow:
+                        "hidden",
                     }}
                   >
                     {logo ? (
@@ -870,16 +1468,20 @@ export default function Settings() {
                         src={logo}
                         alt="CRM logo preview"
                         style={{
-                          width: "100%",
-                          height: "100%",
-                          objectFit: "contain",
+                          width:
+                            "100%",
+                          height:
+                            "100%",
+                          objectFit:
+                            "contain",
                         }}
                       />
                     ) : (
                       <strong
                         style={{
                           fontSize: 32,
-                          color: "#00695c",
+                          color:
+                            "#00695c",
                         }}
                       >
                         CIU
@@ -891,18 +1493,21 @@ export default function Settings() {
                     <input
                       type="file"
                       accept="image/png,image/jpeg,image/webp,image/svg+xml"
-                      onChange={handleLogoChange}
+                      onChange={
+                        handleLogoChange
+                      }
                     />
 
                     <div
                       style={{
                         fontSize: 11,
-                        color: "#64748b",
+                        color:
+                          "#64748b",
                         marginTop: 8,
                       }}
                     >
                       {logoName ||
-                        "PNG, JPG, WEBP or SVG · maximum 1 MB"}
+                        "PNG, JPG, WEBP or SVG — maximum 1 MB"}
                     </div>
 
                     {logo && (
@@ -911,10 +1516,11 @@ export default function Settings() {
                           marginTop: 7,
                           fontSize: 12,
                           fontWeight: 700,
-                          color: "#00695c",
+                          color:
+                            "#00695c",
                         }}
                       >
-                        Logo loaded ✓
+                        Logo loaded
                       </div>
                     )}
                   </div>
@@ -923,62 +1529,71 @@ export default function Settings() {
             </div>
           )}
 
-          {/* USERS & ROLES */}
-          {activeSection === "users" && (
+          {activeSection ===
+            "users" && (
             <div className="crm-card">
               <div
                 className="crm-card-header"
                 style={{
-                  display: "flex",
-                  justifyContent: "space-between",
+                  display:
+                    "flex",
+                  justifyContent:
+                    "space-between",
                   gap: 15,
-                  alignItems: "center",
-                  flexWrap: "wrap",
+                  alignItems:
+                    "center",
+                  flexWrap:
+                    "wrap",
                 }}
               >
                 <div>
-                  <h2>Users & Roles</h2>
+                  <h2>
+                    Users & Staff
+                  </h2>
+
                   <span>
-                    Manage CRM accounts, access levels and
-                    permissions.
+                    Manage CRM users,
+                    staff, roles,
+                    account status and
+                    access levels.
                   </span>
                 </div>
 
-                <button
-                  type="button"
-                  className="crm-btn"
+                <div
                   style={{
-                    background: "#00695c",
-                    color: "#ffffff",
-                    border: "1px solid #004d40",
+                    padding:
+                      "9px 12px",
                     borderRadius: 8,
-                    padding: "10px 16px",
+                    background:
+                      "#f5f8f7",
+                    border:
+                      "1px solid #dfe9e5",
+                    color:
+                      "#6b7f78",
+                    fontSize: 11,
                     fontWeight: 700,
-                    cursor: "pointer",
                   }}
-                  onClick={() =>
-                    alert(
-                      "User creation will be connected to secure Supabase Auth next.",
-                    )
-                  }
                 >
-                  + Add User
-                </button>
+                  Super Admin only
+                </div>
               </div>
 
               <div className="crm-card-body">
                 <div
                   style={{
-                    display: "grid",
+                    display:
+                      "grid",
                     gap: 10,
-                    marginBottom: 20,
+                    marginBottom:
+                      20,
                   }}
                 >
                   <div
                     style={{
                       fontSize: 12,
                       fontWeight: 800,
-                      color: "#17322c",
+                      color:
+                        "#17322c",
                     }}
                   >
                     Available Roles
@@ -986,36 +1601,48 @@ export default function Settings() {
 
                   <div
                     style={{
-                      display: "grid",
+                      display:
+                        "grid",
                       gridTemplateColumns:
                         "repeat(3,minmax(0,1fr))",
                       gap: 10,
                     }}
                   >
-                    {ROLES.map((item) => (
-                      <div
-                        key={item.value}
-                        className="crm-stat-box"
-                      >
-                        <strong
-                          style={{
-                            display: "block",
-                            color: "#00695c",
-                          }}
+                    {ROLES.map(
+                      (item) => (
+                        <div
+                          key={
+                            item.value
+                          }
+                          className="crm-stat-box"
                         >
-                          {item.label}
-                        </strong>
+                          <strong
+                            style={{
+                              display:
+                                "block",
+                              color:
+                                "#00695c",
+                            }}
+                          >
+                            {
+                              item.label
+                            }
+                          </strong>
 
-                        <span
-                          style={{
-                            display: "block",
-                            marginTop: 4,
-                          }}
-                        >
-                          {item.description}
-                        </span>
-                      </div>
-                    ))}
+                          <span
+                            style={{
+                              display:
+                                "block",
+                              marginTop: 4,
+                            }}
+                          >
+                            {
+                              item.description
+                            }
+                          </span>
+                        </div>
+                      ),
+                    )}
                   </div>
                 </div>
 
@@ -1028,94 +1655,205 @@ export default function Settings() {
                 >
                   <div
                     style={{
-                      display: "flex",
+                      display:
+                        "flex",
                       justifyContent:
                         "space-between",
-                      alignItems: "center",
-                      marginBottom: 12,
+                      alignItems:
+                        "center",
+                      gap: 12,
+                      marginBottom:
+                        12,
+                      flexWrap:
+                        "wrap",
                     }}
                   >
-                    <strong>
-                      CRM Users
-                    </strong>
+                    <div>
+                      <strong>
+                        Users & Staff
+                      </strong>
 
-                    <button
-                      type="button"
-                      onClick={loadProfiles}
+                      <div
+                        style={{
+                          marginTop: 3,
+                          fontSize: 11,
+                          color:
+                            "#64748b",
+                        }}
+                      >
+                        All CRM
+                        accounts and
+                        staff profiles
+                        are managed
+                        from this
+                        section.
+                      </div>
+                    </div>
+
+                    <div
                       style={{
-                        border:
-                          "1px solid #dfe9e5",
-                        background: "#ffffff",
-                        borderRadius: 7,
-                        padding:
-                          "7px 11px",
-                        cursor: "pointer",
-                        fontWeight: 700,
+                        display:
+                          "flex",
+                        gap: 8,
+                        alignItems:
+                          "center",
                       }}
                     >
-                      Refresh
-                    </button>
+                      <input
+                        type="text"
+                        value={
+                          profileSearch
+                        }
+                        onChange={(
+                          event,
+                        ) =>
+                          setProfileSearch(
+                            event
+                              .target
+                              .value,
+                          )
+                        }
+                        placeholder="Search users or staff..."
+                        style={{
+                          border:
+                            "1px solid #dfe9e5",
+                          borderRadius: 7,
+                          padding:
+                            "8px 10px",
+                          minWidth:
+                            240,
+                          outline:
+                            "none",
+                        }}
+                      />
+
+                      <button
+                        type="button"
+                        onClick={
+                          loadProfiles
+                        }
+                        style={{
+                          border:
+                            "1px solid #dfe9e5",
+                          background:
+                            "#ffffff",
+                          borderRadius: 7,
+                          padding:
+                            "8px 11px",
+                          cursor:
+                            "pointer",
+                          fontWeight:
+                            700,
+                        }}
+                      >
+                        Refresh
+                      </button>
+                    </div>
                   </div>
 
                   {profilesLoading ? (
                     <div
                       style={{
                         padding: 20,
-                        textAlign: "center",
-                        color: "#6b7f78",
+                        textAlign:
+                          "center",
+                        color:
+                          "#6b7f78",
                       }}
                     >
-                      Loading users...
+                      Loading users
+                      and staff...
                     </div>
-                  ) : profiles.length === 0 ? (
+                  ) : filteredProfiles.length ===
+                    0 ? (
                     <div
                       style={{
                         padding: 20,
-                        textAlign: "center",
-                        color: "#6b7f78",
+                        textAlign:
+                          "center",
+                        color:
+                          "#6b7f78",
                       }}
                     >
-                      No CRM users found.
+                      No users or staff
+                      records found.
                     </div>
                   ) : (
                     <div
                       style={{
-                        overflowX: "auto",
+                        overflowX:
+                          "auto",
                       }}
                     >
                       <table
                         className="ciu-report-table"
                         style={{
-                          width: "100%",
+                          width:
+                            "100%",
                         }}
                       >
                         <thead>
                           <tr>
-                            <th>Name</th>
-                            <th>Email</th>
-                            <th>Phone</th>
-                            <th>Role</th>
-                            <th>Status</th>
-                            <th>Action</th>
+                            <th>
+                              Name
+                            </th>
+
+                            <th>
+                              Phone
+                            </th>
+
+                            <th>
+                              Role
+                            </th>
+
+                            <th>
+                              Status
+                            </th>
+
+                            <th>
+                              Action
+                            </th>
                           </tr>
                         </thead>
 
                         <tbody>
-                          {profiles.map(
-                            (profile) => (
+                          {filteredProfiles.map(
+                            (
+                              profile,
+                            ) => (
                               <tr
-                                key={profile.id}
+                                key={
+                                  profile.id
+                                }
                               >
                                 <td>
                                   <strong>
                                     {profile.full_name ||
                                       "Unnamed User"}
                                   </strong>
-                                </td>
 
-                                <td>
-                                  {profile.email ||
-                                    "—"}
+                                  {profile.id ===
+                                    currentUserId && (
+                                    <span
+                                      style={{
+                                        marginLeft: 7,
+                                        padding:
+                                          "3px 6px",
+                                        borderRadius:
+                                          999,
+                                        background:
+                                          "#eef7df",
+                                        color:
+                                          "#00695c",
+                                        fontSize:
+                                          9,
+                                        fontWeight:
+                                          800,
+                                      }}
+                                    >
+                                      YOU
+                                    </span>
+                                  )}
                                 </td>
 
                                 <td>
@@ -1123,18 +1861,10 @@ export default function Settings() {
                                     "—"}
                                 </td>
 
-                                <td
-                                  style={{
-                                    textTransform:
-                                      "capitalize",
-                                  }}
-                                >
-                                  {profile.role
-                                    ? profile.role.replaceAll(
-                                        "_",
-                                        " ",
-                                      )
-                                    : "—"}
+                                <td>
+                                  {roleLabel(
+                                    profile.role,
+                                  )}
                                 </td>
 
                                 <td>
@@ -1186,8 +1916,8 @@ export default function Settings() {
                                         "#00695c",
                                     }}
                                     onClick={() =>
-                                      alert(
-                                        "User editing will be connected next.",
+                                      openEditProfile(
+                                        profile,
                                       )
                                     }
                                   >
@@ -1206,162 +1936,19 @@ export default function Settings() {
             </div>
           )}
 
-          {/* STAFF */}
-          {activeSection === "staff" && (
-            <div className="crm-card">
-              <div
-                className="crm-card-header"
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  gap: 15,
-                  flexWrap: "wrap",
-                }}
-              >
-                <div>
-                  <h2>Staff Management</h2>
-                  <span>
-                    Manage staff records and CRM responsibilities.
-                  </span>
-                </div>
-
-                <button
-                  type="button"
-                  className="crm-btn"
-                  style={{
-                    background: "#00695c",
-                    color: "#ffffff",
-                    border: "1px solid #004d40",
-                    borderRadius: 8,
-                    padding: "10px 16px",
-                    fontWeight: 700,
-                    cursor: "pointer",
-                  }}
-                  onClick={() =>
-                    alert(
-                      "Staff creation will be connected to the user management system.",
-                    )
-                  }
-                >
-                  + Add Staff
-                </button>
-              </div>
-
-              <div className="crm-card-body">
-                {profilesLoading ? (
-                  <div
-                    style={{
-                      padding: 20,
-                      textAlign: "center",
-                    }}
-                  >
-                    Loading staff...
-                  </div>
-                ) : (
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns:
-                        "repeat(3,minmax(0,1fr))",
-                      gap: 14,
-                    }}
-                  >
-                    {profiles.map((profile) => (
-                      <div
-                        key={profile.id}
-                        className="crm-stat-box"
-                        style={{
-                          padding: 16,
-                        }}
-                      >
-                        <strong
-                          style={{
-                            display: "block",
-                            color: "#17322c",
-                            fontSize: 14,
-                          }}
-                        >
-                          {profile.full_name ||
-                            "Unnamed Staff"}
-                        </strong>
-
-                        <span
-                          style={{
-                            display: "block",
-                            marginTop: 5,
-                          }}
-                        >
-                          {profile.email || "No email"}
-                        </span>
-
-                        <span
-                          style={{
-                            display: "block",
-                            marginTop: 4,
-                          }}
-                        >
-                          {profile.phone ||
-                            "No phone"}
-                        </span>
-
-                        <div
-                          style={{
-                            marginTop: 12,
-                            display: "flex",
-                            justifyContent:
-                              "space-between",
-                            alignItems: "center",
-                          }}
-                        >
-                          <span
-                            style={{
-                              textTransform:
-                                "capitalize",
-                              fontSize: 11,
-                              fontWeight: 800,
-                              color: "#00695c",
-                            }}
-                          >
-                            {profile.role
-                              ? profile.role.replaceAll(
-                                  "_",
-                                  " ",
-                                )
-                              : "No role"}
-                          </span>
-
-                          <span
-                            style={{
-                              fontSize: 10,
-                              color:
-                                profile.is_active
-                                  ? "#00695c"
-                                  : "#94a3b8",
-                              fontWeight: 800,
-                            }}
-                          >
-                            {profile.is_active
-                              ? "ACTIVE"
-                              : "INACTIVE"}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* NOTIFICATIONS */}
-          {activeSection === "notifications" && (
+          {activeSection ===
+            "notifications" && (
             <div className="crm-card">
               <div className="crm-card-header">
                 <div>
-                  <h2>Notifications</h2>
+                  <h2>
+                    Notifications
+                  </h2>
+
                   <span>
-                    Control CRM notification preferences.
+                    Control CRM
+                    notification
+                    preferences.
                   </span>
                 </div>
               </div>
@@ -1369,24 +1956,33 @@ export default function Settings() {
               <div
                 className="crm-card-body"
                 style={{
-                  display: "grid",
+                  display:
+                    "grid",
                   gap: 2,
                 }}
               >
                 {preferenceItems.map(
-                  ([key, label, help]) => (
+                  ([
+                    key,
+                    label,
+                    help,
+                  ]) => (
                     <label
                       key={key}
                       style={{
-                        display: "flex",
+                        display:
+                          "flex",
                         justifyContent:
                           "space-between",
-                        alignItems: "center",
+                        alignItems:
+                          "center",
                         gap: 16,
-                        padding: "16px 0",
+                        padding:
+                          "16px 0",
                         borderBottom:
                           "1px solid var(--border)",
-                        cursor: "pointer",
+                        cursor:
+                          "pointer",
                       }}
                     >
                       <div>
@@ -1397,7 +1993,8 @@ export default function Settings() {
                         <div
                           style={{
                             fontSize: 11,
-                            color: "#64748b",
+                            color:
+                              "#64748b",
                             marginTop: 4,
                           }}
                         >
@@ -1408,7 +2005,9 @@ export default function Settings() {
                       <input
                         type="checkbox"
                         checked={
-                          preferences[key]
+                          preferences[
+                            key
+                          ]
                         }
                         onChange={() =>
                           togglePreference(
@@ -1427,17 +2026,21 @@ export default function Settings() {
             </div>
           )}
 
-          {/* SECURITY */}
-          {activeSection === "security" && (
+          {activeSection ===
+            "security" && (
             <div className="crm-grid crm-grid-2">
-
               <div className="crm-card">
                 <div className="crm-card-header">
                   <div>
-                    <h2>Access Control</h2>
+                    <h2>
+                      Access Control
+                    </h2>
+
                     <span>
-                      CRM access is controlled through
-                      authenticated accounts.
+                      CRM access is
+                      controlled through
+                      authenticated
+                      accounts.
                     </span>
                   </div>
                 </div>
@@ -1450,27 +2053,21 @@ export default function Settings() {
                     }}
                   >
                     <span>
-                      Your current role
+                      Your current
+                      role
                     </span>
 
-                    <strong
-                      style={{
-                        textTransform:
-                          "capitalize",
-                      }}
-                    >
-                      {role
-                        ? role.replaceAll(
-                            "_",
-                            " ",
-                          )
-                        : "Loading..."}
+                    <strong>
+                      {roleLabel(
+                        role,
+                      )}
                     </strong>
                   </div>
 
                   <div className="crm-stat-box">
                     <span>
-                      Signed-in account
+                      Signed-in
+                      account
                     </span>
 
                     <strong>
@@ -1484,36 +2081,556 @@ export default function Settings() {
               <div className="crm-card">
                 <div className="crm-card-header">
                   <div>
-                    <h2>Security Notice</h2>
+                    <h2>
+                      Security Model
+                    </h2>
+
                     <span>
-                      Administrative controls
+                      Administrative
+                      controls
                     </span>
                   </div>
                 </div>
 
                 <div className="crm-card-body">
-                  <p
+                  <div
                     style={{
-                      margin: 0,
-                      color: "#6b7f78",
-                      lineHeight: 1.7,
-                      fontSize: 13,
+                      display:
+                        "grid",
+                      gap: 10,
                     }}
                   >
-                    User creation, role changes and
-                    account activation will be handled
-                    through secure Supabase authentication
-                    controls. Sensitive service credentials
-                    will never be exposed in the browser.
-                  </p>
+                    <div className="crm-stat-box">
+                      <span>
+                        Settings
+                        management
+                      </span>
+
+                      <strong>
+                        Super Admin
+                        only
+                      </strong>
+                    </div>
+
+                    <div className="crm-stat-box">
+                      <span>
+                        User role
+                        changes
+                      </span>
+
+                      <strong>
+                        Super Admin
+                        only
+                      </strong>
+                    </div>
+
+                    <div className="crm-stat-box">
+                      <span>
+                        Account
+                        activation
+                      </span>
+
+                      <strong>
+                        Super Admin
+                        only
+                      </strong>
+                    </div>
+
+                    <p
+                      style={{
+                        margin:
+                          "4px 0 0",
+                        color:
+                          "#6b7f78",
+                        lineHeight:
+                          1.7,
+                        fontSize: 12,
+                      }}
+                    >
+                      Sensitive service
+                      credentials are
+                      never exposed in
+                      the browser.
+                      Database-level
+                      policies provide
+                      the final
+                      authorization
+                      layer.
+                    </p>
+                  </div>
                 </div>
               </div>
-
             </div>
           )}
-
         </div>
       </div>
+
+      {editProfile && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Edit user"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 1000,
+            background:
+              "rgba(15, 23, 42, .48)",
+            display: "grid",
+            placeItems: "center",
+            padding: 20,
+          }}
+          onMouseDown={(
+            event,
+          ) => {
+            if (
+              event.target ===
+                event.currentTarget &&
+              !editSaving
+            ) {
+              closeEditProfile();
+            }
+          }}
+        >
+          <div
+            className="crm-card"
+            style={{
+              width: "100%",
+              maxWidth: 560,
+              maxHeight: "90vh",
+              overflowY:
+                "auto",
+              boxShadow:
+                "0 25px 70px rgba(15,23,42,.20)",
+            }}
+          >
+            <div
+              className="crm-card-header"
+              style={{
+                display:
+                  "flex",
+                justifyContent:
+                  "space-between",
+                alignItems:
+                  "center",
+                gap: 15,
+              }}
+            >
+              <div>
+                <h2>
+                  Edit User / Staff
+                </h2>
+
+                <span>
+                  Update profile
+                  information and CRM
+                  access.
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={
+                  closeEditProfile
+                }
+                disabled={
+                  editSaving
+                }
+                style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: 8,
+                  border:
+                    "1px solid #dfe9e5",
+                  background:
+                    "#ffffff",
+                  cursor:
+                    editSaving
+                      ? "not-allowed"
+                      : "pointer",
+                  fontWeight: 800,
+                  color:
+                    "#64748b",
+                }}
+              >
+                X
+              </button>
+            </div>
+
+            <div
+              className="crm-card-body"
+              style={{
+                display:
+                  "grid",
+                gap: 16,
+              }}
+            >
+              <div>
+                <label
+                  style={{
+                    display:
+                      "block",
+                    marginBottom: 6,
+                    fontSize: 12,
+                    fontWeight: 800,
+                    color:
+                      "#17322c",
+                  }}
+                >
+                  Full Name
+                </label>
+
+                <input
+                  type="text"
+                  value={
+                    editProfile.full_name
+                  }
+                  onChange={(
+                    event,
+                  ) =>
+                    setEditProfile(
+                      {
+                        ...editProfile,
+                        full_name:
+                          event
+                            .target
+                            .value,
+                      },
+                    )
+                  }
+                  style={{
+                    width:
+                      "100%",
+                    boxSizing:
+                      "border-box",
+                    border:
+                      "1px solid #dfe9e5",
+                    borderRadius: 8,
+                    padding:
+                      "10px 12px",
+                    outline:
+                      "none",
+                  }}
+                />
+              </div>
+
+              <div>
+                <label
+                  style={{
+                    display:
+                      "block",
+                    marginBottom: 6,
+                    fontSize: 12,
+                    fontWeight: 800,
+                    color:
+                      "#17322c",
+                  }}
+                >
+                  Phone
+                </label>
+
+                <input
+                  type="text"
+                  value={
+                    editProfile.phone
+                  }
+                  onChange={(
+                    event,
+                  ) =>
+                    setEditProfile(
+                      {
+                        ...editProfile,
+                        phone:
+                          event
+                            .target
+                            .value,
+                      },
+                    )
+                  }
+                  placeholder="+256..."
+                  style={{
+                    width:
+                      "100%",
+                    boxSizing:
+                      "border-box",
+                    border:
+                      "1px solid #dfe9e5",
+                    borderRadius: 8,
+                    padding:
+                      "10px 12px",
+                    outline:
+                      "none",
+                  }}
+                />
+              </div>
+
+              <div>
+                <label
+                  style={{
+                    display:
+                      "block",
+                    marginBottom: 6,
+                    fontSize: 12,
+                    fontWeight: 800,
+                    color:
+                      "#17322c",
+                  }}
+                >
+                  CRM Role
+                </label>
+
+                <select
+                  value={
+                    editProfile.role
+                  }
+                  onChange={(
+                    event,
+                  ) =>
+                    setEditProfile(
+                      {
+                        ...editProfile,
+                        role:
+                          event
+                            .target
+                            .value,
+                      },
+                    )
+                  }
+                  disabled={
+                    editProfile.id ===
+                    currentUserId
+                  }
+                  style={{
+                    width:
+                      "100%",
+                    boxSizing:
+                      "border-box",
+                    border:
+                      "1px solid #dfe9e5",
+                    borderRadius: 8,
+                    padding:
+                      "10px 12px",
+                    background:
+                      editProfile.id ===
+                      currentUserId
+                        ? "#f5f8f7"
+                        : "#ffffff",
+                    outline:
+                      "none",
+                  }}
+                >
+                  {ROLES.map(
+                    (item) => (
+                      <option
+                        key={
+                          item.value
+                        }
+                        value={
+                          item.value
+                        }
+                      >
+                        {item.label}
+                      </option>
+                    ),
+                  )}
+                </select>
+
+                {editProfile.id ===
+                  currentUserId && (
+                  <div
+                    style={{
+                      marginTop: 6,
+                      fontSize: 10,
+                      color:
+                        "#64748b",
+                    }}
+                  >
+                    Your own Super
+                    Admin role cannot
+                    be changed from
+                    this screen.
+                  </div>
+                )}
+              </div>
+
+              <div
+                style={{
+                  display:
+                    "flex",
+                  alignItems:
+                    "center",
+                  justifyContent:
+                    "space-between",
+                  gap: 16,
+                  padding: 14,
+                  borderRadius: 9,
+                  background:
+                    "#f7fbf9",
+                  border:
+                    "1px solid #dfe9e5",
+                }}
+              >
+                <div>
+                  <strong
+                    style={{
+                      display:
+                        "block",
+                      fontSize: 13,
+                      color:
+                        "#17322c",
+                    }}
+                  >
+                    Account Status
+                  </strong>
+
+                  <span
+                    style={{
+                      display:
+                        "block",
+                      marginTop: 4,
+                      fontSize: 11,
+                      color:
+                        "#64748b",
+                    }}
+                  >
+                    Inactive users
+                    should not be
+                    given CRM access.
+                  </span>
+                </div>
+
+                <label
+                  style={{
+                    display:
+                      "flex",
+                    alignItems:
+                      "center",
+                    gap: 8,
+                    cursor:
+                      editProfile.id ===
+                      currentUserId
+                        ? "not-allowed"
+                        : "pointer",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={
+                      editProfile.is_active
+                    }
+                    disabled={
+                      editProfile.id ===
+                      currentUserId
+                    }
+                    onChange={(
+                      event,
+                    ) =>
+                      setEditProfile(
+                        {
+                          ...editProfile,
+                          is_active:
+                            event
+                              .target
+                              .checked,
+                        },
+                      )
+                    }
+                    style={{
+                      width: 18,
+                      height: 18,
+                    }}
+                  />
+
+                  <strong
+                    style={{
+                      fontSize: 12,
+                      color:
+                        editProfile.is_active
+                          ? "#00695c"
+                          : "#64748b",
+                    }}
+                  >
+                    {editProfile.is_active
+                      ? "Active"
+                      : "Inactive"}
+                  </strong>
+                </label>
+              </div>
+
+              <div
+                style={{
+                  display:
+                    "flex",
+                  justifyContent:
+                    "flex-end",
+                  gap: 10,
+                  paddingTop: 4,
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={
+                    closeEditProfile
+                  }
+                  disabled={
+                    editSaving
+                  }
+                  style={{
+                    border:
+                      "1px solid #dfe9e5",
+                    background:
+                      "#ffffff",
+                    color:
+                      "#17322c",
+                    borderRadius: 8,
+                    padding:
+                      "10px 16px",
+                    fontWeight: 700,
+                    cursor:
+                      editSaving
+                        ? "not-allowed"
+                        : "pointer",
+                  }}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  onClick={
+                    saveProfile
+                  }
+                  disabled={
+                    editSaving
+                  }
+                  style={{
+                    border:
+                      "1px solid #004d40",
+                    background:
+                      editSaving
+                        ? "#94a3b8"
+                        : "#00695c",
+                    color:
+                      "#ffffff",
+                    borderRadius: 8,
+                    padding:
+                      "10px 18px",
+                    fontWeight: 700,
+                    cursor:
+                      editSaving
+                        ? "not-allowed"
+                        : "pointer",
+                  }}
+                >
+                  {editSaving
+                    ? "Saving..."
+                    : "Save User"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
