@@ -159,7 +159,7 @@ function isToday(value: string | null) {
   return date.toDateString() === now.toDateString();
 }
 
-function isPipelineWaiting(lead: Lead | null, task: Task) {
+function isPipelineWaiting(lead: Lead | null | undefined, task: Task) {
   if (!lead || task.status !== "completed") return false;
 
   return PIPELINE_WAITING_OUTCOMES.includes(
