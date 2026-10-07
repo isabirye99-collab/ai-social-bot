@@ -899,3 +899,12 @@ a {
   .ciu-attention { grid-template-columns:1fr; }
   .ciu-card-head { align-items:flex-start; flex-direction:column; }
 }
+
+
+.ciu-staff-card{background:white;border:1px solid var(--ciu-border);border-radius:15px;padding:17px 18px;box-shadow:0 7px 24px rgba(28,58,49,.06)}
+.ciu-staff-conversion{min-width:52px;height:34px;padding:0 10px;border-radius:9px;background:var(--ciu-lime-soft);color:var(--ciu-green-deep);display:grid;place-items:center;font-size:12px;font-weight:850}
+.ciu-staff-metrics{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:7px;margin-top:14px}
+.ciu-staff-metrics div{background:#f8fbfa;border:1px solid var(--ciu-border);border-radius:9px;padding:9px 7px;text-align:center}
+.ciu-staff-metrics strong{display:block;color:var(--ciu-green-deep);font-size:16px}
+.ciu-staff-metrics span{display:block;color:var(--ciu-muted);font-size:8px;margin-top:3px;white-space:nowrap}
+@media (max-width:760px){.ciu-staff-metrics{grid-template-columns:repeat(4,minmax(0,1fr))}}
