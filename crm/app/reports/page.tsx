@@ -222,7 +222,7 @@ export default function ReportsPage() {
                 <div><strong style={{fontSize:14,color:"#17322c"}}>{row.name}</strong><div style={{fontSize:10,color:"#6b7f78",marginTop:3}}>Performance for selected period</div></div>
                 <div className="ciu-staff-conversion">{row.conversion}%</div>
               </div>
-              <div className="ciu-staff-metrics">
+              <div className="ciu-staff-metrics" style={{gridTemplateColumns:"repeat(7,minmax(72px,1fr))",overflowX:"auto"}}>
                 <div><strong>{row.leads}</strong><span>Leads</span></div>
                 <div><strong>{row.calls}</strong><span>Calls</span></div>
                 <div><strong>{row.followUps}</strong><span>Follow-ups</span></div>
