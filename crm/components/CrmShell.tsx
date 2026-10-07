@@ -25,6 +25,7 @@ const navItems: NavItem[] = [
   { label: "Tasks", href: "/tasks", module: "tasks", icon: "✓" },
   { label: "Marketing", href: "/marketing", module: "marketing", icon: "✦" },
   { label: "Reports", href: "/reports", module: "reports", icon: "▤" },
+  { label: "Advanced", href: "/advanced", module: "advanced", icon: "✧" },
   { label: "Settings", href: "/settings", module: "settings", icon: "⚙" },
 ];
 
