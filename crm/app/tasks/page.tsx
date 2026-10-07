@@ -1794,3 +1794,399 @@ const [nextFollowUp, setNextFollowUp] = useState("");
                       "No additional instructions provided."}
                   </p>
                 </div>
+
+                <div className="task-contact-actions">
+                  {viewingTask.lead_id && leadMap.get(viewingTask.lead_id)?.phone && (
+                    <>
+                      <button
+                        type="button"
+                        className="task-action-call"
+                        onClick={() =>
+                          contactStudent(viewingTask, "call")
+                        }
+                      >
+                        Call
+                      </button>
+
+                      <button
+                        type="button"
+                        className="task-action-whatsapp"
+                        onClick={() =>
+                          contactStudent(viewingTask, "whatsapp")
+                        }
+                      >
+                        WhatsApp
+                      </button>
+                    </>
+                  )}
+
+                  {viewingTask.lead_id && leadMap.get(viewingTask.lead_id)?.email && (
+                    <button
+                      type="button"
+                      className="task-action-email"
+                      onClick={() =>
+                        contactStudent(viewingTask, "email")
+                      }
+                    >
+                      Email
+                    </button>
+                  )}
+                </div>
+
+                <div className="task-modal-actions">
+                  <button
+                    type="button"
+                    className="ciu-btn-light"
+                    onClick={() => {
+                      openOutcome(viewingTask);
+                      setViewingTask(null);
+                    }}
+                  >
+                    Record Outcome
+                  </button>
+
+                  <button
+                    type="button"
+                    className="ciu-btn-light"
+                    onClick={() => openEdit(viewingTask)}
+                  >
+                    Edit
+                  </button>
+
+                  <button
+                    type="button"
+                    className="ciu-btn"
+                    onClick={() => completeTask(viewingTask)}
+                  >
+                    Complete
+                  </button>
+
+                  <button
+                    type="button"
+                    className="task-danger-btn"
+                    onClick={() => deleteTask(viewingTask)}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </>
+            )}
+
+            {outcomeTask && !showForm && (
+              <>
+                <div className="task-modal-head">
+                  <div>
+                    <h2>Record Outcome</h2>
+                    <p>{outcomeTask.title}</p>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="task-close"
+                    onClick={() => setOutcomeTask(null)}
+                  >
+                    X
+                  </button>
+                </div>
+
+                <div className="task-outcome-box">
+                  <div className="task-field">
+                    <label>Outcome</label>
+                    <select
+                      value={outcome}
+                      onChange={(e) => setOutcome(e.target.value)}
+                    >
+                      {OUTCOMES.map((item) => (
+                        <option key={item} value={item}>
+                          {labelStatus(item)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {(outcome === "Follow up later" ||
+                    outcome === "No Answer" ||
+                    outcome === "Unreachable") && (
+                    <div className="task-field">
+                      <label>Next Follow-up</label>
+                      <input
+                        type="datetime-local"
+                        value={nextFollowUp}
+                        onChange={(e) => setNextFollowUp(e.target.value)}
+                      />
+                    </div>
+                  )}
+
+                  <div className="task-field">
+                    <label>Notes / Feedback</label>
+                    <textarea
+                      rows={5}
+                      value={outcomeNotes}
+                      onChange={(e) => setOutcomeNotes(e.target.value)}
+                      placeholder="Record what happened during the call, WhatsApp or email..."
+                    />
+                  </div>
+
+                  <div className="task-outcome-note">
+                    The outcome will update the related lead and complete this
+                    task. If a next follow-up is selected, a new task will be
+                    created automatically.
+                  </div>
+                </div>
+
+                <div className="task-modal-actions">
+                  <button
+                    type="button"
+                    className="ciu-btn-light"
+                    onClick={() => setOutcomeTask(null)}
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="button"
+                    className="ciu-btn"
+                    disabled={saving}
+                    onClick={saveOutcome}
+                  >
+                    {saving ? "Saving..." : "Save Outcome & Complete"}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      <style jsx>{`
+        .task-modal-backdrop {
+          position: fixed;
+          inset: 0;
+          z-index: 1000;
+          background: rgba(0, 40, 34, 0.45);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 24px;
+        }
+
+        .task-modal {
+          width: min(850px, 100%);
+          max-height: 92vh;
+          overflow-y: auto;
+          background: white;
+          border-radius: 18px;
+          padding: 28px;
+          box-shadow: 0 24px 70px rgba(0, 0, 0, 0.2);
+        }
+
+        .task-modal-head {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 20px;
+          margin-bottom: 24px;
+        }
+
+        .task-modal-head h2 {
+          margin: 0 0 6px;
+          color: #004d40;
+          font-size: 24px;
+        }
+
+        .task-modal-head p {
+          margin: 0;
+          color: #6b7f78;
+        }
+
+        .task-close {
+          width: 36px;
+          height: 36px;
+          border: 1px solid #dfe9e5;
+          border-radius: 10px;
+          background: white;
+          cursor: pointer;
+          font-weight: 700;
+          color: #004d40;
+        }
+
+        .task-form-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 18px;
+        }
+
+        .task-field {
+          display: flex;
+          flex-direction: column;
+          gap: 7px;
+        }
+
+        .task-field-full {
+          grid-column: 1 / -1;
+        }
+
+        .task-field label {
+          font-size: 13px;
+          font-weight: 700;
+          color: #17322c;
+        }
+
+        .task-field input,
+        .task-field select,
+        .task-field textarea {
+          width: 100%;
+          box-sizing: border-box;
+          border: 1px solid #dfe9e5;
+          border-radius: 10px;
+          padding: 11px 12px;
+          font: inherit;
+          color: #17322c;
+          background: white;
+          outline: none;
+        }
+
+        .task-field input:focus,
+        .task-field select:focus,
+        .task-field textarea:focus {
+          border-color: #00695c;
+          box-shadow: 0 0 0 3px rgba(0, 105, 92, 0.08);
+        }
+
+        .task-modal-actions {
+          display: flex;
+          justify-content: flex-end;
+          flex-wrap: wrap;
+          gap: 10px;
+          margin-top: 24px;
+          padding-top: 18px;
+          border-top: 1px solid #eef3f1;
+        }
+
+        .task-detail-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 16px;
+          margin-bottom: 20px;
+        }
+
+        .task-detail-grid > div {
+          padding: 15px;
+          border: 1px solid #e5eeeb;
+          border-radius: 12px;
+          background: #f8fbfa;
+        }
+
+        .task-detail-grid span,
+        .task-detail-description span {
+          display: block;
+          font-size: 12px;
+          color: #6b7f78;
+          margin-bottom: 5px;
+          font-weight: 700;
+          text-transform: uppercase;
+        }
+
+        .task-detail-grid strong {
+          color: #17322c;
+        }
+
+        .task-detail-description {
+          padding: 16px;
+          border-radius: 12px;
+          background: #eef7df;
+          margin-bottom: 18px;
+        }
+
+        .task-detail-description p {
+          margin: 0;
+          color: #17322c;
+          line-height: 1.6;
+          white-space: pre-wrap;
+        }
+
+        .task-contact-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+        }
+
+        .task-contact-actions button {
+          border: 0;
+          border-radius: 9px;
+          padding: 10px 16px;
+          cursor: pointer;
+          font-weight: 700;
+        }
+
+        .task-action-call {
+          background: #eaf5f2;
+          color: #00695c;
+        }
+
+        .task-action-whatsapp {
+          background: #eef7df;
+          color: #3d6b20;
+        }
+
+        .task-action-email {
+          background: #edf1f7;
+          color: #304b6d;
+        }
+
+        .task-danger-btn {
+          border: 0;
+          border-radius: 9px;
+          padding: 10px 16px;
+          background: #fff0ef;
+          color: #b42318;
+          cursor: pointer;
+          font-weight: 700;
+        }
+
+        .task-outcome-box {
+          display: flex;
+          flex-direction: column;
+          gap: 18px;
+        }
+
+        .task-outcome-note {
+          padding: 14px;
+          border-radius: 10px;
+          background: #eef7df;
+          color: #456052;
+          font-size: 13px;
+          line-height: 1.5;
+        }
+
+        @media (max-width: 700px) {
+          .task-modal-backdrop {
+            padding: 10px;
+          }
+
+          .task-modal {
+            padding: 20px;
+            border-radius: 14px;
+          }
+
+          .task-form-grid,
+          .task-detail-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .task-field-full {
+            grid-column: auto;
+          }
+
+          .task-modal-actions {
+            justify-content: stretch;
+          }
+
+          .task-modal-actions button {
+            flex: 1;
+          }
+        }
+      `}</style>
+    </main>
+  );
+}
