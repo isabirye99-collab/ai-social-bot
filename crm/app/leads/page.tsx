@@ -537,8 +537,8 @@ export default function LeadsPage() {
           status:
             newLead.status,
 
-          follow_up_status:
-            null,
+         follow_up_status:
+            "Pending",
 
           next_follow_up_at:
             null,
