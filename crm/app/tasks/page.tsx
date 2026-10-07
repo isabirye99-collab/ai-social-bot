@@ -37,6 +37,10 @@ type Lead = {
   email: string | null;
   status: string | null;
   assigned_to: string | null;
+  product_service: string | null;
+  feedback: string | null;
+  follow_up_status: string | null;
+  next_follow_up_at: string | null;
 };
 
 type Opportunity = {
@@ -238,7 +242,7 @@ const [nextFollowUp, setNextFollowUp] = useState("");
       supabase
         .from("leads")
         .select(
-          "id,name,ciu_number,phone,email,status,assigned_to"
+          "id,name,ciu_number,phone,email,status,assigned_to,product_service,feedback,follow_up_status,next_follow_up_at"
         )
         .order("created_at", { ascending: false }),
 
@@ -261,9 +265,69 @@ const [nextFollowUp, setNextFollowUp] = useState("");
       return;
     }
 
-    setTasks((taskResult.data ?? []) as Task[]);
+    const loadedTasks = (taskResult.data ?? []) as Task[];
+    const loadedLeads = (leadResult.data ?? []) as Lead[];
+
+    // Tasks is the salesperson's working space. Any assigned lead that has
+    // never had a task is automatically given its first follow-up task.
+    // Existing task history prevents duplicate automatic tasks.
+    const taskLeadIds = new Set(
+      loadedTasks
+        .filter((task) => Boolean(task.lead_id))
+        .map((task) => task.lead_id as string)
+    );
+
+    const workingLeads = loadedLeads.filter((lead) => {
+      if (!lead.assigned_to || taskLeadIds.has(lead.id)) {
+        return false;
+      }
+
+      if (profile?.role === "salesperson") {
+        return lead.assigned_to === userId;
+      }
+
+      return true;
+    });
+
+    if (workingLeads.length > 0) {
+      const automaticTasks = workingLeads.map((lead) => ({
+        title: `New lead follow-up: ${lead.name ?? "Student"}`,
+        description:
+          lead.feedback?.trim() ||
+          "Newly assigned lead. Contact the student and record the outcome.",
+        task_type: "call",
+        lead_id: lead.id,
+        opportunity_id: null,
+        assigned_to: lead.assigned_to,
+        due_at:
+          lead.next_follow_up_at ??
+          new Date().toISOString(),
+        status: "pending",
+        created_by: userId,
+      }));
+
+      const { data: createdTasks, error: automaticTaskError } =
+        await supabase
+          .from("tasks")
+          .insert(automaticTasks)
+          .select(
+            "id,title,description,task_type,lead_id,opportunity_id,assigned_to,due_at,status,completed_at,created_at,updated_at"
+          );
+
+      if (automaticTaskError) {
+        setError(
+          automaticTaskError.message
+        );
+      } else {
+        loadedTasks.push(
+          ...((createdTasks ?? []) as Task[])
+        );
+      }
+    }
+
+    setTasks(loadedTasks);
     setProfiles((profileResult.data ?? []) as Profile[]);
-    setLeads((leadResult.data ?? []) as Lead[]);
+    setLeads(loadedLeads);
     setOpportunities(
       (opportunityResult.data ?? []) as Opportunity[]
     );
@@ -1399,48 +1463,6 @@ const [nextFollowUp, setNextFollowUp] = useState("");
                               >
                                 Open
                               </button>
-
-                              {lead?.phone && (
-                                <button
-                                  className="ciu-btn-light"
-                                  onClick={() =>
-                                    contactStudent(
-                                      task,
-                                      "call"
-                                    )
-                                  }
-                                >
-                                  Call
-                                </button>
-                              )}
-
-                              {lead?.phone && (
-                                <button
-                                  className="ciu-btn-light"
-                                  onClick={() =>
-                                    contactStudent(
-                                      task,
-                                      "whatsapp"
-                                    )
-                                  }
-                                >
-                                  WhatsApp
-                                </button>
-                              )}
-
-                              {lead?.email && (
-                                <button
-                                  className="ciu-btn-light"
-                                  onClick={() =>
-                                    contactStudent(
-                                      task,
-                                      "email"
-                                    )
-                                  }
-                                >
-                                  Email
-                                </button>
-                              )}
 
                               {task.status !==
                                 "completed" &&
