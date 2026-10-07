@@ -291,7 +291,7 @@ const [nextFollowUp, setNextFollowUp] = useState("");
 
     if (workingLeads.length > 0) {
       const automaticTasks = workingLeads.map((lead) => ({
-        title: `New lead follow-up: ${lead.name ?? "Student"}`,
+        title: `New lead: ${lead.name ?? "Student"}`,
         description:
           lead.feedback?.trim() ||
           "Newly assigned lead. Contact the student and record the outcome.",
@@ -1005,22 +1005,11 @@ const [nextFollowUp, setNextFollowUp] = useState("");
         <section
           className="ciu-hero"
           style={{
-            justifyContent: "flex-start",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
             gap: 20,
           }}
         >
-          <button
-            className="ciu-btn"
-            onClick={openCreate}
-            style={{
-              order: -1,
-              flexShrink: 0,
-              alignSelf: "flex-start",
-            }}
-          >
-            + New Task
-          </button>
-
           <div>
             <div
               style={{
@@ -1058,6 +1047,18 @@ const [nextFollowUp, setNextFollowUp] = useState("");
             </p>
           </div>
 
+          <button
+            className="ciu-btn"
+            onClick={openCreate}
+            style={{
+              marginLeft: "auto",
+              flexShrink: 0,
+              alignSelf: "flex-start",
+              whiteSpace: "nowrap",
+            }}
+          >
+            + New Task
+          </button>
         </section>
 
         {error && (
@@ -1223,7 +1224,7 @@ const [nextFollowUp, setNextFollowUp] = useState("");
                   margin: 0,
                 }}
               >
-                Follow-up Queue
+                Task List
               </h2>
 
               <p
