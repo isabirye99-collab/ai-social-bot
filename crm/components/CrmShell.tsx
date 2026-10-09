@@ -18,15 +18,15 @@ type NavItem = {
 };
 
 const navItems: NavItem[] = [
-  { label: "Dashboard", href: "/dashboard", module: "dashboard", icon: "⌂" },
-  { label: "Leads", href: "/leads", module: "leads", icon: "◎" },
-  { label: "Customers", href: "/customers", module: "customers", icon: "♙" },
-  { label: "Pipeline", href: "/pipeline", module: "pipeline", icon: "▰" },
-  { label: "Tasks", href: "/tasks", module: "tasks", icon: "✓" },
-  { label: "Marketing", href: "/marketing", module: "marketing", icon: "✦" },
-  { label: "Reports", href: "/reports", module: "reports", icon: "▤" },
-  { label: "Advanced", href: "/advanced", module: "advanced", icon: "✧" },
-  { label: "Settings", href: "/settings", module: "settings", icon: "⚙" },
+  { label: "Dashboard", href: "/dashboard", module: "dashboard", icon: "âŒ‚" },
+  { label: "Leads", href: "/leads", module: "leads", icon: "â—Ž" },
+  { label: "Customers", href: "/customers", module: "customers", icon: "â™™" },
+  { label: "Pipeline", href: "/pipeline", module: "pipeline", icon: "â–°" },
+  { label: "Tasks", href: "/tasks", module: "tasks", icon: "âœ“" },
+  { label: "Marketing", href: "/marketing", module: "marketing", icon: "âœ¦" },
+  { label: "Reports", href: "/reports", module: "reports", icon: "â–¤" },
+  { label: "Advanced", href: "/advanced", module: "advanced", icon: "âœ§" },
+  { label: "Settings", href: "/settings", module: "settings", icon: "âš™" },
 ];
 
 export default function CrmShell({
@@ -43,6 +43,9 @@ export default function CrmShell({
   const [mobileOpen, setMobileOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [logoSrc, setLogoSrc] = useState("");
+  const [crmName, setCrmName] = useState("CIU Business CRM");
+  const [primaryColor, setPrimaryColor] = useState("#00695c");
+  const [layoutOrientation, setLayoutOrientation] = useState<"vertical" | "horizontal">("vertical");
 
   useEffect(() => {
     let mounted = true;
@@ -55,6 +58,24 @@ export default function CrmShell({
 
     const loadLogo = async () => {
       try {
+        try {
+          const savedName = localStorage.getItem("ciu_crm_name");
+          const savedColor = localStorage.getItem("ciu_crm_primary_color");
+          const savedLayout = localStorage.getItem("ciu_crm_layout_orientation");
+          const savedPreferences = Object.keys(localStorage).find((key) => key.toLowerCase().includes("preferences") && key.toLowerCase().includes("ciu"));
+          if (savedName) setCrmName(savedName);
+          if (savedColor && /^#[0-9a-fA-F]{6}$/.test(savedColor)) setPrimaryColor(savedColor);
+          if (savedLayout === "horizontal" || savedLayout === "vertical") setLayoutOrientation(savedLayout);
+          if (savedPreferences) {
+            try {
+              const parsed = JSON.parse(localStorage.getItem(savedPreferences) || "{}") as Record<string, unknown>;
+              const orientation = parsed.navigationOrientation ?? parsed.layoutOrientation;
+              if (orientation === "horizontal" || orientation === "vertical") setLayoutOrientation(orientation);
+              if (typeof parsed.crmName === "string" && parsed.crmName.trim()) setCrmName(parsed.crmName);
+              if (typeof parsed.primaryColor === "string" && /^#[0-9a-fA-F]{6}$/.test(parsed.primaryColor)) setPrimaryColor(parsed.primaryColor);
+            } catch {}
+          }
+        } catch {}
         let localLogo = "";
 
         try {
@@ -68,18 +89,28 @@ export default function CrmShell({
 
         const { data, error } = await supabase
           .from("crm_settings")
-          .select("logo_data_url")
+          .select("logo_data_url, preferences")
           .eq("id", 1)
           .maybeSingle();
 
-        if (!error && data?.logo_data_url) {
-          applyLogo(data.logo_data_url);
+        if (!error && data) {
+          if (data.logo_data_url) applyLogo(data.logo_data_url);
+          const prefs = (data.preferences || {}) as Record<string, unknown>;
+          const savedName = typeof prefs.crmName === "string" ? prefs.crmName : "";
+          const savedColor = typeof prefs.primaryColor === "string" ? prefs.primaryColor : "";
+          const savedLayout = prefs.navigationOrientation === "horizontal" || prefs.layoutOrientation === "horizontal" ? "horizontal" : "vertical";
+          if (savedName) setCrmName(savedName);
+          if (/^#[0-9a-fA-F]{6}$/.test(savedColor)) setPrimaryColor(savedColor);
+          setLayoutOrientation(savedLayout);
+          try {
+            if (savedName) localStorage.setItem("ciu_crm_name", savedName);
+            if (savedColor) localStorage.setItem("ciu_crm_primary_color", savedColor);
+            localStorage.setItem("ciu_crm_layout_orientation", savedLayout);
+          } catch {}
           return;
         }
 
-        if (!localLogo) {
-          applyLogo("");
-        }
+        if (!localLogo) applyLogo("");
       } catch (error) {
         console.error("Unable to load CRM logo:", error);
 
@@ -94,29 +125,47 @@ export default function CrmShell({
     };
 
     const handleLogoUpdated = (event: Event) => {
-      const detail = (
-        event as CustomEvent<{
-          logo?: string;
-          logoName?: string;
-        }>
-      ).detail;
+      const detail = (event as CustomEvent<{
+        logo?: string;
+        logoName?: string;
+        crmName?: string;
+        organizationName?: string;
+        tagline?: string;
+        navigationOrientation?: string;
+        layoutOrientation?: string;
+        primaryColor?: string;
+        secondaryColor?: string;
+      }>).detail;
 
-      if (
-        detail &&
-        typeof detail.logo === "string"
-      ) {
-        applyLogo(detail.logo);
-      } else {
-        loadLogo();
-      }
+      if (detail && typeof detail.logo === "string") applyLogo(detail.logo);
+      else loadLogo();
+
+      if (detail?.crmName?.trim()) setCrmName(detail.crmName.trim());
+      if (detail?.primaryColor && /^#[0-9a-fA-F]{6}$/.test(detail.primaryColor)) setPrimaryColor(detail.primaryColor);
+      const orientation = detail?.navigationOrientation ?? detail?.layoutOrientation;
+      if (orientation === "horizontal" || orientation === "vertical") setLayoutOrientation(orientation);
+
+      try {
+        if (detail?.crmName) localStorage.setItem("ciu_crm_name", detail.crmName);
+        if (detail?.primaryColor) localStorage.setItem("ciu_crm_primary_color", detail.primaryColor);
+        if (orientation === "horizontal" || orientation === "vertical") {
+          localStorage.setItem("ciu_crm_layout_orientation", orientation);
+        }
+      } catch {}
     };
 
     loadLogo();
 
-    window.addEventListener(
-      "ciu-crm-logo-updated",
-      handleLogoUpdated,
-    );
+    window.addEventListener("ciu-crm-logo-updated", handleLogoUpdated);
+    const handleSettingsUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{ crmName?: string; primaryColor?: string; layoutOrientation?: string; navigationOrientation?: string }>).detail;
+      if (!detail) return;
+      if (detail.crmName) setCrmName(detail.crmName);
+      if (detail.primaryColor && /^#[0-9a-fA-F]{6}$/.test(detail.primaryColor)) setPrimaryColor(detail.primaryColor);
+      const orientation = detail.navigationOrientation ?? detail.layoutOrientation;
+      if (orientation === "horizontal" || orientation === "vertical") setLayoutOrientation(orientation);
+    };
+    window.addEventListener("ciu-crm-settings-updated", handleSettingsUpdated);
 
     window.addEventListener("storage", loadLogo);
 
@@ -175,6 +224,7 @@ export default function CrmShell({
         "storage",
         loadLogo,
       );
+      window.removeEventListener("ciu-crm-settings-updated", handleSettingsUpdated);
     };
   }, []);
 
@@ -203,7 +253,7 @@ export default function CrmShell({
   }
 
   const visibleItems = navItems.filter((item) =>
-    hasModuleAccess(role, item.module),
+    item.label !== "Staff" && hasModuleAccess(role, item.module),
   );
 
   const isActive = (href: string) =>
@@ -229,8 +279,9 @@ export default function CrmShell({
 
   return (
     <div
-      className="min-h-screen"
-      style={{ background: "#f5f8f7" }}
+      className={layoutOrientation === "horizontal" ? "min-h-screen flex flex-col" : "min-h-screen"}
+      data-navigation-orientation={layoutOrientation}
+      style={{ background: "#f5f8f7", "--ciu-primary": primaryColor } as React.CSSProperties}
     >
       {mobileOpen && (
         <button
@@ -242,22 +293,17 @@ export default function CrmShell({
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col shadow-lg transition-transform duration-200 lg:translate-x-0 ${
-          mobileOpen
-            ? "translate-x-0"
-            : "-translate-x-full"
-        }`}
+        className={layoutOrientation === "horizontal"
+          ? "relative z-50 flex w-full flex-row items-center gap-4 px-4 py-3 shadow-md"
+          : `fixed inset-y-0 left-0 z-50 flex w-64 flex-col shadow-lg transition-transform duration-200 lg:translate-x-0 ${mobileOpen ? "translate-x-0" : "-translate-x-full"}`}
         style={{
-          background:
-            "linear-gradient(180deg,#003f36 0%,#00695c 72%,#087b68 100%)",
+          background: `linear-gradient(90deg,${primaryColor} 0%,${primaryColor}e8 72%,${primaryColor}cc 100%)`,
+          ...(layoutOrientation === "vertical" ? { background: `linear-gradient(180deg,${primaryColor} 0%,${primaryColor}e8 72%,${primaryColor}cc 100%)` } : {}),
         }}
       >
         <div
-          className="flex h-24 items-center border-b px-5"
-          style={{
-            borderColor:
-              "rgba(255,255,255,.12)",
-          }}
+          className={layoutOrientation === "horizontal" ? "flex shrink-0 items-center border-r pr-4" : "flex h-24 items-center border-b px-5"}
+          style={{ borderColor: "rgba(255,255,255,.12)" }}
         >
           <Link
             href="/dashboard"
@@ -297,7 +343,7 @@ export default function CrmShell({
       style={{
         fontSize: 20,
         fontWeight: 900,
-        color: "#00695c",
+        color: primaryColor,
       }}
     >
       CIU
@@ -310,7 +356,7 @@ export default function CrmShell({
                 className="text-sm font-bold"
                 style={{ color: "#fff" }}
               >
-                CIU CRM
+                {crmName}
               </div>
 
               <div
@@ -323,9 +369,9 @@ export default function CrmShell({
           </Link>
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-3 py-5">
+        <nav className={layoutOrientation === "horizontal" ? "min-w-0 flex-1 overflow-x-auto px-1 py-1" : "flex-1 overflow-y-auto px-3 py-5"}>
           <p
-            className="mb-3 px-3 text-[10px] font-bold uppercase tracking-wider"
+            className={`mb-3 px-3 text-[10px] font-bold uppercase tracking-wider ${layoutOrientation === "horizontal" ? "hidden" : ""}`}
             style={{
               color: "rgba(255,255,255,.5)",
             }}
@@ -333,7 +379,7 @@ export default function CrmShell({
             Main Menu
           </p>
 
-          <div className="space-y-1">
+          <div className={layoutOrientation === "horizontal" ? "flex min-w-max items-center gap-1" : "space-y-1"}>
             {loading ? (
               <div className="space-y-2 px-3 py-2">
                 <div className="h-9 animate-pulse rounded-lg bg-slate-100" />
@@ -351,7 +397,7 @@ export default function CrmShell({
                     onClick={() =>
                       setMobileOpen(false)
                     }
-                    className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition ${
+                    className={`${layoutOrientation === "horizontal" ? "flex shrink-0 items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium transition" : "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition"} ${
                       active
                         ? "text-white shadow-sm"
                         : "hover:text-white"
@@ -388,20 +434,17 @@ export default function CrmShell({
         </nav>
 
         <div
-          className="border-t p-4"
-          style={{
-            borderColor:
-              "rgba(255,255,255,.12)",
-          }}
+          className={layoutOrientation === "horizontal" ? "flex shrink-0 items-center gap-3 border-l pl-4" : "border-t p-4"}
+          style={{ borderColor: "rgba(255,255,255,.12)" }}
         >
           <div
-            className="rounded-xl p-3"
+            className={layoutOrientation === "horizontal" ? "flex items-center gap-3" : "rounded-xl p-3"}
             style={{
               background:
                 "rgba(255,255,255,.08)",
             }}
           >
-            <div className="flex items-center gap-3">
+            <div className={layoutOrientation === "horizontal" ? "hidden" : "flex items-center gap-3"}>
               <div
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
                 style={{
@@ -434,14 +477,14 @@ export default function CrmShell({
             </div>
 
             <div
-              className="mt-3 border-t pt-3"
+              className={layoutOrientation === "horizontal" ? "flex items-center gap-3" : "mt-3 border-t pt-3"}
               style={{
                 borderColor:
                   "rgba(255,255,255,.12)",
               }}
             >
               <p
-                className="text-[10px] font-semibold uppercase tracking-wide"
+                className={`text-[10px] font-semibold uppercase tracking-wide ${layoutOrientation === "horizontal" ? "hidden" : ""}`}
                 style={{
                   color:
                     "rgba(255,255,255,.48)",
@@ -451,7 +494,7 @@ export default function CrmShell({
               </p>
 
               <p
-                className="mt-1 text-sm font-semibold capitalize"
+                className="text-sm font-semibold capitalize"
                 style={{ color: "#fff" }}
               >
                 {roleLabel}
@@ -551,7 +594,7 @@ export default function CrmShell({
                 borderColor:
                   "rgba(255,255,255,.18)",
                 background: "#fff",
-                color: "#00695c",
+                color: primaryColor,
                 display: "inline-flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -570,8 +613,8 @@ export default function CrmShell({
         </div>
       </aside>
 
-      <div className="lg:pl-64">
-        <div className="sticky top-0 z-30 flex h-16 items-center border-b border-slate-200 bg-white px-4 lg:hidden">
+      <div className={layoutOrientation === "horizontal" ? "min-w-0 flex-1" : "lg:pl-64"}>
+        <div className={layoutOrientation === "horizontal" ? "hidden" : "sticky top-0 z-30 flex h-16 items-center border-b border-slate-200 bg-white px-4 lg:hidden"}>
           <button
             type="button"
             onClick={() => setMobileOpen(true)}
@@ -584,7 +627,7 @@ export default function CrmShell({
             href="/dashboard"
             className="ml-3 text-sm font-bold text-slate-900"
           >
-            CIU CRM
+            {crmName}
           </Link>
         </div>
 
