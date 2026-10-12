@@ -1,9 +1,10 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { getEffectiveModules, type CrmModule, type CrmRole } from "@/lib/permissions";
 
 type Orientation = "vertical" | "horizontal";
 
@@ -19,17 +20,18 @@ type BrandingPreferences = {
 type NavItem = {
   label: string;
   href: string;
+  module: CrmModule;
 };
 
 const nav: NavItem[] = [
-  { label: "Dashboard", href: "/dashboard" },
-  { label: "Leads", href: "/leads" },
-  { label: "Customers", href: "/customers" },
-  { label: "Pipeline", href: "/pipeline" },
-  { label: "Tasks", href: "/tasks" },
-  { label: "Marketing", href: "/marketing" },
-  { label: "Reports", href: "/reports" },
-  { label: "Settings", href: "/settings" },
+  { label: "Dashboard", href: "/dashboard", module: "dashboard" },
+  { label: "Leads", href: "/leads", module: "leads" },
+  { label: "Customers", href: "/customers", module: "customers" },
+  { label: "Pipeline", href: "/pipeline", module: "pipeline" },
+  { label: "Tasks", href: "/tasks", module: "tasks" },
+  { label: "Marketing", href: "/marketing", module: "marketing" },
+  { label: "Reports", href: "/reports", module: "reports" },
+  { label: "Settings", href: "/settings", module: "settings" },
 ];
 
 const LOGO_KEY = "ciu_crm_logo";
@@ -37,7 +39,7 @@ const PREFERENCES_KEY = "ciu_crm_preferences";
 const DEFAULT_BRANDING: Required<BrandingPreferences> = {
   crmName: "CIU Business CRM",
   organizationName: "Clarke International University",
-  tagline: "Lead · Innovate · Transform",
+  tagline: "Lead Â· Innovate Â· Transform",
   navigationOrientation: "vertical",
   primaryColor: "#00695c",
   secondaryColor: "#8bc63f",
@@ -61,6 +63,8 @@ export default function CRMLayout({
   const [branding, setBranding] = useState<Required<BrandingPreferences>>(DEFAULT_BRANDING);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userEmail, setUserEmail] = useState("");
+  const [role, setRole] = useState<CrmRole | null>(null);
+  const [modulePermissions, setModulePermissions] = useState<string[] | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -154,10 +158,40 @@ export default function CRMLayout({
 
     const loadUser = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (active) setUserEmail(user?.email || "");
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError) throw authError;
+
+        if (!user) {
+          if (active) {
+            setUserEmail("");
+            setRole(null);
+            setModulePermissions(null);
+          }
+          return;
+        }
+
+        const { data: profile, error: profileError } = await supabase
+          .from("profiles")
+          .select("role, module_permissions, is_active")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (profileError) throw profileError;
+        if (!active) return;
+
+        setUserEmail(user.email || "");
+        setRole((profile?.role as CrmRole) || null);
+        setModulePermissions(
+          profile?.module_permissions == null
+            ? null
+            : (profile.module_permissions as string[]),
+        );
       } catch (error) {
-        console.error("Unable to load CRM user:", error);
+        console.error("Unable to load CRM user permissions:", error);
+        if (active) {
+          setRole(null);
+          setModulePermissions([]);
+        }
       }
     };
 
@@ -176,6 +210,8 @@ export default function CRMLayout({
   if (pathname === "/login") return <>{children}</>;
 
   const horizontal = branding.navigationOrientation === "horizontal";
+  const allowedModules = getEffectiveModules(role, modulePermissions);
+  const visibleNav = nav.filter((item) => allowedModules.includes(item.module));
   const isActive = (href: string) =>
     href === "/dashboard"
       ? pathname === href
@@ -216,10 +252,10 @@ export default function CRMLayout({
     <nav
       aria-label="Main navigation"
       className={horizontal
-        ? "flex min-w-0 flex-1 items-center gap-1 overflow-x-auto px-1 py-1"
+        ? "flex min-w-0 flex-1 items-center justify-center gap-1 overflow-x-auto px-1 py-1"
         : "flex-1 space-y-1 overflow-y-auto px-3 py-5"}
     >
-      {nav.map((item) => (
+      {visibleNav.map((item) => (
         <Link
           key={item.href}
           href={item.href}
@@ -258,7 +294,7 @@ export default function CRMLayout({
 
       <aside
         className={horizontal
-          ? "relative z-30 flex w-full flex-wrap items-center gap-x-4 gap-y-3 px-4 py-3 shadow-md"
+          ? "relative z-30 flex w-full items-center gap-x-4 px-4 py-3 shadow-md"
           : `fixed inset-y-0 left-0 z-50 flex w-72 flex-col shadow-lg transition-transform duration-200 lg:translate-x-0 ${mobileOpen ? "translate-x-0" : "-translate-x-full"}`}
         style={{
           background: horizontal
@@ -270,8 +306,28 @@ export default function CRMLayout({
           style={{ borderColor: "rgba(255,255,255,.12)" }}>
           {headerBrand}
         </div>
-
         {navLinks}
+        {horizontal && (
+          <div className="ml-auto flex shrink-0 items-center justify-end gap-3">
+            <span className="max-w-48 truncate text-sm text-white/80">{userEmail || "Authenticated user"}</span>
+            <button
+              type="button"
+              onClick={async () => {
+                const supabase = createClient();
+                const { error } = await supabase.auth.signOut();
+                if (error) {
+                  alert(error.message);
+                  return;
+                }
+                window.location.replace("/login");
+              }}
+              className="rounded-lg bg-white px-4 py-2 text-sm font-semibold"
+              style={{ color: branding.primaryColor }}
+            >
+              Sign out
+            </button>
+          </div>
+        )}
 
         {!horizontal && (
           <div className="border-t p-4" style={{ borderColor: "rgba(255,255,255,.12)" }}>
@@ -308,18 +364,13 @@ export default function CRMLayout({
             <span className="truncate text-sm font-bold text-slate-900">{branding.crmName}</span>
           </header>
         )}
-        {horizontal && (
-          <div className="flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-3">
-            <div className="truncate text-sm font-semibold text-slate-700">{branding.organizationName}</div>
-            <div className="truncate text-xs text-slate-500">{userEmail || "Authenticated user"}</div>
-          </div>
-        )}
+
         <main className="min-h-screen">{children}</main>
       </div>
 
       {!horizontal && (
         <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-slate-200 bg-white shadow-lg lg:hidden" aria-label="Mobile navigation">
-          {nav.slice(0, 5).map((item) => (
+          {visibleNav.slice(0, 5).map((item) => (
             <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)} className={`flex flex-col items-center justify-center gap-1 px-1 py-3 text-xs font-semibold ${isActive(item.href) ? "text-emerald-800" : "text-slate-500"}`}>
               <span>{item.label}</span>
             </Link>
@@ -329,3 +380,9 @@ export default function CRMLayout({
     </div>
   );
 }
+
+
+
+
+
+
