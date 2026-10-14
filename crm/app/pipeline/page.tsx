@@ -43,17 +43,6 @@ type Profile = {
   is_active: boolean | null;
 };
 
-/*
- * These names intentionally match the stages that already
- * exist in public.pipeline_stages.
- *
- * Database:
- * Leads
- * Applied
- * Paid Application Fee
- * Paid Acceptance Fee
- * Enrolled
- */
 const WORKFLOW = [
   {
     name: "Leads",
@@ -78,7 +67,7 @@ const WORKFLOW = [
 ];
 
 function normalizeStageName(
-  value: string | null | undefined
+  value: string | null | undefined,
 ) {
   return (value || "")
     .trim()
@@ -89,7 +78,7 @@ function normalizeStageName(
 
 function stageMatches(
   stageName: string,
-  workflowName: string
+  workflowName: string,
 ) {
   const actual = normalizeStageName(stageName);
   const expected = normalizeStageName(workflowName);
@@ -108,6 +97,8 @@ function stageMatches(
     applied: [
       "application",
       "application started",
+      "admitted",
+      "admission",
     ],
 
     "paid application fee": [
@@ -136,6 +127,45 @@ function stageMatches(
   );
 }
 
+function formatDate(
+  value: string | null,
+) {
+  if (!value) {
+    return "—";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "—";
+  }
+
+  return date.toLocaleDateString(
+    "en-GB",
+    {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    },
+  );
+}
+
+function formatCurrency(
+  value: number | null,
+) {
+  if (
+    value === null ||
+    value === undefined ||
+    Number.isNaN(Number(value))
+  ) {
+    return "—";
+  }
+
+  return `UGX ${Number(value).toLocaleString(
+    "en-UG",
+  )}`;
+}
+
 export default function Pipeline() {
   const supabase = createClient();
 
@@ -147,7 +177,7 @@ export default function Pipeline() {
     useState<Opportunity[]>([]);
 
   const [leads, setLeads] = useState<Lead[]>(
-    []
+    [],
   );
 
   const [currentProfile, setCurrentProfile] =
@@ -159,23 +189,35 @@ export default function Pipeline() {
   const [saving, setSaving] =
     useState(false);
 
+  const [refreshing, setRefreshing] =
+    useState(false);
+
   const [errorMessage, setErrorMessage] =
     useState("");
 
+  const [selectedStage, setSelectedStage] =
+    useState("Leads");
+
+  const [searchTerm, setSearchTerm] =
+    useState("");
+
   const isSalesperson =
-    currentProfile?.role ===
-    "salesperson";
+    currentProfile?.role === "salesperson";
 
   const canViewAll =
-    currentProfile?.role ===
-      "admin" ||
-    currentProfile?.role ===
-      "super_admin" ||
-    currentProfile?.role ===
-      "manager";
+    currentProfile?.role === "admin" ||
+    currentProfile?.role === "super_admin" ||
+    currentProfile?.role === "manager";
 
-  async function loadPipeline() {
-    setLoading(true);
+  async function loadPipeline(
+    isRefresh = false,
+  ) {
+    if (isRefresh) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
+
     setErrorMessage("");
 
     try {
@@ -190,7 +232,7 @@ export default function Pipeline() {
 
       if (!user) {
         throw new Error(
-          "You are not authenticated."
+          "You are not authenticated.",
         );
       }
 
@@ -200,7 +242,7 @@ export default function Pipeline() {
       } = await supabase
         .from("profiles")
         .select(
-          "id, full_name, role, is_active"
+          "id, full_name, role, is_active",
         )
         .eq("id", user.id)
         .maybeSingle();
@@ -211,7 +253,7 @@ export default function Pipeline() {
 
       if (!profileData) {
         throw new Error(
-          "Your CRM profile could not be found."
+          "Your CRM profile could not be found.",
         );
       }
 
@@ -226,7 +268,7 @@ export default function Pipeline() {
       } = await supabase
         .from("pipeline_stages")
         .select(
-          "id, name, position, probability, is_won, is_lost"
+          "id, name, position, probability, is_won, is_lost",
         )
         .order("position", {
           ascending: true,
@@ -240,7 +282,7 @@ export default function Pipeline() {
         supabase
           .from("opportunities")
           .select(
-            "id, lead_id, title, value, probability, stage_id, status, assigned_to, updated_at, created_at"
+            "id, lead_id, title, value, probability, stage_id, status, assigned_to, updated_at, created_at",
           )
           .order("created_at", {
             ascending: false,
@@ -250,26 +292,23 @@ export default function Pipeline() {
         supabase
           .from("leads")
           .select(
-            "id, ciu_number, name, phone, email, product_service, contact_id, assigned_to"
+            "id, ciu_number, name, phone, email, product_service, contact_id, assigned_to",
           )
           .order("name", {
             ascending: true,
           });
 
-      if (
-        profile.role ===
-        "salesperson"
-      ) {
+      if (profile.role === "salesperson") {
         opportunityQuery =
           opportunityQuery.eq(
             "assigned_to",
-            user.id
+            user.id,
           );
 
         leadQuery =
           leadQuery.eq(
             "assigned_to",
-            user.id
+            user.id,
           );
       }
 
@@ -296,35 +335,37 @@ export default function Pipeline() {
       }
 
       setStages(
-        (stageData as PipelineStage[]) ||
-          []
+        (stageData as PipelineStage[]) || [],
       );
 
       setOpportunities(
         (opportunityData as Opportunity[]) ||
-          []
+          [],
       );
 
       setLeads(
-        (leadData as Lead[]) || []
+        (leadData as Lead[]) || [],
       );
     } catch (error) {
       console.error(
         "Pipeline loading error:",
-        error
+        error,
       );
 
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "The pipeline could not be loaded."
+          : "The pipeline could not be loaded.",
       );
 
-      setStages([]);
-      setOpportunities([]);
-      setLeads([]);
+      if (!isRefresh) {
+        setStages([]);
+        setOpportunities([]);
+        setLeads([]);
+      }
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }
 
@@ -339,8 +380,8 @@ export default function Pipeline() {
           stages.find((stage) =>
             stageMatches(
               stage.name,
-              workflow.name
-            )
+              workflow.name,
+            ),
           );
 
         return {
@@ -355,8 +396,7 @@ export default function Pipeline() {
             workflow.probability,
 
           is_won:
-            workflow.name ===
-            "Enrolled",
+            workflow.name === "Enrolled",
 
           is_lost: false,
 
@@ -365,149 +405,27 @@ export default function Pipeline() {
           databaseStage:
             existing || null,
         };
-      }
+      },
     );
   }, [stages]);
 
-  const openOpportunities =
-    opportunities.filter(
-      (opportunity) =>
-        opportunity.status ===
-        "open"
-    );
-
-  const wonOpportunities =
-    opportunities.filter(
-      (opportunity) =>
-        opportunity.status ===
-        "won"
-    );
-
-  const lostOpportunities =
-    opportunities.filter(
-      (opportunity) =>
-        opportunity.status ===
-        "lost"
-    );
-
-  const pipelineValue =
-    openOpportunities.reduce(
-      (sum, opportunity) =>
-        sum +
-        Number(
-          opportunity.value || 0
-        ),
-      0
-    );
-
-  const expectedRevenue =
-    openOpportunities.reduce(
-      (sum, opportunity) => {
-        const stage =
-          stages.find(
-            (item) =>
-              item.id ===
-              opportunity.stage_id
-          );
-
-        const probability =
-          opportunity.probability ??
-          stage?.probability ??
-          0;
-
-        return (
-          sum +
-          Number(
-            opportunity.value || 0
-          ) *
-            (Number(probability) /
-              100)
-        );
-      },
-      0
-    );
-
-  const startOfMonth =
-    new Date();
-
-  startOfMonth.setDate(1);
-
-  startOfMonth.setHours(
-    0,
-    0,
-    0,
-    0
-  );
-
-  const wonThisMonth =
-    wonOpportunities
-      .filter((opportunity) => {
-        const date =
-          opportunity.updated_at ||
-          opportunity.created_at;
-
-        return (
-          date &&
-          new Date(date) >=
-            startOfMonth
-        );
-      })
-      .reduce(
-        (sum, opportunity) =>
-          sum +
-          Number(
-            opportunity.value || 0
-          ),
-        0
-      );
-
-  const closedDeals =
-    wonOpportunities.length +
-    lostOpportunities.length;
-
-  const conversionRate =
-    closedDeals > 0
-      ? (wonOpportunities.length /
-          closedDeals) *
-        100
-      : 0;
-
-  function formatCurrency(
-    value: number
-  ) {
-    if (value >= 1000000) {
-      return `UGX ${(value / 1000000).toFixed(
-        1
-      )}M`;
-    }
-
-    if (value >= 1000) {
-      return `UGX ${(value / 1000).toFixed(
-        0
-      )}K`;
-    }
-
-    return `UGX ${value.toLocaleString()}`;
-  }
-
   function getLead(
-    opportunity: Opportunity
+    opportunity: Opportunity,
   ) {
     return leads.find(
       (lead) =>
-        lead.id ===
-        opportunity.lead_id
+        lead.id === opportunity.lead_id,
     );
   }
 
   function getStageForOpportunity(
-    opportunity: Opportunity
+    opportunity: Opportunity,
   ) {
     const databaseStage =
       stages.find(
         (stage) =>
           stage.id ===
-          opportunity.stage_id
+          opportunity.stage_id,
       );
 
     return workflowStages.find(
@@ -515,27 +433,131 @@ export default function Pipeline() {
         databaseStage &&
         stageMatches(
           databaseStage.name,
-          stage.name
-        )
+          stage.name,
+        ),
     );
   }
 
+  function getStageStudents(
+    workflowStageName: string,
+  ) {
+    return opportunities.filter(
+      (opportunity) => {
+        const currentStage =
+          getStageForOpportunity(
+            opportunity,
+          );
+
+        if (
+          currentStage?.name !==
+          workflowStageName
+        ) {
+          return false;
+        }
+
+        if (
+          workflowStageName ===
+          "Enrolled"
+        ) {
+          return (
+            opportunity.status ===
+              "won" ||
+            opportunity.status ===
+              "open"
+          );
+        }
+
+        return (
+          opportunity.status ===
+          "open"
+        );
+      },
+    );
+  }
+
+  const stageCounts = useMemo(() => {
+    const counts: Record<
+      string,
+      number
+    > = {};
+
+    workflowStages.forEach(
+      (stage) => {
+        counts[stage.name] =
+          getStageStudents(
+            stage.name,
+          ).length;
+      },
+    );
+
+    return counts;
+  }, [
+    opportunities,
+    stages,
+    workflowStages,
+  ]);
+
+  const selectedStudents = useMemo(() => {
+    const students =
+      getStageStudents(
+        selectedStage,
+      );
+
+    const search =
+      searchTerm.trim().toLowerCase();
+
+    if (!search) {
+      return students;
+    }
+
+    return students.filter(
+      (opportunity) => {
+        const lead =
+          getLead(opportunity);
+
+        const searchable = [
+          lead?.name,
+          lead?.ciu_number,
+          lead?.phone,
+          lead?.email,
+          lead?.product_service,
+          opportunity.title,
+          opportunity.status,
+          opportunity.assigned_to,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+
+        return searchable.includes(
+          search,
+        );
+      },
+    );
+  }, [
+    opportunities,
+    stages,
+    leads,
+    workflowStages,
+    selectedStage,
+    searchTerm,
+  ]);
+
   async function moveOpportunity(
     opportunityId: string,
-    workflowStageName: string
+    workflowStageName: string,
   ) {
     const workflowStage =
       workflowStages.find(
         (stage) =>
-          stage.name ===
-          workflowStageName
+          stage.name === workflowStageName,
       );
 
     if (
       !workflowStage?.databaseStage
     ) {
       setErrorMessage(
-        `The "${workflowStageName}" pipeline stage is not available in the database.`
+        `The "${workflowStageName}" pipeline stage is not available in the database.`,
       );
       return;
     }
@@ -543,8 +565,7 @@ export default function Pipeline() {
     const opportunity =
       opportunities.find(
         (item) =>
-          item.id ===
-          opportunityId
+          item.id === opportunityId,
       );
 
     if (!opportunity) {
@@ -557,7 +578,7 @@ export default function Pipeline() {
         currentProfile?.id
     ) {
       setErrorMessage(
-        "You can only manage opportunities assigned to you."
+        "You can only manage opportunities assigned to you.",
       );
       return;
     }
@@ -571,7 +592,7 @@ export default function Pipeline() {
     const previousProbability =
       opportunity.probability;
 
-    const selectedStage =
+    const selectedDatabaseStage =
       workflowStage.databaseStage;
 
     const now =
@@ -587,11 +608,11 @@ export default function Pipeline() {
       ) {
         await moveToEnrolled(
           opportunity,
-          selectedStage,
+          selectedDatabaseStage,
           now,
           previousStageId,
           previousStatus,
-          previousProbability
+          previousProbability,
         );
 
         return;
@@ -599,29 +620,28 @@ export default function Pipeline() {
 
       const newProbability =
         Number(
-          selectedStage.probability ??
-            workflowStage.probability
+          selectedDatabaseStage.probability ??
+            workflowStage.probability,
         );
 
-      const {
-        error,
-      } = await supabase
-        .from("opportunities")
-        .update({
-          stage_id:
-            selectedStage.id,
+      const { error } =
+        await supabase
+          .from("opportunities")
+          .update({
+            stage_id:
+              selectedDatabaseStage.id,
 
-          probability:
-            newProbability,
+            probability:
+              newProbability,
 
-          status: "open",
+            status: "open",
 
-          updated_at: now,
-        })
-        .eq(
-          "id",
-          opportunityId
-        );
+            updated_at: now,
+          })
+          .eq(
+            "id",
+            opportunityId,
+          );
 
       if (error) {
         throw error;
@@ -630,35 +650,37 @@ export default function Pipeline() {
       setOpportunities(
         (current) =>
           current.map((item) =>
-            item.id ===
-            opportunityId
+            item.id === opportunityId
               ? {
                   ...item,
 
                   stage_id:
-                    selectedStage.id,
+                    selectedDatabaseStage.id,
 
                   probability:
                     newProbability,
 
                   status: "open",
 
-                  updated_at:
-                    now,
+                  updated_at: now,
                 }
-              : item
-          )
+              : item,
+          ),
+      );
+
+      setSelectedStage(
+        workflowStageName,
       );
     } catch (error) {
       console.error(
         "Pipeline update error:",
-        error
+        error,
       );
 
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "The pipeline stage could not be updated."
+          : "The pipeline stage could not be updated.",
       );
     } finally {
       setSaving(false);
@@ -671,11 +693,11 @@ export default function Pipeline() {
     now: string,
     previousStageId: string,
     previousStatus: string,
-    previousProbability: number | null
+    previousProbability: number | null,
   ) {
     if (!opportunity.lead_id) {
       throw new Error(
-        "This opportunity has no linked lead and cannot be enrolled."
+        "This opportunity has no linked lead and cannot be enrolled.",
       );
     }
 
@@ -684,7 +706,7 @@ export default function Pipeline() {
 
     if (!lead) {
       throw new Error(
-        "The linked lead could not be found."
+        "The linked lead could not be found.",
       );
     }
 
@@ -700,12 +722,12 @@ export default function Pipeline() {
         admissionLookupError,
     } = await supabase
       .from("admissions")
-      .select(
-        "id, lead_id, stage, assigned_to"
-      )
+     .select(
+  "id, lead_id, stage, assigned_to, enrolled_at",
+)
       .eq(
         "lead_id",
-        opportunity.lead_id
+        opportunity.lead_id,
       )
       .maybeSingle();
 
@@ -745,6 +767,8 @@ export default function Pipeline() {
 
           stage: "Enrolled",
 
+          enrolled_at: now,
+
           assigned_to:
             assignedTo,
 
@@ -758,7 +782,7 @@ export default function Pipeline() {
 
           tuition_fee:
             Number(
-              opportunity.value || 0
+              opportunity.value || 0,
             ),
 
           tuition_paid: 0,
@@ -784,7 +808,7 @@ export default function Pipeline() {
         throw (
           createError ||
           new Error(
-            "The admission record could not be created."
+            "The admission record could not be created.",
           )
         );
       }
@@ -812,7 +836,7 @@ export default function Pipeline() {
       })
       .eq(
         "id",
-        opportunity.id
+        opportunity.id,
       );
 
     if (opportunityError) {
@@ -822,7 +846,7 @@ export default function Pipeline() {
           .delete()
           .eq(
             "id",
-            admissionId
+            admissionId,
           );
       }
 
@@ -834,8 +858,10 @@ export default function Pipeline() {
         admissionUpdateError,
     } = await supabase
       .from("admissions")
-      .update({
+            .update({
         stage: "Enrolled",
+
+        enrolled_at: admission?.enrolled_at ?? now,
 
         assigned_to:
           assignedTo,
@@ -859,7 +885,7 @@ export default function Pipeline() {
       })
       .eq(
         "id",
-        admissionId
+        admissionId,
       );
 
     if (admissionUpdateError) {
@@ -880,7 +906,7 @@ export default function Pipeline() {
         })
         .eq(
           "id",
-          opportunity.id
+          opportunity.id,
         );
 
       if (!admission) {
@@ -889,20 +915,19 @@ export default function Pipeline() {
           .delete()
           .eq(
             "id",
-            admissionId
+            admissionId,
           );
       }
 
       throw new Error(
-        "The admission could not be updated. The Pipeline change was rolled back."
+        "The admission could not be updated. The Pipeline change was rolled back.",
       );
     }
 
     setOpportunities(
       (current) =>
         current.map((item) =>
-          item.id ===
-          opportunity.id
+          item.id === opportunity.id
             ? {
                 ...item,
 
@@ -918,396 +943,228 @@ export default function Pipeline() {
 
                 updated_at: now,
               }
-            : item
-        )
+            : item,
+        ),
     );
   }
 
-  function renderStageCards() {
-    return workflowStages.map(
-      (workflowStage) => {
-        const stageDeals =
-          opportunities.filter(
-            (opportunity) => {
-              const currentStage =
-                getStageForOpportunity(
-                  opportunity
-                );
+  function getStatusLabel(
+    opportunity: Opportunity,
+  ) {
+    if (
+      opportunity.status ===
+      "won"
+    ) {
+      return "Enrolled";
+    }
 
-              if (
-                currentStage?.name !==
-                workflowStage.name
-              ) {
-                return false;
-              }
+    if (
+      opportunity.status ===
+      "lost"
+    ) {
+      return "Lost";
+    }
 
-              if (
-                workflowStage.name ===
-                "Enrolled"
-              ) {
-                return (
-                  opportunity.status ===
-                    "won" ||
-                  opportunity.status ===
-                    "open"
-                );
-              }
+    return "Active";
+  }
 
-              return (
-                opportunity.status ===
-                "open"
-              );
-            }
-          );
+  function getStatusClass(
+    opportunity: Opportunity,
+  ) {
+    if (
+      opportunity.status ===
+      "won"
+    ) {
+      return "status-enrolled";
+    }
 
-        return (
-          <div
-            className="crm-stage"
-            key={
-              workflowStage.name
-            }
-          >
-            <div className="crm-stage-head">
-              <strong>
-                {workflowStage.name}
-              </strong>
+    if (
+      opportunity.status ===
+      "lost"
+    ) {
+      return "status-lost";
+    }
 
-              <span>
-                {stageDeals.length}{" "}
-                {stageDeals.length ===
-                1
-                  ? "student"
-                  : "students"}
-              </span>
-            </div>
+    return "status-active";
+  }
 
-            <div
-              style={{
-                fontSize: 11,
-                color: "#6b7f78",
-                marginBottom: 10,
-              }}
-            >
-              {
-                workflowStage.probability
-              }
-              % probability
-            </div>
+  function getInitials(
+    name: string,
+  ) {
+    const parts = name
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
 
-            {stageDeals.length ===
-            0 ? (
-              <div
-                style={{
-                  padding:
-                    "18px 8px",
-                  textAlign:
-                    "center",
-                  fontSize: 12,
-                  color: "#7b8c86",
-                }}
-              >
-                No students
-              </div>
-            ) : (
-              stageDeals.map(
-                (deal) => {
-                  const lead =
-                    getLead(
-                      deal
-                    );
+    if (parts.length === 0) {
+      return "ST";
+    }
 
-                  const probability =
-                    deal.probability ??
-                    workflowStage.probability;
+    return parts
+      .slice(0, 2)
+      .map((part) =>
+        part.charAt(0).toUpperCase(),
+      )
+      .join("");
+  }
 
-                  return (
-                    <div
-                      className="crm-deal"
-                      key={
-                        deal.id
-                      }
-                    >
-                      <strong>
-                        {lead?.name ||
-                          deal.title}
-                      </strong>
+  function displayStageName(
+    name: string,
+  ) {
+    if (name === "Applied") {
+      return "Applied / Admitted";
+    }
 
-                      <small>
-                        {lead?.ciu_number ||
-                          "No CIU number"}
-                      </small>
+    if (
+      name ===
+      "Paid Application Fee"
+    ) {
+      return "Application Fee Paid";
+    }
 
-                      <small>
-                        {lead?.product_service ||
-                          "Programme not set"}
-                      </small>
+    if (
+      name ===
+      "Paid Acceptance Fee"
+    ) {
+      return "Acceptance Fee Paid";
+    }
 
-                      {lead?.phone && (
-                        <small>
-                          {lead.phone}
-                        </small>
-                      )}
-
-                      <div className="crm-deal-value">
-                        {formatCurrency(
-                          Number(
-                            deal.value ||
-                              0
-                          )
-                        )}
-                      </div>
-
-                      <div className="crm-progress">
-                        <div
-                          style={{
-                            width: `${Math.min(
-                              Math.max(
-                                Number(
-                                  probability
-                                ),
-                                0
-                              ),
-                              100
-                            )}%`,
-                          }}
-                        />
-                      </div>
-
-                      <select
-                        value={
-                          workflowStage.name
-                        }
-                        disabled={
-                          saving ||
-                          !workflowStage.databaseStage
-                        }
-                        onChange={(
-                          event
-                        ) =>
-                          moveOpportunity(
-                            deal.id,
-                            event
-                              .target
-                              .value
-                          )
-                        }
-                        style={{
-                          width:
-                            "100%",
-                          marginTop:
-                            12,
-                          padding:
-                            "8px 9px",
-                          border:
-                            "1px solid #d1d5db",
-                          borderRadius:
-                            7,
-                          background:
-                            "#fff",
-                          fontSize: 12,
-                        }}
-                      >
-                        {workflowStages.map(
-                          (
-                            option
-                          ) => (
-                            <option
-                              key={
-                                option.name
-                              }
-                              value={
-                                option.name
-                              }
-                              disabled={
-                                !option.databaseStage
-                              }
-                            >
-                              {
-                                option.name
-                              }
-                            </option>
-                          )
-                        )}
-                      </select>
-
-                      {workflowStage.name ===
-                        "Enrolled" && (
-                        <div
-                          style={{
-                            marginTop: 8,
-                            padding:
-                              "7px 9px",
-                            borderRadius:
-                              6,
-                            background:
-                              "#eaf5f2",
-                            color:
-                              "#00695c",
-                            fontSize: 11,
-                            fontWeight:
-                              600,
-                          }}
-                        >
-                          Enrolled →
-                          Customer
-                        </div>
-                      )}
-                    </div>
-                  );
-                }
-              )
-            )}
-          </div>
-        );
-      }
-    );
+    return name;
   }
 
   return (
     <div className="ciu-page">
       <div className="ciu-page-inner">
-        <div className="ciu-hero">
+        <div
+          className="ciu-hero"
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 20,
+            flexWrap: "wrap",
+            width: "100%",
+            position: "relative",
+          }}
+        >
           <div>
             <div
               style={{
                 fontSize: 12,
-                fontWeight: 700,
-                color: "#8bc63f",
+                fontWeight: 800,
+                color: "#00695c",
                 textTransform:
                   "uppercase",
                 letterSpacing:
                   "0.08em",
-                marginBottom: 6,
+                marginBottom: 7,
               }}
             >
-              Admissions Funnel
+              Admissions Workflow
             </div>
 
             <h1>
               {isSalesperson
-                ? "My Sales Pipeline"
-                : "Sales Pipeline"}
+                ? "My Admissions Pipeline"
+                : "Admissions Pipeline"}
             </h1>
 
             <p>
-              Move prospective students
-              from leads through
-              application, application
-              fee payment, acceptance
-              fee payment and enrollment.
+              Manage students through the
+              complete CIU admission journey.
+              Select a stage below to view
+              the students currently at that
+              stage.
             </p>
           </div>
+
+          <button
+            type="button"
+            className="ciu-btn-light"
+            onClick={() =>
+              loadPipeline(true)
+            }
+            disabled={
+              refreshing ||
+              loading ||
+              saving
+            }
+            style={{
+              position: "relative",
+              zIndex: 10,
+              pointerEvents: "auto",
+              minHeight: 42,
+              flexShrink: 0,
+            }}
+          >
+            {refreshing
+              ? "Refreshing..."
+              : "↻ Refresh"}
+          </button>
         </div>
 
         {errorMessage && (
           <div
             style={{
               marginTop: 16,
-              padding: 13,
-              borderRadius: 9,
-              background:
-                "#fff1f2",
+              padding: "13px 16px",
+              borderRadius: 12,
+              background: "#fff1f2",
               border:
                 "1px solid #fecdd3",
               color: "#be123c",
               fontSize: 13,
+              lineHeight: 1.5,
             }}
           >
             {errorMessage}
           </div>
         )}
 
-        <div className="ciu-kpis">
-          <div className="ciu-kpi">
-            <span className="ciu-kpi-label">
-              Pipeline Value
-            </span>
-
-            <strong>
-              {formatCurrency(
-                pipelineValue
-              )}
-            </strong>
-
-            <small>
-              {
-                openOpportunities.length
-              }{" "}
-              open opportunities
-            </small>
-          </div>
-
-          <div className="ciu-kpi">
-            <span className="ciu-kpi-label">
-              Expected Revenue
-            </span>
-
-            <strong>
-              {formatCurrency(
-                expectedRevenue
-              )}
-            </strong>
-
-            <small>
-              Weighted pipeline
-            </small>
-          </div>
-
-          <div className="ciu-kpi">
-            <span className="ciu-kpi-label">
-              Won This Month
-            </span>
-
-            <strong>
-              {formatCurrency(
-                wonThisMonth
-              )}
-            </strong>
-
-            <small>
-              {
-                wonOpportunities.length
-              }{" "}
-              enrolled/won
-            </small>
-          </div>
-
-          <div className="ciu-kpi">
-            <span className="ciu-kpi-label">
-              Conversion
-            </span>
-
-            <strong>
-              {conversionRate.toFixed(
-                1
-              )}
-              %
-            </strong>
-
-            <small>
-              Current closed-deal
-              rate
-            </small>
-          </div>
-        </div>
-
         <div
-          className="ciu-strip"
+          className="pipeline-stage-tabs-wrap"
           style={{
             marginTop: 18,
           }}
         >
-          <div>
-            <strong>
-              Student admission journey
-            </strong>
+          <div className="pipeline-stage-tabs">
+            {workflowStages.map(
+              (stage) => {
+                const isSelected =
+                  selectedStage ===
+                  stage.name;
 
-            <span>
-              Leads → Applied → Paid
-              Application Fee → Paid
-              Acceptance Fee → Enrolled
-              → Customers
-            </span>
+                return (
+                  <button
+                    type="button"
+                    key={stage.name}
+                    className={`pipeline-stage-tab ${
+                      isSelected
+                        ? "pipeline-stage-tab-active"
+                        : ""
+                    }`}
+                    onClick={() => {
+                      setSelectedStage(
+                        stage.name,
+                      );
+                      setSearchTerm("");
+                    }}
+                  >
+                    <span>
+                      {displayStageName(
+                        stage.name,
+                      )}
+                    </span>
+
+                    <strong>
+                      {stageCounts[
+                        stage.name
+                      ] ?? 0}
+                    </strong>
+                  </button>
+                );
+              },
+            )}
           </div>
         </div>
 
@@ -1316,85 +1173,424 @@ export default function Pipeline() {
             className="ciu-card"
             style={{
               marginTop: 18,
-              padding: 40,
+              padding: 50,
               textAlign: "center",
               color: "#6b7f78",
             }}
           >
-            Loading pipeline...
+            <div
+              style={{
+                fontSize: 15,
+                fontWeight: 750,
+                color: "#36564e",
+              }}
+            >
+              Loading admissions
+              pipeline...
+            </div>
+
+            <div
+              style={{
+                marginTop: 6,
+                fontSize: 12,
+              }}
+            >
+              Connecting to your CRM
+              data.
+            </div>
           </div>
         ) : (
           <div
-            className="crm-pipeline"
+            className="ciu-card"
             style={{
               marginTop: 18,
             }}
           >
-            {renderStageCards()}
-          </div>
-        )}
+            <div className="ciu-card-head">
+              <div>
+                <strong>
+                  {displayStageName(
+                    selectedStage,
+                  )}
+                </strong>
 
-        {!loading &&
-          opportunities.length ===
-            0 && (
-            <div
-              className="ciu-card"
-              style={{
-                marginTop: 18,
-                padding: 30,
-                textAlign:
-                  "center",
-              }}
-            >
-              <strong>
-                No opportunities yet
-              </strong>
+                <span>
+                  {selectedStudents.length}{" "}
+                  student
+                  {selectedStudents.length ===
+                  1
+                    ? ""
+                    : "s"}{" "}
+                  in this stage
+                </span>
+              </div>
 
-              <p
+              <div
                 style={{
-                  margin:
-                    "8px 0 0",
-                  color:
-                    "#6b7f78",
-                  fontSize: 13,
+                  display: "flex",
+                  alignItems:
+                    "center",
+                  gap: 10,
+                  minWidth: 280,
                 }}
               >
-                {isSalesperson
-                  ? "You currently have no opportunities assigned to you."
-                  : "Qualified leads will appear here when they enter the admissions pipeline."}
-              </p>
+                <input
+                  value={searchTerm}
+                  onChange={(event) =>
+                    setSearchTerm(
+                      event.target.value,
+                    )
+                  }
+                  placeholder="Search students..."
+                  className="pipeline-search"
+                />
+              </div>
             </div>
-          )}
+
+            <div className="pipeline-table-scroll">
+              <table className="pipeline-table">
+                <thead>
+                  <tr>
+                    <th>Student</th>
+                    <th>CIU Number</th>
+                    <th>Telephone</th>
+                    <th>Email</th>
+                    <th>Programme</th>
+                    <th>Status</th>
+                    <th>Probability</th>
+                    <th>Opportunity Value</th>
+                    <th>Assigned To</th>
+                    <th>Created</th>
+                    <th>Updated</th>
+                    <th>Move To</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {selectedStudents.length ===
+                  0 ? (
+                    <tr>
+                      <td
+                        colSpan={12}
+                        style={{
+                          padding: 55,
+                          textAlign:
+                            "center",
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: 48,
+                            height: 48,
+                            margin:
+                              "0 auto 12px",
+                            borderRadius: 14,
+                            display: "grid",
+                            placeItems:
+                              "center",
+                            background:
+                              "#edf7f3",
+                            color:
+                              "#00695c",
+                            fontSize: 20,
+                            fontWeight: 800,
+                          }}
+                        >
+                          —
+                        </div>
+
+                        <strong
+                          style={{
+                            color:
+                              "#17322c",
+                            fontSize: 14,
+                          }}
+                        >
+                          {searchTerm
+                            ? "No matching students"
+                            : "No students in this stage"}
+                        </strong>
+
+                        <p
+                          style={{
+                            margin:
+                              "6px auto 0",
+                            maxWidth: 450,
+                            color:
+                              "#71817b",
+                            fontSize: 12,
+                            lineHeight:
+                              1.6,
+                          }}
+                        >
+                          {searchTerm
+                            ? "Try another name, CIU number, telephone, email or programme."
+                            : "Students will appear here when they enter this stage of the admissions workflow."}
+                        </p>
+                      </td>
+                    </tr>
+                  ) : (
+                    selectedStudents.map(
+                      (deal) => {
+                        const lead =
+                          getLead(
+                            deal,
+                          );
+
+                        const studentName =
+                          lead?.name ||
+                          deal.title ||
+                          "Unnamed Student";
+
+                        const currentWorkflowStage =
+                          getStageForOpportunity(
+                            deal,
+                          );
+
+                        const probability =
+                          deal.probability ??
+                          currentWorkflowStage?.probability ??
+                          0;
+
+                        return (
+                          <tr
+                            key={
+                              deal.id
+                            }
+                          >
+                            <td>
+                              <div className="student-cell">
+                                <div className="student-avatar">
+                                  {getInitials(
+                                    studentName,
+                                  )}
+                                </div>
+
+                                <div
+                                  className="student-name-wrap"
+                                >
+                                  <strong>
+                                    {
+                                      studentName
+                                    }
+                                  </strong>
+
+                                  <small>
+                                    {
+                                      deal.title
+                                    }
+                                  </small>
+                                </div>
+                              </div>
+                            </td>
+
+                            <td>
+                              <span className="table-primary">
+                                {lead?.ciu_number ||
+                                  "—"}
+                              </span>
+                            </td>
+
+                            <td>
+                              {lead?.phone ||
+                                "—"}
+                            </td>
+
+                            <td>
+                              <span className="table-email">
+                                {lead?.email ||
+                                  "—"}
+                              </span>
+                            </td>
+
+                            <td>
+                              <span className="programme-cell">
+                                {lead?.product_service ||
+                                  "Programme not set"}
+                              </span>
+                            </td>
+
+                            <td>
+                              <span
+                                className={`pipeline-status ${getStatusClass(
+                                  deal,
+                                )}`}
+                              >
+                                {getStatusLabel(
+                                  deal,
+                                )}
+                              </span>
+                            </td>
+
+                            <td>
+                              <div className="probability-cell">
+                                <span>
+                                  {Math.min(
+                                    Math.max(
+                                      Number(
+                                        probability,
+                                      ),
+                                      0,
+                                    ),
+                                    100,
+                                  )}
+                                  %
+                                </span>
+
+                                <div className="mini-progress">
+                                  <div
+                                    style={{
+                                      width: `${Math.min(
+                                        Math.max(
+                                          Number(
+                                            probability,
+                                          ),
+                                          0,
+                                        ),
+                                        100,
+                                      )}%`,
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                            </td>
+
+                            <td>
+                              {formatCurrency(
+                                deal.value,
+                              )}
+                            </td>
+
+                            <td>
+                              <span className="assigned-cell">
+                                {deal.assigned_to ||
+                                  "Unassigned"}
+                              </span>
+                            </td>
+
+                            <td>
+                              {formatDate(
+                                deal.created_at,
+                              )}
+                            </td>
+
+                            <td>
+                              {formatDate(
+                                deal.updated_at,
+                              )}
+                            </td>
+
+                            <td>
+                              <select
+                                value={
+                                  currentWorkflowStage?.name ||
+                                  selectedStage
+                                }
+                                disabled={
+                                  saving ||
+                                  !currentWorkflowStage?.databaseStage
+                                }
+                                onChange={(
+                                  event,
+                                ) =>
+                                  moveOpportunity(
+                                    deal.id,
+                                    event
+                                      .target
+                                      .value,
+                                  )
+                                }
+                                className="pipeline-move-select"
+                              >
+                                {workflowStages.map(
+                                  (
+                                    option,
+                                  ) => (
+                                    <option
+                                      key={
+                                        option.name
+                                      }
+                                      value={
+                                        option.name
+                                      }
+                                      disabled={
+                                        !option.databaseStage
+                                      }
+                                    >
+                                      {displayStageName(
+                                        option.name,
+                                      )}
+                                    </option>
+                                  ),
+                                )}
+                              </select>
+                            </td>
+                          </tr>
+                        );
+                      },
+                    )
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="pipeline-table-footer">
+              <span>
+                Showing{" "}
+                <strong>
+                  {selectedStudents.length}
+                </strong>{" "}
+                of{" "}
+                <strong>
+                  {stageCounts[
+                    selectedStage
+                  ] ?? 0}
+                </strong>{" "}
+                students in{" "}
+                <strong>
+                  {displayStageName(
+                    selectedStage,
+                  )}
+                </strong>
+              </span>
+
+              {saving && (
+                <span className="saving-indicator">
+                  Saving pipeline change...
+                </span>
+              )}
+            </div>
+          </div>
+        )}
 
         {!loading &&
           stages.length > 0 &&
           workflowStages.some(
             (stage) =>
-              !stage.databaseStage
+              !stage.databaseStage,
           ) && (
             <div
               style={{
                 marginTop: 18,
-                padding: 13,
-                borderRadius: 9,
-                background:
-                  "#fff8e7",
+                padding: 14,
+                borderRadius: 12,
+                background: "#fff8e7",
                 border:
                   "1px solid #f1d58a",
                 color: "#755b13",
                 fontSize: 12,
+                lineHeight: 1.5,
               }}
             >
               <strong>
                 Pipeline setup notice:
               </strong>{" "}
-              Some of the required
-              admission stages are not
-              yet configured in Supabase.
-              Those stages will become
-              available after the
-              corresponding pipeline
-              stage records are created.
+              Some required admission
+              stages are not yet configured
+              in Supabase. Those stages will
+              become available after the
+              corresponding pipeline stage
+              records are created.
             </div>
           )}
 
@@ -1413,6 +1609,382 @@ export default function Pipeline() {
             </div>
           )}
       </div>
+
+      <style jsx>{`
+        .pipeline-stage-tabs-wrap {
+          width: 100%;
+          overflow-x: auto;
+          overflow-y: hidden;
+          padding-bottom: 3px;
+          -webkit-overflow-scrolling: touch;
+        }
+
+        .pipeline-stage-tabs {
+          display: flex;
+          align-items: stretch;
+          gap: 8px;
+          width: max-content;
+          min-width: 100%;
+        }
+
+        .pipeline-stage-tab {
+          appearance: none;
+          border: 1px solid #d8e5df;
+          border-radius: 12px;
+          background: #ffffff;
+          color: #48635b;
+          min-height: 52px;
+          padding: 8px 14px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 10px;
+          font-family: inherit;
+          font-size: 12px;
+          font-weight: 800;
+          cursor: pointer;
+          white-space: nowrap;
+          transition:
+            background 0.15s ease,
+            border-color 0.15s ease,
+            color 0.15s ease,
+            transform 0.15s ease,
+            box-shadow 0.15s ease;
+        }
+
+        .pipeline-stage-tab:hover {
+          border-color: #a9c8bc;
+          background: #f7fbf9;
+          transform: translateY(-1px);
+        }
+
+        .pipeline-stage-tab strong {
+          min-width: 27px;
+          height: 27px;
+          display: grid;
+          place-items: center;
+          padding: 0 7px;
+          border-radius: 999px;
+          background: #edf3f0;
+          color: #5f756c;
+          font-size: 11px;
+        }
+
+        .pipeline-stage-tab-active {
+          border-color: #00695c;
+          background: #00695c;
+          color: #ffffff;
+          box-shadow:
+            0 6px 18px
+            rgba(0, 105, 92, 0.18);
+        }
+
+        .pipeline-stage-tab-active:hover {
+          background: #00574d;
+          border-color: #00574d;
+          color: #ffffff;
+        }
+
+        .pipeline-stage-tab-active strong {
+          background: rgba(255, 255, 255, 0.18);
+          color: #ffffff;
+        }
+
+        .pipeline-search {
+          width: 100%;
+          min-height: 40px;
+          padding: 9px 12px;
+          border: 1px solid #d6e3de;
+          border-radius: 10px;
+          outline: none;
+          background: #ffffff;
+          color: #36564e;
+          font-family: inherit;
+          font-size: 12px;
+        }
+
+        .pipeline-search::placeholder {
+          color: #9aa8a3;
+        }
+
+        .pipeline-search:focus {
+          border-color: #7db9a8;
+          box-shadow:
+            0 0 0 3px
+            rgba(0, 105, 92, 0.09);
+        }
+
+        .pipeline-table-scroll {
+          width: 100%;
+          max-width: 100%;
+          overflow-x: auto;
+          overflow-y: auto;
+          max-height: calc(100vh - 350px);
+          min-height: 350px;
+          -webkit-overflow-scrolling: touch;
+          scrollbar-width: auto;
+        }
+
+        .pipeline-table-scroll::-webkit-scrollbar {
+          width: 11px;
+          height: 12px;
+        }
+
+        .pipeline-table-scroll::-webkit-scrollbar-track {
+          background: #eef3f0;
+        }
+
+        .pipeline-table-scroll::-webkit-scrollbar-thumb {
+          background: #9bb8ad;
+          border-radius: 999px;
+          border: 3px solid #eef3f0;
+        }
+
+        .pipeline-table-scroll::-webkit-scrollbar-thumb:hover {
+          background: #6f9c8d;
+        }
+
+        .pipeline-table {
+          width: max-content;
+          min-width: 1500px;
+          border-collapse: separate;
+          border-spacing: 0;
+          color: #314840;
+          font-size: 12px;
+        }
+
+        .pipeline-table th {
+          position: sticky;
+          top: 0;
+          z-index: 3;
+          padding: 13px 14px;
+          border-bottom: 1px solid #dfe9e5;
+          background: #f7faf8;
+          color: #687a73;
+          font-size: 10px;
+          font-weight: 850;
+          letter-spacing: 0.055em;
+          text-align: left;
+          text-transform: uppercase;
+          white-space: nowrap;
+        }
+
+        .pipeline-table td {
+          padding: 13px 14px;
+          border-bottom: 1px solid #edf2ef;
+          background: #ffffff;
+          vertical-align: middle;
+          white-space: nowrap;
+        }
+
+        .pipeline-table tbody tr:hover td {
+          background: #f9fcfa;
+        }
+
+        .pipeline-table tbody tr:last-child td {
+          border-bottom: 0;
+        }
+
+        .student-cell {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          min-width: 220px;
+        }
+
+        .student-avatar {
+          width: 34px;
+          height: 34px;
+          flex: 0 0 34px;
+          display: grid;
+          place-items: center;
+          border-radius: 9px;
+          background: #e8f4ef;
+          color: #00695c;
+          font-size: 10px;
+          font-weight: 850;
+        }
+
+        .student-name-wrap {
+          min-width: 0;
+        }
+
+        .student-name-wrap strong {
+          display: block;
+          max-width: 220px;
+          overflow: hidden;
+          color: #17322c;
+          font-size: 12px;
+          font-weight: 800;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .student-name-wrap small {
+          display: block;
+          margin-top: 3px;
+          color: #84938e;
+          font-size: 10px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          max-width: 220px;
+        }
+
+        .table-primary {
+          color: #00695c;
+          font-weight: 750;
+        }
+
+        .table-email {
+          color: #526b63;
+        }
+
+        .programme-cell {
+          display: block;
+          max-width: 230px;
+          overflow: hidden;
+          color: #36564e;
+          font-weight: 700;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .pipeline-status {
+          display: inline-flex;
+          align-items: center;
+          min-height: 27px;
+          padding: 5px 9px;
+          border-radius: 999px;
+          font-size: 10px;
+          font-weight: 800;
+        }
+
+        .status-active {
+          background: #eef7f3;
+          color: #00695c;
+        }
+
+        .status-enrolled {
+          background: #e7f5ed;
+          color: #187447;
+        }
+
+        .status-lost {
+          background: #fff1f2;
+          color: #be123c;
+        }
+
+        .probability-cell {
+          min-width: 95px;
+        }
+
+        .probability-cell > span {
+          display: block;
+          margin-bottom: 5px;
+          color: #00695c;
+          font-size: 11px;
+          font-weight: 800;
+        }
+
+        .mini-progress {
+          width: 75px;
+          height: 5px;
+          overflow: hidden;
+          border-radius: 999px;
+          background: #e6efeb;
+        }
+
+        .mini-progress > div {
+          height: 100%;
+          border-radius: inherit;
+          background: #00695c;
+          transition: width 0.25s ease;
+        }
+
+        .assigned-cell {
+          color: #526b63;
+          font-size: 11px;
+        }
+
+        .pipeline-move-select {
+          min-width: 165px;
+          min-height: 35px;
+          padding: 7px 9px;
+          border: 1px solid #d6e3de;
+          border-radius: 9px;
+          outline: none;
+          background: #ffffff;
+          color: #36564e;
+          font-family: inherit;
+          font-size: 11px;
+          font-weight: 700;
+          cursor: pointer;
+        }
+
+        .pipeline-move-select:focus {
+          border-color: #7db9a8;
+          box-shadow:
+            0 0 0 3px
+            rgba(0, 105, 92, 0.09);
+        }
+
+        .pipeline-move-select:disabled {
+          cursor: not-allowed;
+          opacity: 0.6;
+        }
+
+        .pipeline-table-footer {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 15px;
+          padding: 13px 16px;
+          border-top: 1px solid #edf2ef;
+          background: #fafcfb;
+          color: #71817b;
+          font-size: 11px;
+        }
+
+        .pipeline-table-footer strong {
+          color: #36564e;
+        }
+
+        .saving-indicator {
+          color: #00695c;
+          font-weight: 800;
+        }
+
+        @media (max-width: 700px) {
+          .ciu-hero {
+            padding-bottom: 72px;
+          }
+
+          .ciu-hero button {
+            top: auto !important;
+            right: 23px !important;
+            bottom: 20px !important;
+          }
+
+          .pipeline-stage-tab {
+            min-height: 48px;
+            padding: 7px 11px;
+            font-size: 11px;
+          }
+
+          .ciu-card-head {
+            align-items: stretch;
+            flex-direction: column;
+          }
+
+          .pipeline-search {
+            min-width: 100%;
+          }
+
+          .pipeline-table-scroll {
+            max-height: calc(100vh - 390px);
+          }
+        }
+      `}</style>
     </div>
   );
 }
