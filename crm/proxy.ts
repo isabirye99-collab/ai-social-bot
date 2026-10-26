@@ -1,4 +1,3 @@
-
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import {
@@ -17,133 +16,173 @@ function getRequiredModule(pathname: string): CrmModule | null {
     ["/marketing", "marketing"],
     ["/reports", "reports"],
     ["/staff", "staff"],
-    ["/advanced", "advanced"],
     ["/settings", "settings"],
   ];
 
-  return routes.find(([prefix]) =>
-    pathname === prefix || pathname.startsWith(`${prefix}/`)
-  )?.[1] ?? null;
+  return (
+    routes.find(
+      ([prefix]) =>
+        pathname === prefix || pathname.startsWith(`${prefix}/`),
+    )?.[1] ?? null
+  );
 }
 
-function redirect(
+function redirectTo(
   request: NextRequest,
   pathname: string,
-  search = "",
+  error?: string,
 ) {
   const url = request.nextUrl.clone();
   url.pathname = pathname;
-  url.search = search;
+  url.search = "";
+
+  if (error) {
+    url.searchParams.set("error", error);
+  }
+
   return NextResponse.redirect(url);
 }
 
 export async function updateSession(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
-  if (pathname === "/auth/callback") {
-    return NextResponse.next({ request });
-  }
-
-  let supabaseResponse = NextResponse.next({ request });
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet, headers) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value),
-          );
-
-          supabaseResponse = NextResponse.next({ request });
-
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options),
-          );
-
-          Object.entries(headers).forEach(([key, value]) =>
-            supabaseResponse.headers.set(key, value),
-          );
-        },
-      },
-    },
-  );
-
-  const { data: claimsData, error: claimsError } =
-    await supabase.auth.getClaims();
-
-  const user = claimsData?.claims;
   const isLoginPage = pathname === "/login";
   const isVerifyCodePage = pathname === "/verify-code";
   const isSetPasswordPage = pathname === "/set-password";
+  const isAuthCallback =
+    pathname === "/auth/callback" ||
+    pathname === "/auth/confirm";
+  const isPasswordChangeApi =
+    pathname === "/api/auth/complete-password-change";
 
-  if (!user) {
-    if (isLoginPage || isVerifyCodePage) return supabaseResponse;
-    return redirect(request, "/login");
+  let supabaseResponse = NextResponse.next({ request });
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey =
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+
+  if (!supabaseUrl || !supabaseKey) {
+    console.error("Supabase public environment configuration is missing.");
+
+    return new NextResponse(
+      "Authentication service is not configured.",
+      { status: 500 },
+    );
   }
 
-  if (claimsError) {
-    return redirect(request, "/login", "?error=session_invalid");
+  const supabase = createServerClient(supabaseUrl, supabaseKey, {
+    cookies: {
+      getAll() {
+        return request.cookies.getAll();
+      },
+      setAll(cookiesToSet, headers) {
+        cookiesToSet.forEach(({ name, value }) => {
+          request.cookies.set(name, value);
+        });
+
+        supabaseResponse = NextResponse.next({ request });
+
+        cookiesToSet.forEach(({ name, value, options }) => {
+          supabaseResponse.cookies.set(name, value, options);
+        });
+
+        Object.entries(headers).forEach(([key, value]) => {
+          supabaseResponse.headers.set(key, value);
+        });
+      },
+    },
+  });
+
+  // Let authentication handlers complete their own callback flow.
+  if (isAuthCallback) {
+    return supabaseResponse;
   }
 
-  const userId = String(user.sub ?? "");
-  if (!userId) return redirect(request, "/login");
+  const {
+    data: claimsData,
+    error: claimsError,
+  } = await supabase.auth.getClaims();
 
-  const { data: profile, error: profileError } = await supabase
+  const user = claimsData?.claims;
+  const userId =
+    typeof user?.sub === "string" ? user.sub : null;
+
+  if (claimsError && userId) {
+    return redirectTo(request, "/login", "session_invalid");
+  }
+
+  if (!userId) {
+    if (isLoginPage || isVerifyCodePage) {
+      return supabaseResponse;
+    }
+
+    return redirectTo(request, "/login");
+  }
+
+  const {
+    data: profile,
+    error: profileError,
+  } = await supabase
     .from("profiles")
     .select("role, is_active, must_change_password, module_permissions")
     .eq("id", userId)
     .maybeSingle();
 
-  if (profileError || !profile || profile.is_active === false) {
-    return redirect(request, "/login", "?error=account_unavailable");
-  }
-
   if (
-    profile.must_change_password &&
-    !isSetPasswordPage &&
-    !pathname.startsWith("/api/auth/complete-password-change")
+    profileError ||
+    !profile ||
+    !profile.role ||
+    profile.is_active !== true
   ) {
-    return redirect(request, "/set-password");
+    return redirectTo(request, "/login", "account_unavailable");
   }
 
-  if (!profile.must_change_password && isSetPasswordPage) {
-    return redirect(request, "/dashboard");
+  if (profile.must_change_password === true) {
+    if (isSetPasswordPage || isPasswordChangeApi) {
+      return supabaseResponse;
+    }
+
+    return redirectTo(request, "/set-password");
   }
 
-  if (isLoginPage) {
-    return redirect(
-      request,
-      profile.must_change_password ? "/set-password" : "/dashboard",
-    );
+  if (isSetPasswordPage) {
+    return redirectTo(request, "/dashboard");
+  }
+
+  if (isLoginPage || isVerifyCodePage) {
+    return redirectTo(request, "/dashboard");
+  }
+
+  if (isPasswordChangeApi) {
+    return supabaseResponse;
   }
 
   const requiredModule = getRequiredModule(pathname);
 
-  if (
-    requiredModule &&
-    !hasModuleAccess(
-      profile.role as CrmRole,
-      requiredModule,
-      profile.module_permissions as string[] | null,
-    )
-  ) {
-    return redirect(request, "/dashboard", "?error=module_access_denied");
+  if (requiredModule) {
+    const permissions = Array.isArray(profile.module_permissions)
+      ? profile.module_permissions.filter(
+          (value): value is string => typeof value === "string",
+        )
+      : null;
+
+    if (
+      !hasModuleAccess(
+        profile.role as CrmRole,
+        requiredModule,
+        permissions,
+      )
+    ) {
+      return redirectTo(
+        request,
+        "/dashboard",
+        "module_access_denied",
+      );
+    }
   }
 
   return supabaseResponse;
 }
-
 export async function proxy(request: NextRequest) {
-  return await updateSession(request);
+  return updateSession(request);
 }
-
-export const config = {
-  matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
-  ],
-};
