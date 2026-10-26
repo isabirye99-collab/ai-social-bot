@@ -1,117 +1,50 @@
+
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-
-type CrmModule =
-  | "dashboard"
-  | "leads"
-  | "customers"
-  | "pipeline"
-  | "tasks"
-  | "marketing"
-  | "reports"
-  | "staff"
-  | "settings";
-
-type CrmRole =
-  | "super_admin"
-  | "admin"
-  | "manager"
-  | "salesperson"
-  | "marketing"
-  | "finance"
-  | "viewer";
-
-const ROLE_MODULES: Record<CrmRole, CrmModule[]> = {
-  super_admin: [
-    "dashboard",
-    "leads",
-    "customers",
-    "pipeline",
-    "tasks",
-    "marketing",
-    "reports",
-    "staff",
-    "settings",
-  ],
-
-  admin: [
-    "dashboard",
-    "leads",
-    "customers",
-    "pipeline",
-    "tasks",
-    "marketing",
-    "reports",
-    "staff",
-  ],
-
-  manager: [
-    "dashboard",
-    "leads",
-    "customers",
-    "pipeline",
-    "tasks",
-    "reports",
-  ],
-
-  salesperson: [
-    "dashboard",
-    "leads",
-    "customers",
-    "pipeline",
-    "tasks",
-  ],
-
-  marketing: [
-    "dashboard",
-    "leads",
-    "marketing",
-    "reports",
-  ],
-
-  finance: [
-    "dashboard",
-    "customers",
-    "pipeline",
-    "reports",
-  ],
-
-  viewer: [
-    "dashboard",
-    "leads",
-    "customers",
-    "pipeline",
-    "reports",
-  ],
-};
-
-function hasModuleAccess(
-  role: string | null | undefined,
-  module: CrmModule
-): boolean {
-  if (!role) return false;
-
-  return ROLE_MODULES[role as CrmRole]?.includes(module) ?? false;
-}
+import {
+  hasModuleAccess,
+  type CrmModule,
+  type CrmRole,
+} from "@/lib/permissions";
 
 function getRequiredModule(pathname: string): CrmModule | null {
-  if (pathname.startsWith("/dashboard")) return "dashboard";
-  if (pathname.startsWith("/leads")) return "leads";
-  if (pathname.startsWith("/customers")) return "customers";
-  if (pathname.startsWith("/pipeline")) return "pipeline";
-  if (pathname.startsWith("/tasks")) return "tasks";
-  if (pathname.startsWith("/marketing")) return "marketing";
-  if (pathname.startsWith("/reports")) return "reports";
-  if (pathname.startsWith("/staff")) return "staff";
-  if (pathname.startsWith("/settings")) return "settings";
+  const routes: [string, CrmModule][] = [
+    ["/dashboard", "dashboard"],
+    ["/leads", "leads"],
+    ["/customers", "customers"],
+    ["/pipeline", "pipeline"],
+    ["/tasks", "tasks"],
+    ["/marketing", "marketing"],
+    ["/reports", "reports"],
+    ["/staff", "staff"],
+    ["/advanced", "advanced"],
+    ["/settings", "settings"],
+  ];
 
-  return null;
+  return routes.find(([prefix]) =>
+    pathname === prefix || pathname.startsWith(`${prefix}/`)
+  )?.[1] ?? null;
+}
+
+function redirect(
+  request: NextRequest,
+  pathname: string,
+  search = "",
+) {
+  const url = request.nextUrl.clone();
+  url.pathname = pathname;
+  url.search = search;
+  return NextResponse.redirect(url);
 }
 
 export async function updateSession(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({
-    request,
-  });
+  const pathname = request.nextUrl.pathname;
+
+  if (pathname === "/auth/callback") {
+    return NextResponse.next({ request });
+  }
+
+  let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -121,95 +54,85 @@ export async function updateSession(request: NextRequest) {
         getAll() {
           return request.cookies.getAll();
         },
-
         setAll(cookiesToSet, headers) {
-          cookiesToSet.forEach(({ name, value }) => {
-            request.cookies.set(name, value);
-          });
+          cookiesToSet.forEach(({ name, value }) =>
+            request.cookies.set(name, value),
+          );
 
-          supabaseResponse = NextResponse.next({
-            request,
-          });
+          supabaseResponse = NextResponse.next({ request });
 
-          cookiesToSet.forEach(({ name, value, options }) => {
-            supabaseResponse.cookies.set(name, value, options);
-          });
+          cookiesToSet.forEach(({ name, value, options }) =>
+            supabaseResponse.cookies.set(name, value, options),
+          );
 
-          Object.entries(headers).forEach(([key, value]) => {
-            supabaseResponse.headers.set(key, value);
-          });
+          Object.entries(headers).forEach(([key, value]) =>
+            supabaseResponse.headers.set(key, value),
+          );
         },
       },
-    }
+    },
   );
 
   const { data: claimsData, error: claimsError } =
     await supabase.auth.getClaims();
 
   const user = claimsData?.claims;
-  const pathname = request.nextUrl.pathname;
   const isLoginPage = pathname === "/login";
+  const isVerifyCodePage = pathname === "/verify-code";
+  const isSetPasswordPage = pathname === "/set-password";
 
-  /*
-   * AUTHENTICATION PROTECTION
-   */
-
-  if (!user && !isLoginPage) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    return NextResponse.redirect(url);
+  if (!user) {
+    if (isLoginPage || isVerifyCodePage) return supabaseResponse;
+    return redirect(request, "/login");
   }
 
-  if (user && isLoginPage) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/dashboard";
-    return NextResponse.redirect(url);
+  if (claimsError) {
+    return redirect(request, "/login", "?error=session_invalid");
   }
 
-  /*
-   * ROLE-BASED MODULE PROTECTION
-   *
-   * Only run this for authenticated users and CRM modules.
-   */
+  const userId = String(user.sub ?? "");
+  if (!userId) return redirect(request, "/login");
 
-  if (user && !claimsError) {
-    const requiredModule = getRequiredModule(pathname);
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("role, is_active, must_change_password, module_permissions")
+    .eq("id", userId)
+    .maybeSingle();
 
-    if (requiredModule) {
-      const userId = String(user.sub ?? "");
+  if (profileError || !profile || profile.is_active === false) {
+    return redirect(request, "/login", "?error=account_unavailable");
+  }
 
-      if (!userId) {
-        const url = request.nextUrl.clone();
-        url.pathname = "/login";
-        return NextResponse.redirect(url);
-      }
+  if (
+    profile.must_change_password &&
+    !isSetPasswordPage &&
+    !pathname.startsWith("/api/auth/complete-password-change")
+  ) {
+    return redirect(request, "/set-password");
+  }
 
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", userId)
-        .maybeSingle();
+  if (!profile.must_change_password && isSetPasswordPage) {
+    return redirect(request, "/dashboard");
+  }
 
-      /*
-       * If the profile cannot be read or has no role,
-       * do not grant access to a protected CRM module.
-       */
-      if (profileError || !profile?.role) {
-        const url = request.nextUrl.clone();
-        url.pathname = "/dashboard";
-        return NextResponse.redirect(url);
-      }
+  if (isLoginPage) {
+    return redirect(
+      request,
+      profile.must_change_password ? "/set-password" : "/dashboard",
+    );
+  }
 
-      /*
-       * Check whether this user's role is allowed
-       * to access the requested module.
-       */
-      if (!hasModuleAccess(profile.role, requiredModule)) {
-        const url = request.nextUrl.clone();
-        url.pathname = "/dashboard";
-        return NextResponse.redirect(url);
-      }
-    }
+  const requiredModule = getRequiredModule(pathname);
+
+  if (
+    requiredModule &&
+    !hasModuleAccess(
+      profile.role as CrmRole,
+      requiredModule,
+      profile.module_permissions as string[] | null,
+    )
+  ) {
+    return redirect(request, "/dashboard", "?error=module_access_denied");
   }
 
   return supabaseResponse;

@@ -1,31 +1,16 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-
-type CrmRole =
-  | "super_admin"
-  | "admin"
-  | "manager"
-  | "salesperson"
-  | "marketing"
-  | "finance"
-  | "viewer";
+import type { CrmRole } from "@/lib/permissions";
 
 type Lead = {
   id: string;
   assigned_to: string | null;
   status: string | null;
   next_follow_up_at: string | null;
-  created_at: string | null;
-};
-
-type Admission = {
-  id: string;
-  assigned_to: string | null;
-  stage: string | null;
-  created_at: string | null;
+  created_at: string;
 };
 
 type Opportunity = {
@@ -34,6 +19,18 @@ type Opportunity = {
   value: number | null;
   status: string | null;
   probability: number | null;
+  stage_id: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+type PipelineStage = {
+  id: string;
+  name: string;
+  position: number;
+  probability: number | null;
+  is_won: boolean | null;
+  is_lost: boolean | null;
 };
 
 type Task = {
@@ -49,25 +46,30 @@ type Profile = {
   role: CrmRole | null;
 };
 
-const supabase = createClient();
+function sameDay(
+  dateValue: string | null | undefined,
+  reference = new Date(),
+) {
+  if (!dateValue) return false;
 
-function sameDay(a: Date, b: Date) {
+  const date = new Date(dateValue);
+
   return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
+    date.getFullYear() === reference.getFullYear() &&
+    date.getMonth() === reference.getMonth() &&
+    date.getDate() === reference.getDate()
   );
 }
 
-function isThisMonth(value: string | null) {
-  if (!value) return false;
+function isThisMonth(dateValue: string | null | undefined) {
+  if (!dateValue) return false;
 
-  const d = new Date(value);
-  const n = new Date();
+  const date = new Date(dateValue);
+  const now = new Date();
 
   return (
-    d.getFullYear() === n.getFullYear() &&
-    d.getMonth() === n.getMonth()
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth()
   );
 }
 
@@ -76,175 +78,327 @@ function money(value: number) {
     style: "currency",
     currency: "UGX",
     maximumFractionDigits: 0,
-  }).format(value || 0);
+  }).format(value);
 }
 
-function roleLabel(role: CrmRole | null) {
-  switch (role) {
-    case "super_admin":
-      return "Super Admin";
-    case "admin":
-      return "Admin";
-    case "manager":
-      return "Manager";
-    case "salesperson":
-      return "Salesperson";
-    case "marketing":
-      return "Marketing";
-    case "finance":
-      return "Finance";
-    case "viewer":
-      return "Viewer";
+function percentage(value: number) {
+  return `${Math.round(value)}%`;
+}
+
+function normalizeStageName(value: string | null | undefined) {
+  return (value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ");
+}
+
+function Icon({
+  name,
+  size = 20,
+}: {
+  name: string;
+  size?: number;
+}) {
+  const common = {
+    width: size,
+    height: size,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.8,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+  };
+
+  switch (name) {
+    case "users":
+      return (
+        <svg {...common}>
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+        </svg>
+      );
+
+    case "target":
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="9" />
+          <circle cx="12" cy="12" r="5" />
+          <circle cx="12" cy="12" r="1.5" />
+        </svg>
+      );
+
+    case "briefcase":
+      return (
+        <svg {...common}>
+          <rect x="3" y="7" width="18" height="13" rx="2" />
+          <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+          <path d="M3 12h18" />
+        </svg>
+      );
+
+    case "trend":
+      return (
+        <svg {...common}>
+          <path d="M3 17l6-6 4 4 7-8" />
+          <path d="M14 7h6v6" />
+        </svg>
+      );
+
+    case "calendar":
+      return (
+        <svg {...common}>
+          <rect x="3" y="4" width="18" height="17" rx="2" />
+          <path d="M16 2v4M8 2v4M3 10h18" />
+        </svg>
+      );
+
+    case "check":
+      return (
+        <svg {...common}>
+          <path d="m5 12 4 4L19 6" />
+        </svg>
+      );
+
+    case "arrow":
+      return (
+        <svg {...common}>
+          <path d="M5 12h13" />
+          <path d="m13 6 6 6-6 6" />
+        </svg>
+      );
+
+    case "refresh":
+      return (
+        <svg {...common}>
+          <path d="M20 11a8.1 8.1 0 0 0-14.8-4L3 10" />
+          <path d="M3 4v6h6" />
+          <path d="M4 13a8.1 8.1 0 0 0 14.8 4L21 14" />
+          <path d="M21 20v-6h-6" />
+        </svg>
+      );
+
+    case "clock":
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 7v5l3 2" />
+        </svg>
+      );
+
+    case "student":
+      return (
+        <svg {...common}>
+          <path d="m3 9 9-5 9 5-9 5-9-5Z" />
+          <path d="M7 11v5c2.5 2 7.5 2 10 0v-5" />
+          <path d="M21 9v6" />
+        </svg>
+      );
+
+    case "chart":
+      return (
+        <svg {...common}>
+          <path d="M4 19V5" />
+          <path d="M4 19h17" />
+          <path d="m7 15 4-4 3 2 5-6" />
+        </svg>
+      );
+
+    case "chevron":
+      return (
+        <svg {...common}>
+          <path d="m9 18 6-6-6-6" />
+        </svg>
+      );
+
+    case "bolt":
+      return (
+        <svg {...common}>
+          <path d="m13 2-9 12h7l-1 8 9-12h-7l1-8Z" />
+        </svg>
+      );
+
+    case "alert":
+      return (
+        <svg {...common}>
+          <path d="M10.3 3.8 2.5 17a2 2 0 0 0 1.7 3h15.6a2 2 0 0 0 1.7-3L13.7 3.8a2 2 0 0 0-3.4 0Z" />
+          <path d="M12 9v4" />
+          <path d="M12 17h.01" />
+        </svg>
+      );
+
+    case "plus":
+      return (
+        <svg {...common}>
+          <path d="M12 5v14" />
+          <path d="M5 12h14" />
+        </svg>
+      );
+
+    case "layers":
+      return (
+        <svg {...common}>
+          <path d="m12 3 9 5-9 5-9-5 9-5Z" />
+          <path d="m3 12 9 5 9-5" />
+          <path d="m3 16 9 5 9-5" />
+        </svg>
+      );
+
     default:
-      return "User";
+      return null;
   }
-}
-
-function getRoleInitials(name: string | null) {
-  if (!name) return "NI";
-
-  const parts = name.trim().split(/\s+/);
-
-  if (parts.length === 1) {
-    return parts[0].slice(0, 2).toUpperCase();
-  }
-
-  return (
-    parts[0].charAt(0) +
-    parts[parts.length - 1].charAt(0)
-  ).toUpperCase();
 }
 
 export default function DashboardPage() {
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const supabase = createClient();
 
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [leads, setLeads] = useState<Lead[]>([]);
-  const [admissions, setAdmissions] = useState<Admission[]>([]);
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
+  const [pipelineStages, setPipelineStages] = useState<
+    PipelineStage[]
+  >([]);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [admissions, setAdmissions] = useState<
+    { id: string; assigned_to: string | null; stage: string | null; enrolled_at: string | null }[]
+  >([]);
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
 
-  async function loadDashboard() {
-    try {
-      setError("");
+  async function loadDashboard(showRefresh = false) {
+    if (showRefresh) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
 
+    setError("");
+
+    try {
       const {
         data: { user },
-        error: userError,
       } = await supabase.auth.getUser();
 
-      if (userError) {
-        throw userError;
-      }
-
       if (!user) {
-        throw new Error("You are not authenticated.");
-      }
-
-      const { data: profileData, error: profileError } =
-        await supabase
-          .from("profiles")
-          .select("id,full_name,role")
-          .eq("id", user.id)
-          .maybeSingle();
-
-      if (profileError) {
-        throw profileError;
-      }
-
-      if (!profileData) {
         throw new Error(
-          "Your CRM profile could not be found."
+          "Your session has expired. Please sign in again.",
         );
       }
 
-      const currentProfile = profileData as Profile;
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("id,full_name,role")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      const currentProfile = profileData as Profile | null;
 
       setProfile(currentProfile);
 
-      const isSalesperson =
-        currentProfile.role === "salesperson";
+      const salesperson =
+        currentProfile?.role === "salesperson";
 
-      let leadsQuery = supabase
-        .from("leads")
+      const assignedFilter = (query: any) => {
+        if (salesperson) {
+          return query.eq("assigned_to", user.id);
+        }
+
+        return query;
+      };
+
+      const leadsQuery = assignedFilter(
+        supabase
+          .from("leads")
+          .select(
+            "id,assigned_to,status,next_follow_up_at,created_at",
+          ),
+      );
+
+      const opportunitiesQuery = assignedFilter(
+        supabase
+          .from("opportunities")
+          .select(
+            "id,assigned_to,value,status,probability,stage_id,created_at,updated_at",
+          ),
+      );
+
+      const pipelineStagesQuery = supabase
+        .from("pipeline_stages")
         .select(
-          "id,assigned_to,status,next_follow_up_at,created_at"
-        );
+          "id,name,position,probability,is_won,is_lost",
+        )
+        .order("position", {
+          ascending: true,
+        });
 
-      let admissionsQuery = supabase
-        .from("admissions")
-        .select(
-          "id,assigned_to,stage,created_at"
-        );
+      const tasksQuery = assignedFilter(
+        supabase
+          .from("tasks")
+          .select("id,assigned_to,due_at,status"),
+      );
 
-      let opportunitiesQuery = supabase
-        .from("opportunities")
-        .select(
-          "id,assigned_to,value,status,probability"
-        );
+      const admissionsQuery = assignedFilter(
+        supabase
+          .from("admissions")
+          .select("id,assigned_to,stage,enrolled_at"),
+      );
 
-      let tasksQuery = supabase
-        .from("tasks")
-        .select(
-          "id,assigned_to,due_at,status"
-        );
-
-      if (isSalesperson) {
-        leadsQuery = leadsQuery.eq(
-          "assigned_to",
-          user.id
-        );
-
-        admissionsQuery = admissionsQuery.eq(
-          "assigned_to",
-          user.id
-        );
-
-        opportunitiesQuery =
-          opportunitiesQuery.eq(
-            "assigned_to",
-            user.id
-          );
-
-        tasksQuery = tasksQuery.eq(
-          "assigned_to",
-          user.id
-        );
-      }
-
-      const [l, a, o, t] = await Promise.all([
+      const [
+        leadsResult,
+        opportunitiesResult,
+        pipelineStagesResult,
+        tasksResult,
+        admissionsResult,
+      ] = await Promise.all([
         leadsQuery,
-        admissionsQuery,
         opportunitiesQuery,
+        pipelineStagesQuery,
         tasksQuery,
+        admissionsQuery,
       ]);
 
-      const firstError = [l, a, o, t].find(
-        (x) => x.error
-      );
-
-      if (firstError?.error) {
-        throw new Error(
-          firstError.error.message
-        );
+      if (leadsResult.error) {
+        throw leadsResult.error;
       }
 
-      setLeads((l.data || []) as Lead[]);
-      setAdmissions(
-        (a.data || []) as Admission[]
-      );
+      if (opportunitiesResult.error) {
+        throw opportunitiesResult.error;
+      }
+
+      if (pipelineStagesResult.error) {
+        throw pipelineStagesResult.error;
+      }
+
+      if (admissionsResult.error) {
+        throw admissionsResult.error;
+      }
+
+      if (tasksResult.error) {
+        throw tasksResult.error;
+      }
+
+      setLeads((leadsResult.data || []) as Lead[]);
+
       setOpportunities(
-        (o.data || []) as Opportunity[]
+        (opportunitiesResult.data || []) as Opportunity[],
       );
-      setTasks((t.data || []) as Task[]);
-    } catch (err) {
+
+      setPipelineStages(
+        (pipelineStagesResult.data || []) as PipelineStage[],
+      );
+
+      setTasks((tasksResult.data || []) as Task[]);
+      setAdmissions(admissionsResult.data || []);
+    } catch (err: any) {
+      console.error("Dashboard loading error:", err);
+
       setError(
-        err instanceof Error
-          ? err.message
-          : "Unable to load dashboard."
+        err?.message || "Unable to load dashboard data.",
       );
     } finally {
       setLoading(false);
@@ -256,1526 +410,1290 @@ export default function DashboardPage() {
     loadDashboard();
   }, []);
 
+  function getStageName(stageId: string | null) {
+    if (!stageId) return "";
+
+    const stage = pipelineStages.find(
+      (item) => item.id === stageId,
+    );
+
+    return normalizeStageName(stage?.name);
+  }
+
+  function opportunityIsInStage(
+    opportunity: Opportunity,
+    stageName: string,
+  ) {
+    const actual = getStageName(opportunity.stage_id);
+    const expected = normalizeStageName(stageName);
+
+    if (actual === expected) {
+      return true;
+    }
+
+    const aliases: Record<string, string[]> = {
+      leads: [
+        "lead",
+        "new lead",
+        "new leads",
+      ],
+
+      applied: [
+        "application",
+        "application started",
+        "admitted",
+        "admission",
+      ],
+
+      "paid application fee": [
+        "application fee paid",
+        "paid application",
+        "application fee",
+        "paid app fee",
+      ],
+
+      "paid acceptance fee": [
+        "acceptance fee paid",
+        "acceptance paid",
+        "acceptance fee",
+        "fee paid",
+      ],
+
+      enrolled: [
+        "enrollment",
+        "enrolled student",
+      ],
+    };
+
+    return aliases[expected]?.includes(actual) ?? false;
+  }
+
   const stats = useMemo(() => {
-    const now = new Date();
-
-    const endToday = new Date(now);
-    endToday.setHours(23, 59, 59, 999);
-
     const openDeals = opportunities.filter(
-      (x) =>
-        (x.status || "").toLowerCase() ===
-        "open"
+      (item) =>
+        item.status !== "closed" &&
+        item.status !== "lost",
     );
 
-    const forecast = openDeals.reduce(
-      (sum, x) =>
-        sum +
-        Number(x.value || 0) *
-          (Number(x.probability ?? 100) / 100),
-      0
+    const applied = opportunities.filter((item) =>
+      opportunityIsInStage(item, "Applied"),
     );
 
-    const followUps = leads.filter((x) => {
-      if (!x.next_follow_up_at) return false;
+    const applicationFeePaid = opportunities.filter((item) =>
+      opportunityIsInStage(
+        item,
+        "Paid Application Fee",
+      ),
+    );
 
-      const status = (
-        x.status || ""
-      ).toLowerCase();
+    const acceptanceFeePaid = opportunities.filter((item) =>
+      opportunityIsInStage(
+        item,
+        "Paid Acceptance Fee",
+      ),
+    );
 
-      if (
-        [
-          "converted",
-          "lost",
-          "unqualified",
-        ].includes(status)
-      ) {
+    const enrolledOpportunities = opportunities.filter(
+      (item) =>
+        opportunityIsInStage(item, "Enrolled") &&
+        (item.status === "won" ||
+          item.status === "open"),
+    );
+
+    const weightedForecast = openDeals.reduce(
+      (total, item) => {
+        const value = Number(item.value) || 0;
+        const probability =
+          Number(item.probability) || 0;
+
+        return (
+          total +
+          value * (probability / 100)
+        );
+      },
+      0,
+    );
+
+    const followUpsDue = leads.filter((lead) => {
+      if (!lead.next_follow_up_at) {
         return false;
       }
 
       return (
-        new Date(x.next_follow_up_at) <=
-        endToday
+        new Date(lead.next_follow_up_at) <=
+        new Date()
       );
     }).length;
 
-    const tasksToday = tasks.filter((x) => {
-      if (!x.due_at) return false;
-
-      const status = (
-        x.status || ""
-      ).toLowerCase();
-
-      if (
-        ["completed", "cancelled"].includes(
-          status
-        )
-      ) {
-        return false;
-      }
-
-      return sameDay(
-        new Date(x.due_at),
-        now
-      );
-    }).length;
+    const tasksToday = tasks.filter(
+      (task) =>
+        sameDay(task.due_at) &&
+        task.status !== "completed" &&
+        task.status !== "done",
+    ).length;
 
     const interested = leads.filter(
-      (x) =>
-        (x.status || "").toLowerCase() ===
-        "qualified"
+      (lead) =>
+        lead.status === "qualified" ||
+        lead.status === "interested",
     ).length;
 
-    const enrolled = admissions.filter(
-      (x) =>
-        (x.stage || "").toLowerCase() ===
-        "enrolled"
-    ).length;
+    const enrolled = enrolledOpportunities.length;
 
     const completedTasks = tasks.filter(
-      (x) =>
-        (x.status || "").toLowerCase() ===
-        "completed"
+      (task) =>
+        task.status === "completed" ||
+        task.status === "done",
     ).length;
 
-    const newLeads = leads.filter((x) =>
-      isThisMonth(x.created_at)
+    const newLeads = leads.filter((lead) =>
+      isThisMonth(lead.created_at),
+    ).length;
+
+    const monthlyEnrolled = admissions.filter(
+      (admission) =>
+        (admission.stage || "").toLowerCase() === "enrolled" &&
+        isThisMonth(admission.enrolled_at),
     ).length;
 
     const conversionRate =
-      leads.length > 0
-        ? Math.round(
-            (enrolled / leads.length) * 1000
-          ) / 10
+      newLeads > 0
+        ? (monthlyEnrolled / newLeads) * 100
+        : 0;
+
+    const pipelineValue = openDeals.reduce(
+      (sum, item) =>
+        sum + (Number(item.value) || 0),
+      0,
+    );
+
+    const averageDeal =
+      openDeals.length > 0
+        ? pipelineValue / openDeals.length
         : 0;
 
     return {
-      leads: leads.length,
-      interested,
       openDeals: openDeals.length,
-      forecast,
-      enrolled,
-      followUps,
+      applied: applied.length,
+      applicationFeePaid:
+        applicationFeePaid.length,
+      acceptanceFeePaid:
+        acceptanceFeePaid.length,
+      weightedForecast,
+      followUpsDue,
       tasksToday,
+      interested,
+      enrolled,
       completedTasks,
       newLeads,
       conversionRate,
+      pipelineValue,
+      averageDeal,
+      monthlyEnrolled,
+    };
+  }, [
+    leads,
+    opportunities,
+    pipelineStages,
+    tasks,
+  ]);
+
+  const funnel = useMemo(() => {
+    const stages = [
+      {
+        label: "Leads",
+        value: leads.length,
+        color: "#075442",
+      },
+      {
+        label: "Applied / Admitted",
+        value: stats.applied,
+        color: "#28765f",
+      },
+      {
+        label: "Application Fee Paid",
+        value: stats.applicationFeePaid,
+        color: "#65a82f",
+      },
+      {
+        label: "Acceptance Fee Paid",
+        value: stats.acceptanceFeePaid,
+        color: "#83bd42",
+      },
+      {
+        label: "Enrolled",
+        value: stats.enrolled,
+        color: "#9ad447",
+      },
+    ];
+
+    const first = Math.max(
+      stages[0].value,
+      1,
+    );
+
+    return stages.map((stage) => ({
+      ...stage,
+      ratio: Math.min(
+        100,
+        (stage.value / first) * 100,
+      ),
+      conversion:
+        stage.value > 0
+          ? Math.round(
+              (stage.value / first) * 100,
+            )
+          : 0,
+    }));
+  }, [
+    leads.length,
+    stats.applied,
+    stats.applicationFeePaid,
+    stats.acceptanceFeePaid,
+    stats.enrolled,
+  ]);
+
+  const pipelineOverview = useMemo(() => {
+    const stages = [
+      {
+        label: "Early pipeline",
+        description: "Open opportunities",
+        count: stats.openDeals,
+        value: stats.pipelineValue,
+      },
+      {
+        label: "Weighted forecast",
+        description: "Probability adjusted",
+        count: stats.openDeals,
+        value: stats.weightedForecast,
+      },
+      {
+        label: "Enrolled",
+        description: "Successful admissions",
+        count: stats.enrolled,
+        value: 0,
+      },
+    ];
+
+    const max = Math.max(
+      stats.pipelineValue,
+      stats.weightedForecast,
+      1,
+    );
+
+    return stages.map((stage) => ({
+      ...stage,
+      width:
+        stage.value > 0
+          ? Math.max(
+              8,
+              (stage.value / max) * 100,
+            )
+          : stage.count > 0
+            ? 12
+            : 4,
+    }));
+  }, [
+    stats.openDeals,
+    stats.pipelineValue,
+    stats.weightedForecast,
+    stats.enrolled,
+  ]);
+
+  const performance = useMemo(() => {
+    const monthLeads = leads.filter((lead) =>
+      isThisMonth(lead.created_at),
+    ).length;
+
+    const monthInterested = leads.filter(
+      (lead) =>
+        isThisMonth(lead.created_at) &&
+        (lead.status === "qualified" ||
+          lead.status === "interested"),
+    ).length;
+
+    const monthEnrolled = admissions.filter(
+      (admission) =>
+        (admission.stage || "").toLowerCase() === "enrolled" &&
+        isThisMonth(admission.enrolled_at),
+    ).length;
+
+    return {
+      leads: monthLeads,
+      interested: monthInterested,
+      enrolled: monthEnrolled,
     };
   }, [
     leads,
     admissions,
     opportunities,
-    tasks,
+    pipelineStages,
   ]);
+
+  const focusItems = [
+    {
+      label: "Follow-ups due",
+      description:
+        "Leads requiring immediate attention",
+      value: stats.followUpsDue,
+      href: "/leads",
+      icon: "clock",
+      tone: "amber",
+    },
+    {
+      label: "Tasks today",
+      description:
+        "Outstanding work scheduled today",
+      value: stats.tasksToday,
+      href: "/tasks",
+      icon: "calendar",
+      tone: "green",
+    },
+    {
+      label: "Interested leads",
+      description:
+        "Prospects ready for conversion",
+      value: stats.interested,
+      href: "/leads",
+      icon: "target",
+      tone: "lime",
+    },
+    {
+      label: "Enrolled students",
+      description:
+        "Successful admissions",
+      value: stats.enrolled,
+      href: "/customers",
+      icon: "student",
+      tone: "dark",
+    },
+  ];
+
+  const today = new Date();
+
+  const currentHour = today.getHours();
+
+  const greeting =
+    currentHour < 12
+      ? "Good morning"
+      : currentHour < 17
+        ? "Good afternoon"
+        : "Good evening";
+
+  const formattedDate =
+    today.toLocaleDateString("en-GB", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+
+  const firstName = profile?.full_name
+    ? profile.full_name.split(" ")[0]
+    : "there";
 
   if (loading) {
     return (
-      <main className="ciu-page">
-        <div className="ciu-page-inner">
-          <div className="dashboard-loading">
-            <div className="dashboard-loading-spinner" />
-            <div>
-              <strong>
-                Loading dashboard
-              </strong>
-              <span>
-                Preparing your CRM overview...
-              </span>
-            </div>
+      <div className="mx-auto max-w-[1540px] px-4 py-5 sm:px-6 lg:px-8">
+        <div className="animate-pulse space-y-4">
+          <div className="h-20 rounded-2xl bg-white" />
+
+          <div className="grid gap-px overflow-hidden rounded-2xl border bg-[#e7ece9] sm:grid-cols-2 xl:grid-cols-5">
+            {Array.from({ length: 5 }).map(
+              (_, index) => (
+                <div
+                  key={index}
+                  className="h-28 bg-white"
+                />
+              ),
+            )}
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-[1.65fr_.85fr]">
+            <div className="h-[410px] rounded-2xl bg-white" />
+            <div className="h-[410px] rounded-2xl bg-white" />
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <div className="h-80 rounded-2xl bg-white" />
+            <div className="h-80 rounded-2xl bg-white" />
           </div>
         </div>
-
-        <style jsx>{`
-          .dashboard-loading {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-            padding: 28px;
-            background: #ffffff;
-            border: 1px solid #dfe9e5;
-            border-radius: 16px;
-            color: #17322c;
-          }
-
-          .dashboard-loading div:last-child {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-          }
-
-          .dashboard-loading span {
-            color: #6b7f78;
-            font-size: 13px;
-          }
-
-          .dashboard-loading-spinner {
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            border: 3px solid #dfe9e5;
-            border-top-color: #00695c;
-            animation: dashboard-spin 0.8s linear infinite;
-          }
-
-          @keyframes dashboard-spin {
-            to {
-              transform: rotate(360deg);
-            }
-          }
-        `}</style>
-      </main>
+      </div>
     );
   }
 
-  const isSalesperson =
-    profile?.role === "salesperson";
-
-  const isAdmin =
-    profile?.role === "admin" ||
-    profile?.role === "super_admin";
-
-  const dashboardTitle = isSalesperson
-    ? "My Dashboard"
-    : "Management Dashboard";
-
-  const dashboardSubtitle = isSalesperson
-    ? "Your personal leads, follow-ups, tasks, pipeline and enrollment performance."
-    : "A focused view of admissions, pipeline and follow-up activity.";
-
-  const primaryKpis = [
-    {
-      label: isSalesperson
-        ? "My Leads"
-        : "Total Leads",
-      value: stats.leads,
-      note:
-        "+" +
-        stats.newLeads +
-        " this month",
-      href: "/leads",
-      icon: "LE",
-    },
-    {
-      label: isSalesperson
-        ? "My Interested"
-        : "Interested",
-      value: stats.interested,
-      note: "Qualified leads",
-      href: "/leads",
-      icon: "IN",
-    },
-    {
-      label: isSalesperson
-        ? "My Open Deals"
-        : "Open Deals",
-      value: stats.openDeals,
-      note: "Active opportunities",
-      href: "/pipeline",
-      icon: "OP",
-    },
-    {
-      label: isSalesperson
-        ? "My Forecast"
-        : "Sales Forecast",
-      value: money(stats.forecast),
-      note: "Weighted pipeline",
-      href: "/pipeline",
-      icon: "UG",
-    },
-  ];
-
-  const secondaryKpis = [
-    {
-      label: isSalesperson
-        ? "My Enrolled"
-        : "Enrolled",
-      value: stats.enrolled,
-      note: "Current admissions",
-      href: "/customers",
-    },
-    {
-      label: isSalesperson
-        ? "My Follow-ups"
-        : "Follow-ups",
-      value: stats.followUps,
-      note: stats.followUps
-        ? "Needs attention"
-        : "Nothing due",
-      href: "/tasks",
-    },
-    {
-      label: "Tasks Due Today",
-      value: stats.tasksToday,
-      note: "Open tasks",
-      href: "/tasks",
-    },
-    {
-      label: "Tasks Completed",
-      value: stats.completedTasks,
-      note: "Completed tasks",
-      href: "/tasks",
-    },
-  ];
-
   return (
-    <main className="ciu-page">
-      <div className="ciu-page-inner">
+    <div className="mx-auto max-w-[1540px] px-4 py-5 sm:px-6 lg:px-8">
+      {/* =====================================================
+          DASHBOARD HEADER
+      ===================================================== */}
 
-        {/* HEADER */}
+      <header className="mb-4 flex flex-col justify-between gap-4 md:flex-row md:items-center">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-[#8bc53f]" />
 
-        <section className="dashboard-header">
-          <div className="dashboard-header-left">
-            <div className="dashboard-avatar">
-              {getRoleInitials(
-                profile?.full_name || null
-              )}
-            </div>
+            <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#718179]">
+              CIU Admissions Dashboard
+            </span>
+          </div>
 
-            <div>
-              <div className="dashboard-eyebrow">
-                CRM OVERVIEW
-              </div>
+          <h1 className="mt-1 text-2xl font-black tracking-[-0.035em] text-[#17211b] sm:text-[28px]">
+            {greeting}, {firstName}
+          </h1>
 
-              <h1>{dashboardTitle}</h1>
+          <p className="mt-1 text-xs text-[#7d8b84]">
+            Admissions, recruitment and business
+            performance at a glance.
+          </p>
+        </div>
 
-              <p>
-                {dashboardSubtitle}
-              </p>
+        <div className="flex items-center gap-2">
+          <div className="hidden items-center gap-2 rounded-xl border border-[#e3e9e5] bg-white px-3 py-2.5 sm:flex">
+            <Icon
+              name="calendar"
+              size={15}
+            />
 
-              {profile && (
-                <div className="dashboard-user">
-                  {profile.full_name ||
-                    "CRM User"}
-                  <span>•</span>
-                  {roleLabel(profile.role)}
-                </div>
-              )}
-            </div>
+            <span className="text-[11px] font-semibold text-[#68776f]">
+              {formattedDate}
+            </span>
           </div>
 
           <button
             type="button"
-            onClick={async () => {
-              setRefreshing(true);
-              await loadDashboard();
-            }}
+            onClick={() =>
+              loadDashboard(true)
+            }
             disabled={refreshing}
-            className="dashboard-refresh"
+            className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#dce6e0] bg-white px-3.5 text-[11px] font-bold text-[#075442] shadow-sm transition hover:border-[#9ad447] hover:bg-[#f7fbf3] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            <span>
-              {refreshing ? "↻" : "⟳"}
+            <span
+              className={
+                refreshing
+                  ? "animate-spin"
+                  : ""
+              }
+            >
+              <Icon
+                name="refresh"
+                size={14}
+              />
             </span>
 
             {refreshing
-              ? "Refreshing..."
-              : "Refresh Dashboard"}
+              ? "Refreshing"
+              : "Refresh"}
           </button>
-        </section>
+        </div>
+      </header>
 
-        {/* ERROR */}
+      {/* =====================================================
+          ERROR
+      ===================================================== */}
 
-        {error && (
-          <div className="dashboard-error">
-            <strong>
-              Unable to load some dashboard data
-            </strong>
+      {error && (
+        <div className="mb-4 flex items-start gap-3 rounded-xl border border-[#f0ccc7] bg-[#fff8f7] px-4 py-3.5 text-[#9d3127]">
+          <Icon
+            name="alert"
+            size={18}
+          />
 
-            <span>{error}</span>
-
-            <button
-              type="button"
-              onClick={loadDashboard}
-            >
-              Try Again
-            </button>
-          </div>
-        )}
-
-        {/* PRIMARY KPI CARDS */}
-
-        <section className="dashboard-section">
-          <div className="section-heading">
-            <div>
-              <h2>CRM Performance</h2>
-              <span>
-                Your most important CRM numbers at a glance.
-              </span>
-            </div>
-          </div>
-
-          <div className="dashboard-kpi-grid">
-            {primaryKpis.map((kpi) => (
-              <Link
-                key={kpi.label}
-                href={kpi.href}
-                className="dashboard-kpi-card"
-              >
-                <div className="dashboard-kpi-top">
-                  <div className="dashboard-kpi-icon">
-                    {kpi.icon}
-                  </div>
-
-                  <span className="dashboard-kpi-arrow">
-                    →
-                  </span>
-                </div>
-
-                <div className="dashboard-kpi-label">
-                  {kpi.label}
-                </div>
-
-                <div
-                  className={`dashboard-kpi-value ${
-                    typeof kpi.value ===
-                      "string" &&
-                    kpi.value.length > 10
-                      ? "dashboard-kpi-value-money"
-                      : ""
-                  }`}
-                >
-                  {kpi.value}
-                </div>
-
-                <div className="dashboard-kpi-note">
-                  {kpi.note}
-                </div>
-              </Link>
-            ))}
-          </div>
-        </section>
-
-        {/* SECONDARY KPI CARDS */}
-
-        <section className="dashboard-secondary-grid">
-          {secondaryKpis.map((kpi) => (
-            <Link
-              key={kpi.label}
-              href={kpi.href}
-              className="dashboard-secondary-card"
-            >
-              <div>
-                <span className="dashboard-secondary-label">
-                  {kpi.label}
-                </span>
-
-                <strong>
-                  {kpi.value}
-                </strong>
-
-                <small>
-                  {kpi.note}
-                </small>
-              </div>
-
-              <span className="dashboard-secondary-arrow">
-                →
-              </span>
-            </Link>
-          ))}
-        </section>
-
-        {/* MONTHLY STRIP */}
-
-        <section className="dashboard-month-strip">
           <div>
-            <strong>
-              {isSalesperson
-                ? "My activity this month"
-                : "This month"}
-            </strong>
+            <p className="text-xs font-bold">
+              Dashboard data could not be loaded
+            </p>
 
-            <span>
-              Current CRM activity and performance
+            <p className="mt-1 text-[11px]">
+              {error}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* =====================================================
+          KPI STRIP
+      ===================================================== */}
+
+      <section className="mb-4 grid gap-px overflow-hidden rounded-2xl border border-[#e2e9e5] bg-[#e2e9e5] shadow-[0_4px_18px_rgba(20,50,40,.035)] sm:grid-cols-2 xl:grid-cols-5">
+        {/* Total Leads */}
+
+        <Link
+          href="/leads"
+          className="group bg-white p-4 transition hover:bg-[#fbfdfb]"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold uppercase tracking-[0.11em] text-[#819087]">
+              Total leads
+            </span>
+
+            <span className="text-[#075442]">
+              <Icon
+                name="users"
+                size={17}
+              />
             </span>
           </div>
 
-          <div className="dashboard-month-metrics">
+          <div className="mt-3 flex items-end justify-between">
+            <span className="text-[27px] font-black tracking-[-0.04em] text-[#17211b]">
+              {leads.length}
+            </span>
+
+            <span className="text-[10px] font-bold text-[#6d887a]">
+              +{stats.newLeads} this month
+            </span>
+          </div>
+        </Link>
+
+        {/* Applied / Admitted */}
+
+        <Link
+          href="/pipeline"
+          className="group bg-white p-4 transition hover:bg-[#fbfdfb]"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold uppercase tracking-[0.11em] text-[#819087]">
+              Applied / Admitted
+            </span>
+
+            <span className="text-[#28765f]">
+              <Icon
+                name="briefcase"
+                size={17}
+              />
+            </span>
+          </div>
+
+          <div className="mt-3 flex items-end justify-between">
+            <span className="text-[27px] font-black tracking-[-0.04em] text-[#17211b]">
+              {stats.applied}
+            </span>
+
+            <span className="text-[10px] font-semibold text-[#7b8982]">
+              Applications
+            </span>
+          </div>
+        </Link>
+
+        {/* Application Fee Paid */}
+
+        <Link
+          href="/pipeline"
+          className="group bg-white p-4 transition hover:bg-[#fbfdfb]"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold uppercase tracking-[0.11em] text-[#819087]">
+              Application Fee Paid
+            </span>
+
+            <span className="text-[#65a82f]">
+              <Icon
+                name="check"
+                size={17}
+              />
+            </span>
+          </div>
+
+          <div className="mt-3 flex items-end justify-between">
+            <span className="text-[27px] font-black tracking-[-0.04em] text-[#17211b]">
+              {stats.applicationFeePaid}
+            </span>
+
+            <span className="text-[10px] font-bold text-[#5f8e2b]">
+              Fee paid
+            </span>
+          </div>
+        </Link>
+
+        {/* Acceptance Fee Paid */}
+
+        <Link
+          href="/pipeline"
+          className="group bg-white p-4 transition hover:bg-[#fbfdfb]"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold uppercase tracking-[0.11em] text-[#819087]">
+              Acceptance Fee Paid
+            </span>
+
+            <span className="text-[#83bd42]">
+              <Icon
+                name="check"
+                size={17}
+              />
+            </span>
+          </div>
+
+          <div className="mt-3 flex items-end justify-between">
+            <span className="text-[27px] font-black tracking-[-0.04em] text-[#17211b]">
+              {stats.acceptanceFeePaid}
+            </span>
+
+            <span className="text-[10px] font-bold text-[#5f8e2b]">
+              Fee paid
+            </span>
+          </div>
+        </Link>
+
+        {/* Enrolled */}
+
+        <Link
+          href="/customers"
+          className="bg-[#075442] p-4 transition hover:bg-[#064b3b]"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold uppercase tracking-[0.11em] text-[#b9d4c8]">
+              Enrolled
+            </span>
+
+            <span className="text-[#a9d66b]">
+              <Icon
+                name="student"
+                size={17}
+              />
+            </span>
+          </div>
+
+          <div className="mt-3 flex items-end justify-between">
+            <span className="text-[27px] font-black tracking-[-0.04em] text-white">
+              {stats.enrolled}
+            </span>
+
+            <span className="text-[10px] font-bold text-[#b9d4c8]">
+              {stats.monthlyEnrolled} this month
+            </span>
+          </div>
+        </Link>
+      </section>
+
+      {/* =====================================================
+          MAIN WORKSPACE
+      ===================================================== */}
+
+      <section className="grid gap-4 lg:grid-cols-[1.65fr_.85fr]">
+        {/* Admissions funnel */}
+
+        <div className="rounded-2xl border border-[#e2e9e5] bg-white shadow-[0_4px_18px_rgba(20,50,40,.035)]">
+          <div className="flex items-center justify-between border-b border-[#edf1ef] px-5 py-4">
             <div>
-              <strong>
-                {stats.newLeads}
-              </strong>
-              <span>New Leads</span>
+              <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-[#819087]">
+                Student journey
+              </p>
+
+              <h2 className="mt-1 text-base font-black tracking-[-0.02em] text-[#17211b]">
+                Admissions Funnel
+              </h2>
             </div>
 
-            <div>
-              <strong>
-                {stats.interested}
-              </strong>
-              <span>Interested</span>
+            <Link
+              href="/pipeline"
+              className="inline-flex items-center gap-1 text-[10px] font-bold text-[#075442] hover:text-[#5f8e2b]"
+            >
+              View pipeline
+
+              <Icon
+                name="arrow"
+                size={12}
+              />
+            </Link>
+          </div>
+
+          <div className="p-5">
+            <div className="grid gap-3 md:grid-cols-5">
+              {funnel.map(
+                (stage, index) => (
+                  <div
+                    key={stage.label}
+                    className="relative"
+                  >
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <span className="text-[10px] font-bold leading-tight text-[#68776f]">
+                        {stage.label}
+                      </span>
+
+                      <span className="shrink-0 text-[9px] font-semibold text-[#9aa59f]">
+                        {stage.conversion}%
+                      </span>
+                    </div>
+
+                    <div className="relative h-[185px] overflow-hidden rounded-xl bg-[#f4f7f5]">
+                      <div
+                        className="absolute bottom-0 left-0 right-0 transition-all duration-500"
+                        style={{
+                          height: `${Math.max(
+                            stage.ratio,
+                            stage.value > 0
+                              ? 18
+                              : 5,
+                          )}%`,
+                          background:
+                            stage.color,
+                          opacity: 0.92,
+                        }}
+                      />
+
+                      <div className="absolute inset-x-0 bottom-0 p-3">
+                        <p className="text-2xl font-black tracking-[-0.04em] text-white drop-shadow-sm">
+                          {stage.value}
+                        </p>
+
+                        <p className="text-[9px] font-semibold text-white/80">
+                          students / records
+                        </p>
+                      </div>
+                    </div>
+
+                    {index <
+                      funnel.length -
+                        1 && (
+                      <div className="absolute -right-2 top-[105px] z-10 hidden text-[#a5b2ab] md:block">
+                        <Icon
+                          name="arrow"
+                          size={13}
+                        />
+                      </div>
+                    )}
+                  </div>
+                ),
+              )}
             </div>
 
-            <div>
-              <strong>
-                {stats.enrolled}
-              </strong>
-              <span>Enrolled</span>
-            </div>
+            <div className="mt-5 grid grid-cols-3 border-t border-[#edf1ef] pt-4">
+              <div>
+                <p className="text-[9px] font-bold uppercase tracking-wide text-[#8b9892]">
+                  New this month
+                </p>
 
-            <div>
-              <strong>
-                {stats.conversionRate}%
-              </strong>
-              <span>Conversion</span>
+                <p className="mt-1 text-lg font-black text-[#17211b]">
+                  {stats.newLeads}
+                </p>
+              </div>
+
+              <div className="border-l border-[#edf1ef] pl-4">
+                <p className="text-[9px] font-bold uppercase tracking-wide text-[#8b9892]">
+                  Monthly enrolled
+                </p>
+
+                <p className="mt-1 text-lg font-black text-[#17211b]">
+                  {stats.monthlyEnrolled}
+                </p>
+              </div>
+
+              <div className="border-l border-[#edf1ef] pl-4">
+                <p className="text-[9px] font-bold uppercase tracking-wide text-[#8b9892]">
+                  Conversion
+                </p>
+
+                <p className="mt-1 text-lg font-black text-[#075442]">
+                  {percentage(
+                    stats.conversionRate,
+                  )}
+                </p>
+              </div>
             </div>
           </div>
-        </section>
-
-        {/* PERFORMANCE + ATTENTION */}
-
-        <div className="dashboard-two-column">
-
-          {/* PERFORMANCE */}
-
-          <section className="dashboard-card">
-            <div className="dashboard-card-header">
-              <div>
-                <div className="dashboard-card-eyebrow">
-                  PERFORMANCE
-                </div>
-
-                <h2>
-                  {isSalesperson
-                    ? "My Performance"
-                    : "Performance Overview"}
-                </h2>
-
-                <p>
-                  {isSalesperson
-                    ? "Your current activity and conversion performance."
-                    : "Current CRM activity and conversion performance."}
-                </p>
-              </div>
-
-              <Link
-                href="/reports"
-                className="dashboard-outline-button"
-              >
-                View Reports →
-              </Link>
-            </div>
-
-            <div className="performance-grid">
-
-              <div className="performance-item">
-                <div className="performance-icon">
-                  TK
-                </div>
-
-                <strong>
-                  {stats.completedTasks}
-                </strong>
-
-                <span>
-                  Tasks completed
-                </span>
-              </div>
-
-              <div className="performance-item">
-                <div className="performance-icon">
-                  TD
-                </div>
-
-                <strong>
-                  {stats.tasksToday}
-                </strong>
-
-                <span>
-                  Tasks due today
-                </span>
-              </div>
-
-              <div className="performance-item">
-                <div className="performance-icon">
-                  FU
-                </div>
-
-                <strong>
-                  {stats.followUps}
-                </strong>
-
-                <span>
-                  Follow-ups due
-                </span>
-              </div>
-
-              <div className="performance-item">
-                <div className="performance-icon">
-                  CR
-                </div>
-
-                <strong>
-                  {stats.conversionRate}%
-                </strong>
-
-                <span>
-                  {isSalesperson
-                    ? "My conversion"
-                    : "Overall conversion"}
-                </span>
-              </div>
-
-            </div>
-          </section>
-
-          {/* TODAY'S ATTENTION */}
-
-          <section className="dashboard-card">
-            <div className="dashboard-card-header">
-              <div>
-                <div className="dashboard-card-eyebrow">
-                  ACTION REQUIRED
-                </div>
-
-                <h2>
-                  Today's Attention
-                </h2>
-
-                <p>
-                  {isSalesperson
-                    ? "Your items that need action now."
-                    : "Items that need action now."}
-                </p>
-              </div>
-            </div>
-
-            <div className="attention-list">
-
-              <Link
-                href="/tasks"
-                className="attention-row"
-              >
-                <div className="attention-row-left">
-                  <div className="attention-dot">
-                    01
-                  </div>
-
-                  <div>
-                    <strong>
-                      Follow-ups due
-                    </strong>
-
-                    <span>
-                      Leads requiring contact
-                    </span>
-                  </div>
-                </div>
-
-                <strong className="attention-number">
-                  {stats.followUps}
-                </strong>
-              </Link>
-
-              <Link
-                href="/tasks"
-                className="attention-row"
-              >
-                <div className="attention-row-left">
-                  <div className="attention-dot">
-                    02
-                  </div>
-
-                  <div>
-                    <strong>
-                      Tasks due today
-                    </strong>
-
-                    <span>
-                      Open tasks requiring action
-                    </span>
-                  </div>
-                </div>
-
-                <strong className="attention-number">
-                  {stats.tasksToday}
-                </strong>
-              </Link>
-
-              <Link
-                href="/leads"
-                className="attention-row"
-              >
-                <div className="attention-row-left">
-                  <div className="attention-dot">
-                    03
-                  </div>
-
-                  <div>
-                    <strong>
-                      Interested leads
-                    </strong>
-
-                    <span>
-                      Qualified prospects
-                    </span>
-                  </div>
-                </div>
-
-                <strong className="attention-number">
-                  {stats.interested}
-                </strong>
-              </Link>
-
-            </div>
-          </section>
-
         </div>
 
-        {/* QUICK ACTIONS */}
+        {/* Today's focus */}
 
-        <section className="dashboard-card dashboard-quick-actions">
-          <div className="dashboard-card-header">
+        <div className="rounded-2xl border border-[#e2e9e5] bg-white shadow-[0_4px_18px_rgba(20,50,40,.035)]">
+          <div className="flex items-center justify-between border-b border-[#edf1ef] px-5 py-4">
             <div>
-              <div className="dashboard-card-eyebrow">
-                QUICK ACTIONS
+              <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-[#819087]">
+                Daily operations
+              </p>
+
+              <h2 className="mt-1 text-base font-black tracking-[-0.02em] text-[#17211b]">
+                Today&apos;s Focus
+              </h2>
+            </div>
+
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#f0f7e7] text-[#5f8e2b]">
+              <Icon
+                name="bolt"
+                size={15}
+              />
+            </span>
+          </div>
+
+          <div className="divide-y divide-[#edf1ef]">
+            {focusItems.map(
+              (item) => {
+                const tone =
+                  item.tone === "amber"
+                    ? "bg-[#fff5e7] text-[#b87918]"
+                    : item.tone ===
+                        "lime"
+                      ? "bg-[#f0f7e7] text-[#5f8e2b]"
+                      : item.tone ===
+                          "dark"
+                        ? "bg-[#e8f5ef] text-[#075442]"
+                        : "bg-[#eaf4f1] text-[#28765f]";
+
+                return (
+                  <Link
+                    key={item.label}
+                    href={item.href}
+                    className="flex items-center justify-between px-5 py-4 transition hover:bg-[#fbfdfb]"
+                  >
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span
+                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${tone}`}
+                      >
+                        <Icon
+                          name={item.icon}
+                          size={16}
+                        />
+                      </span>
+
+                      <div className="min-w-0">
+                        <p className="truncate text-[11px] font-bold text-[#34433b]">
+                          {item.label}
+                        </p>
+
+                        <p className="mt-0.5 truncate text-[9px] text-[#929e98]">
+                          {item.description}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="ml-3 flex items-center gap-2">
+                      <span className="text-lg font-black text-[#17211b]">
+                        {item.value}
+                      </span>
+
+                      <Icon
+                        name="chevron"
+                        size={13}
+                      />
+                    </div>
+                  </Link>
+                );
+              },
+            )}
+          </div>
+
+          <div className="m-4 rounded-xl bg-[#075442] px-4 py-3">
+            <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-[#b8d4c8]">
+              Immediate workload
+            </p>
+
+            <div className="mt-1 flex items-end justify-between">
+              <p className="text-xl font-black text-white">
+                {stats.followUpsDue +
+                  stats.tasksToday}
+              </p>
+
+              <span className="text-[9px] font-semibold text-[#b8d4c8]">
+                actions requiring attention
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* =====================================================
+          ANALYTICS ROW
+      ===================================================== */}
+
+      <section className="mt-4 grid gap-4 lg:grid-cols-[1.1fr_.9fr]">
+        {/* Pipeline overview */}
+
+        <div className="rounded-2xl border border-[#e2e9e5] bg-white shadow-[0_4px_18px_rgba(20,50,40,.035)]">
+          <div className="flex items-center justify-between border-b border-[#edf1ef] px-5 py-4">
+            <div>
+              <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-[#819087]">
+                Revenue & admissions
+              </p>
+
+              <h2 className="mt-1 text-base font-black tracking-[-0.02em] text-[#17211b]">
+                Pipeline Overview
+              </h2>
+            </div>
+
+            <Link
+              href="/reports"
+              className="text-[10px] font-bold text-[#075442]"
+            >
+              Reports
+            </Link>
+          </div>
+
+          <div className="p-5">
+            <div className="mb-5 grid grid-cols-2 gap-3">
+              <div className="rounded-xl bg-[#f6f9f7] px-4 py-3">
+                <p className="text-[9px] font-bold uppercase tracking-wide text-[#84938b]">
+                  Open value
+                </p>
+
+                <p className="mt-1 truncate text-lg font-black text-[#17211b]">
+                  {money(
+                    stats.pipelineValue,
+                  )}
+                </p>
               </div>
 
-              <h2>
-                Continue Working
-              </h2>
+              <div className="rounded-xl bg-[#f6f9f7] px-4 py-3">
+                <p className="text-[9px] font-bold uppercase tracking-wide text-[#84938b]">
+                  Weighted forecast
+                </p>
 
-              <p>
-                Jump directly into the areas you use most.
+                <p className="mt-1 truncate text-lg font-black text-[#075442]">
+                  {money(
+                    stats.weightedForecast,
+                  )}
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-5">
+              {pipelineOverview.map(
+                (stage, index) => (
+                  <div key={stage.label}>
+                    <div className="mb-2 flex items-center justify-between">
+                      <div>
+                        <p className="text-[11px] font-bold text-[#34433b]">
+                          {stage.label}
+                        </p>
+
+                        <p className="mt-0.5 text-[9px] text-[#929e98]">
+                          {stage.description}
+                        </p>
+                      </div>
+
+                      <div className="text-right">
+                        <p className="text-[11px] font-black text-[#17211b]">
+                          {stage.value
+                            ? money(
+                                stage.value,
+                              )
+                            : stage.count}
+                        </p>
+
+                        <p className="text-[9px] text-[#929e98]">
+                          {stage.count}{" "}
+                          records
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="h-2 overflow-hidden rounded-full bg-[#edf1ef]">
+                      <div
+                        className="h-full rounded-full transition-all duration-500"
+                        style={{
+                          width: `${stage.width}%`,
+                          background:
+                            index === 0
+                              ? "#075442"
+                              : index ===
+                                  1
+                                ? "#65a82f"
+                                : "#9ad447",
+                        }}
+                      />
+                    </div>
+                  </div>
+                ),
+              )}
+            </div>
+
+            <div className="mt-5 border-t border-[#edf1ef] pt-4">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-semibold text-[#7f8e86]">
+                  Average opportunity
+                </span>
+
+                <span className="text-[11px] font-black text-[#17211b]">
+                  {money(
+                    stats.averageDeal,
+                  )}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Performance */}
+
+        <div className="rounded-2xl border border-[#e2e9e5] bg-white shadow-[0_4px_18px_rgba(20,50,40,.035)]">
+          <div className="flex items-center justify-between border-b border-[#edf1ef] px-5 py-4">
+            <div>
+              <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-[#819087]">
+                Current month
+              </p>
+
+              <h2 className="mt-1 text-base font-black tracking-[-0.02em] text-[#17211b]">
+                Recruitment Performance
+              </h2>
+            </div>
+
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#e8f5ef] text-[#075442]">
+              <Icon
+                name="chart"
+                size={16}
+              />
+            </span>
+          </div>
+
+          <div className="p-5">
+            <div className="mb-6 flex items-end justify-between">
+              <div>
+                <p className="text-[9px] font-bold uppercase tracking-wide text-[#87948e]">
+                  Lead to enrolment
+                </p>
+
+                <p className="mt-1 text-3xl font-black tracking-[-0.05em] text-[#075442]">
+                  {percentage(
+                    stats.conversionRate,
+                  )}
+                </p>
+              </div>
+
+              <div className="text-right">
+                <p className="text-[9px] font-semibold text-[#8c9993]">
+                  {performance.leads}{" "}
+                  leads
+                </p>
+
+                <p className="mt-1 text-[9px] font-semibold text-[#8c9993]">
+                  {performance.enrolled}{" "}
+                  enrolled
+                </p>
+              </div>
+            </div>
+
+            <div className="flex h-[145px] items-end gap-4 border-b border-l border-[#edf1ef] px-3 pb-0">
+              {[
+                {
+                  label: "Leads",
+                  value:
+                    performance.leads,
+                  color: "#075442",
+                },
+                {
+                  label: "Interested",
+                  value:
+                    performance.interested,
+                  color: "#65a82f",
+                },
+                {
+                  label: "Enrolled",
+                  value:
+                    performance.enrolled,
+                  color: "#9ad447",
+                },
+              ].map((bar) => {
+                const max = Math.max(
+                  performance.leads,
+                  performance.interested,
+                  performance.enrolled,
+                  1,
+                );
+
+                const height =
+                  bar.value > 0
+                    ? Math.max(
+                        12,
+                        (bar.value /
+                          max) *
+                          100,
+                      )
+                    : 4;
+
+                return (
+                  <div
+                    key={bar.label}
+                    className="flex h-full flex-1 flex-col justify-end"
+                  >
+                    <div className="mb-1 text-center text-[9px] font-black text-[#55645c]">
+                      {bar.value}
+                    </div>
+
+                    <div
+                      className="mx-auto w-full max-w-[70px] rounded-t-lg transition-all duration-500"
+                      style={{
+                        height: `${height}%`,
+                        background:
+                          bar.color,
+                      }}
+                    />
+
+                    <div className="mt-2 text-center text-[9px] font-bold text-[#7e8b85]">
+                      {bar.label}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <div className="rounded-xl border border-[#e8eeea] px-3 py-3">
+                <p className="text-[9px] font-bold uppercase tracking-wide text-[#8a9791]">
+                  Interested rate
+                </p>
+
+                <p className="mt-1 text-lg font-black text-[#5f8e2b]">
+                  {performance.leads
+                    ? percentage(
+                        (performance.interested /
+                          performance.leads) *
+                          100,
+                      )
+                    : "0%"}
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-[#e8eeea] px-3 py-3">
+                <p className="text-[9px] font-bold uppercase tracking-wide text-[#8a9791]">
+                  Enrolment rate
+                </p>
+
+                <p className="mt-1 text-lg font-black text-[#075442]">
+                  {performance.leads
+                    ? percentage(
+                        (performance.enrolled /
+                          performance.leads) *
+                          100,
+                      )
+                    : "0%"}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* =====================================================
+          LOWER WORKSPACE
+      ===================================================== */}
+
+      <section className="mt-4 grid gap-4 md:grid-cols-3">
+        <Link
+          href="/leads"
+          className="group flex items-center justify-between rounded-xl border border-[#e2e9e5] bg-white px-4 py-3.5 shadow-[0_3px_14px_rgba(20,50,40,.025)] transition hover:border-[#b9d9a1] hover:shadow-md"
+        >
+          <div className="flex items-center gap-3">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#e8f5ef] text-[#075442]">
+              <Icon
+                name="users"
+                size={16}
+              />
+            </span>
+
+            <div>
+              <p className="text-[11px] font-bold text-[#34433b]">
+                Manage leads
+              </p>
+
+              <p className="mt-0.5 text-[9px] text-[#929e98]">
+                Review prospects and
+                follow-ups
               </p>
             </div>
           </div>
 
-          <div className="quick-action-grid">
+          <Icon
+            name="chevron"
+            size={13}
+          />
+        </Link>
 
-            <Link
-              href="/leads"
-              className="quick-action"
-            >
-              <div className="quick-action-icon">
-                LE
-              </div>
-
-              <div>
-                <strong>
-                  Leads
-                </strong>
-
-                <span>
-                  Manage prospects
-                </span>
-              </div>
-
-              <span>→</span>
-            </Link>
-
-            <Link
-              href="/tasks"
-              className="quick-action"
-            >
-              <div className="quick-action-icon">
-                TK
-              </div>
-
-              <div>
-                <strong>
-                  Tasks
-                </strong>
-
-                <span>
-                  Manage follow-ups
-                </span>
-              </div>
-
-              <span>→</span>
-            </Link>
-
-            <Link
-              href="/pipeline"
-              className="quick-action"
-            >
-              <div className="quick-action-icon">
-                PL
-              </div>
-
-              <div>
-                <strong>
-                  Pipeline
-                </strong>
-
-                <span>
-                  Track opportunities
-                </span>
-              </div>
-
-              <span>→</span>
-            </Link>
-
-            <Link
-              href="/customers"
-              className="quick-action"
-            >
-              <div className="quick-action-icon">
-                CU
-              </div>
-
-              <div>
-                <strong>
-                  Customers
-                </strong>
-
-                <span>
-                  View enrolled students
-                </span>
-              </div>
-
-              <span>→</span>
-            </Link>
-
-          </div>
-        </section>
-
-        {/* ADMIN NOTE */}
-
-        {isAdmin && (
-          <div className="dashboard-admin-note">
-            <strong>
-              Organization-wide view
-            </strong>
-
-            <span>
-              You are viewing CRM performance across the organization.
+        <Link
+          href="/pipeline"
+          className="group flex items-center justify-between rounded-xl border border-[#e2e9e5] bg-white px-4 py-3.5 shadow-[0_3px_14px_rgba(20,50,40,.025)] transition hover:border-[#b9d9a1] hover:shadow-md"
+        >
+          <div className="flex items-center gap-3">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#f0f7e7] text-[#5f8e2b]">
+              <Icon
+                name="layers"
+                size={16}
+              />
             </span>
+
+            <div>
+              <p className="text-[11px] font-bold text-[#34433b]">
+                Manage pipeline
+              </p>
+
+              <p className="mt-0.5 text-[9px] text-[#929e98]">
+                Move applications through
+                stages
+              </p>
+            </div>
           </div>
-        )}
 
-      </div>
-
-      <style jsx>{`
-
-        .dashboard-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          gap: 20px;
-          padding: 26px 28px;
-          margin-bottom: 18px;
-          border-radius: 18px;
-          background:
-            linear-gradient(
-              135deg,
-              #004d40 0%,
-              #00695c 58%,
-              #08796c 100%
-            );
-          color: #ffffff;
-          box-shadow:
-            0 10px 28px rgba(0, 77, 64, 0.12);
-        }
-
-        .dashboard-header-left {
-          display: flex;
-          align-items: center;
-          gap: 16px;
-          min-width: 0;
-        }
-
-        .dashboard-avatar {
-          width: 54px;
-          height: 54px;
-          flex: 0 0 54px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          border-radius: 16px;
-          background: rgba(255,255,255,0.16);
-          border: 1px solid rgba(255,255,255,0.22);
-          font-size: 16px;
-          font-weight: 800;
-          letter-spacing: 0.04em;
-        }
-
-        .dashboard-eyebrow {
-          margin-bottom: 5px;
-          font-size: 10px;
-          font-weight: 800;
-          letter-spacing: 0.14em;
-          opacity: 0.72;
-        }
-
-        .dashboard-header h1 {
-          margin: 0;
-          font-size: 26px;
-          line-height: 1.15;
-          font-weight: 800;
-        }
-
-        .dashboard-header p {
-          margin: 7px 0 0;
-          max-width: 680px;
-          font-size: 13px;
-          line-height: 1.5;
-          opacity: 0.86;
-        }
-
-        .dashboard-user {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          margin-top: 8px;
-          font-size: 11px;
-          font-weight: 700;
-          opacity: 0.82;
-        }
-
-        .dashboard-refresh {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
-          min-height: 42px;
-          padding: 0 16px;
-          border: 1px solid rgba(255,255,255,0.25);
-          border-radius: 10px;
-          background: rgba(255,255,255,0.13);
-          color: #ffffff;
-          font-size: 12px;
-          font-weight: 800;
-          cursor: pointer;
-          transition:
-            background 0.2s ease,
-            transform 0.2s ease;
-        }
-
-        .dashboard-refresh:hover {
-          background: rgba(255,255,255,0.2);
-          transform: translateY(-1px);
-        }
-
-        .dashboard-refresh:disabled {
-          cursor: wait;
-          opacity: 0.65;
-        }
-
-        .dashboard-refresh span {
-          font-size: 17px;
-          line-height: 1;
-        }
-
-        .dashboard-error {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          margin-bottom: 18px;
-          padding: 13px 15px;
-          border: 1px solid #f0c7c2;
-          border-radius: 12px;
-          background: #fff4f2;
-          color: #8f3028;
-          font-size: 12px;
-        }
-
-        .dashboard-error strong {
-          white-space: nowrap;
-        }
-
-        .dashboard-error span {
-          flex: 1;
-          color: #a24b43;
-        }
-
-        .dashboard-error button {
-          border: 0;
-          background: transparent;
-          color: #8f3028;
-          font-weight: 800;
-          cursor: pointer;
-          text-decoration: underline;
-        }
-
-        .dashboard-section {
-          margin-bottom: 18px;
-        }
-
-        .section-heading {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-end;
-          margin-bottom: 12px;
-        }
-
-        .section-heading h2 {
-          margin: 0;
-          color: #17322c;
-          font-size: 17px;
-          font-weight: 800;
-        }
-
-        .section-heading span {
-          display: block;
-          margin-top: 4px;
-          color: #6b7f78;
-          font-size: 12px;
-        }
-
-        .dashboard-kpi-grid {
-          display: grid;
-          grid-template-columns:
-            repeat(4, minmax(0, 1fr));
-          gap: 15px;
-        }
-
-        .dashboard-kpi-card {
-          display: block;
-          min-width: 0;
-          min-height: 166px;
-          padding: 18px;
-          border: 1px solid #dfe9e5;
-          border-radius: 15px;
-          background: #ffffff;
-          text-decoration: none;
-          box-shadow:
-            0 4px 14px rgba(23, 50, 44, 0.035);
-          transition:
-            transform 0.2s ease,
-            border-color 0.2s ease,
-            box-shadow 0.2s ease;
-        }
-
-        .dashboard-kpi-card:hover {
-          transform: translateY(-3px);
-          border-color: #b8d8cf;
-          box-shadow:
-            0 10px 24px rgba(23, 50, 44, 0.08);
-        }
-
-        .dashboard-kpi-top {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-        }
-
-        .dashboard-kpi-icon {
-          width: 38px;
-          height: 38px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          border-radius: 11px;
-          background: #eaf5f2;
-          color: #00695c;
-          font-size: 10px;
-          font-weight: 900;
-          letter-spacing: 0.04em;
-        }
-
-        .dashboard-kpi-arrow {
-          color: #a2b6b0;
-          font-size: 18px;
-          transition: transform 0.2s ease;
-        }
-
-        .dashboard-kpi-card:hover
-          .dashboard-kpi-arrow {
-          transform: translateX(3px);
-          color: #00695c;
-        }
-
-        .dashboard-kpi-label {
-          margin-top: 17px;
-          color: #6b7f78;
-          font-size: 11px;
-          font-weight: 800;
-          text-transform: uppercase;
-          letter-spacing: 0.07em;
-        }
-
-        .dashboard-kpi-value {
-          margin-top: 5px;
-          color: #17322c;
-          font-size: 28px;
-          line-height: 1.1;
-          font-weight: 850;
-          letter-spacing: -0.03em;
-        }
-
-        .dashboard-kpi-value-money {
-          font-size: 19px;
-          letter-spacing: -0.02em;
-        }
-
-        .dashboard-kpi-note {
-          margin-top: 8px;
-          color: #7c8e89;
-          font-size: 11px;
-          font-weight: 600;
-        }
-
-        .dashboard-secondary-grid {
-          display: grid;
-          grid-template-columns:
-            repeat(4, minmax(0, 1fr));
-          gap: 13px;
-          margin-bottom: 18px;
-        }
-
-        .dashboard-secondary-card {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 12px;
-          padding: 16px;
-          border: 1px solid #dfe9e5;
-          border-radius: 13px;
-          background: #f9fbfa;
-          text-decoration: none;
-          transition:
-            background 0.2s ease,
-            border-color 0.2s ease,
-            transform 0.2s ease;
-        }
-
-        .dashboard-secondary-card:hover {
-          background: #ffffff;
-          border-color: #b8d8cf;
-          transform: translateY(-2px);
-        }
-
-        .dashboard-secondary-card > div {
-          display: flex;
-          flex-direction: column;
-          min-width: 0;
-        }
-
-        .dashboard-secondary-label {
-          color: #6b7f78;
-          font-size: 10px;
-          font-weight: 800;
-          text-transform: uppercase;
-          letter-spacing: 0.06em;
-        }
-
-        .dashboard-secondary-card strong {
-          margin-top: 4px;
-          color: #17322c;
-          font-size: 22px;
-          line-height: 1;
-        }
-
-        .dashboard-secondary-card small {
-          margin-top: 5px;
-          color: #8a9b96;
-          font-size: 10px;
-        }
-
-        .dashboard-secondary-arrow {
-          color: #8bc63f;
-          font-size: 18px;
-          font-weight: 800;
-        }
-
-        .dashboard-month-strip {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 18px;
-          margin-bottom: 18px;
-          padding: 16px 18px;
-          border: 1px solid #d8e9c0;
-          border-radius: 14px;
-          background: #eef7df;
-        }
-
-        .dashboard-month-strip > div:first-child {
-          min-width: 170px;
-        }
-
-        .dashboard-month-strip strong {
-          display: block;
-          color: #17483f;
-          font-size: 13px;
-          font-weight: 800;
-        }
-
-        .dashboard-month-strip span {
-          display: block;
-          margin-top: 3px;
-          color: #6e8176;
-          font-size: 11px;
-        }
-
-        .dashboard-month-metrics {
-          display: grid;
-          grid-template-columns:
-            repeat(4, minmax(90px, 1fr));
-          gap: 10px;
-          flex: 1;
-        }
-
-        .dashboard-month-metrics > div {
-          padding-left: 15px;
-          border-left: 1px solid #d4e4bd;
-        }
-
-        .dashboard-month-metrics strong {
-          font-size: 17px;
-        }
-
-        .dashboard-month-metrics span {
-          font-size: 10px;
-        }
-
-        .dashboard-two-column {
-          display: grid;
-          grid-template-columns:
-            minmax(0, 1.25fr)
-            minmax(320px, 0.75fr);
-          gap: 18px;
-          margin-bottom: 18px;
-        }
-
-        .dashboard-card {
-          min-width: 0;
-          padding: 20px;
-          border: 1px solid #dfe9e5;
-          border-radius: 16px;
-          background: #ffffff;
-          box-shadow:
-            0 4px 14px rgba(23, 50, 44, 0.03);
-        }
-
-        .dashboard-card-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          gap: 15px;
-          margin-bottom: 18px;
-        }
-
-        .dashboard-card-eyebrow {
-          margin-bottom: 4px;
-          color: #8aa099;
-          font-size: 9px;
-          font-weight: 900;
-          letter-spacing: 0.13em;
-        }
-
-        .dashboard-card h2 {
-          margin: 0;
-          color: #17322c;
-          font-size: 17px;
-          font-weight: 800;
-        }
-
-        .dashboard-card-header p {
-          margin: 5px 0 0;
-          color: #788b85;
-          font-size: 11px;
-          line-height: 1.5;
-        }
-
-        .dashboard-outline-button {
-          flex: 0 0 auto;
-          padding: 8px 11px;
-          border: 1px solid #dfe9e5;
-          border-radius: 9px;
-          color: #00695c;
-          background: #f8fbfa;
-          text-decoration: none;
-          font-size: 10px;
-          font-weight: 800;
-          white-space: nowrap;
-        }
-
-        .dashboard-outline-button:hover {
-          border-color: #b8d8cf;
-          background: #eaf5f2;
-        }
-
-        .performance-grid {
-          display: grid;
-          grid-template-columns:
-            repeat(4, minmax(0, 1fr));
-          border: 1px solid #e5ece9;
-          border-radius: 12px;
-          overflow: hidden;
-        }
-
-        .performance-item {
-          min-width: 0;
-          padding: 16px 12px;
-          text-align: center;
-          border-right: 1px solid #e5ece9;
-        }
-
-        .performance-item:last-child {
-          border-right: 0;
-        }
-
-        .performance-icon {
-          width: 32px;
-          height: 32px;
-          margin: 0 auto 8px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          border-radius: 9px;
-          background: #eaf5f2;
-          color: #00695c;
-          font-size: 8px;
-          font-weight: 900;
-        }
-
-        .performance-item strong {
-          display: block;
-          color: #17322c;
-          font-size: 20px;
-          line-height: 1;
-        }
-
-        .performance-item span {
-          display: block;
-          margin-top: 5px;
-          color: #7b8d87;
-          font-size: 9px;
-          line-height: 1.3;
-        }
-
-        .attention-list {
-          border-top: 1px solid #edf1ef;
-        }
-
-        .attention-row {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 12px;
-          padding: 13px 0;
-          border-bottom: 1px solid #edf1ef;
-          text-decoration: none;
-        }
-
-        .attention-row:last-child {
-          border-bottom: 0;
-        }
-
-        .attention-row-left {
-          display: flex;
-          align-items: center;
-          gap: 11px;
-          min-width: 0;
-        }
-
-        .attention-dot {
-          width: 31px;
-          height: 31px;
-          flex: 0 0 31px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          border-radius: 9px;
-          background: #f2f7f5;
-          color: #00695c;
-          font-size: 8px;
-          font-weight: 900;
-        }
-
-        .attention-row-left div:last-child {
-          min-width: 0;
-        }
-
-        .attention-row-left strong {
-          display: block;
-          color: #25423a;
-          font-size: 11px;
-        }
-
-        .attention-row-left span {
-          display: block;
-          margin-top: 3px;
-          color: #8a9a95;
-          font-size: 9px;
-        }
-
-        .attention-number {
-          color: #00695c;
-          font-size: 18px;
-        }
-
-        .dashboard-quick-actions {
-          margin-bottom: 18px;
-        }
-
-        .quick-action-grid {
-          display: grid;
-          grid-template-columns:
-            repeat(4, minmax(0, 1fr));
-          gap: 11px;
-        }
-
-        .quick-action {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          min-width: 0;
-          padding: 13px;
-          border: 1px solid #e2eae7;
-          border-radius: 11px;
-          background: #fafcfb;
-          color: inherit;
-          text-decoration: none;
-          transition:
-            transform 0.2s ease,
-            border-color 0.2s ease,
-            background 0.2s ease;
-        }
-
-        .quick-action:hover {
-          transform: translateY(-2px);
-          border-color: #b8d8cf;
-          background: #ffffff;
-        }
-
-        .quick-action-icon {
-          width: 34px;
-          height: 34px;
-          flex: 0 0 34px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          border-radius: 9px;
-          background: #eaf5f2;
-          color: #00695c;
-          font-size: 8px;
-          font-weight: 900;
-        }
-
-        .quick-action > div:nth-child(2) {
-          display: flex;
-          flex-direction: column;
-          min-width: 0;
-          flex: 1;
-        }
-
-        .quick-action strong {
-          color: #25423a;
-          font-size: 11px;
-        }
-
-        .quick-action div span {
-          margin-top: 2px;
-          color: #8a9a95;
-          font-size: 9px;
-        }
-
-        .quick-action > span:last-child {
-          color: #8bc63f;
-          font-size: 16px;
-          font-weight: 800;
-        }
-
-        .dashboard-admin-note {
-          display: flex;
-          align-items: center;
-          gap: 7px;
-          padding: 4px 2px 10px;
-          color: #6b7f78;
-          font-size: 10px;
-        }
-
-        .dashboard-admin-note strong {
-          color: #17483f;
-        }
-
-        @media (max-width: 1100px) {
-          .dashboard-kpi-grid,
-          .dashboard-secondary-grid {
-            grid-template-columns:
-              repeat(2, minmax(0, 1fr));
-          }
-
-          .dashboard-two-column {
-            grid-template-columns: 1fr;
-          }
-
-          .quick-action-grid {
-            grid-template-columns:
-              repeat(2, minmax(0, 1fr));
-          }
-        }
-
-        @media (max-width: 760px) {
-          .dashboard-header {
-            align-items: flex-start;
-            flex-direction: column;
-            padding: 20px;
-          }
-
-          .dashboard-refresh {
-            width: 100%;
-          }
-
-          .dashboard-month-strip {
-            align-items: flex-start;
-            flex-direction: column;
-          }
-
-          .dashboard-month-metrics {
-            width: 100%;
-          }
-
-          .performance-grid {
-            grid-template-columns:
-              repeat(2, minmax(0, 1fr));
-          }
-
-          .performance-item:nth-child(2) {
-            border-right: 0;
-          }
-
-          .performance-item:nth-child(-n + 2) {
-            border-bottom: 1px solid #e5ece9;
-          }
-        }
-
-        @media (max-width: 560px) {
-          .dashboard-kpi-grid,
-          .dashboard-secondary-grid,
-          .quick-action-grid {
-            grid-template-columns: 1fr;
-          }
-
-          .dashboard-header-left {
-            align-items: flex-start;
-          }
-
-          .dashboard-avatar {
-            width: 46px;
-            height: 46px;
-            flex-basis: 46px;
-          }
-
-          .dashboard-header h1 {
-            font-size: 22px;
-          }
-
-          .dashboard-month-metrics {
-            grid-template-columns:
-              repeat(2, minmax(0, 1fr));
-          }
-
-          .dashboard-month-metrics > div:nth-child(3) {
-            border-left: 0;
-          }
-
-          .dashboard-card {
-            padding: 16px;
-          }
-
-          .dashboard-card-header {
-            flex-direction: column;
-          }
-
-          .dashboard-outline-button {
-            width: 100%;
-            text-align: center;
-          }
-        }
-
-      `}</style>
-    </main>
+          <Icon
+            name="chevron"
+            size={13}
+          />
+        </Link>
+
+        <Link
+          href="/reports"
+          className="group flex items-center justify-between rounded-xl border border-[#e2e9e5] bg-white px-4 py-3.5 shadow-[0_3px_14px_rgba(20,50,40,.025)] transition hover:border-[#b9d9a1] hover:shadow-md"
+        >
+          <div className="flex items-center gap-3">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#eaf4f1] text-[#28765f]">
+              <Icon
+                name="chart"
+                size={16}
+              />
+            </span>
+
+            <div>
+              <p className="text-[11px] font-bold text-[#34433b]">
+                View reports
+              </p>
+
+              <p className="mt-0.5 text-[9px] text-[#929e98]">
+                Analyse admissions
+                performance
+              </p>
+            </div>
+          </div>
+
+          <Icon
+            name="chevron"
+            size={13}
+          />
+        </Link>
+      </section>
+
+      {/* =====================================================
+          FOOTER
+      ===================================================== */}
+
+      <footer className="flex flex-col items-center justify-between gap-2 px-1 py-5 sm:flex-row">
+        <p className="text-[9px] font-medium text-[#a0aaa5]">
+          CIU Admissions & Business Management
+          System
+        </p>
+
+        <div className="flex items-center gap-2">
+          <span className="h-1.5 w-1.5 rounded-full bg-[#7fbe3b]" />
+
+          <span className="text-[9px] font-semibold text-[#89958f]">
+            System connected
+          </span>
+
+          <span className="text-[#c4cbc7]">
+            â€¢
+          </span>
+
+          <span className="text-[9px] text-[#89958f]">
+            {stats.completedTasks} tasks
+            completed
+          </span>
+        </div>
+      </footer>
+    </div>
   );
 }
+
+
+
+
+
+

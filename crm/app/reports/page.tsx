@@ -23,6 +23,7 @@ type Admission = {
   assigned_to: string | null;
   stage: string | null;
   created_at: string | null;
+  enrolled_at: string | null;
 };
 
 type Task = {
@@ -184,7 +185,7 @@ export default function ReportsPage() {
 
       const admissionsQuery = supabase
         .from("admissions")
-        .select("id,assigned_to,stage,created_at");
+        .select("id,assigned_to,stage,created_at,enrolled_at");
 
       const tasksQuery = supabase
         .from("tasks")
@@ -266,10 +267,17 @@ export default function ReportsPage() {
         );
 
         const staffAdmissions = admissions.filter(
-          (admission) =>
-            admission.assigned_to === profile.id &&
-            inPeriod(admission.created_at, start, end)
-        );
+  (admission) =>
+    admission.assigned_to === profile.id &&
+    inPeriod(admission.created_at, start, end)
+);
+
+const staffEnrolments = admissions.filter(
+  (admission) =>
+    admission.assigned_to === profile.id &&
+    (admission.stage || "").toLowerCase() === "enrolled" &&
+    inPeriod(admission.enrolled_at, start, end)
+);
 
         const staffTasks = tasks.filter(
           (task) =>
@@ -344,11 +352,7 @@ export default function ReportsPage() {
             )
         ).length;
 
-        const enrolled = staffAdmissions.filter(
-          (admission) =>
-            (admission.stage || "").toLowerCase() ===
-            "enrolled"
-        ).length;
+       const enrolled = staffEnrolments.length;
 
         return {
           id: profile.id,
@@ -1080,28 +1084,18 @@ export default function ReportsPage() {
         .report-hero {
           position: relative;
           overflow: hidden;
-          border-radius: 18px;
+          border: 1px solid #e5e7eb;
+          border-left: 5px solid #00695c;
+          border-radius: 12px;
           padding: 26px;
           margin-bottom: 18px;
-          background: linear-gradient(
-            135deg,
-            #003f36 0%,
-            #00695c 65%,
-            #087d6d 100%
-          );
-          color: white;
-          box-shadow: 0 12px 30px rgba(0, 77, 64, 0.12);
+          background: #ffffff;
+          color: #111827;
+          box-shadow: 0 4px 14px rgba(23, 50, 44, 0.04);
         }
 
         .report-hero::after {
-          content: "";
-          position: absolute;
-          width: 260px;
-          height: 260px;
-          right: -90px;
-          top: -130px;
-          border-radius: 50%;
-          background: rgba(139, 198, 63, 0.18);
+          content: none;
         }
 
         .report-hero-content {
@@ -1119,11 +1113,12 @@ export default function ReportsPage() {
           font-size: 10px;
           font-weight: 800;
           letter-spacing: 1.4px;
-          color: #bde48a;
+          color: #00695c;
         }
 
         .report-hero h1 {
           margin: 0;
+          color: #111827;
           font-size: 28px;
           line-height: 1.2;
           font-weight: 800;
@@ -1132,7 +1127,7 @@ export default function ReportsPage() {
         .report-hero p {
           margin: 8px 0 0;
           max-width: 650px;
-          color: rgba(255, 255, 255, 0.78);
+          color: #64748b;
           font-size: 13px;
         }
 
@@ -1145,11 +1140,11 @@ export default function ReportsPage() {
 
         .report-select {
           min-height: 40px;
-          border: 1px solid rgba(255, 255, 255, 0.2);
-          border-radius: 9px;
+          border: 1px solid #d1d5db;
+          border-radius: 8px;
           padding: 0 12px;
-          background: rgba(255, 255, 255, 0.12);
-          color: white;
+          background: #ffffff;
+          color: #374151;
           outline: none;
           font-size: 13px;
         }
@@ -1161,12 +1156,12 @@ export default function ReportsPage() {
 
         .report-refresh {
           min-height: 40px;
-          border: 0;
-          border-radius: 9px;
+          border: 1px solid #00695c;
+          border-radius: 8px;
           padding: 0 15px;
-          background: #8bc63f;
-          color: #17322c;
-          font-weight: 800;
+          background: #00695c;
+          color: #ffffff;
+          font-weight: 700;
           cursor: pointer;
         }
 
@@ -1195,7 +1190,8 @@ export default function ReportsPage() {
           gap: 18px;
           margin-bottom: 18px;
           padding: 16px 18px;
-          border: 1px solid #dfe9e5;
+          border: 1px solid #e5e7eb;
+          border-left: 4px solid #00695c;
           border-radius: 12px;
           background: white;
           box-shadow: 0 4px 14px rgba(23, 50, 44, 0.04);
@@ -1238,20 +1234,23 @@ export default function ReportsPage() {
         .report-kpi {
           min-width: 0;
           padding: 17px;
-          border: 1px solid #dfe9e5;
-          border-radius: 13px;
+          border: 1px solid #e5e7eb;
+          border-left: 4px solid #00695c;
+          border-radius: 10px;
           background: white;
           box-shadow: 0 4px 14px rgba(23, 50, 44, 0.04);
         }
 
         .report-kpi-primary {
-          border-color: #b9d9c9;
-          background: #eaf5f2;
+          border-color: #e5e7eb;
+          border-left-color: #00695c;
+          background: #ffffff;
         }
 
         .report-kpi-conversion {
-          border-color: #d5e7b9;
-          background: #eef7df;
+          border-color: #e5e7eb;
+          border-left-color: #00695c;
+          background: #ffffff;
         }
 
         .kpi-label {
@@ -1298,8 +1297,9 @@ export default function ReportsPage() {
 
         .ciu-card {
           overflow: hidden;
-          border: 1px solid #dfe9e5;
-          border-radius: 14px;
+          border: 1px solid #e5e7eb;
+          border-left: 4px solid #00695c;
+          border-radius: 12px;
           background: white;
           box-shadow: 0 5px 16px rgba(23, 50, 44, 0.04);
         }
@@ -1307,6 +1307,7 @@ export default function ReportsPage() {
         .report-card-head {
           padding: 18px 20px;
           border-bottom: 1px solid #edf2f0;
+          background: #ffffff;
         }
 
         .report-card-head h2 {
@@ -1514,8 +1515,8 @@ export default function ReportsPage() {
 
         .report-table tfoot td {
           border-bottom: 0;
-          background: #eef7df;
-          color: #365c16;
+          background: #f0f7f4;
+          color: #005447;
         }
 
         .staff-cell {

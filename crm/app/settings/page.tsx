@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { ALL_CRM_MODULES, MODULE_LABELS, getRoleModules, type CrmModule } from "@/lib/permissions";
 
 type Preferences = {
   email: boolean;
@@ -16,6 +17,7 @@ type Profile = {
   phone: string | null;
   role: string | null;
   is_active: boolean | null;
+  module_permissions: string[] | null;
 };
 
 type EditProfile = {
@@ -24,12 +26,24 @@ type EditProfile = {
   phone: string;
   role: string;
   is_active: boolean;
+  module_permissions: string[] | null;
 };
+
+type CrmBrandingPreferences = {
+  organizationName?: string;
+  crmName?: string;
+  tagline?: string;
+  navigationOrientation?: "vertical" | "horizontal";
+  primaryColor?: string;
+  secondaryColor?: string;
+};
+
+type AllPreferences = Preferences & CrmBrandingPreferences;
 
 type CrmSettings = {
   logo_data_url: string | null;
   logo_name: string | null;
-  preferences: Partial<Preferences> | null;
+  preferences: Partial<AllPreferences> | null;
   updated_at?: string | null;
 };
 
@@ -38,6 +52,15 @@ const DEFAULT_PREFERENCES: Preferences = {
   followups: true,
   reports: true,
   marketing: true,
+};
+
+const DEFAULT_BRANDING: CrmBrandingPreferences = {
+  organizationName: "Clarke International University",
+  crmName: "CIU Business CRM",
+  tagline: "Lead · Innovate · Transform",
+  navigationOrientation: "vertical",
+  primaryColor: "#00695c",
+  secondaryColor: "#8bc63f",
 };
 
 const LOGO_STORAGE_KEY = "ciu_crm_logo";
@@ -118,6 +141,9 @@ export default function Settings() {
   const [preferences, setPreferences] =
     useState<Preferences>(DEFAULT_PREFERENCES);
 
+  const [branding, setBranding] =
+    useState<CrmBrandingPreferences>(DEFAULT_BRANDING);
+
   const [profiles, setProfiles] =
     useState<Profile[]>([]);
 
@@ -147,6 +173,16 @@ export default function Settings() {
 
   const [profileSearch, setProfileSearch] =
     useState("");
+
+  const [newStaff, setNewStaff] = useState({
+  full_name: "",
+  email: "",
+  phone: "",
+  role: "salesperson",
+  temporary_password: "",
+});
+  const [creatingStaff, setCreatingStaff] = useState(false);
+  const [deletingStaffId, setDeletingStaffId] = useState<string | null>(null);
 
   const [lastSavedAt, setLastSavedAt] =
     useState<string | null>(null);
@@ -231,7 +267,12 @@ export default function Settings() {
             ...DEFAULT_PREFERENCES,
             ...(settings.preferences || {}),
           };
+          const centralBranding: CrmBrandingPreferences = {
+            ...DEFAULT_BRANDING,
+            ...(settings.preferences || {}),
+          };
 
+          setBranding(centralBranding);
           setLogo(centralLogo);
           setLogoName(centralLogoName);
           setPreferences(
@@ -281,11 +322,14 @@ export default function Settings() {
             setLogoName(localLogoName);
 
             if (localPreferences) {
+              const parsedPreferences = JSON.parse(localPreferences);
               setPreferences({
                 ...DEFAULT_PREFERENCES,
-                ...JSON.parse(
-                  localPreferences,
-                ),
+                ...parsedPreferences,
+              });
+              setBranding({
+                ...DEFAULT_BRANDING,
+                ...parsedPreferences,
               });
             }
           } catch {}
@@ -335,7 +379,7 @@ export default function Settings() {
       } = await supabase
         .from("profiles")
         .select(
-          "id, full_name, phone, role, is_active",
+          "id, full_name, phone, role, is_active, module_permissions",
         )
         .order("full_name", {
           ascending: true,
@@ -511,7 +555,10 @@ export default function Settings() {
               logo || null,
             logo_name:
               logoName || null,
-            preferences,
+            preferences: {
+              ...preferences,
+              ...branding,
+            },
             updated_by: user.id,
             updated_at:
               new Date().toISOString(),
@@ -560,7 +607,12 @@ export default function Settings() {
           ...((verifiedSettings.preferences ||
             {}) as Partial<Preferences>),
         };
+      const verifiedBranding: CrmBrandingPreferences = {
+        ...DEFAULT_BRANDING,
+        ...((verifiedSettings.preferences || {}) as Partial<CrmBrandingPreferences>),
+      };
 
+      setBranding(verifiedBranding);
       setLogo(verifiedLogo);
       setLogoName(
         verifiedLogoName,
@@ -588,9 +640,10 @@ export default function Settings() {
 
         localStorage.setItem(
           PREFERENCES_KEY,
-          JSON.stringify(
-            verifiedPreferences,
-          ),
+          JSON.stringify({
+            ...verifiedPreferences,
+            ...verifiedBranding,
+          }),
         );
       } catch {}
 
@@ -602,6 +655,12 @@ export default function Settings() {
               logo: verifiedLogo,
               logoName:
                 verifiedLogoName,
+              crmName: verifiedBranding.crmName,
+              organizationName: verifiedBranding.organizationName,
+              tagline: verifiedBranding.tagline,
+              navigationOrientation: verifiedBranding.navigationOrientation,
+              primaryColor: verifiedBranding.primaryColor,
+              secondaryColor: verifiedBranding.secondaryColor,
             },
           },
         ),
@@ -649,6 +708,8 @@ export default function Settings() {
         "salesperson",
       is_active:
         profile.is_active !== false,
+      module_permissions:
+        profile.role === "super_admin" ? null : profile.module_permissions ?? null,
     });
   }
 
@@ -717,6 +778,8 @@ export default function Settings() {
             editProfile.role,
           is_active:
             editProfile.is_active,
+          module_permissions:
+            editProfile.role === "super_admin" ? null : editProfile.module_permissions,
         })
         .eq(
           "id",
@@ -747,6 +810,97 @@ export default function Settings() {
       );
     } finally {
       setEditSaving(false);
+    }
+  }
+
+  async function createStaff(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!isSuperAdmin || creatingStaff) return;
+
+    const full_name = newStaff.full_name.trim();
+    const emailAddress = newStaff.email.trim().toLowerCase();
+    if (!full_name || !emailAddress || !newStaff.role) {
+      setError("Enter the staff member’s name, email and role.");
+      return;
+    }
+
+    if (newStaff.temporary_password.length < 10) {
+      setError("The temporary password must be at least 10 characters.");
+      return;
+    }
+
+    try {
+      setCreatingStaff(true);
+      setError("");
+      setSuccessMessage("");
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error("Your session has expired. Please sign in again.");
+
+      const response = await fetch("/api/staff", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          full_name,
+          email: emailAddress,
+          phone: newStaff.phone.trim(),
+          role: newStaff.role,
+          temporary_password: newStaff.temporary_password,
+        }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || "Unable to create staff account.");
+
+      setNewStaff({
+        full_name: "",
+        email: "",
+        phone: "",
+        role: "salesperson",
+        temporary_password: "",
+      });
+      await loadProfiles();
+      setSuccessMessage(result.message || "Staff account created.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to create staff account.");
+    } finally {
+      setCreatingStaff(false);
+    }
+  }
+
+  async function deleteStaff(profile: Profile) {
+    if (!isSuperAdmin || deletingStaffId) return;
+    if (profile.id === currentUserId) {
+      setError("You cannot delete your own Super Admin account.");
+      return;
+    }
+    if (profile.role === "super_admin") {
+      setError("For safety, Super Admin accounts cannot be deleted from this screen.");
+      return;
+    }
+    const confirmed = window.confirm(
+      `Permanently delete ${profile.full_name || "this staff account"}? They will lose CRM access. Existing leads, customers and other CRM records will not be intentionally deleted. This cannot be undone.`
+    );
+    if (!confirmed) return;
+    try {
+      setDeletingStaffId(profile.id);
+      setError("");
+      setSuccessMessage("");
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error("Your session has expired. Please sign in again.");
+      const response = await fetch(`/api/staff/${encodeURIComponent(profile.id)}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || "Unable to delete this staff account.");
+      await loadProfiles();
+      setSuccessMessage(result.message || "Staff account deleted.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to delete this staff account.");
+    } finally {
+      setDeletingStaffId(null);
     }
   }
 
@@ -1024,24 +1178,16 @@ export default function Settings() {
               </p>
             </div>
 
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                padding:
-                  "8px 12px",
-                borderRadius: 999,
-                background:
-                  "#eaf5f2",
-                color: "#00695c",
-                fontSize: 11,
-                fontWeight: 800,
-                whiteSpace:
-                  "nowrap",
-              }}
-            >
-              Super Admin Access
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10, flexWrap: "wrap" }}>
+                <div style={{ padding: "8px 12px", borderRadius: 999, background: "#eaf5f2", color: "#00695c", fontSize: 11, fontWeight: 800, whiteSpace: "nowrap" }}>
+                  Super Admin Access
+                </div>
+                <button type="button" onClick={saveChanges} disabled={saving} className="crm-btn" style={{ minHeight: 40, minWidth: 140, padding: "0 18px", background: saving ? "#94a3b8" : "#00695c", color: "#fff", border: "1px solid #004d40", borderRadius: 9, fontWeight: 700, cursor: saving ? "not-allowed" : "pointer" }}>
+                  {saving ? "Saving..." : saved ? "Saved" : "Save Changes"}
+                </button>
+              </div>
+              {lastSavedAt && <span style={{ color: "#94a3b8", fontSize: 10 }}>Last saved: {new Date(lastSavedAt).toLocaleString()}</span>}
             </div>
           </div>
 
@@ -1080,109 +1226,6 @@ export default function Settings() {
               {error}
             </div>
           )}
-
-          <div
-            className="crm-card"
-            style={{
-              marginBottom: 18,
-              border:
-                "1px solid #cfe5de",
-            }}
-          >
-            <div
-              className="crm-card-body"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent:
-                  "space-between",
-                gap: 16,
-                flexWrap: "wrap",
-                padding:
-                  "15px 20px",
-                background:
-                  "#f7fbf9",
-              }}
-            >
-              <div>
-                <strong
-                  style={{
-                    display: "block",
-                    fontSize: 14,
-                    color: "#17322c",
-                  }}
-                >
-                  Settings changes
-                </strong>
-
-                <span
-                  style={{
-                    display: "block",
-                    fontSize: 11,
-                    color: "#64748b",
-                    marginTop: 4,
-                  }}
-                >
-                  Save branding and
-                  CRM preferences
-                  centrally.
-                </span>
-
-                {lastSavedAt && (
-                  <span
-                    style={{
-                      display: "block",
-                      fontSize: 10,
-                      color: "#94a3b8",
-                      marginTop: 3,
-                    }}
-                  >
-                    Last saved:{" "}
-                    {new Date(
-                      lastSavedAt,
-                    ).toLocaleString()}
-                  </span>
-                )}
-              </div>
-
-              <button
-                type="button"
-                onClick={saveChanges}
-                disabled={saving}
-                className="crm-btn"
-                style={{
-                  display:
-                    "inline-flex",
-                  alignItems:
-                    "center",
-                  justifyContent:
-                    "center",
-                  minHeight: 42,
-                  minWidth: 150,
-                  padding:
-                    "0 20px",
-                  background: saving
-                    ? "#94a3b8"
-                    : "#00695c",
-                  color: "#ffffff",
-                  border:
-                    "1px solid #004d40",
-                  borderRadius: 9,
-                  fontWeight: 700,
-                  cursor: saving
-                    ? "not-allowed"
-                    : "pointer",
-                  opacity: 1,
-                }}
-              >
-                {saving
-                  ? "Saving..."
-                  : saved
-                    ? "Saved"
-                    : "Save Changes"}
-              </button>
-            </div>
-          </div>
 
           <div
             style={{
@@ -1308,39 +1351,26 @@ export default function Settings() {
                     gap: 14,
                   }}
                 >
-                  <div className="crm-stat-box">
-                    <span>
-                      Organization
-                    </span>
-
-                    <strong>
-                      Clarke
-                      International
-                      University
-                    </strong>
-                  </div>
-
-                  <div className="crm-stat-box">
-                    <span>
-                      CRM
-                    </span>
-
-                    <strong>
-                      CIU Business
-                      CRM
-                    </strong>
-                  </div>
-
-                  <div className="crm-stat-box">
-                    <span>
-                      Currency
-                    </span>
-
-                    <strong>
-                      UGX — Ugandan
-                      Shilling
-                    </strong>
-                  </div>
+                  <label style={{ display: "grid", gap: 6, fontSize: 12, fontWeight: 700, color: "#17322c" }}>
+                    Organization name
+                    <input value={branding.organizationName || ""} onChange={(event) => { setBranding((current) => ({ ...current, organizationName: event.target.value })); setSaved(false); }} placeholder="Organization name" style={{ width: "100%", minHeight: 42, padding: "9px 12px", border: "1px solid #cbd5e1", borderRadius: 8, background: "#fff", color: "#17322c" }} />
+                  </label>
+                  <label style={{ display: "grid", gap: 6, fontSize: 12, fontWeight: 700, color: "#17322c" }}>
+                    CRM name
+                    <input value={branding.crmName || ""} onChange={(event) => { setBranding((current) => ({ ...current, crmName: event.target.value })); setSaved(false); }} placeholder="CRM name" style={{ width: "100%", minHeight: 42, padding: "9px 12px", border: "1px solid #cbd5e1", borderRadius: 8, background: "#fff", color: "#17322c" }} />
+                  </label>
+                  <label style={{ display: "grid", gap: 6, fontSize: 12, fontWeight: 700, color: "#17322c" }}>
+                    Tagline
+                    <input value={branding.tagline || ""} onChange={(event) => { setBranding((current) => ({ ...current, tagline: event.target.value })); setSaved(false); }} placeholder="CRM tagline" style={{ width: "100%", minHeight: 42, padding: "9px 12px", border: "1px solid #cbd5e1", borderRadius: 8, background: "#fff", color: "#17322c" }} />
+                  </label>
+                  <div className="crm-stat-box"><span>Currency</span><strong>UGX — Ugandan Shilling</strong></div>
+                  <label style={{ display: "grid", gap: 6, fontSize: 12, fontWeight: 700, color: "#17322c" }}>
+                    Navigation orientation
+                    <select value={branding.navigationOrientation || "vertical"} onChange={(event) => { setBranding((current) => ({ ...current, navigationOrientation: event.target.value as "vertical" | "horizontal" })); setSaved(false); }} style={{ width: "100%", minHeight: 42, padding: "9px 12px", border: "1px solid #cbd5e1", borderRadius: 8, background: "#fff", color: "#17322c" }}>
+                      <option value="vertical">Vertical sidebar</option>
+                      <option value="horizontal">Horizontal navigation</option>
+                    </select>
+                  </label>
                 </div>
               </div>
 
@@ -1526,6 +1556,18 @@ export default function Settings() {
                   </div>
                 </div>
               </div>
+              <div className="crm-card-body" style={{ borderTop: "1px solid #e2e8f0" }}>
+                <h3 style={{ margin: "0 0 12px", color: "#17322c", fontSize: 14 }}>Brand colors</h3>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 16 }}>
+                  <label style={{ display: "grid", gap: 8, fontSize: 12, fontWeight: 700, color: "#17322c" }}>Primary color
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}><input type="color" value={branding.primaryColor || "#00695c"} onChange={(event) => { setBranding((current) => ({ ...current, primaryColor: event.target.value })); setSaved(false); }} style={{ width: 54, height: 40, border: 0, background: "transparent" }} /><input value={branding.primaryColor || "#00695c"} onChange={(event) => { setBranding((current) => ({ ...current, primaryColor: event.target.value })); setSaved(false); }} style={{ flex: 1, minHeight: 40, padding: "8px 10px", border: "1px solid #cbd5e1", borderRadius: 8 }} /></div>
+                  </label>
+                  <label style={{ display: "grid", gap: 8, fontSize: 12, fontWeight: 700, color: "#17322c" }}>Secondary color
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}><input type="color" value={branding.secondaryColor || "#8bc63f"} onChange={(event) => { setBranding((current) => ({ ...current, secondaryColor: event.target.value })); setSaved(false); }} style={{ width: 54, height: 40, border: 0, background: "transparent" }} /><input value={branding.secondaryColor || "#8bc63f"} onChange={(event) => { setBranding((current) => ({ ...current, secondaryColor: event.target.value })); setSaved(false); }} style={{ flex: 1, minHeight: 40, padding: "8px 10px", border: "1px solid #cbd5e1", borderRadius: 8 }} /></div>
+                  </label>
+                </div>
+                <p style={{ marginTop: 12, color: "#64748b", fontSize: 11 }}>These colors are saved centrally. The shared CRM layout must read them before they affect every module.</p>
+              </div>
             </div>
           )}
 
@@ -1579,6 +1621,20 @@ export default function Settings() {
               </div>
 
               <div className="crm-card-body">
+                <form onSubmit={createStaff} style={{ display: "grid", gap: 12, padding: 16, marginBottom: 22, border: "1px solid #cfe5de", borderRadius: 12, background: "#f8fbf9" }}>
+                  <div>
+                    <h3 style={{ margin: "0 0 4px", color: "#17322c", fontSize: 15 }}>Add Staff Member</h3>
+                    <p style={{ margin: 0, color: "#64748b", fontSize: 12 }}>Creates a staff account with a temporary password and sends an email verification code. Share the temporary password securely; the staff member must verify their email and change the password before using the CRM.</p>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 12 }}>
+                    <label style={{ display: "grid", gap: 6, fontSize: 12, fontWeight: 700, color: "#17322c" }}>Full name<input required value={newStaff.full_name} onChange={(event) => setNewStaff((current) => ({ ...current, full_name: event.target.value }))} placeholder="Staff full name" style={{ minHeight: 38, padding: "8px 10px", border: "1px solid #cbd5e1", borderRadius: 7 }} /></label>
+                    <label style={{ display: "grid", gap: 6, fontSize: 12, fontWeight: 700, color: "#17322c" }}>Email address<input required type="email" value={newStaff.email} onChange={(event) => setNewStaff((current) => ({ ...current, email: event.target.value }))} placeholder="staff@ciu.ac.ug" style={{ minHeight: 38, padding: "8px 10px", border: "1px solid #cbd5e1", borderRadius: 7 }} /></label>
+                    <label style={{ display: "grid", gap: 6, fontSize: 12, fontWeight: 700, color: "#17322c" }}>Phone (optional)<input value={newStaff.phone} onChange={(event) => setNewStaff((current) => ({ ...current, phone: event.target.value }))} placeholder="Phone number" style={{ minHeight: 38, padding: "8px 10px", border: "1px solid #cbd5e1", borderRadius: 7 }} /></label>
+                    <label style={{ display: "grid", gap: 6, fontSize: 12, fontWeight: 700, color: "#17322c" }}>Temporary password<input required type="password" autoComplete="new-password" minLength={10} value={newStaff.temporary_password} onChange={(event) => setNewStaff((current) => ({ ...current, temporary_password: event.target.value }))} placeholder="At least 10 characters" style={{ minHeight: 38, padding: "8px 10px", border: "1px solid #cbd5e1", borderRadius: 7 }} /><span style={{ color: "#64748b", fontSize: 11, fontWeight: 400 }}>Share this password securely with the staff member. Do not email it.</span></label>
+                    <label style={{ display: "grid", gap: 6, fontSize: 12, fontWeight: 700, color: "#17322c" }}>CRM role<select value={newStaff.role} onChange={(event) => setNewStaff((current) => ({ ...current, role: event.target.value }))} style={{ minHeight: 38, padding: "8px 10px", border: "1px solid #cbd5e1", borderRadius: 7, background: "#fff" }}>{ROLES.filter((item) => item.value !== "super_admin").map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
+                  </div>
+                  <div><button type="submit" disabled={creatingStaff} style={{ border: 0, borderRadius: 8, padding: "10px 15px", background: creatingStaff ? "#94a3b8" : "#00695c", color: "#fff", fontWeight: 800, cursor: creatingStaff ? "wait" : "pointer" }}>{creatingStaff ? "Creating staff account..." : "Create Staff Account"}</button></div>
+                </form>
                 <div
                   style={{
                     display:
@@ -1922,6 +1978,14 @@ export default function Settings() {
                                     }
                                   >
                                     Edit
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={profile.id === currentUserId || profile.role === "super_admin" || deletingStaffId === profile.id}
+                                    onClick={() => void deleteStaff(profile)}
+                                    style={{ marginLeft: 6, border: "1px solid #fecaca", background: "#fff", borderRadius: 7, padding: "6px 10px", cursor: profile.id === currentUserId || profile.role === "super_admin" || deletingStaffId === profile.id ? "not-allowed" : "pointer", fontWeight: 700, color: "#b91c1c", opacity: profile.id === currentUserId || profile.role === "super_admin" ? 0.45 : 1 }}
+                                  >
+                                    {deletingStaffId === profile.id ? "Deleting..." : "Delete"}
                                   </button>
                                 </td>
                               </tr>
@@ -2453,6 +2517,45 @@ export default function Settings() {
                 )}
               </div>
 
+              <div style={{ padding: 14, borderRadius: 9, border: "1px solid #dfe9e5", background: "#fff", display: "grid", gap: 12 }}>
+                <div>
+                  <strong style={{ display: "block", color: "#17322c", fontSize: 13 }}>Module Access</strong>
+                  <span style={{ display: "block", marginTop: 4, color: "#64748b", fontSize: 11 }}>Choose which CRM sections this user can access.</span>
+                </div>
+                {editProfile.role === "super_admin" ? (
+                  <div style={{ padding: 10, borderRadius: 8, background: "#eaf5f2", color: "#00695c", fontSize: 12, fontWeight: 700 }}>
+                    Super Admin automatically has access to every module.
+                  </div>
+                ) : (
+                  <>
+                    <label style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 12, fontWeight: 700, color: "#17322c" }}>
+                      <input type="checkbox" checked={editProfile.module_permissions === null}
+                        onChange={(event) => setEditProfile({ ...editProfile, module_permissions: event.target.checked ? null : getRoleModules(editProfile.role) })} />
+                      Use role defaults
+                    </label>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(155px, 1fr))", gap: 10 }}>
+                      {ALL_CRM_MODULES.filter((module) => module !== "staff").map((module: CrmModule) => {
+                        const selected = editProfile.module_permissions === null
+                          ? getRoleModules(editProfile.role).includes(module)
+                          : editProfile.module_permissions.includes(module);
+                        return (
+                          <label key={module} style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 10px", border: "1px solid #dfe9e5", borderRadius: 8, background: selected ? "#f0f8f5" : "#fff", color: "#17322c", fontSize: 12, cursor: "pointer" }}>
+                            <input type="checkbox" checked={selected}
+                              onChange={(event) => {
+                                const current = editProfile.module_permissions === null ? getRoleModules(editProfile.role) : editProfile.module_permissions;
+                                const next = event.target.checked ? [...current, module] : current.filter((item) => item !== module);
+                                setEditProfile({ ...editProfile, module_permissions: [...new Set(next)] });
+                              }} />
+                            {MODULE_LABELS[module]}
+                          </label>
+                        );
+                      })}
+                    </div>
+                    <span style={{ color: "#64748b", fontSize: 10 }}>Untick “Use role defaults” to customize access for this user.</span>
+                  </>
+                )}
+              </div>
+
               <div
                 style={{
                   display:
@@ -2631,6 +2734,84 @@ export default function Settings() {
           </div>
         </div>
       )}
+      <style jsx global>{`
+        .ciu-page {
+          color: #17322c;
+        }
+
+        .ciu-page .ciu-hero {
+          background: #ffffff !important;
+          color: #17322c !important;
+          border: 1px solid #dfe9e5 !important;
+          border-left: 5px solid #00695c !important;
+          border-radius: 12px !important;
+          box-shadow: 0 4px 14px rgba(23, 50, 44, 0.045) !important;
+        }
+
+        .ciu-page .ciu-hero h1,
+        .ciu-page .ciu-hero p {
+          color: #17322c !important;
+        }
+
+        .ciu-page .crm-card {
+          background: #ffffff !important;
+          border: 1px solid #dfe9e5 !important;
+          border-left: 4px solid #00695c !important;
+          border-radius: 12px !important;
+          box-shadow: 0 4px 14px rgba(23, 50, 44, 0.045);
+        }
+
+        .ciu-page .crm-card-header {
+          background: #ffffff;
+          border-bottom: 1px solid #edf2f0;
+        }
+
+        .ciu-page .crm-stat-box {
+          background: #ffffff;
+          border: 1px solid #e2ebe7;
+          border-left: 3px solid #78a99b;
+          border-radius: 9px;
+        }
+
+        .ciu-page input:not([type="checkbox"]):not([type="file"]),
+        .ciu-page select {
+          color: #17322c;
+          background-color: #ffffff;
+          border-color: #d5e2dc !important;
+          border-radius: 8px;
+        }
+
+        .ciu-page input:not([type="checkbox"]):not([type="file"]):focus,
+        .ciu-page select:focus {
+          outline: 2px solid rgba(0, 105, 92, 0.14);
+          border-color: #00695c !important;
+        }
+
+        .ciu-page .ciu-report-table thead th {
+          background: #f5f8f7;
+          color: #35574f;
+        }
+
+        .ciu-page .ciu-report-table tbody tr:hover {
+          background: #f8fbf9;
+        }
+
+        @media (max-width: 900px) {
+          .ciu-page-inner > div[style*="repeat(5"] {
+            grid-template-columns: repeat(2, minmax(145px, 1fr)) !important;
+          }
+        }
+
+        @media (max-width: 560px) {
+          .ciu-page .ciu-hero {
+            padding: 18px !important;
+          }
+
+          .ciu-page .crm-card-body {
+            padding: 16px !important;
+          }
+        }
+      `}</style>
     </>
   );
 }
