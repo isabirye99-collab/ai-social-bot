@@ -537,7 +537,7 @@ export default function LeadsPage() {
           status:
             newLead.status,
 
-         follow_up_status:
+          follow_up_status:
             "Pending",
 
           next_follow_up_at:
@@ -932,7 +932,6 @@ export default function LeadsPage() {
             </p>
           </div>
 
-          {/* ADD NEW LEAD ON LEFT/HEADER AREA */}
           <button
             type="button"
             onClick={() =>
@@ -973,6 +972,7 @@ export default function LeadsPage() {
 
         {/* KPI SECTION */}
         <div
+          className="ciu-kpi-grid"
           style={{
             display: "grid",
             gridTemplateColumns:
@@ -1015,26 +1015,6 @@ export default function LeadsPage() {
           />
         </div>
 
-        {/* RESPONSIVE KPI STYLE */}
-        <style jsx>{`
-          @media (max-width: 1000px) {
-            .ciu-page-inner
-              > div:nth-child(3) {
-              grid-template-columns: repeat(
-                2,
-                minmax(0, 1fr)
-              ) !important;
-            }
-          }
-
-          @media (max-width: 600px) {
-            .ciu-page-inner
-              > div:nth-child(3) {
-              grid-template-columns: 1fr !important;
-            }
-          }
-        `}</style>
-
         {/* WORKFLOW STRIP */}
         <div
           className="ciu-strip"
@@ -1047,7 +1027,7 @@ export default function LeadsPage() {
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
-              gap: 20,
+              gap: 15,
               flexWrap: "wrap",
             }}
           >
@@ -1056,24 +1036,75 @@ export default function LeadsPage() {
                 Lead workflow
               </strong>
 
-              <span
+              <div
                 style={{
-                  marginLeft: 12,
+                  marginTop: 4,
                 }}
               >
-                Prospect → Contacted →
-                Interested → Pipeline
-              </span>
+                <span>
+                  Prospect → Contact →
+                  Interested → Pipeline
+                </span>
+              </div>
             </div>
 
             <div
               style={{
-                fontSize: 12,
-                fontWeight: 700,
-                color: "#00695c",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                flexWrap: "wrap",
               }}
             >
-              Follow-ups are managed in Tasks
+              {[
+                "Pending",
+                "Called",
+                "Interested",
+                "Pipeline",
+              ].map(
+                (step, index) => (
+                  <div
+                    key={step}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                    }}
+                  >
+                    <span
+                      style={{
+                        padding:
+                          "6px 10px",
+                        borderRadius:
+                          999,
+                        background:
+                          "#ffffff",
+                        border:
+                          "1px solid #d7e6df",
+                        color:
+                          "#36564e",
+                        fontSize: 11,
+                        fontWeight: 750,
+                      }}
+                    >
+                      {step}
+                    </span>
+
+                    {index <
+                      3 && (
+                      <span
+                        style={{
+                          color:
+                            "#9aaca5",
+                          fontSize: 12,
+                        }}
+                      >
+                        →
+                      </span>
+                    )}
+                  </div>
+                )
+              )}
             </div>
           </div>
         </div>
@@ -1083,109 +1114,6 @@ export default function LeadsPage() {
           className="ciu-card"
           style={{
             marginTop: 18,
-            padding: 16,
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              gap: 12,
-              flexWrap: "wrap",
-            }}
-          >
-            <input
-              value={search}
-              onChange={(event) =>
-                setSearch(
-                  event.target.value
-                )
-              }
-              placeholder="Search name, phone, email, CIU number..."
-              style={{
-                ...inputStyle,
-                flex: "1 1 320px",
-                minWidth: 240,
-              }}
-            />
-
-            <select
-              value={statusFilter}
-              onChange={(event) =>
-                setStatusFilter(
-                  event.target.value
-                )
-              }
-              style={{
-                ...inputStyle,
-                width: "auto",
-                minWidth: 180,
-              }}
-            >
-              <option value="All">
-                All Statuses
-              </option>
-
-              {displayStatuses.map(
-                (status) => (
-                  <option
-                    key={status}
-                    value={status}
-                  >
-                    {status}
-                  </option>
-                )
-              )}
-            </select>
-
-            <select
-              value={programFilter}
-              onChange={(event) =>
-                setProgramFilter(
-                  event.target.value
-                )
-              }
-              style={{
-                ...inputStyle,
-                width: "auto",
-                minWidth: 190,
-              }}
-            >
-              <option value="All">
-                All Programmes
-              </option>
-
-              {programs.map(
-                (program) => (
-                  <option
-                    key={program}
-                    value={program}
-                  >
-                    {program}
-                  </option>
-                )
-              )}
-            </select>
-
-            <button
-              type="button"
-              onClick={loadLeads}
-              className="ciu-btn-light"
-              style={{
-                visibility: "visible",
-                opacity: 1,
-              }}
-            >
-              Refresh
-            </button>
-          </div>
-        </div>
-
-        {/* LEADS TABLE */}
-        <div
-          className="ciu-card"
-          style={{
-            marginTop: 18,
-            overflow: "hidden",
           }}
         >
           <div className="ciu-card-head">
@@ -1195,12 +1123,139 @@ export default function LeadsPage() {
               </strong>
 
               <span>
+                Search, filter and manage
+                your prospect records.
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={loadLeads}
+              className="ciu-btn-light"
+              disabled={loading}
+            >
+              {loading
+                ? "Refreshing..."
+                : "Refresh"}
+            </button>
+          </div>
+
+          <div
+            style={{
+              padding: 18,
+              display: "grid",
+              gridTemplateColumns:
+                "minmax(240px, 2fr) minmax(180px, 1fr) minmax(180px, 1fr)",
+              gap: 12,
+            }}
+            className="ciu-lead-filters"
+          >
+            <div>
+              <label
+                style={labelStyle}
+              >
+                Search Leads
+              </label>
+
+              <input
+                type="text"
+                value={search}
+                onChange={(event) =>
+                  setSearch(
+                    event.target.value
+                  )
+                }
+                placeholder="Search name, CIU number, phone, email..."
+                style={inputStyle}
+              />
+            </div>
+
+            <div>
+              <label
+                style={labelStyle}
+              >
+                Status
+              </label>
+
+              <select
+                value={statusFilter}
+                onChange={(event) =>
+                  setStatusFilter(
+                    event.target.value
+                  )
+                }
+                style={inputStyle}
+              >
+                <option value="All">
+                  All statuses
+                </option>
+
+                {displayStatuses.map(
+                  (status) => (
+                    <option
+                      key={status}
+                      value={status}
+                    >
+                      {status}
+                    </option>
+                  )
+                )}
+              </select>
+            </div>
+
+            <div>
+              <label
+                style={labelStyle}
+              >
+                Programme
+              </label>
+
+              <select
+                value={programFilter}
+                onChange={(event) =>
+                  setProgramFilter(
+                    event.target.value
+                  )
+                }
+                style={inputStyle}
+              >
+                <option value="All">
+                  All programmes
+                </option>
+
+                {programs.map(
+                  (program) => (
+                    <option
+                      key={program}
+                      value={program}
+                    >
+                      {program}
+                    </option>
+                  )
+                )}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* LEADS TABLE */}
+        <div
+          className="ciu-card"
+          style={{
+            marginTop: 18,
+          }}
+        >
+          <div className="ciu-card-head">
+            <div>
+              <strong>
+                Leads
+              </strong>
+
+              <span>
+                Showing{" "}
                 {filteredLeads.length}{" "}
-                prospect
-                {filteredLeads.length ===
-                1
-                  ? ""
-                  : "s"}
+                of {leads.length}{" "}
+                records
               </span>
             </div>
           </div>
@@ -1208,7 +1263,7 @@ export default function LeadsPage() {
           {loading ? (
             <div
               style={{
-                padding: 50,
+                padding: 60,
                 textAlign: "center",
                 color: "#6b7f78",
               }}
@@ -1219,39 +1274,55 @@ export default function LeadsPage() {
             0 ? (
             <div
               style={{
-                padding: 50,
+                padding: 60,
                 textAlign: "center",
                 color: "#6b7f78",
               }}
             >
-              <strong>
+              <div
+                style={{
+                  fontSize: 15,
+                  fontWeight: 800,
+                  color: "#36564e",
+                  marginBottom: 6,
+                }}
+              >
                 No leads found
-              </strong>
+              </div>
 
               <div
                 style={{
-                  marginTop: 6,
                   fontSize: 13,
                 }}
               >
-                Try changing your
-                search or filters,
-                or add a new lead.
+                Try changing your search
+                or filters.
               </div>
             </div>
           ) : (
             <div
+              className="ciu-table-scroll"
               style={{
+                maxHeight:
+                  "calc(100vh - 330px)",
+                minHeight: 320,
+                overflowY: "auto",
                 overflowX: "auto",
               }}
             >
               <table
                 className="ciu-report-table"
                 style={{
-                  minWidth: 1200,
+                  minWidth: 1250,
                 }}
               >
-                <thead>
+                <thead
+                  style={{
+                    position: "sticky",
+                    top: 0,
+                    zIndex: 5,
+                  }}
+                >
                   <tr>
                     <th>
                       CIU NUMBER
@@ -1270,7 +1341,7 @@ export default function LeadsPage() {
                     </th>
 
                     <th>
-                      PROGRAM
+                      PROGRAMME
                     </th>
 
                     <th>
@@ -1295,16 +1366,6 @@ export default function LeadsPage() {
                           lead.status
                         );
 
-                      const isInterested =
-                        statusIsQualified(
-                          lead.status
-                        );
-
-                      const isClosed =
-                        statusIsClosed(
-                          lead.status
-                        );
-
                       return (
                         <tr
                           key={
@@ -1316,13 +1377,18 @@ export default function LeadsPage() {
                               "—"}
                           </td>
 
-                          <td
-                            style={{
-                              fontWeight: 700,
-                            }}
-                          >
-                            {lead.name ||
-                              "—"}
+                          <td>
+                            <div
+                              style={{
+                                fontWeight:
+                                  750,
+                                color:
+                                  "#17322c",
+                              }}
+                            >
+                              {lead.name ||
+                                "Unnamed Lead"}
+                            </div>
                           </td>
 
                           <td>
@@ -1354,14 +1420,15 @@ export default function LeadsPage() {
                             )}
                           </td>
 
+                          {/* ACTIONS — VIEW ONLY */}
                           <td>
                             <div
                               style={{
                                 display:
                                   "flex",
-                                gap: 7,
-                                flexWrap:
-                                  "wrap",
+                                alignItems:
+                                  "center",
+                                gap: 8,
                               }}
                             >
                               <button
@@ -1374,63 +1441,14 @@ export default function LeadsPage() {
                                 className="ciu-btn-light"
                                 style={{
                                   padding:
-                                    "7px 10px",
-                                  fontSize:
-                                    12,
+                                    "8px 14px",
+                                  fontSize: 12,
+                                  fontWeight:
+                                    800,
                                 }}
                               >
                                 View
                               </button>
-
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  openHistory(
-                                    lead
-                                  )
-                                }
-                                className="ciu-btn-light"
-                                style={{
-                                  padding:
-                                    "7px 10px",
-                                  fontSize:
-                                    12,
-                                }}
-                              >
-                                History
-                              </button>
-
-                              {isInterested &&
-                                !isClosed && (
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      qualifyLead(
-                                        lead
-                                      )
-                                    }
-                                    disabled={
-                                      qualifyingLeadId ===
-                                      lead.id
-                                    }
-                                    className="ciu-btn"
-                                    style={{
-                                      padding:
-                                        "7px 11px",
-                                      fontSize:
-                                        12,
-                                      visibility:
-                                        "visible",
-                                      opacity:
-                                        1,
-                                    }}
-                                  >
-                                    {qualifyingLeadId ===
-                                    lead.id
-                                      ? "Moving..."
-                                      : "Move to Pipeline"}
-                                  </button>
-                                )}
                             </div>
                           </td>
                         </tr>
@@ -1457,6 +1475,8 @@ export default function LeadsPage() {
                 style={{
                   width: "100%",
                   maxWidth: 620,
+                  maxHeight: "90vh",
+                  overflowY: "auto",
                   background: "#ffffff",
                   borderRadius: 16,
                   padding: 24,
@@ -1474,6 +1494,101 @@ export default function LeadsPage() {
                   }
                 />
 
+                {/* LEAD ACTIONS */}
+                <div
+                  style={{
+                    marginTop: 24,
+                    paddingTop: 20,
+                    borderTop:
+                      "1px solid #e5eeea",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 850,
+                      color: "#6b7f78",
+                      textTransform:
+                        "uppercase",
+                      letterSpacing:
+                        "0.05em",
+                      marginBottom: 10,
+                    }}
+                  >
+                    Lead Actions
+                  </div>
+
+                  <div
+                    style={{
+                      display:
+                        "flex",
+                      gap: 10,
+                      flexWrap:
+                        "wrap",
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowViewModal(
+                          false
+                        );
+
+                        openHistory(
+                          selectedLead
+                        );
+                      }}
+                      className="ciu-btn-light"
+                      style={{
+                        minHeight: 42,
+                        padding:
+                          "10px 16px",
+                      }}
+                    >
+                      View History
+                    </button>
+
+                    {statusIsQualified(
+                      selectedLead.status
+                    ) &&
+                      !statusIsClosed(
+                        selectedLead.status
+                      ) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowViewModal(
+                              false
+                            );
+
+                            qualifyLead(
+                              selectedLead
+                            );
+                          }}
+                          disabled={
+                            qualifyingLeadId ===
+                            selectedLead.id
+                          }
+                          className="ciu-btn"
+                          style={{
+                            minHeight: 42,
+                            padding:
+                              "10px 16px",
+                            visibility:
+                              "visible",
+                            opacity: 1,
+                          }}
+                        >
+                          {qualifyingLeadId ===
+                          selectedLead.id
+                            ? "Moving..."
+                            : "Move to Pipeline"}
+                        </button>
+                      )}
+                  </div>
+                </div>
+
+                {/* LEAD DETAILS */}
                 <div
                   style={{
                     display: "grid",
@@ -1482,6 +1597,7 @@ export default function LeadsPage() {
                     gap: 14,
                     marginTop: 22,
                   }}
+                  className="ciu-detail-grid"
                 >
                   <DetailItem
                     label="CIU Number"
@@ -1603,7 +1719,8 @@ export default function LeadsPage() {
                   <div
                     style={{
                       padding: 45,
-                      textAlign: "center",
+                      textAlign:
+                        "center",
                       color:
                         "#6b7f78",
                     }}
@@ -1635,7 +1752,8 @@ export default function LeadsPage() {
                 ) : (
                   <div
                     style={{
-                      display: "grid",
+                      display:
+                        "grid",
                       gap: 12,
                       marginTop: 20,
                     }}
@@ -1667,7 +1785,12 @@ export default function LeadsPage() {
                                 8,
                             }}
                           >
-                            <strong>
+                            <strong
+                              style={{
+                                color:
+                                  "#17322c",
+                              }}
+                            >
                               {
                                 activity.subject
                               }
@@ -1764,6 +1887,7 @@ export default function LeadsPage() {
                     gap: 16,
                     marginTop: 22,
                   }}
+                  className="ciu-form-grid"
                 >
                   <FormField
                     label="CIU Number"
@@ -1908,7 +2032,8 @@ export default function LeadsPage() {
 
                 <div
                   style={{
-                    display: "flex",
+                    display:
+                      "flex",
                     justifyContent:
                       "flex-end",
                     gap: 10,
@@ -1951,6 +2076,42 @@ export default function LeadsPage() {
             </div>
           </ModalOverlay>
         )}
+
+        {/* RESPONSIVE STYLES */}
+        <style jsx>{`
+          @media (max-width: 1000px) {
+            .ciu-kpi-grid {
+              grid-template-columns: repeat(
+                2,
+                minmax(0, 1fr)
+              ) !important;
+            }
+
+            .ciu-lead-filters {
+              grid-template-columns: 1fr 1fr !important;
+            }
+          }
+
+          @media (max-width: 700px) {
+            .ciu-lead-filters {
+              grid-template-columns: 1fr !important;
+            }
+
+            .ciu-detail-grid {
+              grid-template-columns: 1fr !important;
+            }
+
+            .ciu-form-grid {
+              grid-template-columns: 1fr !important;
+            }
+          }
+
+          @media (max-width: 600px) {
+            .ciu-kpi-grid {
+              grid-template-columns: 1fr !important;
+            }
+          }
+        `}</style>
       </div>
     </div>
   );
@@ -2010,7 +2171,8 @@ function KpiCard({
         position: "relative",
         minWidth: 0,
         minHeight: 132,
-        padding: "20px 20px 18px",
+        padding:
+          "20px 20px 18px",
         border:
           `1px solid ${selected.border}`,
         borderRadius: 14,
@@ -2097,7 +2259,8 @@ function StatusBadge({
   return (
     <span
       style={{
-        display: "inline-block",
+        display:
+          "inline-block",
         padding: "5px 9px",
         borderRadius: 999,
         background: positive
@@ -2112,7 +2275,8 @@ function StatusBadge({
           : "#53665f",
         fontSize: 12,
         fontWeight: 700,
-        whiteSpace: "nowrap",
+        whiteSpace:
+          "nowrap",
       }}
     >
       {status}
@@ -2150,6 +2314,7 @@ function ModalHeader({
             margin: 0,
             fontSize: 22,
             fontWeight: 800,
+            color: "#17322c",
           }}
         >
           {title}
@@ -2335,7 +2500,8 @@ const labelStyle: React.CSSProperties =
 const inputStyle: React.CSSProperties =
   {
     width: "100%",
-    boxSizing: "border-box",
+    boxSizing:
+      "border-box",
     padding:
       "11px 12px",
     border:

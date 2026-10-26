@@ -1,9 +1,10 @@
-﻿import { createServerClient } from "@supabase/ssr";
+import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import {
   hasModuleAccess,
   type CrmModule,
-} from "./lib/permissions";
+  type CrmRole,
+} from "@/lib/permissions";
 
 function getRequiredModule(pathname: string): CrmModule | null {
   const routes: [string, CrmModule][] = [
@@ -15,39 +16,58 @@ function getRequiredModule(pathname: string): CrmModule | null {
     ["/marketing", "marketing"],
     ["/reports", "reports"],
     ["/staff", "staff"],
-    ["/advanced", "advanced"],
     ["/settings", "settings"],
   ];
 
   return (
     routes.find(
-      ([route]) =>
-        pathname === route || pathname.startsWith(`${route}/`),
+      ([prefix]) =>
+        pathname === prefix || pathname.startsWith(`${prefix}/`),
     )?.[1] ?? null
   );
 }
 
-function redirectTo(request: NextRequest, pathname: string, error?: string) {
+function redirectTo(
+  request: NextRequest,
+  pathname: string,
+  error?: string,
+) {
   const url = request.nextUrl.clone();
   url.pathname = pathname;
   url.search = "";
 
-  if (error) url.searchParams.set("error", error);
+  if (error) {
+    url.searchParams.set("error", error);
+  }
 
   return NextResponse.redirect(url);
 }
 
 export async function updateSession(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+
+  const isLoginPage = pathname === "/login";
+  const isVerifyCodePage = pathname === "/verify-code";
+  const isSetPasswordPage = pathname === "/set-password";
+  const isAuthCallback =
+    pathname === "/auth/callback" ||
+    pathname === "/auth/confirm";
+  const isPasswordChangeApi =
+    pathname === "/api/auth/complete-password-change";
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  const supabaseKey =
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
   if (!supabaseUrl || !supabaseKey) {
     console.error("Supabase public environment configuration is missing.");
-    return new NextResponse("Authentication service is not configured.", {
-      status: 500,
-    });
+
+    return new NextResponse(
+      "Authentication service is not configured.",
+      { status: 500 },
+    );
   }
 
   const supabase = createServerClient(supabaseUrl, supabaseKey, {
@@ -73,18 +93,10 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
-  const pathname = request.nextUrl.pathname;
-  const isLoginPage = pathname === "/login";
-  const isVerifyCodePage = pathname === "/verify-code";
-  const isSetPasswordPage = pathname === "/set-password";
-  const isAuthCallback =
-    pathname === "/auth/callback" ||
-    pathname === "/auth/confirm";
-  const isPasswordChangeApi =
-    pathname === "/api/auth/complete-password-change";
-
-  // Authentication callbacks must be able to finish the sign-in flow.
-  if (isAuthCallback) return supabaseResponse;
+  // Let authentication handlers complete their own callback flow.
+  if (isAuthCallback) {
+    return supabaseResponse;
+  }
 
   const {
     data: claimsData,
@@ -92,19 +104,21 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getClaims();
 
   const user = claimsData?.claims;
-  const userId = typeof user?.sub === "string" ? user.sub : null;
+  const userId =
+    typeof user?.sub === "string" ? user.sub : null;
 
   if (claimsError && userId) {
     return redirectTo(request, "/login", "session_invalid");
   }
 
-  // Unauthenticated visitors may access the login and verification pages.
   if (!userId) {
-    if (isLoginPage || isVerifyCodePage) return supabaseResponse;
+    if (isLoginPage || isVerifyCodePage) {
+      return supabaseResponse;
+    }
+
     return redirectTo(request, "/login");
   }
 
-  // Read the account's current access settings from its profile.
   const {
     data: profile,
     error: profileError,
@@ -114,11 +128,15 @@ export async function updateSession(request: NextRequest) {
     .eq("id", userId)
     .maybeSingle();
 
-  if (profileError || !profile || !profile.role || profile.is_active !== true) {
+  if (
+    profileError ||
+    !profile ||
+    !profile.role ||
+    profile.is_active !== true
+  ) {
     return redirectTo(request, "/login", "account_unavailable");
   }
 
-  // A required password change takes priority over normal CRM navigation.
   if (profile.must_change_password === true) {
     if (isSetPasswordPage || isPasswordChangeApi) {
       return supabaseResponse;
@@ -127,7 +145,6 @@ export async function updateSession(request: NextRequest) {
     return redirectTo(request, "/set-password");
   }
 
-  // Users who do not need a password change must not remain on that page.
   if (isSetPasswordPage) {
     return redirectTo(request, "/dashboard");
   }
@@ -136,9 +153,9 @@ export async function updateSession(request: NextRequest) {
     return redirectTo(request, "/dashboard");
   }
 
-  // The password-change endpoint is exempt from module checks, not sign-in
-  // or account-status checks.
-  if (isPasswordChangeApi) return supabaseResponse;
+  if (isPasswordChangeApi) {
+    return supabaseResponse;
+  }
 
   const requiredModule = getRequiredModule(pathname);
 
@@ -151,24 +168,21 @@ export async function updateSession(request: NextRequest) {
 
     if (
       !hasModuleAccess(
-        profile.role,
+        profile.role as CrmRole,
         requiredModule,
         permissions,
       )
     ) {
-      return redirectTo(request, "/dashboard", "module_access_denied");
+      return redirectTo(
+        request,
+        "/dashboard",
+        "module_access_denied",
+      );
     }
   }
 
   return supabaseResponse;
 }
-
 export async function proxy(request: NextRequest) {
   return updateSession(request);
 }
-
-export const config = {
-  matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
-  ],
-};
