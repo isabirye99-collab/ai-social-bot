@@ -1,4 +1,5 @@
-﻿
+@import "tailwindcss";
+
 :root {
   --brand: #0b5d3b;
   --brand-dark: #073d29;
@@ -908,3 +909,326 @@ a {
 .ciu-staff-metrics strong{display:block;color:var(--ciu-green-deep);font-size:16px}
 .ciu-staff-metrics span{display:block;color:var(--ciu-muted);font-size:8px;margin-top:3px;white-space:nowrap}
 @media (max-width:760px){.ciu-staff-metrics{grid-template-columns:repeat(4,minmax(0,1fr))}}
+/* =========================================================
+   CIU CRM — MASTER APPLICATION DESIGN
+   Shared visual language for CRM modules
+========================================================= */
+
+.ciu-page {
+  min-height: 100%;
+  background: #f6f9f7;
+  color: #17322c;
+}
+
+.ciu-page-inner {
+  width: 100%;
+  max-width: 1540px;
+  margin: 0 auto;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+/* =========================================================
+   PAGE HEADER
+========================================================= */
+
+.ciu-hero {
+  position: relative;
+  padding: 28px 30px;
+  border: 1px solid #dce8e3;
+  border-radius: 20px;
+  background:
+    linear-gradient(135deg, #ffffff 0%, #f8fcfa 100%);
+  box-shadow: 0 8px 30px rgba(23, 50, 44, 0.06);
+  overflow: hidden;
+}
+
+.ciu-hero::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  background: #00695c;
+}
+
+.ciu-hero h1 {
+  margin: 0;
+  color: #17322c;
+  font-size: 30px;
+  line-height: 1.15;
+  font-weight: 850;
+  letter-spacing: -0.025em;
+}
+
+.ciu-hero p {
+  margin: 8px 0 0;
+  max-width: 760px;
+  color: #667872;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* =========================================================
+   CARDS
+========================================================= */
+
+.ciu-card {
+  border: 1px solid #dfe9e5;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 6px 22px rgba(23, 50, 44, 0.055);
+  overflow: hidden;
+}
+
+.ciu-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px;
+  border-bottom: 1px solid #edf2ef;
+  background: #ffffff;
+}
+
+.ciu-card-head strong {
+  display: block;
+  color: #17322c;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.ciu-card-head span {
+  display: block;
+  margin-top: 4px;
+  color: #71817b;
+  font-size: 12px;
+}
+
+/* =========================================================
+   WORKFLOW STRIP
+========================================================= */
+
+.ciu-strip {
+  padding: 16px 20px;
+  border: 1px solid #d9e9e2;
+  border-radius: 14px;
+  background: linear-gradient(
+    135deg,
+    #f3faf7 0%,
+    #edf7f3 100%
+  );
+  box-shadow: 0 4px 15px rgba(23, 50, 44, 0.04);
+}
+
+.ciu-strip strong {
+  color: #17322c;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.ciu-strip span {
+  color: #63756e;
+  font-size: 13px;
+}
+
+/* =========================================================
+   BUTTONS
+========================================================= */
+
+.ciu-btn,
+.ciu-btn-light {
+  appearance: none;
+  border: 0;
+  border-radius: 10px;
+  min-height: 40px;
+  padding: 9px 15px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.ciu-btn {
+  background: #00695c;
+  color: #ffffff;
+  box-shadow: 0 5px 14px rgba(0, 105, 92, 0.18);
+}
+
+.ciu-btn:hover {
+  background: #00574d;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(0, 105, 92, 0.22);
+}
+
+.ciu-btn-light {
+  border: 1px solid #d6e3de;
+  background: #ffffff;
+  color: #36564e;
+  box-shadow: 0 2px 8px rgba(23, 50, 44, 0.035);
+}
+
+.ciu-btn-light:hover {
+  border-color: #a9c8bc;
+  background: #f6faf8;
+  transform: translateY(-1px);
+}
+
+.ciu-btn:disabled,
+.ciu-btn-light:disabled {
+  cursor: not-allowed;
+  opacity: 0.55 !important;
+  transform: none;
+}
+
+/* =========================================================
+   TABLE
+========================================================= */
+
+.ciu-report-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  color: #314840;
+  font-size: 13px;
+}
+
+.ciu-report-table thead th {
+  padding: 13px 16px;
+  border-bottom: 1px solid #dfe9e5;
+  background: #f7faf8;
+  color: #687a73;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0.06em;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.ciu-report-table tbody td {
+  padding: 15px 16px;
+  border-bottom: 1px solid #edf2ef;
+  background: #ffffff;
+  vertical-align: middle;
+}
+
+.ciu-report-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.ciu-report-table tbody tr:hover td {
+  background: #f9fcfa;
+}
+
+.ciu-report-table tbody td:first-child {
+  color: #00695c;
+  font-weight: 750;
+}
+
+/* =========================================================
+   INPUTS
+========================================================= */
+
+.ciu-card input,
+.ciu-card select,
+.ciu-page input,
+.ciu-page select,
+.ciu-page textarea {
+  font-family: inherit;
+}
+
+.ciu-card input:focus,
+.ciu-card select:focus,
+.ciu-page input:focus,
+.ciu-page select:focus,
+.ciu-page textarea:focus {
+  border-color: #7db9a8 !important;
+  box-shadow: 0 0 0 3px rgba(0, 105, 92, 0.09);
+}
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
+@media (max-width: 900px) {
+  .ciu-page-inner {
+    padding: 18px;
+  }
+
+  .ciu-hero {
+    padding: 23px;
+  }
+
+  .ciu-hero h1 {
+    font-size: 26px;
+  }
+}
+
+@media (max-width: 640px) {
+  .ciu-page-inner {
+    padding: 12px;
+  }
+
+  .ciu-hero {
+    padding: 20px;
+    border-radius: 15px;
+  }
+
+  .ciu-hero h1 {
+    font-size: 23px;
+  }
+
+  .ciu-hero p {
+    font-size: 13px;
+  }
+
+  .ciu-card {
+    border-radius: 13px;
+  }
+
+  .ciu-card-head {
+    padding: 15px;
+  }
+
+  .ciu-strip {
+    padding: 14px;
+  }
+}
+/* =========================================================
+   CIU CRM — TABLE SCROLLING
+========================================================= */
+
+.ciu-table-scroll {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: auto;
+}
+
+.ciu-table-scroll::-webkit-scrollbar {
+  height: 12px;
+  width: 10px;
+}
+
+.ciu-table-scroll::-webkit-scrollbar-track {
+  background: #eef3f0;
+  border-top: 1px solid #dfe9e5;
+}
+
+.ciu-table-scroll::-webkit-scrollbar-thumb {
+  background: #9bb8ad;
+  border-radius: 999px;
+  border: 3px solid #eef3f0;
+}
+
+.ciu-table-scroll::-webkit-scrollbar-thumb:hover {
+  background: #6f9c8d;
+}

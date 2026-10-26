@@ -1,7 +1,8 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import MarketingSectionTabs from "@/components/MarketingSectionTabs";
 
 type Campaign = {
   id: string;
@@ -68,12 +69,12 @@ function formatNumber(value: number) {
 }
 
 function formatDate(value: string | null) {
-  if (!value) return "—";
+  if (!value) return "â€”";
 
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
-    return "—";
+    return "â€”";
   }
 
   return date.toLocaleDateString("en-UG", {
@@ -974,7 +975,7 @@ export default function MarketingPage() {
       <main
         style={{
           minHeight: "100vh",
-          background: "#f8fafc",
+          background: "transparent",
           padding: 32,
           fontFamily:
             "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif",
@@ -1008,7 +1009,7 @@ export default function MarketingPage() {
     <main
       style={{
         minHeight: "100vh",
-        background: "#f8fafc",
+        background: "transparent",
         padding:
           "28px 32px 48px",
         fontFamily:
@@ -1022,6 +1023,10 @@ export default function MarketingPage() {
           margin: "0 auto",
         }}
       >
+        <div style={{ marginBottom: 24 }}>
+          <MarketingSectionTabs />
+        </div>
+
         {/* HEADER */}
         <div
           style={{
@@ -1032,6 +1037,8 @@ export default function MarketingPage() {
             gap: 20,
             marginBottom: 24,
             flexWrap: "wrap",
+            borderLeft: "4px solid var(--ciu-primary, #00695c)",
+            paddingLeft: 18,
           }}
         >
           <div>
@@ -1106,7 +1113,7 @@ export default function MarketingPage() {
                 : "Refresh"}
             </button>
 
-            <button type="button" onClick={()=>openImportModal()} className="ciu-btn-light" style={{visibility:"visible",opacity:1}}>↑ Upload Leads CSV</button>
+            <button type="button" onClick={()=>openImportModal()} className="ciu-btn-light" style={{visibility:"visible",opacity:1}}>â†‘ Upload Leads CSV</button>
             <button
               type="button"
               onClick={openNewCampaign}
@@ -1122,9 +1129,9 @@ export default function MarketingPage() {
                 opacity: 1,
                 color: "#ffffff",
                 background:
-                  "#2563eb",
+                  "#006b45",
                 border:
-                  "1px solid #2563eb",
+                  "1px solid #006b45",
                 padding:
                   "10px 16px",
                 borderRadius: 8,
@@ -1178,6 +1185,7 @@ export default function MarketingPage() {
               background: "#ffffff",
               border:
                 "1px solid #e5e7eb",
+              borderLeft: "4px solid var(--ciu-primary, #00695c)",
               borderRadius: 12,
               padding: 20,
             }}
@@ -1220,6 +1228,7 @@ export default function MarketingPage() {
               background: "#ffffff",
               border:
                 "1px solid #e5e7eb",
+              borderLeft: "4px solid var(--ciu-primary, #00695c)",
               borderRadius: 12,
               padding: 20,
             }}
@@ -1261,6 +1270,7 @@ export default function MarketingPage() {
               background: "#ffffff",
               border:
                 "1px solid #e5e7eb",
+              borderLeft: "4px solid var(--ciu-primary, #00695c)",
               borderRadius: 12,
               padding: 20,
             }}
@@ -1304,6 +1314,7 @@ export default function MarketingPage() {
               background: "#ffffff",
               border:
                 "1px solid #e5e7eb",
+              borderLeft: "4px solid var(--ciu-primary, #00695c)",
               borderRadius: 12,
               padding: 20,
             }}
@@ -1347,6 +1358,7 @@ export default function MarketingPage() {
             background: "#ffffff",
             border:
               "1px solid #e5e7eb",
+            borderLeft: "4px solid var(--ciu-primary, #00695c)",
             borderRadius: 12,
             padding: 20,
             marginBottom: 24,
@@ -1428,6 +1440,7 @@ export default function MarketingPage() {
                     "#f8fafc",
                   border:
                     "1px solid #e5e7eb",
+                  borderLeft: "3px solid var(--ciu-primary, #00695c)",
                   borderRadius: 10,
                   padding: 16,
                 }}
@@ -1586,9 +1599,9 @@ export default function MarketingPage() {
                 opacity: 1,
                 color: "#ffffff",
                 background:
-                  "#2563eb",
+                  "#006b45",
                 border:
-                  "1px solid #2563eb",
+                  "1px solid #006b45",
                 padding:
                   "10px 16px",
                 borderRadius: 8,
@@ -1674,19 +1687,13 @@ export default function MarketingPage() {
                         "#ffffff",
                       border:
                         "1px solid #e5e7eb",
+                      borderLeft:
+                        "4px solid var(--ciu-primary, #00695c)",
                       borderRadius: 12,
                       overflow:
                         "hidden",
                     }}
                   >
-                    <div
-                      style={{
-                        height: 5,
-                        background:
-                          status.bar,
-                      }}
-                    />
-
                     <div
                       style={{
                         padding: 20,
@@ -1937,7 +1944,7 @@ export default function MarketingPage() {
                           {formatDate(
                             campaign.start_date
                           )}{" "}
-                          —{" "}
+                          â€”{" "}
                           {formatDate(
                             campaign.end_date
                           )}
@@ -1978,11 +1985,11 @@ export default function MarketingPage() {
                             justifyContent:
                               "center",
                             color:
-                              "#1d4ed8",
+                              "#006b45",
                             background:
-                              "#eff6ff",
+                              "#edf8f4",
                             border:
-                              "1px solid #bfdbfe",
+                              "1px solid #b7dfcc",
                             padding:
                               "9px 10px",
                             borderRadius:
@@ -2137,11 +2144,11 @@ export default function MarketingPage() {
                                   justifyContent:
                                     "center",
                                   color:
-                                    "#1d4ed8",
+                                    "#006b45",
                                   background:
-                                    "#eff6ff",
+                                    "#edf8f4",
                                   border:
-                                    "1px solid #bfdbfe",
+                                    "1px solid #b7dfcc",
                                   padding:
                                     "8px 10px",
                                   borderRadius:
@@ -2297,7 +2304,7 @@ export default function MarketingPage() {
                       "pointer",
                   }}
                 >
-                  ×
+                  Ã—
                 </button>
               </div>
 
@@ -2510,7 +2517,7 @@ export default function MarketingPage() {
                               height:
                                 "100%",
                               background:
-                                "#2563eb",
+                                "#006b45",
                             }}
                           />
                         </div>
@@ -2719,7 +2726,7 @@ export default function MarketingPage() {
           </div>
         )}
 
-        {showImportModal && (<div style={{position:"fixed",inset:0,zIndex:10000,background:"rgba(15,23,42,.55)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}><div style={{width:"100%",maxWidth:760,maxHeight:"92vh",overflowY:"auto",background:"#fff",borderRadius:16,padding:24,boxShadow:"0 25px 70px rgba(15,23,42,.25)"}}><div style={{display:"flex",justifyContent:"space-between"}}><div><h2 style={{margin:0,fontSize:22}}>Upload Leads CSV</h2><p style={{margin:"6px 0 0",color:"#6b7f78",fontSize:13}}>Bulk imports are tracked through Marketing and linked to a campaign.</p></div><button type="button" onClick={()=>!saving&&setShowImportModal(false)} style={{width:36,height:36,borderRadius:8,border:"1px solid #dfe9e5",background:"#fff",fontSize:18}}>×</button></div><div style={{marginTop:20}}><label style={{display:"block",fontSize:12,fontWeight:700,marginBottom:6,color:"#344e46"}}>Campaign *</label><select value={importCampaignId} onChange={e=>setImportCampaignId(e.target.value)} style={{width:"100%",padding:"11px 12px",border:"1px solid #d9e6e1",borderRadius:8,background:"#fff",fontSize:14}} disabled={saving}><option value="">Select campaign</option>{campaigns.map(campaign=><option key={campaign.id} value={campaign.id}>{campaign.name}</option>)}</select></div><div style={{marginTop:15,padding:16,borderRadius:10,border:"1px dashed #9dbab1",background:"#f7fbf9"}}><input ref={csvInputRef} type="file" accept=".csv,text/csv" disabled={saving} onChange={e=>handleMarketingCsv(e.target.files?.[0]||null)}/><div style={{marginTop:8,fontSize:12,color:"#64756f"}}>Columns: CIU Number, Full Name, Telephone Number, Email, Programme, Feedback. Maximum 5,000 rows.</div></div>{csvRows.length>0&&<div style={{marginTop:18}}><strong>Preview — first 5 rows</strong><div style={{overflowX:"auto",marginTop:8}}><table style={{width:"100%",borderCollapse:"collapse"}}><thead><tr>{["Name","Phone","Email","Programme","CIU Number"].map(h=><th key={h} style={{padding:"10px 12px",textAlign:"left",fontSize:11,borderBottom:"1px solid #e1ebe7",background:"#f7fbf9"}}>{h}</th>)}</tr></thead><tbody>{csvRows.slice(0,5).map((raw,i)=>{const row=mapMarketingRow(raw);return <tr key={i}><td style={{padding:"10px 12px",fontSize:12,borderBottom:"1px solid #edf2ef"}}>{row.name||"—"}</td><td style={{padding:"10px 12px",fontSize:12,borderBottom:"1px solid #edf2ef"}}>{row.phone||"—"}</td><td style={{padding:"10px 12px",fontSize:12,borderBottom:"1px solid #edf2ef"}}>{row.email||"—"}</td><td style={{padding:"10px 12px",fontSize:12,borderBottom:"1px solid #edf2ef"}}>{row.product_service||"—"}</td><td style={{padding:"10px 12px",fontSize:12,borderBottom:"1px solid #edf2ef"}}>{row.ciu_number||"—"}</td></tr>;})}</tbody></table></div></div>}{importMessage&&<div style={{marginTop:15,padding:12,borderRadius:9,background:"#edf8f4",color:"#00695c",fontSize:12}}>{importMessage}</div>}<div style={{marginTop:15,padding:12,borderRadius:9,background:"#fff8e8",color:"#795500",fontSize:12}}>New leads are automatically assigned to the salesperson with the lightest workload. Existing leads are linked to the campaign instead of being duplicated.</div><div style={{display:"flex",justifyContent:"flex-end",gap:10,marginTop:22}}><button type="button" className="ciu-btn-light" onClick={()=>setShowImportModal(false)} disabled={saving}>Cancel</button><button type="button" className="ciu-btn" onClick={importMarketingLeads} disabled={saving||!csvRows.length||!importCampaignId}>{saving?"Importing...":"Import Leads"}</button></div></div></div>)}
+        {showImportModal && (<div style={{position:"fixed",inset:0,zIndex:10000,background:"rgba(15,23,42,.55)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}><div style={{width:"100%",maxWidth:760,maxHeight:"92vh",overflowY:"auto",background:"#fff",borderRadius:16,padding:24,boxShadow:"0 25px 70px rgba(15,23,42,.25)"}}><div style={{display:"flex",justifyContent:"space-between"}}><div><h2 style={{margin:0,fontSize:22}}>Upload Leads CSV</h2><p style={{margin:"6px 0 0",color:"#6b7f78",fontSize:13}}>Bulk imports are tracked through Marketing and linked to a campaign.</p></div><button type="button" onClick={()=>!saving&&setShowImportModal(false)} style={{width:36,height:36,borderRadius:8,border:"1px solid #dfe9e5",background:"#fff",fontSize:18}}>Ã—</button></div><div style={{marginTop:20}}><label style={{display:"block",fontSize:12,fontWeight:700,marginBottom:6,color:"#344e46"}}>Campaign *</label><select value={importCampaignId} onChange={e=>setImportCampaignId(e.target.value)} style={{width:"100%",padding:"11px 12px",border:"1px solid #d9e6e1",borderRadius:8,background:"#fff",fontSize:14}} disabled={saving}><option value="">Select campaign</option>{campaigns.map(campaign=><option key={campaign.id} value={campaign.id}>{campaign.name}</option>)}</select></div><div style={{marginTop:15,padding:16,borderRadius:10,border:"1px dashed #9dbab1",background:"#f7fbf9"}}><input ref={csvInputRef} type="file" accept=".csv,text/csv" disabled={saving} onChange={e=>handleMarketingCsv(e.target.files?.[0]||null)}/><div style={{marginTop:8,fontSize:12,color:"#64756f"}}>Columns: CIU Number, Full Name, Telephone Number, Email, Programme, Feedback. Maximum 5,000 rows.</div></div>{csvRows.length>0&&<div style={{marginTop:18}}><strong>Preview â€” first 5 rows</strong><div style={{overflowX:"auto",marginTop:8}}><table style={{width:"100%",borderCollapse:"collapse"}}><thead><tr>{["Name","Phone","Email","Programme","CIU Number"].map(h=><th key={h} style={{padding:"10px 12px",textAlign:"left",fontSize:11,borderBottom:"1px solid #e1ebe7",background:"#f7fbf9"}}>{h}</th>)}</tr></thead><tbody>{csvRows.slice(0,5).map((raw,i)=>{const row=mapMarketingRow(raw);return <tr key={i}><td style={{padding:"10px 12px",fontSize:12,borderBottom:"1px solid #edf2ef"}}>{row.name||"â€”"}</td><td style={{padding:"10px 12px",fontSize:12,borderBottom:"1px solid #edf2ef"}}>{row.phone||"â€”"}</td><td style={{padding:"10px 12px",fontSize:12,borderBottom:"1px solid #edf2ef"}}>{row.email||"â€”"}</td><td style={{padding:"10px 12px",fontSize:12,borderBottom:"1px solid #edf2ef"}}>{row.product_service||"â€”"}</td><td style={{padding:"10px 12px",fontSize:12,borderBottom:"1px solid #edf2ef"}}>{row.ciu_number||"â€”"}</td></tr>;})}</tbody></table></div></div>}{importMessage&&<div style={{marginTop:15,padding:12,borderRadius:9,background:"#edf8f4",color:"#00695c",fontSize:12}}>{importMessage}</div>}<div style={{marginTop:15,padding:12,borderRadius:9,background:"#fff8e8",color:"#795500",fontSize:12}}>New leads are automatically assigned to the salesperson with the lightest workload. Existing leads are linked to the campaign instead of being duplicated.</div><div style={{display:"flex",justifyContent:"flex-end",gap:10,marginTop:22}}><button type="button" className="ciu-btn-light" onClick={()=>setShowImportModal(false)} disabled={saving}>Cancel</button><button type="button" className="ciu-btn" onClick={importMarketingLeads} disabled={saving||!csvRows.length||!importCampaignId}>{saving?"Importing...":"Import Leads"}</button></div></div></div>)}
         {/* CAMPAIGN MODAL */}
         {showCampaignModal && (
           <div
@@ -2820,7 +2827,7 @@ export default function MarketingPage() {
                       "pointer",
                   }}
                 >
-                  ×
+                  Ã—
                 </button>
               </div>
 
@@ -3283,9 +3290,9 @@ export default function MarketingPage() {
                       color:
                         "#ffffff",
                       background:
-                        "#2563eb",
+                        "#006b45",
                       border:
-                        "1px solid #2563eb",
+                        "1px solid #006b45",
                       padding:
                         "10px 18px",
                       borderRadius: 8,
@@ -3317,3 +3324,7 @@ export default function MarketingPage() {
     </main>
   );
 }
+
+
+
+

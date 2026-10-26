@@ -49,6 +49,40 @@ type Profile = {
 
 const ACTIVE_STAGE = "Enrolled";
 
+const inputStyle: CSSProperties = {
+  width: "100%",
+  boxSizing: "border-box",
+  border: "1px solid #d6e3de",
+  borderRadius: "10px",
+  padding: "11px 13px",
+  fontSize: "14px",
+  color: "#17322c",
+  background: "#ffffff",
+  outline: "none",
+};
+
+const primaryButtonStyle: CSSProperties = {
+  border: "0",
+  background: "#00695c",
+  color: "#ffffff",
+  borderRadius: "10px",
+  padding: "10px 16px",
+  fontSize: "13px",
+  fontWeight: 800,
+  cursor: "pointer",
+};
+
+const secondaryButtonStyle: CSSProperties = {
+  border: "1px solid #d6e3de",
+  background: "#ffffff",
+  color: "#36564e",
+  borderRadius: "10px",
+  padding: "10px 16px",
+  fontSize: "13px",
+  fontWeight: 800,
+  cursor: "pointer",
+};
+
 function formatCurrency(value: number | null | undefined) {
   const amount = Number(value || 0);
 
@@ -64,9 +98,7 @@ function formatDate(value: string | null | undefined) {
 
   const date = new Date(value);
 
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
+  if (Number.isNaN(date.getTime())) return value;
 
   return new Intl.DateTimeFormat("en-GB", {
     day: "2-digit",
@@ -105,7 +137,6 @@ export default function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [leads, setLeads] = useState<Record<string, Lead>>({});
   const [profiles, setProfiles] = useState<Record<string, Profile>>({});
-  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -118,7 +149,6 @@ export default function CustomersPage() {
   const [selectedCustomer, setSelectedCustomer] =
     useState<Customer | null>(null);
 
-  const [showOpenModal, setShowOpenModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showFollowUpModal, setShowFollowUpModal] = useState(false);
@@ -161,18 +191,18 @@ export default function CustomersPage() {
         return;
       }
 
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("id, full_name, role")
-        .eq("id", user.id)
-        .maybeSingle();
+      const { data: profile, error: profileError } =
+        await supabase
+          .from("profiles")
+          .select("id, full_name, role")
+          .eq("id", user.id)
+          .maybeSingle();
 
       if (profileError) {
         throw profileError;
       }
 
       const role = profile?.role || null;
-      setCurrentUserRole(role);
 
       let admissionsQuery = supabase
         .from("admissions")
@@ -206,32 +236,41 @@ export default function CustomersPage() {
         });
 
       if (role === "salesperson") {
-        admissionsQuery = admissionsQuery.eq("assigned_to", user.id);
+        admissionsQuery = admissionsQuery.eq(
+          "assigned_to",
+          user.id,
+        );
       }
 
-      const { data: admissions, error: admissionsError } =
-        await admissionsQuery;
+      const {
+        data: admissions,
+        error: admissionsError,
+      } = await admissionsQuery;
 
       if (admissionsError) {
         throw admissionsError;
       }
 
-      const customerRows = (admissions || []) as Customer[];
+      const customerRows =
+        (admissions || []) as Customer[];
 
       setCustomers(customerRows);
 
-      /* -----------------------------
-         LOAD LINKED LEADS
-      ------------------------------ */
-
       const leadIds = customerRows
         .map((customer) => customer.lead_id)
-        .filter((id): id is string => Boolean(id));
+        .filter(
+          (id): id is string => Boolean(id),
+        );
 
       if (leadIds.length > 0) {
-        const { data: leadData, error: leadsError } = await supabase
+        const {
+          data: leadData,
+          error: leadsError,
+        } = await supabase
           .from("leads")
-          .select("id, name, phone, email, feedback")
+          .select(
+            "id, name, phone, email, feedback",
+          )
           .in("id", leadIds);
 
         if (leadsError) {
@@ -240,36 +279,49 @@ export default function CustomersPage() {
 
         const leadMap: Record<string, Lead> = {};
 
-        (leadData || []).forEach((lead: Lead) => {
-          leadMap[lead.id] = lead;
-        });
+        (leadData || []).forEach(
+          (lead: Lead) => {
+            leadMap[lead.id] = lead;
+          },
+        );
 
         setLeads(leadMap);
       } else {
         setLeads({});
       }
 
-      /* -----------------------------
-         LOAD ASSIGNED STAFF
-      ------------------------------ */
-
       const assignedIds = customerRows
-        .map((customer) => customer.assigned_to)
-        .filter((id): id is string => Boolean(id));
+        .map(
+          (customer) =>
+            customer.assigned_to,
+        )
+        .filter(
+          (id): id is string => Boolean(id),
+        );
 
       if (assignedIds.length > 0) {
-        const { data: profileData, error: profilesError } =
-          await supabase
-            .from("profiles")
-            .select("id, full_name, role")
-            .in("id", assignedIds);
+        const {
+          data: profileData,
+          error: profilesError,
+        } = await supabase
+          .from("profiles")
+          .select(
+            "id, full_name, role",
+          )
+          .in("id", assignedIds);
 
         if (!profilesError) {
-          const profileMap: Record<string, Profile> = {};
+          const profileMap: Record<
+            string,
+            Profile
+          > = {};
 
-          (profileData || []).forEach((profileRow: Profile) => {
-            profileMap[profileRow.id] = profileRow;
-          });
+          (profileData || []).forEach(
+            (profileRow: Profile) => {
+              profileMap[profileRow.id] =
+                profileRow;
+            },
+          );
 
           setProfiles(profileMap);
         }
@@ -277,7 +329,10 @@ export default function CustomersPage() {
         setProfiles({});
       }
     } catch (err) {
-      console.error("Failed to load customers:", err);
+      console.error(
+        "Failed to load customers:",
+        err,
+      );
 
       setError(
         err instanceof Error
@@ -289,12 +344,9 @@ export default function CustomersPage() {
     }
   }
 
-  /* -----------------------------
-     FILTERED CUSTOMERS
-  ------------------------------ */
-
   const filteredCustomers = useMemo(() => {
-    const normalizedSearch = search.trim().toLowerCase();
+    const normalizedSearch =
+      search.trim().toLowerCase();
 
     return customers.filter((customer) => {
       const lead = customer.lead_id
@@ -317,89 +369,112 @@ export default function CustomersPage() {
 
       const matchesSearch =
         normalizedSearch.length === 0 ||
-        searchableText.includes(normalizedSearch);
+        searchableText.includes(
+          normalizedSearch,
+        );
 
       const matchesStatus =
-        statusFilter === "All Enrolled Students" ||
+        statusFilter ===
+          "All Enrolled Students" ||
         customer.stage === statusFilter;
 
-      return matchesSearch && matchesStatus;
+      return (
+        matchesSearch &&
+        matchesStatus
+      );
     });
-  }, [customers, leads, search, statusFilter]);
+  }, [
+    customers,
+    leads,
+    search,
+    statusFilter,
+  ]);
 
-  /* -----------------------------
-     KPI CALCULATIONS
-  ------------------------------ */
+  const totalCustomers =
+    customers.length;
 
-  const totalCustomers = customers.length;
-
-  const activeStudents = customers.filter(
-    (customer) => customer.stage === "Enrolled",
-  ).length;
+  const activeStudents =
+    customers.filter(
+      (customer) =>
+        customer.stage === "Enrolled",
+    ).length;
 
   const startOfMonth = new Date();
   startOfMonth.setDate(1);
   startOfMonth.setHours(0, 0, 0, 0);
 
-  const newThisMonth = customers.filter((customer) => {
-    const created = new Date(customer.created_at);
+  const newThisMonth =
+    customers.filter((customer) => {
+      const created = new Date(
+        customer.created_at,
+      );
 
-    return created >= startOfMonth;
-  }).length;
+      return created >= startOfMonth;
+    }).length;
 
-  const totalTuitionValue = customers.reduce(
-    (sum, customer) =>
-      sum + Number(customer.tuition_fee || 0),
-    0,
-  );
+  const totalTuitionValue =
+    customers.reduce(
+      (sum, customer) =>
+        sum +
+        Number(customer.tuition_fee || 0),
+      0,
+    );
 
-  const totalTuitionPaid = customers.reduce(
-    (sum, customer) =>
-      sum + Number(customer.tuition_paid || 0),
-    0,
-  );
+  const totalTuitionPaid =
+    customers.reduce(
+      (sum, customer) =>
+        sum +
+        Number(customer.tuition_paid || 0),
+      0,
+    );
 
   const outstandingTuition = Math.max(
     0,
-    totalTuitionValue - totalTuitionPaid,
+    totalTuitionValue -
+      totalTuitionPaid,
   );
 
-  const dueFollowUps = customers.filter((customer) =>
-    isFollowUpDue(customer.follow_up_date),
-  ).length;
+  const dueFollowUps =
+    customers.filter((customer) =>
+      isFollowUpDue(
+        customer.follow_up_date,
+      ),
+    ).length;
 
   const averagePayment =
     totalTuitionValue > 0
       ? Math.round(
-          (totalTuitionPaid / totalTuitionValue) * 100,
+          (totalTuitionPaid /
+            totalTuitionValue) *
+            100,
         )
       : 0;
 
-  /* -----------------------------
-     MODAL ACTIONS
-  ------------------------------ */
-
-  function openCustomer(customer: Customer) {
+  function openViewModal(
+    customer: Customer,
+  ) {
     setSelectedCustomer(customer);
-    setShowOpenModal(true);
-  }
-
-  function openViewModal(customer: Customer) {
-    setSelectedCustomer(customer);
-    setShowOpenModal(false);
     setShowViewModal(true);
   }
 
-  function openEditModal(customer: Customer) {
+  function openEditModal(
+    customer: Customer,
+  ) {
     setSelectedCustomer(customer);
 
     setEditForm({
-      full_names: customer.full_names || "",
-      telephone: customer.telephone || "",
+      full_names:
+        customer.full_names || "",
+      telephone:
+        customer.telephone || "",
       email: customer.email || "",
       program: customer.program || "",
-      tuition_fee: String(customer.tuition_fee ?? ""),
-      tuition_paid: String(customer.tuition_paid ?? ""),
+      tuition_fee: String(
+        customer.tuition_fee ?? "",
+      ),
+      tuition_paid: String(
+        customer.tuition_paid ?? "",
+      ),
       application_fee: String(
         customer.application_fee ?? "",
       ),
@@ -415,33 +490,31 @@ export default function CustomersPage() {
       notes: customer.notes || "",
     });
 
-    setShowOpenModal(false);
+    setShowViewModal(false);
     setShowEditModal(true);
   }
 
-  function openFollowUpModal(customer: Customer) {
+  function openFollowUpModal(
+    customer: Customer,
+  ) {
     setSelectedCustomer(customer);
 
     setFollowUpForm({
-      follow_up_date: customer.follow_up_date || "",
+      follow_up_date:
+        customer.follow_up_date || "",
       notes: customer.notes || "",
     });
 
-    setShowOpenModal(false);
+    setShowViewModal(false);
     setShowFollowUpModal(true);
   }
 
   function closeModals() {
-    setShowOpenModal(false);
     setShowViewModal(false);
     setShowEditModal(false);
     setShowFollowUpModal(false);
     setSelectedCustomer(null);
   }
-
-  /* -----------------------------
-     UPDATE CUSTOMER
-  ------------------------------ */
 
   async function handleEditCustomer(
     event: FormEvent<HTMLFormElement>,
@@ -454,36 +527,50 @@ export default function CustomersPage() {
     setError("");
 
     try {
-      const { error: updateError } = await supabase
-        .from("admissions")
-        .update({
-          full_names: editForm.full_names.trim(),
-          telephone:
-            editForm.telephone.trim() || null,
-          email: editForm.email.trim() || null,
-          program: editForm.program.trim(),
-          tuition_fee: Number(
-            editForm.tuition_fee || 0,
-          ),
-          tuition_paid: Number(
-            editForm.tuition_paid || 0,
-          ),
-          application_fee: Number(
-            editForm.application_fee || 0,
-          ),
-          application_paid: Number(
-            editForm.application_paid || 0,
-          ),
-          acceptance_fee: Number(
-            editForm.acceptance_fee || 0,
-          ),
-          acceptance_paid: Number(
-            editForm.acceptance_paid || 0,
-          ),
-          notes: editForm.notes.trim() || null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", selectedCustomer.id);
+      const { error: updateError } =
+        await supabase
+          .from("admissions")
+          .update({
+            full_names:
+              editForm.full_names.trim(),
+            telephone:
+              editForm.telephone.trim() ||
+              null,
+            email:
+              editForm.email.trim() ||
+              null,
+            program:
+              editForm.program.trim(),
+            tuition_fee: Number(
+              editForm.tuition_fee || 0,
+            ),
+            tuition_paid: Number(
+              editForm.tuition_paid || 0,
+            ),
+            application_fee: Number(
+              editForm.application_fee || 0,
+            ),
+            application_paid: Number(
+              editForm.application_paid ||
+                0,
+            ),
+            acceptance_fee: Number(
+              editForm.acceptance_fee || 0,
+            ),
+            acceptance_paid: Number(
+              editForm.acceptance_paid ||
+                0,
+            ),
+            notes:
+              editForm.notes.trim() ||
+              null,
+            updated_at:
+              new Date().toISOString(),
+          })
+          .eq(
+            "id",
+            selectedCustomer.id,
+          );
 
       if (updateError) {
         throw updateError;
@@ -507,10 +594,6 @@ export default function CustomersPage() {
     }
   }
 
-  /* -----------------------------
-     FOLLOW-UP UPDATE
-  ------------------------------ */
-
   async function handleFollowUp(
     event: FormEvent<HTMLFormElement>,
   ) {
@@ -522,16 +605,23 @@ export default function CustomersPage() {
     setError("");
 
     try {
-      const { error: updateError } = await supabase
-        .from("admissions")
-        .update({
-          follow_up_date:
-            followUpForm.follow_up_date || null,
-          notes:
-            followUpForm.notes.trim() || null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", selectedCustomer.id);
+      const { error: updateError } =
+        await supabase
+          .from("admissions")
+          .update({
+            follow_up_date:
+              followUpForm.follow_up_date ||
+              null,
+            notes:
+              followUpForm.notes.trim() ||
+              null,
+            updated_at:
+              new Date().toISOString(),
+          })
+          .eq(
+            "id",
+            selectedCustomer.id,
+          );
 
       if (updateError) {
         throw updateError;
@@ -555,23 +645,21 @@ export default function CustomersPage() {
     }
   }
 
-  /* -----------------------------
-     COMMUNICATION ACTIONS
-  ------------------------------ */
-
-  function callStudent(phone: string | null) {
+  function callStudent(
+    phone: string | null,
+  ) {
     if (!phone) return;
 
     window.location.href = `tel:${phone}`;
   }
 
-  function whatsappStudent(phone: string | null) {
+  function whatsappStudent(
+    phone: string | null,
+  ) {
     if (!phone) return;
 
-    const cleanedPhone = phone.replace(
-      /[^\d+]/g,
-      "",
-    );
+    const cleanedPhone =
+      phone.replace(/[^\d+]/g, "");
 
     window.open(
       `https://wa.me/${cleanedPhone.replace(
@@ -584,142 +672,95 @@ export default function CustomersPage() {
   }
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background:
-          "linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%)",
-        color: "#0f172a",
-      }}
-    >
-      {/* =====================================================
-          PAGE HEADER
-      ====================================================== */}
+    <div className="ciu-page">
+      <div className="ciu-page-inner">
+        {/* HEADER */}
 
-      <div
-        style={{
-          background: "#ffffff",
-          borderBottom: "1px solid #e2e8f0",
-          padding: "22px 28px",
-        }}
-      >
-        <div
-          style={{
-            maxWidth: "1600px",
-            margin: "0 auto",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            gap: "20px",
-            flexWrap: "wrap",
-          }}
-        >
-          <div>
-            <h1
-              style={{
-                margin: 0,
-                fontSize: "28px",
-                fontWeight: 850,
-                color: "#0f172a",
-                letterSpacing: "-0.5px",
-              }}
-            >
-              Customers
-            </h1>
-
-            <div
-              style={{
-                marginTop: "5px",
-                fontSize: "13px",
-                color: "#64748b",
-              }}
-            >
-              Manage enrolled students, payments and
-              follow-ups
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={loadCustomers}
+        <div className="ciu-hero">
+          <div
             style={{
-              border: "1px solid #cbd5e1",
-              background: "#ffffff",
-              color: "#0d2b52",
-              borderRadius: "9px",
-              padding: "10px 16px",
-              fontSize: "13px",
-              fontWeight: 750,
-              cursor: "pointer",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 20,
+              flexWrap: "wrap",
+              width: "100%",
+              position: "relative",
+              zIndex: 2,
             }}
           >
-            ↻ Refresh
-          </button>
+            <div>
+              <h1>Customers</h1>
+
+              <p>
+                Manage enrolled students,
+                monitor payments and keep
+                track of follow-ups from one
+                workspace.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={loadCustomers}
+              className="ciu-btn-light"
+              style={{
+                position: "relative",
+                zIndex: 10,
+                pointerEvents: "auto",
+                minHeight: 42,
+                flexShrink: 0,
+              }}
+            >
+              ↻ Refresh
+            </button>
+          </div>
         </div>
-      </div>
 
-      {/* =====================================================
-          MAIN CONTENT
-      ====================================================== */}
-
-      <div
-        style={{
-          maxWidth: "1600px",
-          margin: "0 auto",
-          padding: "28px",
-        }}
-      >
         {/* ERROR */}
 
         {error && (
           <div
             style={{
+              marginTop: 18,
+              padding: "13px 16px",
+              borderRadius: 12,
+              border:
+                "1px solid #fecaca",
               background: "#fef2f2",
-              border: "1px solid #fecaca",
               color: "#991b1b",
-              borderRadius: "12px",
-              padding: "14px 16px",
-              marginBottom: "20px",
-              fontSize: "14px",
-              fontWeight: 600,
+              fontSize: 13,
+              fontWeight: 700,
             }}
           >
             {error}
           </div>
         )}
 
-        {/* ===================================================
-            KPI CARDS
-        ==================================================== */}
+        {/* KPI CARDS */}
 
         <div
+          className="ciu-customer-kpis"
           style={{
             display: "grid",
             gridTemplateColumns:
-              "repeat(auto-fit, minmax(220px, 1fr))",
-            gap: "16px",
-            marginBottom: "18px",
+              "repeat(4, minmax(0, 1fr))",
+            gap: 16,
+            marginTop: 20,
           }}
         >
           <KpiCard
             label="Enrolled Students"
             value={totalCustomers}
             description="Students currently in Customers"
-            accent="#0d2b52"
-          />
-
-          <KpiCard
-            label="Currently Enrolled"
-            value={activeStudents}
-            description="Confirmed enrolled students"
-            accent="#16803a"
+            accent="#00695c"
           />
 
           <KpiCard
             label="New This Month"
             value={newThisMonth}
             description="Recently enrolled students"
-            accent="#8a6714"
+            accent="#2e7d32"
           />
 
           <KpiCard
@@ -730,21 +771,27 @@ export default function CustomersPage() {
             description={`${formatCurrency(
               outstandingTuition,
             )} outstanding`}
-            accent="#7c3aed"
+            accent="#558b2f"
+          />
+
+          <KpiCard
+            label="Follow-Ups Due"
+            value={dueFollowUps}
+            description="Students requiring attention"
+            accent="#c77700"
           />
         </div>
 
-        {/* ===================================================
-            SUMMARY CARDS
-        ==================================================== */}
+        {/* SUMMARY */}
 
         <div
+          className="ciu-customer-summary"
           style={{
             display: "grid",
             gridTemplateColumns:
-              "repeat(auto-fit, minmax(220px, 1fr))",
-            gap: "16px",
-            marginBottom: "22px",
+              "repeat(3, minmax(0, 1fr))",
+            gap: 16,
+            marginTop: 16,
           }}
         >
           <SummaryCard
@@ -762,239 +809,176 @@ export default function CustomersPage() {
           />
 
           <SummaryCard
-            label="Follow-Ups Due"
-            value={dueFollowUps}
-          />
-
-          <SummaryCard
             label="Average Payment"
             value={`${averagePayment}%`}
           />
         </div>
 
-        {/* ===================================================
-            SEARCH AND FILTER
-        ==================================================== */}
+        {/* WORKSPACE */}
 
         <div
+          className="ciu-card"
           style={{
-            background: "#ffffff",
-            border: "1px solid #dce3ec",
-            borderRadius: "16px",
-            padding: "18px",
-            marginBottom: "20px",
-            boxShadow:
-              "0 4px 15px rgba(15,23,42,0.04)",
+            marginTop: 20,
           }}
         >
+          <div className="ciu-card-head">
+            <div>
+              <strong>
+                Enrolled Students
+              </strong>
+
+              <span>
+                View and manage all students
+                who have reached the Enrolled
+                stage.
+              </span>
+            </div>
+
+            <span
+              style={{
+                marginTop: 0,
+                padding: "6px 10px",
+                borderRadius: 999,
+                background: "#e8f5f1",
+                color: "#00695c",
+                fontWeight: 800,
+              }}
+            >
+              {filteredCustomers.length}{" "}
+              student
+              {filteredCustomers.length ===
+              1
+                ? ""
+                : "s"}
+            </span>
+          </div>
+
+          {/* FILTERS */}
+
           <div
             style={{
-              display: "flex",
-              gap: "12px",
-              alignItems: "center",
-              flexWrap: "wrap",
+              padding: 18,
+              borderBottom:
+                "1px solid #edf2ef",
+              background: "#fbfdfc",
             }}
           >
             <div
+              className="ciu-customer-filters"
               style={{
-                flex: "1 1 320px",
-                minWidth: "240px",
+                display: "grid",
+                gridTemplateColumns:
+                  "minmax(280px, 1fr) 220px auto",
+                gap: 12,
+                alignItems: "center",
               }}
             >
               <input
                 value={search}
                 onChange={(event) =>
-                  setSearch(event.target.value)
+                  setSearch(
+                    event.target.value,
+                  )
                 }
-                placeholder="Search by student, CIU number, phone, email or programme..."
+                placeholder="Search students, CIU number, phone, email or programme..."
                 style={inputStyle}
               />
-            </div>
 
-            <select
-              value={statusFilter}
-              onChange={(event) =>
-                setStatusFilter(event.target.value)
-              }
-              style={{
-                ...inputStyle,
-                width: "auto",
-                minWidth: "210px",
-              }}
-            >
-              <option>
-                All Enrolled Students
-              </option>
+              <select
+                value={statusFilter}
+                onChange={(event) =>
+                  setStatusFilter(
+                    event.target.value,
+                  )
+                }
+                style={inputStyle}
+              >
+                <option>
+                  All Enrolled Students
+                </option>
+                <option>Enrolled</option>
+              </select>
 
-              <option>Enrolled</option>
-            </select>
-
-            <div
-              style={{
-                marginLeft: "auto",
-                color: "#64748b",
-                fontSize: "13px",
-                fontWeight: 700,
-                whiteSpace: "nowrap",
-              }}
-            >
-              {filteredCustomers.length} student
-              {filteredCustomers.length === 1
-                ? ""
-                : "s"}
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch("");
+                  setStatusFilter(
+                    "All Enrolled Students",
+                  );
+                }}
+                className="ciu-btn-light"
+                style={{
+                  minHeight: 42,
+                  whiteSpace:
+                    "nowrap",
+                }}
+              >
+                Clear
+              </button>
             </div>
           </div>
-        </div>
 
-        {/* ===================================================
-            CUSTOMER TABLE
-        ==================================================== */}
+          {/* TABLE */}
 
-        <div
-          style={{
-            background: "#ffffff",
-            border: "1px solid #dce3ec",
-            borderRadius: "16px",
-            overflow: "hidden",
-            boxShadow:
-              "0 6px 20px rgba(15,23,42,0.05)",
-          }}
-        >
           {loading ? (
-            <div
-              style={{
-                padding: "70px 20px",
-                textAlign: "center",
-                color: "#64748b",
-              }}
-            >
-              <div
-                style={{
-                  fontSize: "16px",
-                  fontWeight: 700,
-                  color: "#0d2b52",
-                }}
-              >
-                Loading enrolled students...
-              </div>
-
-              <div
-                style={{
-                  marginTop: "6px",
-                  fontSize: "13px",
-                }}
-              >
-                Please wait while the customer
-                workspace loads.
-              </div>
-            </div>
-          ) : filteredCustomers.length === 0 ? (
-            <div
-              style={{
-                padding: "70px 20px",
-                textAlign: "center",
-              }}
-            >
-              <div
-                style={{
-                  width: "58px",
-                  height: "58px",
-                  margin: "0 auto 14px",
-                  borderRadius: "16px",
-                  background: "#eef5ff",
-                  color: "#0d2b52",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: "27px",
-                }}
-              >
-                🎓
-              </div>
-
-              <h3
-                style={{
-                  margin: "0 0 8px",
-                  fontSize: "18px",
-                  fontWeight: 850,
-                  color: "#0d2b52",
-                }}
-              >
-                No enrolled students found
-              </h3>
-
-              <p
-                style={{
-                  margin: 0,
-                  color: "#64748b",
-                  fontSize: "14px",
-                }}
-              >
-                Students will appear here after
-                their admission is moved to the
-                Enrolled stage.
-              </p>
-            </div>
+            <LoadingState />
+          ) : filteredCustomers.length ===
+            0 ? (
+            <EmptyState
+              hasSearch={
+                search.trim().length > 0 ||
+                statusFilter !==
+                  "All Enrolled Students"
+              }
+            />
           ) : (
             <div
+              className="ciu-table-scroll"
               style={{
+                maxHeight:
+                  "calc(100vh - 365px)",
+                minHeight: 320,
                 overflowX: "auto",
+                overflowY: "auto",
               }}
             >
               <table
+                className="ciu-report-table"
                 style={{
-                  width: "100%",
-                  borderCollapse: "collapse",
-                  minWidth: "1150px",
+                  minWidth: 1180,
                 }}
               >
-                <thead>
-                  <tr
-                    style={{
-                      background:
-                        "linear-gradient(90deg, #071a35, #0d2b52)",
-                      borderBottom:
-                        "3px solid #0d2b52",
-                    }}
-                  >
-                    <Th color="#ffffff">
-                      Student
-                    </Th>
-
-                    <Th color="#ffffff">
-                      CIU Number
-                    </Th>
-
-                    <Th color="#ffffff">
-                      Programme
-                    </Th>
-
-                    <Th color="#ffffff">
-                      Stage
-                    </Th>
-
-                    <Th color="#ffffff">
-                      Tuition
-                    </Th>
-
-                    <Th color="#ffffff">
-                      Follow-Up
-                    </Th>
-
-                    <Th color="#ffffff">
-                      Actions
-                    </Th>
+                <thead
+                  style={{
+                    position: "sticky",
+                    top: 0,
+                    zIndex: 5,
+                  }}
+                >
+                  <tr>
+                    <th>Student</th>
+                    <th>CIU Number</th>
+                    <th>Programme</th>
+                    <th>Stage</th>
+                    <th>Tuition</th>
+                    <th>Follow-Up</th>
+                    <th>Assigned To</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
 
                 <tbody>
                   {filteredCustomers.map(
                     (customer) => {
-                      const lead = customer.lead_id
-                        ? leads[
-                            customer.lead_id
-                          ]
-                        : null;
+                      const lead =
+                        customer.lead_id
+                          ? leads[
+                              customer
+                                .lead_id
+                            ]
+                          : null;
 
                       const paymentPercentage =
                         getPaymentPercentage(
@@ -1005,7 +989,8 @@ export default function CustomersPage() {
                       const assignedProfile =
                         customer.assigned_to
                           ? profiles[
-                              customer.assigned_to
+                              customer
+                                .assigned_to
                             ]
                           : null;
 
@@ -1016,154 +1001,155 @@ export default function CustomersPage() {
 
                       return (
                         <tr
-                          key={customer.id}
-                          style={{
-                            borderBottom:
-                              "1px solid #edf1f5",
-                          }}
+                          key={
+                            customer.id
+                          }
                         >
-                          {/* STUDENT */}
-
-                          <td
-                            style={{
-                              padding: "16px",
-                              verticalAlign: "top",
-                            }}
-                          >
+                          <td>
                             <div
-                              style={{
-                                fontWeight: 800,
-                                fontSize: "14px",
-                                color: "#0d2b52",
-                              }}
-                            >
-                              {customer.full_names}
-                            </div>
-
-                            <div
-                              style={{
-                                marginTop: "5px",
-                                fontSize: "12px",
-                                color: "#64748b",
-                              }}
-                            >
-                              {customer.telephone ||
-                                lead?.phone ||
-                                "No phone"}
-                            </div>
-
-                            <div
-                              style={{
-                                marginTop: "3px",
-                                fontSize: "12px",
-                                color: "#64748b",
-                              }}
-                            >
-                              {customer.email ||
-                                lead?.email ||
-                                "No email"}
-                            </div>
-
-                            {assignedProfile?.full_name && (
-                              <div
-                                style={{
-                                  marginTop: "7px",
-                                  fontSize: "11px",
-                                  color: "#475569",
-                                }}
-                              >
-                                Assigned:{" "}
-                                {
-                                  assignedProfile.full_name
-                                }
-                              </div>
-                            )}
-                          </td>
-
-                          {/* IDENTIFIER */}
-
-                          <td
-                            style={{
-                              padding: "16px",
-                              verticalAlign: "top",
-                              fontSize: "13px",
-                              fontWeight: 750,
-                            }}
-                          >
-                            {customer.ciu_number ||
-                              "—"}
-                          </td>
-
-                          {/* PROGRAMME */}
-
-                          <td
-                            style={{
-                              padding: "16px",
-                              verticalAlign: "top",
-                              fontSize: "13px",
-                              color: "#334155",
-                              maxWidth: "220px",
-                            }}
-                          >
-                            {customer.program}
-                          </td>
-
-                          {/* STAGE */}
-
-                          <td
-                            style={{
-                              padding: "16px",
-                              verticalAlign: "top",
-                            }}
-                          >
-                            <span
                               style={{
                                 display:
-                                  "inline-flex",
+                                  "flex",
                                 alignItems:
                                   "center",
-                                gap: "6px",
-                                borderRadius:
-                                  "999px",
-                                padding:
-                                  "7px 11px",
-                                background:
-                                  "#e8f7ee",
-                                color:
-                                  "#166534",
-                                border:
-                                  "1px solid #b7e4c7",
-                                fontSize:
-                                  "12px",
-                                fontWeight: 800,
+                                gap: 11,
                               }}
                             >
-                              <span>●</span>
-                              Enrolled
+                              <div
+                                style={{
+                                  width: 38,
+                                  height: 38,
+                                  flex:
+                                    "0 0 38px",
+                                  borderRadius:
+                                    12,
+                                  background:
+                                    "#e8f5f1",
+                                  color:
+                                    "#00695c",
+                                  display:
+                                    "flex",
+                                  alignItems:
+                                    "center",
+                                  justifyContent:
+                                    "center",
+                                  fontSize: 12,
+                                  fontWeight:
+                                    900,
+                                }}
+                              >
+                                {getInitials(
+                                  customer.full_names,
+                                )}
+                              </div>
+
+                              <div>
+                                <div
+                                  style={{
+                                    fontWeight:
+                                      800,
+                                    color:
+                                      "#17322c",
+                                  }}
+                                >
+                                  {
+                                    customer.full_names
+                                  }
+                                </div>
+
+                                <div
+                                  style={{
+                                    marginTop:
+                                      4,
+                                    fontSize:
+                                      12,
+                                    color:
+                                      "#71817b",
+                                  }}
+                                >
+                                  {customer.telephone ||
+                                    lead?.phone ||
+                                    "No phone"}
+                                </div>
+
+                                <div
+                                  style={{
+                                    marginTop:
+                                      2,
+                                    fontSize:
+                                      12,
+                                    color:
+                                      "#71817b",
+                                  }}
+                                >
+                                  {customer.email ||
+                                    lead?.email ||
+                                    "No email"}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+
+                          <td>
+                            <span
+                              style={{
+                                color:
+                                  "#00695c",
+                                fontWeight:
+                                  800,
+                              }}
+                            >
+                              {customer.ciu_number ||
+                                "—"}
                             </span>
                           </td>
 
-                          {/* TUITION */}
+                          <td>
+                            <div
+                              style={{
+                                maxWidth: 230,
+                                color:
+                                  "#36564e",
+                                fontWeight:
+                                  650,
+                              }}
+                            >
+                              {
+                                customer.program
+                              }
+                            </div>
+                          </td>
+
+                          <td>
+                            <StatusBadge />
+                          </td>
 
                           <td
                             style={{
-                              padding: "16px",
-                              verticalAlign:
-                                "top",
-                              minWidth: "190px",
+                              minWidth: 200,
                             }}
                           >
                             <div
                               style={{
-                                fontSize: "13px",
-                                fontWeight: 800,
-                                color: "#0f172a",
+                                fontWeight:
+                                  800,
+                                color:
+                                  "#17322c",
                               }}
                             >
                               {formatCurrency(
                                 customer.tuition_paid,
                               )}{" "}
-                              /{" "}
+                              <span
+                                style={{
+                                  color:
+                                    "#8a9993",
+                                  fontWeight:
+                                    600,
+                                }}
+                              >
+                                /
+                              </span>{" "}
                               {formatCurrency(
                                 customer.tuition_fee,
                               )}
@@ -1171,12 +1157,13 @@ export default function CustomersPage() {
 
                             <div
                               style={{
-                                marginTop: "8px",
-                                height: "7px",
+                                marginTop:
+                                  8,
+                                height: 7,
                                 borderRadius:
-                                  "999px",
+                                  999,
                                 background:
-                                  "#e2e8f0",
+                                  "#e7eeeb",
                                 overflow:
                                   "hidden",
                               }}
@@ -1184,23 +1171,29 @@ export default function CustomersPage() {
                               <div
                                 style={{
                                   width: `${paymentPercentage}%`,
-                                  height: "100%",
+                                  height:
+                                    "100%",
                                   background:
                                     paymentPercentage >=
                                     100
-                                      ? "#16a34a"
-                                      : "#0d2b52",
+                                      ? "#2e7d32"
+                                      : "#00695c",
                                   borderRadius:
-                                    "999px",
+                                    999,
                                 }}
                               />
                             </div>
 
                             <div
                               style={{
-                                marginTop: "5px",
-                                fontSize: "11px",
-                                color: "#64748b",
+                                marginTop:
+                                  4,
+                                fontSize:
+                                  11,
+                                color:
+                                  "#71817b",
+                                fontWeight:
+                                  700,
                               }}
                             >
                               {
@@ -1210,27 +1203,17 @@ export default function CustomersPage() {
                             </div>
                           </td>
 
-                          {/* FOLLOW-UP */}
-
-                          <td
-                            style={{
-                              padding: "16px",
-                              verticalAlign:
-                                "top",
-                            }}
-                          >
+                          <td>
                             {customer.follow_up_date ? (
                               <div>
                                 <div
                                   style={{
-                                    fontSize:
-                                      "13px",
                                     fontWeight:
-                                      700,
+                                      750,
                                     color:
                                       followUpDue
-                                        ? "#b91c1c"
-                                        : "#334155",
+                                        ? "#b42318"
+                                        : "#36564e",
                                   }}
                                 >
                                   {formatDate(
@@ -1241,15 +1224,15 @@ export default function CustomersPage() {
                                 <div
                                   style={{
                                     marginTop:
-                                      "4px",
+                                      4,
                                     fontSize:
-                                      "11px",
+                                      11,
                                     color:
                                       followUpDue
-                                        ? "#b91c1c"
-                                        : "#64748b",
+                                        ? "#b42318"
+                                        : "#71817b",
                                     fontWeight:
-                                      700,
+                                      750,
                                   }}
                                 >
                                   {followUpDue
@@ -1261,9 +1244,9 @@ export default function CustomersPage() {
                               <span
                                 style={{
                                   fontSize:
-                                    "12px",
+                                    12,
                                   color:
-                                    "#94a3b8",
+                                    "#9aa8a2",
                                 }}
                               >
                                 Not scheduled
@@ -1271,44 +1254,38 @@ export default function CustomersPage() {
                             )}
                           </td>
 
-                          {/* ACTION */}
+                          <td>
+                            <span
+                              style={{
+                                color:
+                                  "#536861",
+                                fontSize:
+                                  12,
+                                fontWeight:
+                                  700,
+                              }}
+                            >
+                              {assignedProfile?.full_name ||
+                                "Unassigned"}
+                            </span>
+                          </td>
 
-                          <td
-                            style={{
-                              padding: "16px",
-                              verticalAlign:
-                                "top",
-                            }}
-                          >
+                          <td>
                             <button
                               type="button"
                               onClick={() =>
-                                openCustomer(
+                                openViewModal(
                                   customer,
                                 )
                               }
+                              className="ciu-btn"
                               style={{
-                                border:
-                                  "1px solid #0d2b52",
-                                background:
-                                  "#0d2b52",
-                                color:
-                                  "#ffffff",
-                                borderRadius:
-                                  "9px",
+                                minHeight: 38,
                                 padding:
-                                  "9px 15px",
-                                fontSize:
-                                  "12px",
-                                fontWeight:
-                                  800,
-                                cursor:
-                                  "pointer",
-                                minWidth:
-                                  "82px",
+                                  "8px 15px",
                               }}
                             >
-                              Open
+                              View
                             </button>
                           </td>
                         </tr>
@@ -1322,638 +1299,599 @@ export default function CustomersPage() {
         </div>
       </div>
 
-      {/* =====================================================
-          OPEN CUSTOMER WORKSPACE
-      ====================================================== */}
+      {/* VIEW MODAL */}
 
-      {showOpenModal && selectedCustomer && (
-        <Modal
-          title="Customer Workspace"
-          onClose={closeModals}
-          wide
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "15px",
-              padding: "16px",
-              borderRadius: "14px",
-              background:
-                "linear-gradient(135deg, #071a35, #0d2b52)",
-              color: "#ffffff",
-              marginBottom: "20px",
-            }}
+      {showViewModal &&
+        selectedCustomer && (
+          <Modal
+            title="Student Details"
+            onClose={closeModals}
+            wide
           >
             <div
               style={{
-                width: "52px",
-                height: "52px",
-                borderRadius: "50%",
-                background: "#e2e8f0",
-                color: "#0d2b52",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontWeight: 900,
-                fontSize: "18px",
+                padding: 20,
+                borderRadius: 16,
+                background:
+                  "linear-gradient(135deg, #f1faf7 0%, #f8fcfa 100%)",
+                border:
+                  "1px solid #d7e9e2",
+                marginBottom: 20,
               }}
             >
-              {selectedCustomer.full_names
-                .split(" ")
-                .map((name) => name[0])
-                .slice(0, 2)
-                .join("")
-                .toUpperCase()}
-            </div>
-
-            <div>
               <div
                 style={{
-                  fontSize: "19px",
+                  display: "flex",
+                  alignItems:
+                    "center",
+                  gap: 14,
+                }}
+              >
+                <div
+                  style={{
+                    width: 54,
+                    height: 54,
+                    borderRadius: 16,
+                    background:
+                      "#00695c",
+                    color: "#ffffff",
+                    display: "flex",
+                    alignItems:
+                      "center",
+                    justifyContent:
+                      "center",
+                    fontSize: 17,
+                    fontWeight: 900,
+                  }}
+                >
+                  {getInitials(
+                    selectedCustomer.full_names,
+                  )}
+                </div>
+
+                <div>
+                  <div
+                    style={{
+                      fontSize: 20,
+                      fontWeight: 850,
+                      color:
+                        "#17322c",
+                    }}
+                  >
+                    {
+                      selectedCustomer.full_names
+                    }
+                  </div>
+
+                  <div
+                    style={{
+                      marginTop: 4,
+                      color:
+                        "#667872",
+                      fontSize: 13,
+                    }}
+                  >
+                    {selectedCustomer.ciu_number ||
+                      "No CIU number"}{" "}
+                    •{" "}
+                    {
+                      selectedCustomer.program
+                    }
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    marginLeft:
+                      "auto",
+                  }}
+                >
+                  <StatusBadge />
+                </div>
+              </div>
+            </div>
+
+            {/* ACTIONS */}
+
+            <div
+              style={{
+                marginBottom: 22,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 12,
                   fontWeight: 850,
+                  color: "#6b7f78",
+                  textTransform:
+                    "uppercase",
+                  letterSpacing:
+                    "0.05em",
+                  marginBottom: 10,
                 }}
               >
-                {selectedCustomer.full_names}
+                Student Actions
               </div>
 
               <div
                 style={{
-                  marginTop: "4px",
-                  color: "#cbd5e1",
-                  fontSize: "13px",
+                  display: "grid",
+                  gridTemplateColumns:
+                    "repeat(4, minmax(0, 1fr))",
+                  gap: 10,
                 }}
               >
-                {selectedCustomer.ciu_number ||
-                  "No student number"}{" "}
-                • {selectedCustomer.program}
+                <ActionButton
+                  label="Update Student"
+                  description="Edit record"
+                  onClick={() =>
+                    openEditModal(
+                      selectedCustomer,
+                    )
+                  }
+                  primary
+                />
+
+                <ActionButton
+                  label="Follow Up"
+                  description="Schedule contact"
+                  onClick={() =>
+                    openFollowUpModal(
+                      selectedCustomer,
+                    )
+                  }
+                />
+
+                <ActionButton
+                  label="Call"
+                  description="Call student"
+                  onClick={() =>
+                    callStudent(
+                      selectedCustomer.telephone,
+                    )
+                  }
+                  disabled={
+                    !selectedCustomer.telephone
+                  }
+                />
+
+                <ActionButton
+                  label="WhatsApp"
+                  description="Message student"
+                  onClick={() =>
+                    whatsappStudent(
+                      selectedCustomer.telephone,
+                    )
+                  }
+                  disabled={
+                    !selectedCustomer.telephone
+                  }
+                />
               </div>
             </div>
 
-            <div
-              style={{
-                marginLeft: "auto",
-              }}
-            >
-              <span
-                style={{
-                  display: "inline-flex",
-                  borderRadius: "999px",
-                  padding: "7px 11px",
-                  background: "#dcfce7",
-                  color: "#166534",
-                  fontSize: "12px",
-                  fontWeight: 800,
-                }}
-              >
-                Enrolled
-              </span>
-            </div>
-          </div>
-
-          {/* QUICK ACTIONS */}
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns:
-                "repeat(auto-fit, minmax(190px, 1fr))",
-              gap: "12px",
-              marginBottom: "22px",
-            }}
-          >
-            <QuickAction
-              label="Update"
-              description="Update student details"
-              onClick={() =>
-                openEditModal(
-                  selectedCustomer,
-                )
-              }
-              primary
-            />
-
-            <QuickAction
-              label="Follow Up"
-              description="Schedule follow-up"
-              onClick={() =>
-                openFollowUpModal(
-                  selectedCustomer,
-                )
-              }
-            />
-
-            <QuickAction
-              label="View"
-              description="View full record"
-              onClick={() =>
-                openViewModal(
-                  selectedCustomer,
-                )
-              }
-            />
-
-            <QuickAction
-              label="Call"
-              description="Call student"
-              onClick={() =>
-                callStudent(
-                  selectedCustomer.telephone,
-                )
-              }
-              disabled={
-                !selectedCustomer.telephone
-              }
-            />
-
-            <QuickAction
-              label="WhatsApp"
-              description="Message student"
-              onClick={() =>
-                whatsappStudent(
-                  selectedCustomer.telephone,
-                )
-              }
-              disabled={
-                !selectedCustomer.telephone
-              }
-            />
-          </div>
-
-          {/* CUSTOMER SUMMARY */}
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns:
-                "repeat(2, minmax(0, 1fr))",
-              gap: "14px",
-            }}
-          >
-            <InfoBox
-              label="Telephone"
-              value={
-                selectedCustomer.telephone ||
-                "No phone"
-              }
-            />
-
-            <InfoBox
-              label="Email"
-              value={
-                selectedCustomer.email ||
-                "No email"
-              }
-            />
-
-            <InfoBox
-              label="Tuition Fee"
-              value={formatCurrency(
-                selectedCustomer.tuition_fee,
-              )}
-            />
-
-            <InfoBox
-              label="Tuition Paid"
-              value={formatCurrency(
-                selectedCustomer.tuition_paid,
-              )}
-            />
-
-            <InfoBox
-              label="Follow-Up"
-              value={formatDate(
-                selectedCustomer.follow_up_date,
-              )}
-            />
-
-            <InfoBox
-              label="Last Contact"
-              value={formatDate(
-                selectedCustomer.last_contact,
-              )}
-            />
-          </div>
-
-          <ModalFooter
-            onClose={closeModals}
-          />
-        </Modal>
-      )}
-
-      {/* =====================================================
-          VIEW MODAL
-      ====================================================== */}
-
-      {showViewModal && selectedCustomer && (
-        <Modal
-          title="Student Details"
-          onClose={closeModals}
-          wide
-        >
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns:
-                "repeat(2, minmax(0, 1fr))",
-              gap: "16px",
-            }}
-          >
-            <DetailItem
-              label="Full Names"
-              value={
-                selectedCustomer.full_names
-              }
-            />
-
-            <DetailItem
-              label="CIU Number"
-              value={
-                selectedCustomer.ciu_number ||
-                "—"
-              }
-            />
-
-            <DetailItem
-              label="Telephone"
-              value={
-                selectedCustomer.telephone ||
-                "—"
-              }
-            />
-
-            <DetailItem
-              label="Email"
-              value={
-                selectedCustomer.email ||
-                "—"
-              }
-            />
-
-            <DetailItem
-              label="Programme"
-              value={
-                selectedCustomer.program
-              }
-            />
-
-            <DetailItem
-              label="Stage"
-              value={
-                selectedCustomer.stage
-              }
-            />
-
-            <DetailItem
-              label="Application Fee"
-              value={formatCurrency(
-                selectedCustomer.application_fee,
-              )}
-            />
-
-            <DetailItem
-              label="Application Paid"
-              value={formatCurrency(
-                selectedCustomer.application_paid,
-              )}
-            />
-
-            <DetailItem
-              label="Acceptance Fee"
-              value={formatCurrency(
-                selectedCustomer.acceptance_fee,
-              )}
-            />
-
-            <DetailItem
-              label="Acceptance Paid"
-              value={formatCurrency(
-                selectedCustomer.acceptance_paid,
-              )}
-            />
-
-            <DetailItem
-              label="Tuition Fee"
-              value={formatCurrency(
-                selectedCustomer.tuition_fee,
-              )}
-            />
-
-            <DetailItem
-              label="Tuition Paid"
-              value={formatCurrency(
-                selectedCustomer.tuition_paid,
-              )}
-            />
-
-            <DetailItem
-              label="Follow-Up Date"
-              value={formatDate(
-                selectedCustomer.follow_up_date,
-              )}
-            />
-
-            <DetailItem
-              label="Last Contact"
-              value={formatDate(
-                selectedCustomer.last_contact,
-              )}
-            />
-          </div>
-
-          <div
-            style={{
-              marginTop: "20px",
-              padding: "14px",
-              background: "#f8fafc",
-              borderRadius: "10px",
-              border: "1px solid #e2e8f0",
-            }}
-          >
-            <div
-              style={{
-                fontSize: "12px",
-                fontWeight: 800,
-                color: "#475569",
-                marginBottom: "6px",
-              }}
-            >
-              Notes
-            </div>
+            {/* DETAILS */}
 
             <div
-              style={{
-                fontSize: "14px",
-                color: "#334155",
-                whiteSpace: "pre-wrap",
-              }}
-            >
-              {selectedCustomer.notes ||
-                "No notes recorded."}
-            </div>
-          </div>
-
-          <ModalFooter
-            onClose={closeModals}
-          />
-        </Modal>
-      )}
-
-      {/* =====================================================
-          EDIT MODAL
-      ====================================================== */}
-
-      {showEditModal && selectedCustomer && (
-        <Modal
-          title="Update Enrolled Student"
-          onClose={closeModals}
-          wide
-        >
-          <form
-            onSubmit={handleEditCustomer}
-          >
-            <div
+              className="ciu-detail-grid"
               style={{
                 display: "grid",
                 gridTemplateColumns:
                   "repeat(2, minmax(0, 1fr))",
-                gap: "16px",
+                gap: 12,
               }}
             >
-              <FormField
+              <DetailItem
                 label="Full Names"
                 value={
-                  editForm.full_names
+                  selectedCustomer.full_names
                 }
-                onChange={(value) =>
-                  setEditForm(
-                    (current) => ({
-                      ...current,
-                      full_names: value,
-                    }),
-                  )
-                }
-                required
               />
 
-              <FormField
+              <DetailItem
+                label="CIU Number"
+                value={
+                  selectedCustomer.ciu_number ||
+                  "—"
+                }
+              />
+
+              <DetailItem
                 label="Telephone"
                 value={
-                  editForm.telephone
-                }
-                onChange={(value) =>
-                  setEditForm(
-                    (current) => ({
-                      ...current,
-                      telephone: value,
-                    }),
-                  )
+                  selectedCustomer.telephone ||
+                  "—"
                 }
               />
 
-              <FormField
+              <DetailItem
                 label="Email"
-                type="email"
-                value={editForm.email}
-                onChange={(value) =>
-                  setEditForm(
-                    (current) => ({
-                      ...current,
-                      email: value,
-                    }),
-                  )
+                value={
+                  selectedCustomer.email ||
+                  "—"
                 }
               />
 
-              <FormField
+              <DetailItem
                 label="Programme"
                 value={
-                  editForm.program
+                  selectedCustomer.program
                 }
-                onChange={(value) =>
-                  setEditForm(
-                    (current) => ({
-                      ...current,
-                      program: value,
-                    }),
-                  )
-                }
-                required
               />
 
-              <FormField
-                label="Tuition Fee"
-                type="number"
+              <DetailItem
+                label="Stage"
                 value={
-                  editForm.tuition_fee
-                }
-                onChange={(value) =>
-                  setEditForm(
-                    (current) => ({
-                      ...current,
-                      tuition_fee: value,
-                    }),
-                  )
+                  selectedCustomer.stage
                 }
               />
 
-              <FormField
-                label="Tuition Paid"
-                type="number"
-                value={
-                  editForm.tuition_paid
-                }
-                onChange={(value) =>
-                  setEditForm(
-                    (current) => ({
-                      ...current,
-                      tuition_paid: value,
-                    }),
-                  )
-                }
-              />
-
-              <FormField
+              <DetailItem
                 label="Application Fee"
-                type="number"
-                value={
-                  editForm.application_fee
-                }
-                onChange={(value) =>
-                  setEditForm(
-                    (current) => ({
-                      ...current,
-                      application_fee: value,
-                    }),
-                  )
-                }
+                value={formatCurrency(
+                  selectedCustomer.application_fee,
+                )}
               />
 
-              <FormField
+              <DetailItem
                 label="Application Paid"
-                type="number"
-                value={
-                  editForm.application_paid
-                }
-                onChange={(value) =>
-                  setEditForm(
-                    (current) => ({
-                      ...current,
-                      application_paid:
-                        value,
-                    }),
-                  )
-                }
+                value={formatCurrency(
+                  selectedCustomer.application_paid,
+                )}
               />
 
-              <FormField
+              <DetailItem
                 label="Acceptance Fee"
-                type="number"
-                value={
-                  editForm.acceptance_fee
-                }
-                onChange={(value) =>
-                  setEditForm(
-                    (current) => ({
-                      ...current,
-                      acceptance_fee: value,
-                    }),
-                  )
-                }
+                value={formatCurrency(
+                  selectedCustomer.acceptance_fee,
+                )}
               />
 
-              <FormField
+              <DetailItem
                 label="Acceptance Paid"
-                type="number"
-                value={
-                  editForm.acceptance_paid
-                }
-                onChange={(value) =>
-                  setEditForm(
-                    (current) => ({
-                      ...current,
-                      acceptance_paid:
-                        value,
-                    }),
-                  )
-                }
+                value={formatCurrency(
+                  selectedCustomer.acceptance_paid,
+                )}
+              />
+
+              <DetailItem
+                label="Tuition Fee"
+                value={formatCurrency(
+                  selectedCustomer.tuition_fee,
+                )}
+              />
+
+              <DetailItem
+                label="Tuition Paid"
+                value={formatCurrency(
+                  selectedCustomer.tuition_paid,
+                )}
+              />
+
+              <DetailItem
+                label="Follow-Up Date"
+                value={formatDate(
+                  selectedCustomer.follow_up_date,
+                )}
+              />
+
+              <DetailItem
+                label="Last Contact"
+                value={formatDate(
+                  selectedCustomer.last_contact,
+                )}
               />
             </div>
 
             <div
               style={{
-                marginTop: "16px",
+                marginTop: 14,
+                padding: 15,
+                borderRadius: 12,
+                background:
+                  "#f7faf8",
+                border:
+                  "1px solid #e1ebe7",
               }}
             >
-              <label
+              <div
                 style={{
-                  display: "block",
-                  fontSize: "13px",
-                  fontWeight: 700,
-                  color: "#334155",
-                  marginBottom: "7px",
+                  fontSize: 11,
+                  fontWeight: 850,
+                  color: "#687a73",
+                  textTransform:
+                    "uppercase",
+                  letterSpacing:
+                    "0.05em",
                 }}
               >
                 Notes
-              </label>
+              </div>
 
-              <textarea
-                value={editForm.notes}
-                onChange={(event) =>
-                  setEditForm(
-                    (current) => ({
-                      ...current,
-                      notes:
-                        event.target.value,
-                    }),
-                  )
-                }
-                rows={5}
+              <div
                 style={{
-                  ...inputStyle,
-                  resize: "vertical",
+                  marginTop: 7,
+                  fontSize: 14,
+                  lineHeight: 1.6,
+                  color: "#36564e",
+                  whiteSpace:
+                    "pre-wrap",
                 }}
-              />
+              >
+                {selectedCustomer.notes ||
+                  "No notes recorded."}
+              </div>
             </div>
 
-            <div
-              style={{
-                display: "flex",
-                justifyContent:
-                  "flex-end",
-                gap: "10px",
-                marginTop: "20px",
-              }}
+            <ModalFooter
+              onClose={closeModals}
+            />
+          </Modal>
+        )}
+
+      {/* EDIT MODAL */}
+
+      {showEditModal &&
+        selectedCustomer && (
+          <Modal
+            title="Update Enrolled Student"
+            onClose={closeModals}
+            wide
+          >
+            <form
+              onSubmit={
+                handleEditCustomer
+              }
             >
-              <button
-                type="button"
-                onClick={closeModals}
-                style={
-                  secondaryButtonStyle
-                }
+              <div
+                className="ciu-form-grid"
+                style={{
+                  display: "grid",
+                  gridTemplateColumns:
+                    "repeat(2, minmax(0, 1fr))",
+                  gap: 16,
+                }}
               >
-                Cancel
-              </button>
+                <FormField
+                  label="Full Names"
+                  value={
+                    editForm.full_names
+                  }
+                  onChange={(value) =>
+                    setEditForm(
+                      (current) => ({
+                        ...current,
+                        full_names:
+                          value,
+                      }),
+                    )
+                  }
+                  required
+                />
 
-              <button
-                type="submit"
-                disabled={saving}
-                style={
-                  primaryButtonStyle
-                }
+                <FormField
+                  label="Telephone"
+                  value={
+                    editForm.telephone
+                  }
+                  onChange={(value) =>
+                    setEditForm(
+                      (current) => ({
+                        ...current,
+                        telephone:
+                          value,
+                      }),
+                    )
+                  }
+                />
+
+                <FormField
+                  label="Email"
+                  type="email"
+                  value={
+                    editForm.email
+                  }
+                  onChange={(value) =>
+                    setEditForm(
+                      (current) => ({
+                        ...current,
+                        email: value,
+                      }),
+                    )
+                  }
+                />
+
+                <FormField
+                  label="Programme"
+                  value={
+                    editForm.program
+                  }
+                  onChange={(value) =>
+                    setEditForm(
+                      (current) => ({
+                        ...current,
+                        program: value,
+                      }),
+                    )
+                  }
+                  required
+                />
+
+                <FormField
+                  label="Tuition Fee"
+                  type="number"
+                  value={
+                    editForm.tuition_fee
+                  }
+                  onChange={(value) =>
+                    setEditForm(
+                      (current) => ({
+                        ...current,
+                        tuition_fee:
+                          value,
+                      }),
+                    )
+                  }
+                />
+
+                <FormField
+                  label="Tuition Paid"
+                  type="number"
+                  value={
+                    editForm.tuition_paid
+                  }
+                  onChange={(value) =>
+                    setEditForm(
+                      (current) => ({
+                        ...current,
+                        tuition_paid:
+                          value,
+                      }),
+                    )
+                  }
+                />
+
+                <FormField
+                  label="Application Fee"
+                  type="number"
+                  value={
+                    editForm.application_fee
+                  }
+                  onChange={(value) =>
+                    setEditForm(
+                      (current) => ({
+                        ...current,
+                        application_fee:
+                          value,
+                      }),
+                    )
+                  }
+                />
+
+                <FormField
+                  label="Application Paid"
+                  type="number"
+                  value={
+                    editForm.application_paid
+                  }
+                  onChange={(value) =>
+                    setEditForm(
+                      (current) => ({
+                        ...current,
+                        application_paid:
+                          value,
+                      }),
+                    )
+                  }
+                />
+
+                <FormField
+                  label="Acceptance Fee"
+                  type="number"
+                  value={
+                    editForm.acceptance_fee
+                  }
+                  onChange={(value) =>
+                    setEditForm(
+                      (current) => ({
+                        ...current,
+                        acceptance_fee:
+                          value,
+                      }),
+                    )
+                  }
+                />
+
+                <FormField
+                  label="Acceptance Paid"
+                  type="number"
+                  value={
+                    editForm.acceptance_paid
+                  }
+                  onChange={(value) =>
+                    setEditForm(
+                      (current) => ({
+                        ...current,
+                        acceptance_paid:
+                          value,
+                      }),
+                    )
+                  }
+                />
+              </div>
+
+              <div
+                style={{
+                  marginTop: 16,
+                }}
               >
-                {saving
-                  ? "Saving..."
-                  : "Save Changes"}
-              </button>
-            </div>
-          </form>
-        </Modal>
-      )}
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: "#36564e",
+                    marginBottom: 7,
+                  }}
+                >
+                  Notes
+                </label>
 
-      {/* =====================================================
-          FOLLOW-UP MODAL
-      ====================================================== */}
+                <textarea
+                  value={editForm.notes}
+                  onChange={(event) =>
+                    setEditForm(
+                      (current) => ({
+                        ...current,
+                        notes:
+                          event.target.value,
+                      }),
+                    )
+                  }
+                  rows={5}
+                  style={{
+                    ...inputStyle,
+                    resize: "vertical",
+                  }}
+                />
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent:
+                    "flex-end",
+                  gap: 10,
+                  marginTop: 20,
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={closeModals}
+                  style={
+                    secondaryButtonStyle
+                  }
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={saving}
+                  style={
+                    primaryButtonStyle
+                  }
+                >
+                  {saving
+                    ? "Saving..."
+                    : "Save Changes"}
+                </button>
+              </div>
+            </form>
+          </Modal>
+        )}
+
+      {/* FOLLOW-UP MODAL */}
 
       {showFollowUpModal &&
         selectedCustomer && (
@@ -1964,50 +1902,47 @@ export default function CustomersPage() {
             <form
               onSubmit={handleFollowUp}
             >
-              <div>
-                <label
-                  style={{
-                    display: "block",
-                    fontSize: "13px",
-                    fontWeight: 700,
-                    color: "#334155",
-                    marginBottom: "7px",
-                  }}
-                >
-                  Follow-Up Date
-                </label>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: "#36564e",
+                  marginBottom: 7,
+                }}
+              >
+                Follow-Up Date
+              </label>
 
-                <input
-                  type="date"
-                  value={
-                    followUpForm.follow_up_date
-                  }
-                  onChange={(event) =>
-                    setFollowUpForm(
-                      (current) => ({
-                        ...current,
-                        follow_up_date:
-                          event.target
-                            .value,
-                      }),
-                    )
-                  }
-                  style={inputStyle}
-                />
-              </div>
+              <input
+                type="date"
+                value={
+                  followUpForm.follow_up_date
+                }
+                onChange={(event) =>
+                  setFollowUpForm(
+                    (current) => ({
+                      ...current,
+                      follow_up_date:
+                        event.target.value,
+                    }),
+                  )
+                }
+                style={inputStyle}
+              />
 
               <div
                 style={{
-                  marginTop: "16px",
+                  marginTop: 16,
                 }}
               >
                 <label
                   style={{
                     display: "block",
-                    fontSize: "13px",
+                    fontSize: 13,
                     fontWeight: 700,
-                    color: "#334155",
-                    marginBottom: "7px",
+                    color: "#36564e",
+                    marginBottom: 7,
                   }}
                 >
                   Notes
@@ -2022,8 +1957,7 @@ export default function CustomersPage() {
                       (current) => ({
                         ...current,
                         notes:
-                          event.target
-                            .value,
+                          event.target.value,
                       }),
                     )
                   }
@@ -2041,8 +1975,8 @@ export default function CustomersPage() {
                   display: "flex",
                   justifyContent:
                     "flex-end",
-                  gap: "10px",
-                  marginTop: "20px",
+                  gap: 10,
+                  marginTop: 20,
                 }}
               >
                 <button
@@ -2075,8 +2009,41 @@ export default function CustomersPage() {
 }
 
 /* ============================================================
-   KPI CARD
+   HELPERS / COMPONENTS
 ============================================================ */
+
+function getInitials(name: string) {
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+}
+
+function StatusBadge() {
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        borderRadius: 999,
+        padding: "6px 10px",
+        background: "#e8f5f1",
+        color: "#00695c",
+        border:
+          "1px solid #b8ddd2",
+        fontSize: 11,
+        fontWeight: 850,
+      }}
+    >
+      <span>●</span>
+      Enrolled
+    </span>
+  );
+}
 
 function KpiCard({
   label,
@@ -2091,35 +2058,30 @@ function KpiCard({
 }) {
   return (
     <div
+      className="ciu-card"
       style={{
         position: "relative",
-        overflow: "hidden",
-        background: "#ffffff",
-        border: "1px solid #dce3ec",
-        borderRadius: "16px",
-        padding: "20px",
-        boxShadow:
-          "0 5px 18px rgba(15,23,42,0.045)",
+        padding: 20,
       }}
     >
       <div
         style={{
           position: "absolute",
-          top: 0,
           left: 0,
-          width: "5px",
-          height: "100%",
+          top: 0,
+          bottom: 0,
+          width: 4,
           background: accent,
         }}
       />
 
       <div
         style={{
-          fontSize: "11px",
-          color: "#64748b",
-          fontWeight: 800,
+          color: "#71817b",
+          fontSize: 11,
+          fontWeight: 850,
           textTransform: "uppercase",
-          letterSpacing: "0.6px",
+          letterSpacing: "0.06em",
         }}
       >
         {label}
@@ -2127,11 +2089,11 @@ function KpiCard({
 
       <div
         style={{
-          marginTop: "10px",
-          fontSize: "27px",
-          lineHeight: 1.1,
+          marginTop: 9,
+          color: "#17322c",
+          fontSize: 26,
+          lineHeight: 1.15,
           fontWeight: 850,
-          color: "#0d2b52",
         }}
       >
         {value}
@@ -2139,9 +2101,9 @@ function KpiCard({
 
       <div
         style={{
-          marginTop: "7px",
-          fontSize: "12px",
-          color: "#94a3b8",
+          marginTop: 7,
+          color: "#87958f",
+          fontSize: 12,
         }}
       >
         {description}
@@ -2149,10 +2111,6 @@ function KpiCard({
     </div>
   );
 }
-
-/* ============================================================
-   SUMMARY CARD
-============================================================ */
 
 function SummaryCard({
   label,
@@ -2163,46 +2121,38 @@ function SummaryCard({
 }) {
   return (
     <div
+      className="ciu-strip"
       style={{
-        background: "#ffffff",
-        border: "1px solid #dce3ec",
-        borderRadius: "14px",
-        padding: "16px 18px",
-        boxShadow:
-          "0 3px 12px rgba(15,23,42,0.035)",
+        background:
+          "linear-gradient(135deg, #ffffff 0%, #f8fcfa 100%)",
       }}
     >
-      <div
+      <span
         style={{
-          fontSize: "11px",
-          color: "#64748b",
-          fontWeight: 800,
+          display: "block",
+          fontSize: 11,
+          fontWeight: 850,
           textTransform: "uppercase",
-          letterSpacing: "0.4px",
+          letterSpacing: "0.05em",
         }}
       >
         {label}
-      </div>
+      </span>
 
-      <div
+      <strong
         style={{
-          marginTop: "7px",
-          fontSize: "20px",
-          fontWeight: 850,
-          color: "#0d2b52",
+          display: "block",
+          marginTop: 6,
+          fontSize: 19,
         }}
       >
         {value}
-      </div>
+      </strong>
     </div>
   );
 }
 
-/* ============================================================
-   QUICK ACTION
-============================================================ */
-
-function QuickAction({
+function ActionButton({
   label,
   description,
   onClick,
@@ -2223,16 +2173,16 @@ function QuickAction({
       style={{
         textAlign: "left",
         border: primary
-          ? "1px solid #0d2b52"
-          : "1px solid #dce3ec",
+          ? "1px solid #00695c"
+          : "1px solid #d6e3de",
         background: primary
-          ? "#0d2b52"
+          ? "#00695c"
           : "#ffffff",
         color: primary
           ? "#ffffff"
-          : "#0d2b52",
-        borderRadius: "12px",
-        padding: "14px",
+          : "#36564e",
+        borderRadius: 11,
+        padding: "13px 14px",
         cursor: disabled
           ? "not-allowed"
           : "pointer",
@@ -2241,7 +2191,7 @@ function QuickAction({
     >
       <div
         style={{
-          fontSize: "14px",
+          fontSize: 13,
           fontWeight: 850,
         }}
       >
@@ -2250,11 +2200,11 @@ function QuickAction({
 
       <div
         style={{
-          marginTop: "4px",
-          fontSize: "11px",
+          marginTop: 4,
+          fontSize: 11,
           color: primary
-            ? "#cbd5e1"
-            : "#64748b",
+            ? "#d8eee8"
+            : "#71817b",
         }}
       >
         {description}
@@ -2262,85 +2212,6 @@ function QuickAction({
     </button>
   );
 }
-
-/* ============================================================
-   INFO BOX
-============================================================ */
-
-function InfoBox({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
-  return (
-    <div
-      style={{
-        padding: "14px",
-        borderRadius: "11px",
-        border: "1px solid #e2e8f0",
-        background: "#f8fafc",
-      }}
-    >
-      <div
-        style={{
-          fontSize: "10px",
-          color: "#64748b",
-          fontWeight: 800,
-          textTransform: "uppercase",
-          letterSpacing: "0.5px",
-        }}
-      >
-        {label}
-      </div>
-
-      <div
-        style={{
-          marginTop: "6px",
-          fontSize: "14px",
-          fontWeight: 700,
-          color: "#0f172a",
-        }}
-      >
-        {value}
-      </div>
-    </div>
-  );
-}
-
-/* ============================================================
-   TABLE HEADER
-============================================================ */
-
-function Th({
-  children,
-  color = "#64748b",
-}: {
-  children: ReactNode;
-  color?: string;
-}) {
-  return (
-    <th
-      style={{
-        textAlign: "left",
-        padding: "13px 16px",
-        fontSize: "10px",
-        color,
-        fontWeight: 850,
-        textTransform: "uppercase",
-        letterSpacing: "0.7px",
-        whiteSpace: "nowrap",
-      }}
-    >
-      {children}
-    </th>
-  );
-}
-
-/* ============================================================
-   DETAIL ITEM
-============================================================ */
 
 function DetailItem({
   label,
@@ -2350,15 +2221,22 @@ function DetailItem({
   value: string;
 }) {
   return (
-    <div>
+    <div
+      style={{
+        padding: 13,
+        borderRadius: 11,
+        border:
+          "1px solid #e1ebe7",
+        background: "#f8fbf9",
+      }}
+    >
       <div
         style={{
-          fontSize: "11px",
-          color: "#64748b",
-          fontWeight: 800,
+          fontSize: 10,
+          color: "#71817b",
+          fontWeight: 850,
           textTransform: "uppercase",
-          letterSpacing: "0.4px",
-          marginBottom: "5px",
+          letterSpacing: "0.05em",
         }}
       >
         {label}
@@ -2366,9 +2244,11 @@ function DetailItem({
 
       <div
         style={{
-          fontSize: "14px",
-          color: "#0f172a",
-          fontWeight: 600,
+          marginTop: 6,
+          fontSize: 14,
+          color: "#17322c",
+          fontWeight: 700,
+          wordBreak: "break-word",
         }}
       >
         {value}
@@ -2376,10 +2256,6 @@ function DetailItem({
     </div>
   );
 }
-
-/* ============================================================
-   FORM FIELD
-============================================================ */
 
 function FormField({
   label,
@@ -2399,10 +2275,10 @@ function FormField({
       <label
         style={{
           display: "block",
-          fontSize: "13px",
+          fontSize: 13,
           fontWeight: 700,
-          color: "#334155",
-          marginBottom: "7px",
+          color: "#36564e",
+          marginBottom: 7,
         }}
       >
         {label}
@@ -2421,9 +2297,111 @@ function FormField({
   );
 }
 
-/* ============================================================
-   MODAL
-============================================================ */
+function LoadingState() {
+  return (
+    <div
+      style={{
+        padding: "70px 20px",
+        textAlign: "center",
+      }}
+    >
+      <div
+        style={{
+          width: 46,
+          height: 46,
+          margin: "0 auto 14px",
+          borderRadius: 14,
+          background: "#e8f5f1",
+          color: "#00695c",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 21,
+        }}
+      >
+        …
+      </div>
+
+      <div
+        style={{
+          fontSize: 16,
+          fontWeight: 800,
+          color: "#17322c",
+        }}
+      >
+        Loading enrolled students...
+      </div>
+
+      <div
+        style={{
+          marginTop: 6,
+          fontSize: 13,
+          color: "#71817b",
+        }}
+      >
+        Please wait while the customer
+        workspace loads.
+      </div>
+    </div>
+  );
+}
+
+function EmptyState({
+  hasSearch,
+}: {
+  hasSearch: boolean;
+}) {
+  return (
+    <div
+      style={{
+        padding: "70px 20px",
+        textAlign: "center",
+      }}
+    >
+      <div
+        style={{
+          width: 58,
+          height: 58,
+          margin: "0 auto 14px",
+          borderRadius: 16,
+          background: "#e8f5f1",
+          color: "#00695c",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 27,
+        }}
+      >
+        🎓
+      </div>
+
+      <h3
+        style={{
+          margin: "0 0 8px",
+          fontSize: 18,
+          fontWeight: 850,
+          color: "#17322c",
+        }}
+      >
+        {hasSearch
+          ? "No students match your search"
+          : "No enrolled students found"}
+      </h3>
+
+      <p
+        style={{
+          margin: 0,
+          color: "#71817b",
+          fontSize: 14,
+        }}
+      >
+        {hasSearch
+          ? "Try changing your search or filter."
+          : "Students will appear here after their admission is moved to the Enrolled stage."}
+      </p>
+    </div>
+  );
+}
 
 function Modal({
   title,
@@ -2443,11 +2421,11 @@ function Modal({
         inset: 0,
         zIndex: 1000,
         background:
-          "rgba(7, 26, 53, 0.68)",
+          "rgba(10, 35, 30, 0.62)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        padding: "20px",
+        padding: 20,
         backdropFilter: "blur(4px)",
       }}
     >
@@ -2455,14 +2433,14 @@ function Modal({
         style={{
           width: "100%",
           maxWidth: wide
-            ? "900px"
-            : "700px",
+            ? 920
+            : 700,
           maxHeight: "90vh",
           overflowY: "auto",
           background: "#ffffff",
-          borderRadius: "18px",
+          borderRadius: 18,
           boxShadow:
-            "0 30px 80px rgba(7,26,53,0.30)",
+            "0 30px 80px rgba(10,35,30,0.25)",
         }}
       >
         <div
@@ -2471,19 +2449,17 @@ function Modal({
             alignItems: "center",
             justifyContent:
               "space-between",
-            gap: "16px",
-            padding: "18px 20px",
+            gap: 16,
+            padding: "17px 20px",
             background:
-              "linear-gradient(90deg, #071a35, #0d2b52)",
+              "linear-gradient(135deg, #00574d, #00695c)",
             color: "#ffffff",
-            borderBottom:
-              "3px solid #0d2b52",
           }}
         >
           <h2
             style={{
               margin: 0,
-              fontSize: "19px",
+              fontSize: 18,
               fontWeight: 850,
             }}
           >
@@ -2496,15 +2472,15 @@ function Modal({
             aria-label="Close"
             style={{
               border:
-                "1px solid rgba(255,255,255,0.2)",
+                "1px solid rgba(255,255,255,0.25)",
               background:
                 "rgba(255,255,255,0.10)",
               color: "#ffffff",
-              width: "34px",
-              height: "34px",
-              borderRadius: "9px",
+              width: 34,
+              height: 34,
+              borderRadius: 9,
               cursor: "pointer",
-              fontSize: "18px",
+              fontSize: 18,
               fontWeight: 700,
             }}
           >
@@ -2514,7 +2490,7 @@ function Modal({
 
         <div
           style={{
-            padding: "20px",
+            padding: 20,
           }}
         >
           {children}
@@ -2523,10 +2499,6 @@ function Modal({
     </div>
   );
 }
-
-/* ============================================================
-   MODAL FOOTER
-============================================================ */
 
 function ModalFooter({
   onClose,
@@ -2537,8 +2509,9 @@ function ModalFooter({
     <div
       style={{
         display: "flex",
-        justifyContent: "flex-end",
-        marginTop: "20px",
+        justifyContent:
+          "flex-end",
+        marginTop: 20,
       }}
     >
       <button
@@ -2551,41 +2524,3 @@ function ModalFooter({
     </div>
   );
 }
-
-/* ============================================================
-   SHARED STYLES
-============================================================ */
-
-const inputStyle: CSSProperties = {
-  width: "100%",
-  boxSizing: "border-box",
-  border: "1px solid #cbd5e1",
-  borderRadius: "10px",
-  padding: "11px 13px",
-  fontSize: "14px",
-  color: "#0f172a",
-  background: "#ffffff",
-  outline: "none",
-};
-
-const primaryButtonStyle: CSSProperties = {
-  border: "none",
-  background: "#0d2b52",
-  color: "#ffffff",
-  borderRadius: "9px",
-  padding: "10px 16px",
-  fontSize: "14px",
-  fontWeight: 750,
-  cursor: "pointer",
-};
-
-const secondaryButtonStyle: CSSProperties = {
-  border: "1px solid #cbd5e1",
-  background: "#ffffff",
-  color: "#334155",
-  borderRadius: "9px",
-  padding: "10px 16px",
-  fontSize: "14px",
-  fontWeight: 700,
-  cursor: "pointer",
-};

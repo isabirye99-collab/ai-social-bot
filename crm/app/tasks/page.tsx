@@ -4,6 +4,7 @@ import {
   FormEvent,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -17,13 +18,13 @@ type TaskStatus =
   | "cancelled";
 
 type TaskType =
-  | "Call"
-  | "Email"
-  | "WhatsApp"
-  | "Meeting"
-  | "Note"
-  | "Proposal"
-  | "Other";
+  | "call"
+  | "email"
+  | "whatsapp"
+  | "meeting"
+  | "note"
+  | "proposal"
+  | "other";
 
 type Task = {
   id: string;
@@ -93,14 +94,26 @@ type TaskForm = {
 };
 
 const TASK_TYPES: TaskType[] = [
-  "Call",
-  "WhatsApp",
-  "Email",
-  "Meeting",
-  "Note",
-  "Proposal",
-  "Other",
+  "call",
+  "whatsapp",
+  "email",
+  "meeting",
+  "note",
+  "proposal",
+  "other",
 ];
+
+function taskTypeLabel(type: string): string {
+  switch (type.toLowerCase()) {
+    case "call": return "Call";
+    case "whatsapp": return "WhatsApp";
+    case "email": return "Email";
+    case "meeting": return "Meeting";
+    case "note": return "Note";
+    case "proposal": return "Proposal";
+    default: return "Other";
+  }
+}
 
 const TASK_STATUSES: TaskStatus[] = [
   "pending",
@@ -141,7 +154,7 @@ const PIPELINE_WAITING_OUTCOMES = [
 const EMPTY_FORM: TaskForm = {
   title: "",
   description: "",
-  task_type: "Call",
+  task_type: "call",
   lead_id: "",
   opportunity_id: "",
   assigned_to: "",
@@ -231,21 +244,14 @@ function statusLabel(status: string) {
 }
 
 function taskTypeIcon(type: string) {
-  switch (type) {
-    case "Call":
-      return "☎";
-    case "WhatsApp":
-      return "◉";
-    case "Email":
-      return "✉";
-    case "Meeting":
-      return "◫";
-    case "Note":
-      return "▤";
-    case "Proposal":
-      return "▱";
-    default:
-      return "✓";
+  switch (type.toLowerCase()) {
+    case "call": return "☎";
+    case "whatsapp": return "◉";
+    case "email": return "✉";
+    case "meeting": return "◫";
+    case "note": return "▤";
+    case "proposal": return "▱";
+    default: return "✓";
   }
 }
 
@@ -290,6 +296,18 @@ function getPriority(task: Task) {
 }
 
 export default function TasksPage() {
+  const actionMenuItemStyle: React.CSSProperties = {
+    display: "block",
+    width: "100%",
+    padding: "10px",
+    border: "none",
+    background: "#ffffff",
+    color: "#374151",
+    textAlign: "left",
+    cursor: "pointer",
+    fontSize: "12px",
+    borderRadius: "6px",
+  };
   const [tasks, setTasks] = useState<Task[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -325,6 +343,8 @@ export default function TasksPage() {
 
   const [selectedTask, setSelectedTask] =
     useState<Task | null>(null);
+const [openActionsTaskId, setOpenActionsTaskId] =
+    useState<string | null>(null);
 
   const [form, setForm] =
     useState<TaskForm>(EMPTY_FORM);
@@ -340,8 +360,29 @@ export default function TasksPage() {
 
   const [outcomeDate, setOutcomeDate] =
     useState("");
+const tableScrollRef = useRef<HTMLDivElement | null>(null);
+const tableBottomScrollRef = useRef<HTMLDivElement | null>(null);
+const [tableScrollWidth, setTableScrollWidth] = useState(0);
+useEffect(() => {
+  const table = tableScrollRef.current;
+  if (!table) return;
 
-  const isSalesperson =
+  const updateWidth = () => {
+    setTableScrollWidth(table.scrollWidth);
+  };
+
+  updateWidth();
+
+  const observer = new ResizeObserver(updateWidth);
+  observer.observe(table);
+
+  const innerTable = table.querySelector("table");
+  if (innerTable) observer.observe(innerTable);
+
+  return () => observer.disconnect();
+}, [loading, tasks.length]);
+  
+const isSalesperson =
     currentRole === "salesperson";
 
   const isAdmin =
@@ -631,7 +672,7 @@ export default function TasksPage() {
 
         if (
           typeFilter !== "all" &&
-          task.task_type !== typeFilter
+          task.task_type.toLowerCase() !== typeFilter
         ) {
           return false;
         }
@@ -687,7 +728,7 @@ export default function TasksPage() {
       title: lead?.name
         ? `Follow up with ${lead.name}`
         : "",
-      task_type: "Call",
+      task_type: "call",
       due_at: lead?.next_follow_up_at
         ? toDateTimeLocal(
             lead.next_follow_up_at
@@ -707,12 +748,13 @@ export default function TasksPage() {
       title: task.title || "",
       description:
         task.description || "",
-      task_type:
-        (TASK_TYPES.includes(
-          task.task_type as TaskType
+      task_type: (
+        TASK_TYPES.includes(
+          task.task_type.toLowerCase() as TaskType
         )
-          ? task.task_type
-          : "Other") as TaskType,
+          ? task.task_type.toLowerCase()
+          : "other"
+      ) as TaskType,
       lead_id: task.lead_id || "",
       opportunity_id:
         task.opportunity_id || "",
@@ -749,14 +791,15 @@ export default function TasksPage() {
       }
 
       if (
-        isSalesperson &&
-        form.assigned_to &&
-        form.assigned_to !== currentUserId
-      ) {
-        throw new Error(
-          "You can only assign tasks to yourself."
-        );
-      }
+  isSalesperson &&
+  !isAdmin &&
+  form.assigned_to &&
+  form.assigned_to !== currentUserId
+) {
+  throw new Error(
+    "You can only assign tasks to yourself."
+  );
+}
 
       const payload = {
         title: form.title.trim(),
@@ -1010,42 +1053,33 @@ export default function TasksPage() {
   ) => {
     if (!task.lead_id) return;
 
-    const leadStatusMap: Record<
-      string,
-      string
-    > = {
-      Interested: "Interested",
+    
+    const leadStatusMap: Record<string, string> = {
+      Interested: "qualified",
 
-      Applied: "Converted",
-      "Application Submitted":
-        "Converted",
-      Admitted: "Converted",
-      "Paid Application Fee":
-        "Converted",
-      "Acceptance Fee Paid":
-        "Converted",
-      "Paid Acceptance Fee":
-        "Converted",
-      Enrolled: "Converted",
+      Applied: "converted",
+      "Application Submitted": "converted",
+      Admitted: "converted",
+      "Paid Application Fee": "converted",
+      "Acceptance Fee Paid": "converted",
+      "Paid Acceptance Fee": "converted",
+      Enrolled: "converted",
 
-      "Follow up later":
-        "Follow up later",
-      "Financial issues":
-        "Financial issues",
-      "No Answer": "No Answer",
-      Unreachable: "Unreachable",
+      // Follow-up outcomes are not lead statuses.
+      "Follow up later": "contacted",
+      "Financial issues": "contacted",
+      "No Answer": "contacted",
+      Unreachable: "contacted",
 
-      "Not interested":
-        "Not interested",
-      "Lost Leads": "Lost Leads",
-      "Wrong Number":
-        "Ineffective Data",
-      Dropped: "Dropped",
+      "Not interested": "unqualified",
+      "Lost Leads": "lost",
+      "Wrong Number": "unqualified",
+      Dropped: "lost",
     };
 
     const leadStatus =
       leadStatusMap[outcome] ||
-      "Called";
+      "contacted";
 
     const { error } =
       await supabase
@@ -1300,11 +1334,11 @@ export default function TasksPage() {
           description:
             "Follow-up task automatically created after the previous task outcome.",
           task_type:
-            task.task_type === "WhatsApp"
-              ? "WhatsApp"
-              : task.task_type === "Email"
-              ? "Email"
-              : "Call",
+            task.task_type.toLowerCase() === "whatsapp"
+              ? "whatsapp"
+              : task.task_type.toLowerCase() === "email"
+                ? "email"
+                : "call",
           lead_id:
             task.lead_id,
           opportunity_id:
@@ -1477,84 +1511,116 @@ export default function TasksPage() {
         }}
       >
         {/* HEADER */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent:
-              "space-between",
-            alignItems: "flex-start",
-            gap: "16px",
-            marginBottom: "24px",
-            flexWrap: "wrap",
-          }}
-        >
-          <div>
-            <div
-              style={{
-                fontSize: "12px",
-                fontWeight: 700,
-                color: "#64748b",
-                textTransform:
-                  "uppercase",
-                letterSpacing:
-                  "0.08em",
-                marginBottom: "6px",
-              }}
-            >
-              CRM Work Centre
-            </div>
+<div
+  style={{
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: "20px",
+    flexWrap: "wrap",
+    marginBottom: "22px",
+    padding: "26px 28px",
+    background: "#ffffff",
+    border: "1px solid #dfe8e3",
+    borderLeft: "5px solid #087443",
+    borderRadius: "16px",
+    boxShadow: "0 3px 12px rgba(15, 23, 42, 0.035)",
+    position: "relative",
+    overflow: "hidden",
+  }}
+>
+  <div style={{ position: "relative", zIndex: 1 }}>
+    <div
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "7px",
+        marginBottom: "9px",
+        color: "#087443",
+        fontSize: "11px",
+        fontWeight: 800,
+        textTransform: "uppercase",
+        letterSpacing: "0.1em",
+      }}
+    >
+      <span
+        style={{
+          width: "7px",
+          height: "7px",
+          borderRadius: "50%",
+          background: "#087443",
+        }}
+      />
+      CIU CRM · WORK CENTRE
+    </div>
 
-            <h1
-              style={{
-                margin: 0,
-                fontSize: "30px",
-                lineHeight: 1.15,
-                fontWeight: 800,
-                color: "#0f172a",
-              }}
-            >
-              {isSalesperson
-                ? "My Tasks"
-                : "Tasks & Follow-ups"}
-            </h1>
+    <h1
+      style={{
+        margin: 0,
+        fontSize: "30px",
+        lineHeight: 1.2,
+        fontWeight: 800,
+        color: "#172b22",
+        letterSpacing: "-0.025em",
+      }}
+    >
+      {isSalesperson ? "My Tasks" : "Tasks & Follow-ups"}
+    </h1>
 
-            <p
-              style={{
-                margin:
-                  "7px 0 0",
-                color: "#64748b",
-                fontSize: "14px",
-              }}
-            >
-              {isSalesperson
-                ? "Manage your assigned student activities and follow-ups."
-                : "Manage student activities, follow-ups and admissions actions."}
-            </p>
-          </div>
+    <p
+      style={{
+        margin: "9px 0 0",
+        color: "#64756b",
+        fontSize: "14px",
+        lineHeight: 1.6,
+      }}
+    >
+      {isSalesperson
+        ? "Manage your assigned student activities and follow-ups."
+        : "Manage student activities, follow-ups and admissions actions."}
+    </p>
+  </div>
 
-          <button
-            type="button"
-            onClick={() =>
-              openNewTask()
-            }
-            style={{
-              border: "none",
-              borderRadius: "10px",
-              padding:
-                "12px 18px",
-              background:
-                "#111827",
-              color: "#ffffff",
-              fontWeight: 700,
-              cursor: "pointer",
-              fontSize: "14px",
-            }}
-          >
-            + New Task
-          </button>
-        </div>
+  <button
+    type="button"
+    onClick={() => openNewTask()}
+    style={{
+      position: "relative",
+      zIndex: 1,
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: "8px",
+      border: "1px solid #087443",
+      borderRadius: "10px",
+      padding: "12px 18px",
+      background: "#087443",
+      color: "#ffffff",
+      fontWeight: 700,
+      cursor: "pointer",
+      fontSize: "13px",
+      boxShadow: "0 3px 7px rgba(8, 116, 67, 0.16)",
+      whiteSpace: "nowrap",
+    }}
+  >
+    + New Task
+  </button>
 
-        {/* ALERTS */}
+  <div
+    aria-hidden="true"
+    style={{
+      position: "absolute",
+      right: "-35px",
+      top: "-65px",
+      width: "175px",
+      height: "175px",
+      borderRadius: "50%",
+      background: "rgba(8, 116, 67, 0.045)",
+      pointerEvents: "none",
+    }}
+  />
+</div>
+{/* ALERTS */}
         {error && (
           <div
             style={{
@@ -1590,178 +1656,130 @@ export default function TasksPage() {
         )}
 
         {/* KPI CARDS */}
-        <div
+<div
           style={{
             display: "grid",
-            gridTemplateColumns:
-              "repeat(auto-fit, minmax(190px, 1fr))",
-            gap: "14px",
-            marginBottom: "22px",
+            gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+            gap: "16px",
+            marginBottom: "20px",
           }}
         >
-          <div
-            style={{
-              background: "#ffffff",
-              border:
-                "1px solid #e5e7eb",
-              borderRadius: "14px",
-              padding: "18px",
-            }}
-          >
+          {[
+            {
+              label: "OPEN TASKS",
+              value: stats.active,
+              description: "Active work",
+              icon: "◷",
+            },
+            {
+              label: "DUE TODAY",
+              value: stats.dueToday,
+              description: "Today's activities",
+              icon: "▦",
+            },
+            {
+              label: "OVERDUE",
+              value: stats.overdue,
+              description: "Need attention",
+              icon: "!",
+            },
+            {
+              label: "COMPLETED",
+              value: stats.completed,
+              description: "Completed activities",
+              icon: "✓",
+            },
+          ].map((item) => (
             <div
+              key={item.label}
               style={{
-                color: "#64748b",
-                fontSize: "12px",
-                fontWeight: 700,
+                position: "relative",
+                overflow: "hidden",
+                background: "#ffffff",
+                border: "1px solid #dce9e0",
+                borderLeft: "4px solid #087443",
+                borderRadius: "14px",
+                padding: "19px 18px",
+                boxShadow: "0 4px 15px rgba(8, 116, 67, 0.06)",
               }}
             >
-              OPEN TASKS
-            </div>
+              <div
+                style={{
+                  position: "absolute",
+                  right: "-14px",
+                  top: "-17px",
+                  width: "76px",
+                  height: "76px",
+                  borderRadius: "50%",
+                  background: "rgba(8, 116, 67, 0.06)",
+                  pointerEvents: "none",
+                }}
+              />
 
-            <div
-              style={{
-                marginTop: "7px",
-                fontSize: "28px",
-                fontWeight: 800,
-                color: "#0f172a",
-              }}
-            >
-              {stats.active}
-            </div>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: "8px",
+                  position: "relative",
+                }}
+              >
+                <div
+                  style={{
+                    color: "#475569",
+                    fontSize: "11px",
+                    fontWeight: 800,
+                    letterSpacing: "0.7px",
+                  }}
+                >
+                  {item.label}
+                </div>
 
-            <div
-              style={{
-                marginTop: "4px",
-                fontSize: "12px",
-                color: "#64748b",
-              }}
-            >
-              Active work
-            </div>
-          </div>
+                <div
+                  style={{
+                    width: "31px",
+                    height: "31px",
+                    minWidth: "31px",
+                    borderRadius: "9px",
+                    background: "#e8f5ed",
+                    color: "#087443",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "18px",
+                    fontWeight: 800,
+                  }}
+                >
+                  {item.icon}
+                </div>
+              </div>
 
-          <div
-            style={{
-              background: "#ffffff",
-              border:
-                "1px solid #e5e7eb",
-              borderRadius: "14px",
-              padding: "18px",
-            }}
-          >
-            <div
-              style={{
-                color: "#64748b",
-                fontSize: "12px",
-                fontWeight: 700,
-              }}
-            >
-              DUE TODAY
-            </div>
+              <div
+                style={{
+                  marginTop: "9px",
+                  fontSize: "29px",
+                  lineHeight: 1.2,
+                  fontWeight: 800,
+                  color: "#087443",
+                  position: "relative",
+                }}
+              >
+                {item.value}
+              </div>
 
-            <div
-              style={{
-                marginTop: "7px",
-                fontSize: "28px",
-                fontWeight: 800,
-                color: "#2563eb",
-              }}
-            >
-              {stats.dueToday}
+              <div
+                style={{
+                  marginTop: "5px",
+                  fontSize: "12px",
+                  color: "#64748b",
+                  position: "relative",
+                }}
+              >
+                {item.description}
+              </div>
             </div>
-
-            <div
-              style={{
-                marginTop: "4px",
-                fontSize: "12px",
-                color: "#64748b",
-              }}
-            >
-              Today's activities
-            </div>
-          </div>
-
-          <div
-            style={{
-              background: "#ffffff",
-              border:
-                "1px solid #e5e7eb",
-              borderRadius: "14px",
-              padding: "18px",
-            }}
-          >
-            <div
-              style={{
-                color: "#64748b",
-                fontSize: "12px",
-                fontWeight: 700,
-              }}
-            >
-              OVERDUE
-            </div>
-
-            <div
-              style={{
-                marginTop: "7px",
-                fontSize: "28px",
-                fontWeight: 800,
-                color: "#dc2626",
-              }}
-            >
-              {stats.overdue}
-            </div>
-
-            <div
-              style={{
-                marginTop: "4px",
-                fontSize: "12px",
-                color: "#64748b",
-              }}
-            >
-              Need attention
-            </div>
-          </div>
-
-          <div
-            style={{
-              background: "#ffffff",
-              border:
-                "1px solid #e5e7eb",
-              borderRadius: "14px",
-              padding: "18px",
-            }}
-          >
-            <div
-              style={{
-                color: "#64748b",
-                fontSize: "12px",
-                fontWeight: 700,
-              }}
-            >
-              COMPLETED
-            </div>
-
-            <div
-              style={{
-                marginTop: "7px",
-                fontSize: "28px",
-                fontWeight: 800,
-                color: "#059669",
-              }}
-            >
-              {stats.completed}
-            </div>
-
-            <div
-              style={{
-                marginTop: "4px",
-                fontSize: "12px",
-                color: "#64748b",
-              }}
-            >
-              Completed activities
-            </div>
-          </div>
+          ))}
         </div>
 
         {/* FILTER BAR */}
@@ -1872,7 +1890,7 @@ export default function TasksPage() {
                     key={type}
                     value={type}
                   >
-                    {type}
+                    {taskTypeLabel(type)}
                   </option>
                 )
               )}
@@ -2097,22 +2115,34 @@ export default function TasksPage() {
                 + Create Task
               </button>
             </div>
-          ) : (
-            <div
-              style={{
-                overflowX:
-                  "auto",
-              }}
-            >
-              <table
-                style={{
-                  width: "100%",
-                  borderCollapse:
-                    "collapse",
-                  minWidth:
-                    "1050px",
-                }}
-              >
+                   ) : (
+            <>
+<div
+  ref={tableScrollRef}
+  onScroll={(event) => {
+    const bottom = tableBottomScrollRef.current;
+    if (
+      bottom &&
+      bottom.scrollLeft !== event.currentTarget.scrollLeft
+    ) {
+      bottom.scrollLeft = event.currentTarget.scrollLeft;
+    }
+  }}
+  style={{
+    width: "100%",
+    maxHeight: "65vh",
+    overflowX: "hidden",
+    overflowY: "auto",
+  }}
+>
+
+<table
+  style={{
+    width: "100%",
+    borderCollapse: "collapse",
+    minWidth: "1050px",
+  }}
+>
                 <thead>
                   <tr
                     style={{
@@ -2309,7 +2339,7 @@ export default function TasksPage() {
                                       "13px",
                                   }}
                                 >
-                                  {task.title}
+                                  {task.title.replace(/:\s*.+$/, "").trim()}
                                 </button>
 
                                 {task.description && (
@@ -2461,7 +2491,7 @@ export default function TasksPage() {
                                 )}
                               </span>
                               {
-                                task.task_type
+                                taskTypeLabel(task.task_type)
                               }
                             </span>
                           </td>
@@ -2599,172 +2629,176 @@ export default function TasksPage() {
                               "Unassigned"}
                           </td>
 
-                          {/* ACTIONS */}
-                          <td
-                            style={{
-                              padding:
-                                "15px 16px",
-                              verticalAlign:
-                                "top",
-                            }}
-                          >
-                            <div
-                              style={{
-                                display:
-                                  "flex",
-                                justifyContent:
-                                  "flex-end",
-                                gap: "6px",
-                                flexWrap:
-                                  "wrap",
-                              }}
-                            >
-                              {lead?.phone && (
-                                <>
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      callStudent(
-                                        lead
-                                      )
-                                    }
-                                    title="Call"
-                                    style={{
-                                      border:
-                                        "1px solid #d1d5db",
-                                      background:
-                                        "#ffffff",
-                                      borderRadius:
-                                        "7px",
-                                      padding:
-                                        "7px 9px",
-                                      cursor:
-                                        "pointer",
-                                      fontSize:
-                                        "12px",
-                                    }}
-                                  >
-                                    Call
-                                  </button>
+                          
+{/* ACTIONS */}
+<td
+  style={{
+    padding: "15px 16px",
+    verticalAlign: "top",
+    textAlign: "right",
+    position: "relative",
+    whiteSpace: "nowrap",
+  }}
+>
+  <div
+    style={{
+      display: "inline-block",
+      position: "relative",
+    }}
+  >
+    <button
+      type="button"
+      onClick={() =>
+        setOpenActionsTaskId(
+          openActionsTaskId === task.id
+            ? null
+            : task.id
+        )
+      }
+      style={{
+        border: "1px solid #d1d5db",
+        background: "#ffffff",
+        color: "#166534",
+        borderRadius: "8px",
+        padding: "8px 12px",
+        cursor: "pointer",
+        fontSize: "12px",
+        fontWeight: 700,
+      }}
+    >
+      Actions ▾
+    </button>
 
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      whatsappStudent(
-                                        lead
-                                      )
-                                    }
-                                    title="WhatsApp"
-                                    style={{
-                                      border:
-                                        "1px solid #d1d5db",
-                                      background:
-                                        "#ffffff",
-                                      borderRadius:
-                                        "7px",
-                                      padding:
-                                        "7px 9px",
-                                      cursor:
-                                        "pointer",
-                                      fontSize:
-                                        "12px",
-                                    }}
-                                  >
-                                    WhatsApp
-                                  </button>
-                                </>
-                              )}
+    {openActionsTaskId === task.id && (
+      <div
+        style={{
+          position: "absolute",
+          top: "calc(100% + 6px)",
+          right: 0,
+          minWidth: "185px",
+          background: "#ffffff",
+          border: "1px solid #e5e7eb",
+          borderRadius: "10px",
+          boxShadow: "0 10px 25px rgba(0,0,0,0.12)",
+          padding: "6px",
+          zIndex: 100,
+          textAlign: "left",
+        }}
+      >
+        {lead?.phone && (
+          <>
+            <button
+              type="button"
+              onClick={() => {
+                setOpenActionsTaskId(null);
+                callStudent(lead);
+              }}
+              style={actionMenuItemStyle}
+            >
+              📞 Call Student
+            </button>
 
-                              {lead?.email && (
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    emailStudent(
-                                      lead
-                                    )
-                                  }
-                                  title="Email"
-                                  style={{
-                                    border:
-                                      "1px solid #d1d5db",
-                                    background:
-                                      "#ffffff",
-                                    borderRadius:
-                                      "7px",
-                                    padding:
-                                      "7px 9px",
-                                    cursor:
-                                      "pointer",
-                                    fontSize:
-                                      "12px",
-                                  }}
-                                >
-                                  Email
-                                </button>
-                              )}
+            <button
+              type="button"
+              onClick={() => {
+                setOpenActionsTaskId(null);
+                whatsappStudent(lead);
+              }}
+              style={actionMenuItemStyle}
+            >
+              WhatsApp
+            </button>
+          </>
+        )}
 
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  openOutcome(
-                                    task
-                                  )
-                                }
-                                style={{
-                                  border:
-                                    "none",
-                                  background:
-                                    "#111827",
-                                  color:
-                                    "#ffffff",
-                                  borderRadius:
-                                    "7px",
-                                  padding:
-                                    "7px 10px",
-                                  cursor:
-                                    "pointer",
-                                  fontSize:
-                                    "12px",
-                                  fontWeight:
-                                    700,
-                                }}
-                              >
-                                Outcome
-                              </button>
+        {lead?.email && (
+          <button
+            type="button"
+            onClick={() => {
+              setOpenActionsTaskId(null);
+              emailStudent(lead);
+            }}
+            style={actionMenuItemStyle}
+          >
+            ✉ Email
+          </button>
+        )}
 
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  openEditTask(
-                                    task
-                                  )
-                                }
-                                style={{
-                                  border:
-                                    "1px solid #d1d5db",
-                                  background:
-                                    "#ffffff",
-                                  borderRadius:
-                                    "7px",
-                                  padding:
-                                    "7px 9px",
-                                  cursor:
-                                    "pointer",
-                                  fontSize:
-                                    "12px",
-                                }}
-                              >
-                                Edit
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    }
-                  )}
+        <button
+          type="button"
+          onClick={() => {
+            setOpenActionsTaskId(null);
+            openOutcome(task);
+          }}
+          style={actionMenuItemStyle}
+        >
+          Record Outcome
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setOpenActionsTaskId(null);
+            openEditTask(task);
+          }}
+          style={actionMenuItemStyle}
+        >
+          ✏ Edit Task
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setOpenActionsTaskId(null);
+            void deleteTask(task);
+          }}
+          style={{
+            ...actionMenuItemStyle,
+            color: "#dc2626",
+          }}
+        >
+          Delete Task
+        </button>
+      </div>
+    )}
+  </div>
+</td>
+                      </tr>
+                    );
+                  }
+                )}
                 </tbody>
-              </table>
+                           </table>
             </div>
+            <div
+              ref={tableBottomScrollRef}
+              onScroll={(event) => {
+                const top = tableScrollRef.current;
+                if (
+                  top &&
+                  top.scrollLeft !== event.currentTarget.scrollLeft
+                ) {
+                  top.scrollLeft = event.currentTarget.scrollLeft;
+                }
+              }}
+              aria-label="Scroll task table horizontally"
+              style={{
+                width: "100%",
+                overflowX: "auto",
+                overflowY: "hidden",
+                height: "16px",
+                borderTop: "1px solid #e5e7eb",
+                background: "#f8fafc",
+              }}
+            >
+              <div
+                style={{
+                  width: `${Math.max(tableScrollWidth, 1050)}px`,
+                  height: "1px",
+                }}
+              />
+             </div>
+            </>
           )}
         </div>
       </div>
@@ -3019,7 +3053,7 @@ export default function TasksPage() {
                             type
                           }
                         >
-                          {type}
+                          {taskTypeLabel(type)}
                         </option>
                       )
                     )}
