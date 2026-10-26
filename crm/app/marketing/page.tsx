@@ -1,5 +1,6 @@
 "use client";
 
+import MarketingSectionTabs from "@/components/MarketingSectionTabs";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -1022,6 +1023,11 @@ export default function MarketingPage() {
           margin: "0 auto",
         }}
       >
+        {/* MARKETING SECTION NAVIGATION */}
+        <div style={{ marginBottom: 24 }}>
+          <MarketingSectionTabs />
+        </div>
+
         {/* HEADER */}
         <div
           style={{
