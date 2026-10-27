@@ -815,10 +815,26 @@ const isSalesperson =
 
       let linkedLeadId = form.lead_id || null;
       let linkedOpportunityId = form.opportunity_id || null;
+      let linkedAssigneeId = form.assigned_to || null;
 
       if (!editingTask && walkInMode) {
         if (!walkInName.trim()) throw new Error("Please enter the walk-in student's full name.");
         if (!walkInPhone.trim() && !walkInEmail.trim()) throw new Error("Enter at least a telephone number or email address for the walk-in.");
+
+        // Automatically distribute walk-ins to the active salesperson with the fewest open tasks.
+        const activeSalespeople = profiles
+          .filter((profile) => profile.is_active !== false && profile.role === "salesperson")
+          .sort((a, b) => {
+            const aOpenTasks = tasks.filter((task) => task.assigned_to === a.id && !["completed", "cancelled", "canceled"].includes(String(task.status).toLowerCase())).length;
+            const bOpenTasks = tasks.filter((task) => task.assigned_to === b.id && !["completed", "cancelled", "canceled"].includes(String(task.status).toLowerCase())).length;
+            return aOpenTasks - bOpenTasks || String(a.full_name || "").localeCompare(String(b.full_name || ""));
+          });
+
+        if (activeSalespeople.length === 0) {
+          throw new Error("No active salesperson is available to assign this walk-in. Ask an administrator to activate a salesperson account.");
+        }
+
+        linkedAssigneeId = activeSalespeople[0].id;
 
         const leadPayload = {
           name: walkInName.trim(),
@@ -827,7 +843,7 @@ const isSalesperson =
           product_service: walkInProgramme.trim() || null,
           location: "Walk-in",
           status: "new",
-          assigned_to: form.assigned_to || currentUserId || null,
+          assigned_to: linkedAssigneeId,
           feedback: walkInNotes.trim() || null,
           notes: ["Lead source: Walk-in", walkInNotes.trim()].filter(Boolean).join("\n"),
           follow_up_status: "Pending",
@@ -855,7 +871,7 @@ const isSalesperson =
             .insert({
               lead_id: newLead.id,
               title: `${newLead.name || "Walk-in student"} - Admission`,
-              assigned_to: newLead.assigned_to || currentUserId || null,
+              assigned_to: linkedAssigneeId,
               status: "open",
               stage_id: firstStage?.id || null,
               probability: Number(firstStage?.probability || 0),
@@ -872,7 +888,7 @@ const isSalesperson =
         task_type: form.task_type,
         lead_id: linkedLeadId,
         opportunity_id: linkedOpportunityId,
-        assigned_to: form.assigned_to || null,
+        assigned_to: !editingTask && walkInMode ? linkedAssigneeId : (form.assigned_to || null),
         due_at: form.due_at ? new Date(form.due_at).toISOString() : null,
         status: form.status,
         updated_at: new Date().toISOString(),
