@@ -197,11 +197,22 @@ export default function CRMLayout({
 
     void loadSettings();
     void loadUser();
+
+    // Refresh navigation permissions whenever Supabase authentication changes.
+    // The callback schedules the profile read outside Supabase's auth callback
+    // to avoid holding its internal auth lock while querying the database.
+    const { data: authListener } = supabase.auth.onAuthStateChange(() => {
+      window.setTimeout(() => {
+        if (active) void loadUser();
+      }, 0);
+    });
+
     window.addEventListener("ciu-crm-logo-updated", handleBrandingUpdated);
     window.addEventListener("storage", handleStorage);
 
     return () => {
       active = false;
+      authListener.subscription.unsubscribe();
       window.removeEventListener("ciu-crm-logo-updated", handleBrandingUpdated);
       window.removeEventListener("storage", handleStorage);
     };
