@@ -88,8 +88,8 @@ export default function CRMLayout({
           : isOrientation((prefs as BrandingPreferences & { layoutOrientation?: string }).layoutOrientation)
             ? { navigationOrientation: (prefs as BrandingPreferences & { layoutOrientation?: Orientation }).layoutOrientation! }
             : {}),
-        ...(isHexColor(prefs.primaryColor) ? { primaryColor: prefs.primaryColor } : {}),
-        ...(isHexColor(prefs.secondaryColor) ? { secondaryColor: prefs.secondaryColor } : {}),
+        ...(isHexColor(prefs.primaryColor) ? { primaryColor: prefs.primaryColor.toLowerCase() === "#00695c" ? "#65a30d" : prefs.primaryColor } : {}),
+        ...(isHexColor(prefs.secondaryColor) ? { secondaryColor: prefs.secondaryColor.toLowerCase() === "#8bc63f" ? "#a3e635" : prefs.secondaryColor } : {}),
       }));
     };
 
