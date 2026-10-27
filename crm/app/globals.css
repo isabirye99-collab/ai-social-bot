@@ -1,17 +1,17 @@
 @import "tailwindcss";
 
 :root {
-  --brand: #65a30d;
-  --brand-dark: #3f6212;
-  --brand-light: #ecfccb;
+  --brand: #4d7c0f;
+  --brand-dark: #365314;
+  --brand-light: #f0f7e8;
   --accent: #f4b942;
   --ink: #17211b;
   --muted: #718078;
-  --bg: #f5f7f6;
+  --bg: #f7faf8;
   --card: #ffffff;
   --border: #e4e9e6;
   --danger: #c94b4b;
-  --shadow: 0 8px 30px rgba(23,33,27,.07);
+  --shadow: 0 8px 28px rgba(23,50,44,.045);
 }
 
 * { box-sizing: border-box; }
@@ -1231,4 +1231,88 @@ a {
 
 .ciu-table-scroll::-webkit-scrollbar-thumb:hover {
   background: #6f9c8d;
+}
+
+
+/* =========================================================
+   CIU CRM — modern white-and-green polish
+   Keep lime as an accent, not as a full-page background.
+========================================================= */
+:root {
+  --brand: #4d7c0f;
+  --brand-dark: #365314;
+  --brand-light: #f0f7e8;
+  --ink: #172b22;
+  --muted: #6b7b72;
+  --bg: #f7faf8;
+  --card: #ffffff;
+  --border: #e4ebe6;
+  --shadow: 0 8px 28px rgba(23,50,44,.045);
+  --ciu-green: #4d7c0f;
+  --ciu-green-dark: #3f6212;
+  --ciu-green-deep: #23452e;
+  --ciu-lime: #a3e635;
+  --ciu-lime-soft: #f2f9e8;
+  --ciu-mint: #f2f8f4;
+  --ciu-ink: #17322c;
+  --ciu-muted: #6b7b72;
+  --ciu-bg: #f7faf8;
+  --ciu-border: #e4ebe6;
+}
+
+.crm-sidebar {
+  background: #ffffff;
+  color: #173b2b;
+  border-right: 1px solid #e4ebe6;
+  box-shadow: 8px 0 30px rgba(15,23,42,.035);
+}
+.crm-logo-mark { background: #f0f7e8; color: #4d7c0f; }
+.crm-logo strong { color: #173b2b; }
+.crm-logo span { color: #718078; opacity: 1; }
+.crm-nav a { color: #5f7066; }
+.crm-nav a:hover,
+.crm-nav a.active {
+  color: #23452e;
+  background: #f0f7e8;
+}
+.crm-nav a.active { box-shadow: inset 3px 0 0 #65a30d; }
+.crm-sidebar-bottom { border-color: #e4ebe6; }
+.crm-kpi, .crm-card, .ciu-card, .ciu-kpi, .ciu-staff-card {
+  border-color: #e4ebe6;
+  box-shadow: 0 6px 22px rgba(23,50,44,.045);
+}
+.crm-kpi, .ciu-kpi { border-radius: 16px; }
+.crm-card, .ciu-card { border-radius: 16px; }
+.crm-content { padding-top: 32px; }
+.crm-kpis, .ciu-kpis { gap: 16px; }
+.crm-grid { gap: 20px; }
+.crm-kpi { padding: 21px; }
+.crm-card-header, .ciu-card-head { padding: 20px 22px; }
+.crm-card-body { padding: 22px; }
+.crm-btn { background: #4d7c0f; }
+.crm-btn:hover { background: #365314; }
+.crm-btn.accent { background: #a3e635; color: #23452e; }
+.ciu-btn {
+  background: #4d7c0f;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(77,124,15,.14);
+}
+.ciu-btn:hover { background: #365314; }
+.ciu-btn-light { color: #365314; border-color: #dce7df; }
+.ciu-hero::before { background: #84cc16; }
+.ciu-report-table thead th { background: #f5f8f6; color: #687a73; }
+.ciu-report-table tbody td:first-child { color: #365314; }
+.ciu-report-table tfoot td { background: #f2f9e8; }
+.crm-mobile-nav {
+  background: #ffffff;
+  border: 1px solid #e4ebe6;
+  box-shadow: 0 10px 30px rgba(23,50,44,.12);
+}
+.crm-mobile-nav a { color: #64756b; }
+.crm-mobile-nav a.active,
+.crm-mobile-nav a:hover { color: #365314; }
+@media (max-width: 760px) {
+  .crm-kpi { padding: 15px; }
+  .crm-card-body { padding: 16px; }
+  .ciu-page-inner { padding: 18px 15px 84px; }
 }
