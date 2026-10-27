@@ -240,8 +240,8 @@ export default function CRMLayout({
         )}
       </div>
       <div className="min-w-0">
-        <div className="truncate text-base font-bold text-white">{branding.crmName}</div>
-        <div className="truncate text-xs font-medium" style={{ color: "#ecfccb" }}>
+        <div className="truncate text-base font-bold" style={{ color: "#173b2b" }}>{branding.crmName}</div>
+        <div className="truncate text-xs font-medium" style={{ color: "#718078" }}>
           {branding.tagline}
         </div>
       </div>
@@ -261,10 +261,11 @@ export default function CRMLayout({
           href={item.href}
           onClick={() => setMobileOpen(false)}
           className={`${horizontal
-            ? "shrink-0 whitespace-nowrap rounded-lg px-4 py-3 text-base font-semibold transition-colors"
-            : "flex items-center rounded-lg px-4 py-3 text-base font-semibold transition-colors"} ${isActive(item.href) ? "text-white" : "text-white hover:text-white"}`}
+            ? "shrink-0 whitespace-nowrap rounded-xl px-4 py-3 text-sm font-semibold transition-all"
+            : "flex items-center rounded-xl px-4 py-3 text-sm font-semibold transition-all"} ${isActive(item.href) ? "text-emerald-900" : "text-slate-600 hover:text-emerald-900 hover:bg-emerald-50"}`}
           style={{
-            background: isActive(item.href) ? "rgba(163,230,53,.28)" : "transparent",
+            background: isActive(item.href) ? "#ecfccb" : "transparent",
+            boxShadow: isActive(item.href) && !horizontal ? "inset 3px 0 0 #65a30d" : "none",
           }}
         >
           {item.label}
@@ -294,22 +295,18 @@ export default function CRMLayout({
 
       <aside
         className={horizontal
-          ? "relative z-30 flex w-full items-center gap-x-4 px-4 py-3 shadow-md"
-          : `fixed inset-y-0 left-0 z-50 flex w-72 flex-col shadow-lg transition-transform duration-200 lg:translate-x-0 ${mobileOpen ? "translate-x-0" : "-translate-x-full"}`}
-        style={{
-          background: horizontal
-            ? `linear-gradient(90deg, ${branding.primaryColor} 0%, ${branding.primaryColor}e8 72%, ${branding.primaryColor}cc 100%)`
-            : `linear-gradient(180deg, ${branding.primaryColor} 0%, ${branding.primaryColor}e8 72%, ${branding.primaryColor}cc 100%)`,
-        }}
+          ? "relative z-30 flex w-full items-center gap-x-4 border-b border-slate-200 bg-white px-5 py-3 shadow-sm"
+          : `fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-slate-200 bg-white shadow-[8px_0_30px_rgba(15,23,42,0.04)] transition-transform duration-200 lg:translate-x-0 ${mobileOpen ? "translate-x-0" : "-translate-x-full"}`}
+        style={{ background: "#ffffff" }}
       >
-        <div className={horizontal ? "flex shrink-0 items-center" : "flex min-h-24 items-center border-b px-5 py-4"}
-          style={{ borderColor: "rgba(255,255,255,.12)" }}>
+        <div className={horizontal ? "flex shrink-0 items-center" : "flex min-h-24 items-center border-b border-slate-100 px-5 py-5"}
+          style={{ borderColor: "#edf2ef" }}>
           {headerBrand}
         </div>
         {navLinks}
         {horizontal && (
           <div className="ml-auto flex shrink-0 items-center justify-end gap-3">
-            <span className="max-w-48 truncate text-sm text-white/80">{userEmail || "Authenticated user"}</span>
+            <span className="max-w-48 truncate text-sm text-slate-600">{userEmail || "Authenticated user"}</span>
             <button
               type="button"
               onClick={async () => {
@@ -321,8 +318,7 @@ export default function CRMLayout({
                 }
                 window.location.replace("/login");
               }}
-              className="rounded-lg bg-white px-4 py-2 text-sm font-semibold"
-              style={{ color: branding.primaryColor }}
+              className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-800"
             >
               Sign out
             </button>
@@ -330,14 +326,14 @@ export default function CRMLayout({
         )}
 
         {!horizontal && (
-          <div className="border-t p-4" style={{ borderColor: "rgba(255,255,255,.12)" }}>
-            <div className="mb-3 flex items-center gap-3 rounded-xl p-3" style={{ background: "rgba(255,255,255,.08)" }}>
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white" style={{ background: "rgba(163,230,53,.28)" }}>
+          <div className="border-t border-slate-100 p-4">
+            <div className="mb-3 flex items-center gap-3 rounded-xl bg-slate-50 p-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-lime-100 text-xs font-bold text-emerald-900">
                 {initials}
               </div>
               <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-white">{userEmail || "Authenticated user"}</p>
-                <p className="text-xs text-white/60">{branding.organizationName}</p>
+                <p className="truncate text-sm font-semibold text-slate-800">{userEmail || "Authenticated user"}</p>
+                <p className="text-xs text-slate-500">{branding.organizationName}</p>
               </div>
             </div>
             <button type="button" onClick={async () => {
@@ -348,7 +344,7 @@ export default function CRMLayout({
                 return;
               }
               window.location.replace("/login");
-            }} className="w-full rounded-lg bg-white px-3 py-2.5 text-sm font-semibold" style={{ color: branding.primaryColor }}>
+            }} className="w-full rounded-lg bg-emerald-700 px-3 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-800">
               Sign out
             </button>
           </div>
