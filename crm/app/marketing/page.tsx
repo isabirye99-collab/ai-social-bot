@@ -561,7 +561,174 @@ export default function MarketingPage() {
 
   const openImportModal=(campaignId?:string)=>{setImportCampaignId(campaignId||selectedCampaignId||campaigns[0]?.id||"");setCsvRows([]);setCsvFile(null);setImportMessage("");setError("");if(csvInputRef.current)csvInputRef.current.value="";setShowImportModal(true);};
   const handleMarketingCsv=async(file:File|null)=>{setCsvFile(file);setCsvRows([]);setImportMessage("");if(!file)return;if(!file.name.toLowerCase().endsWith(".csv")){setError("Please select a CSV file.");return;}try{const rows=parseMarketingCsv(await file.text());if(!rows.length)throw new Error("The CSV file contains no data rows.");if(rows.length>5000)throw new Error("A single CSV import is limited to 5,000 rows.");setCsvRows(rows);setImportMessage(`${rows.length.toLocaleString()} rows detected. Review the preview before importing.`);}catch(err){setError(err instanceof Error?err.message:"Unable to read CSV.");}};
-  const importMarketingLeads=async()=>{if(!csvFile||!importCampaignId||!csvRows.length){setError("Select a campaign and CSV file first.");return;}try{setSaving(true);setError("");setImportMessage("Importing leads and assigning salespeople...");const {data:{user}}=await supabase.auth.getUser();if(!user)throw new Error("You must be signed in.");const {data:batch,error:batchError}=await supabase.from("campaign_import_batches").insert({campaign_id:importCampaignId,file_name:csvFile.name,total_rows:csvRows.length,imported_by:user.id}).select("id").single();if(batchError)throw new Error(batchError.message);let imported=0,duplicates=0,failed=0;for(const raw of csvRows){const row=mapMarketingRow(raw);if(!row.name||!row.phone){failed++;continue;}let existing:{id:string}|null=null;if(row.ciu_number){const q=await supabase.from("leads").select("id").eq("ciu_number",row.ciu_number).maybeSingle();if(q.error)throw new Error(q.error.message);existing=q.data;}if(!existing&&row.phone){const q=await supabase.from("leads").select("id").eq("phone",row.phone).maybeSingle();if(q.error)throw new Error(q.error.message);existing=q.data;}if(!existing&&row.email){const q=await supabase.from("leads").select("id").eq("email",row.email).maybeSingle();if(q.error)throw new Error(q.error.message);existing=q.data;}let leadId=existing?.id;if(existing)duplicates++;else{const q=await supabase.from("leads").insert({ciu_number:row.ciu_number||null,name:row.name,phone:row.phone||null,email:row.email||null,product_service:row.product_service||null,feedback:row.feedback||null,status:"new"}).select("id").single();if(q.error){failed++;continue;}leadId=q.data.id;imported++;}if(!leadId)continue;const a=await supabase.from("campaign_leads").upsert({campaign_id:importCampaignId,lead_id:leadId},{onConflict:"campaign_id,lead_id"});if(a.error){failed++;continue;}const b=await supabase.from("campaign_lead_imports").upsert({campaign_id:importCampaignId,lead_id:leadId,import_batch_id:batch.id},{onConflict:"campaign_id,lead_id"});if(b.error)failed++;}const u=await supabase.from("campaign_import_batches").update({imported_rows:imported,duplicate_rows:duplicates,failed_rows:failed}).eq("id",batch.id);if(u.error)throw new Error(u.error.message);setImportMessage(`Import complete: ${imported} new leads, ${duplicates} existing leads linked, ${failed} failed rows.`);await loadMarketing();}catch(err){console.error(err);setError(err instanceof Error?err.message:"CSV import failed.");}finally{setSaving(false);}};
+  const importMarketingLeads = async () => {
+    if (!csvFile || !importCampaignId || !csvRows.length) {
+      setError("Select a campaign and CSV file first.");
+      return;
+    }
+
+    try {
+      setSaving(true);
+      setError("");
+      setImportMessage("Importing leads, assigning salespeople, and creating follow-up tasks...");
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("You must be signed in.");
+
+      const { data: batch, error: batchError } = await supabase
+        .from("campaign_import_batches")
+        .insert({
+          campaign_id: importCampaignId,
+          file_name: csvFile.name,
+          total_rows: csvRows.length,
+          imported_by: user.id,
+        })
+        .select("id")
+        .single();
+      if (batchError) throw new Error(batchError.message);
+
+      const { data: salespeople, error: salespersonError } = await supabase
+        .from("profiles")
+        .select("id, full_name")
+        .eq("role", "salesperson")
+        .eq("is_active", true)
+        .order("full_name", { ascending: true });
+      if (salespersonError) throw new Error(salespersonError.message);
+      if (!salespeople?.length) {
+        throw new Error("No active salesperson is available to receive imported leads. Activate or create a salesperson first.");
+      }
+
+      const salespersonIds = salespeople.map((person) => person.id);
+      const { data: assignedLeads, error: assignedLeadsError } = await supabase
+        .from("leads")
+        .select("assigned_to")
+        .in("assigned_to", salespersonIds);
+      if (assignedLeadsError) throw new Error(assignedLeadsError.message);
+
+      const workload = new Map<string, number>();
+      salespeople.forEach((person) => workload.set(person.id, 0));
+      (assignedLeads || []).forEach((lead) => {
+        if (lead.assigned_to) {
+          workload.set(lead.assigned_to, (workload.get(lead.assigned_to) || 0) + 1);
+        }
+      });
+
+      let imported = 0;
+      let duplicates = 0;
+      let failed = 0;
+      let tasksCreated = 0;
+
+      for (const raw of csvRows) {
+        const row = mapMarketingRow(raw);
+        if (!row.name || !row.phone) {
+          failed++;
+          continue;
+        }
+
+        let existing: { id: string; assigned_to?: string | null } | null = null;
+        if (row.ciu_number) {
+          const q = await supabase.from("leads").select("id, assigned_to").eq("ciu_number", row.ciu_number).maybeSingle();
+          if (q.error) throw new Error(q.error.message);
+          existing = q.data;
+        }
+        if (!existing && row.phone) {
+          const q = await supabase.from("leads").select("id, assigned_to").eq("phone", row.phone).maybeSingle();
+          if (q.error) throw new Error(q.error.message);
+          existing = q.data;
+        }
+        if (!existing && row.email) {
+          const q = await supabase.from("leads").select("id, assigned_to").eq("email", row.email).maybeSingle();
+          if (q.error) throw new Error(q.error.message);
+          existing = q.data;
+        }
+
+        let leadId = existing?.id;
+        let assignedTo = existing?.assigned_to || null;
+
+        if (existing) {
+          duplicates++;
+        } else {
+          const selected = salespeople.reduce((best, person) =>
+            (workload.get(person.id) || 0) < (workload.get(best.id) || 0) ? person : best
+          , salespeople[0]);
+          assignedTo = selected.id;
+
+          const q = await supabase.from("leads").insert({
+            ciu_number: row.ciu_number || null,
+            name: row.name,
+            phone: row.phone || null,
+            email: row.email || null,
+            product_service: row.product_service || null,
+            feedback: row.feedback || null,
+            status: "new",
+            follow_up_status: "Pending",
+            next_follow_up_at: null,
+            assigned_to: assignedTo,
+          }).select("id").single();
+
+          if (q.error) {
+            failed++;
+            continue;
+          }
+
+          leadId = q.data.id;
+          imported++;
+          workload.set(assignedTo, (workload.get(assignedTo) || 0) + 1);
+
+          const dueAt = new Date();
+          dueAt.setDate(dueAt.getDate() + 1);
+          const taskResult = await supabase.from("tasks").insert({
+            title: `Follow up with ${row.name}`,
+            description: `Initial follow-up for a lead imported from the ${campaigns.find((c) => c.id === importCampaignId)?.name || "marketing"} campaign.`,
+            task_type: "call",
+            lead_id: leadId,
+            opportunity_id: null,
+            assigned_to: assignedTo,
+            due_at: dueAt.toISOString(),
+            status: "pending",
+            created_by: user.id,
+          });
+
+          if (taskResult.error) {
+            console.error("Follow-up task creation failed for imported lead:", taskResult.error);
+            failed++;
+          } else {
+            tasksCreated++;
+          }
+        }
+
+        if (!leadId) continue;
+        const campaignLink = await supabase.from("campaign_leads").upsert(
+          { campaign_id: importCampaignId, lead_id: leadId },
+          { onConflict: "campaign_id,lead_id" }
+        );
+        if (campaignLink.error) {
+          failed++;
+          continue;
+        }
+
+        const importLink = await supabase.from("campaign_lead_imports").upsert(
+          { campaign_id: importCampaignId, lead_id: leadId, import_batch_id: batch.id },
+          { onConflict: "campaign_id,lead_id" }
+        );
+        if (importLink.error) failed++;
+      }
+
+      const batchUpdate = await supabase
+        .from("campaign_import_batches")
+        .update({ imported_rows: imported, duplicate_rows: duplicates, failed_rows: failed })
+        .eq("id", batch.id);
+      if (batchUpdate.error) throw new Error(batchUpdate.error.message);
+
+      setImportMessage(`Import complete: ${imported} new leads assigned, ${tasksCreated} follow-up tasks created, ${duplicates} existing leads linked, ${failed} issues.`);
+      await loadMarketing();
+    } catch (err) {
+      console.error(err);
+      setError(err instanceof Error ? err.message : "CSV import failed.");
+    } finally {
+      setSaving(false);
+    }
+  };
   const channels = useMemo(() => {
     const values = campaigns
       .map((campaign) =>
