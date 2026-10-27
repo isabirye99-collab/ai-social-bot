@@ -18,7 +18,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [logo, setLogo] = useState("");
   const [crmName, setCrmName] = useState("CIU Business CRM");
-  const [primaryColor, setPrimaryColor] = useState("#00695c");
+  const [primaryColor, setPrimaryColor] = useState("#65a30d");
 
   useEffect(() => {
     let active = true;
