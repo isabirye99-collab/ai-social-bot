@@ -59,7 +59,7 @@ export default function CRMLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const [logo, setLogo] = useState("");
+  const [logo, setLogo] = useState("/ciu-seal-color.svg");
   const [branding, setBranding] = useState<Required<BrandingPreferences>>(DEFAULT_BRANDING);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userEmail, setUserEmail] = useState("");
@@ -95,8 +95,6 @@ export default function CRMLayout({
 
     const loadSettings = async () => {
       try {
-        const localLogo = window.localStorage.getItem(LOGO_KEY) || "";
-        if (active && localLogo) setLogo(localLogo);
 
         const localPreferences = window.localStorage.getItem(PREFERENCES_KEY);
         if (localPreferences) {
@@ -114,13 +112,6 @@ export default function CRMLayout({
           .maybeSingle();
 
         if (!active || error || !data) return;
-
-        if (typeof data.logo_data_url === "string" && data.logo_data_url) {
-          setLogo(data.logo_data_url);
-          try {
-            window.localStorage.setItem(LOGO_KEY, data.logo_data_url);
-          } catch {}
-        }
 
         applyPreferences(data.preferences);
       } catch (error) {
