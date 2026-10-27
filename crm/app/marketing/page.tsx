@@ -613,6 +613,16 @@ export default function MarketingPage() {
         }
       });
 
+      const { data: pipelineStage, error: pipelineStageError } = await supabase
+        .from("pipeline_stages")
+        .select("id, probability, name")
+        .in("name", ["Leads", "Lead", "New Lead", "New Leads"])
+        .order("position", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (pipelineStageError) throw new Error(pipelineStageError.message);
+      if (!pipelineStage) throw new Error('The "Leads" pipeline stage is missing. Add it before importing leads.');
+
       let imported = 0;
       let duplicates = 0;
       let failed = 0;
@@ -674,6 +684,22 @@ export default function MarketingPage() {
           leadId = q.data.id;
           imported++;
           workload.set(selected.id, (workload.get(selected.id) || 0) + 1);
+
+          const opportunityResult = await supabase.from("opportunities").insert({
+            lead_id: leadId,
+            title: `${row.product_service || "Admissions follow-up"} — ${row.name}`,
+            value: 0,
+            currency: "UGX",
+            stage_id: pipelineStage.id,
+            status: "open",
+            probability: pipelineStage.probability ?? 10,
+            assigned_to: assignedTo,
+            notes: "Created automatically from a marketing CSV import. Update the pipeline stage as the applicant progresses.",
+          });
+          if (opportunityResult.error) {
+            console.error("Pipeline opportunity creation failed for imported lead:", opportunityResult.error);
+            failed++;
+          }
 
           const dueAt = new Date();
           dueAt.setDate(dueAt.getDate() + 1);
