@@ -44,7 +44,7 @@ export default function Login() {
           setCrmName(name);
           window.localStorage.setItem("ciu_crm_name", name);
         }
-        if (settings.preferences?.primaryColor) setPrimaryColor(settings.preferences.primaryColor);
+        if (settings.preferences?.primaryColor) setPrimaryColor(settings.preferences.primaryColor.toLowerCase() === "#00695c" ? "#65a30d" : settings.preferences.primaryColor);
       } catch {
         // Branding is optional; keep login available if settings cannot be loaded.
       }
