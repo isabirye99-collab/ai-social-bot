@@ -1,9 +1,9 @@
 @import "tailwindcss";
 
 :root {
-  --brand: #0b5d3b;
-  --brand-dark: #073d29;
-  --brand-light: #e8f5ef;
+  --brand: #65a30d;
+  --brand-dark: #3f6212;
+  --brand-light: #ecfccb;
   --accent: #f4b942;
   --ink: #17211b;
   --muted: #718078;
@@ -45,7 +45,7 @@ a {
 .crm-sidebar {
   width: 250px;
   min-height: 100vh;
-  background: linear-gradient(180deg, #073d29 0%, #0b5d3b 100%);
+  background: linear-gradient(180deg, #3f6212 0%, #65a30d 100%);
   color: white;
   position: fixed;
   left: 0;
@@ -358,7 +358,7 @@ a {
 
 .crm-bar {
   flex: 1;
-  background: linear-gradient(180deg, #0b5d3b, #66a88b);
+  background: linear-gradient(180deg, #84cc16, #bef264);
   border-radius: 6px 6px 2px 2px;
   min-width: 10px;
 }
@@ -680,7 +680,7 @@ a {
     right: 10px;
     bottom: 10px;
     height: 62px;
-    background: #073d29;
+    background: #3f6212;
     border-radius: 15px;
     z-index: 100;
     justify-content: space-around;
@@ -705,12 +705,12 @@ a {
 
 /* CIU CRM visual system */
 :root {
-  --ciu-green: #00695c;
-  --ciu-green-dark: #004d40;
-  --ciu-green-deep: #003f36;
-  --ciu-lime: #8bc63f;
-  --ciu-lime-soft: #eef7df;
-  --ciu-mint: #eaf5f2;
+  --ciu-green: #65a30d;
+  --ciu-green-dark: #4d7c0f;
+  --ciu-green-deep: #365314;
+  --ciu-lime: #a3e635;
+  --ciu-lime-soft: #f7fee7;
+  --ciu-mint: #f0fdf4;
   --ciu-ink: #17322c;
   --ciu-muted: #6b7f78;
   --ciu-bg: #f5f8f7;
@@ -950,7 +950,7 @@ a {
   top: 0;
   bottom: 0;
   width: 5px;
-  background: #00695c;
+  background: #65a30d;
 }
 
 .ciu-hero h1 {
