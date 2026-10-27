@@ -262,7 +262,7 @@ export default function CRMLayout({
           onClick={() => setMobileOpen(false)}
           className={`${horizontal
             ? "shrink-0 whitespace-nowrap rounded-lg px-4 py-3 text-base font-semibold transition-colors"
-            : "flex items-center rounded-lg px-4 py-3 text-base font-semibold transition-colors"} ${isActive(item.href) ? "text-white" : "text-white/75 hover:text-white"}`}
+            : "flex items-center rounded-lg px-4 py-3 text-base font-semibold transition-colors"} ${isActive(item.href) ? "text-white" : "text-white hover:text-white"}`}
           style={{
             background: isActive(item.href) ? "rgba(163,230,53,.28)" : "transparent",
           }}
