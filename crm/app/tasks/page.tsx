@@ -858,13 +858,20 @@ const isSalesperson =
       setForm(EMPTY_FORM);
 
       await loadAll();
-    } catch (err) {
-      console.error(err);
+    } catch (err: unknown) {
+      console.error("Failed to save task:", err);
+
+      const message =
+        err &&
+        typeof err === "object" &&
+        "message" in err
+          ? String(err.message)
+          : err instanceof Error
+            ? err.message
+            : JSON.stringify(err);
 
       setError(
-        err instanceof Error
-          ? err.message
-          : "Failed to save task."
+        message || "Failed to save task. Check the browser console."
       );
     } finally {
       setSaving(false);
