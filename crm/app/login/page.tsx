@@ -16,7 +16,7 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [loading, setLoading] = useState(false);
-  const [logo, setLogo] = useState("");
+  const [logo, setLogo] = useState("/ciu-seal-color.svg");
   const [crmName, setCrmName] = useState("CIU Business CRM");
   const [primaryColor, setPrimaryColor] = useState("#65a30d");
 
@@ -24,9 +24,7 @@ export default function Login() {
     let active = true;
     async function loadBranding() {
       try {
-        const localLogo = window.localStorage.getItem("ciu_crm_logo");
         const localName = window.localStorage.getItem("ciu_crm_name");
-        if (active && localLogo) setLogo(localLogo);
         if (active && localName?.trim()) setCrmName(localName.trim());
         const { data, error } = await supabase
           .from("crm_settings")
@@ -35,10 +33,6 @@ export default function Login() {
           .maybeSingle();
         if (error || !data || !active) return;
         const settings = data as SavedSettings;
-        if (settings.logo_data_url) {
-          setLogo(settings.logo_data_url);
-          window.localStorage.setItem("ciu_crm_logo", settings.logo_data_url);
-        }
         if (settings.preferences?.crmName?.trim()) {
           const name = settings.preferences.crmName.trim();
           setCrmName(name);
