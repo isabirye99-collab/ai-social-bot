@@ -673,7 +673,7 @@ export default function MarketingPage() {
 
           leadId = q.data.id;
           imported++;
-          workload.set(assignedTo, (workload.get(assignedTo) || 0) + 1);
+          workload.set(selected.id, (workload.get(selected.id) || 0) + 1);
 
           const dueAt = new Date();
           dueAt.setDate(dueAt.getDate() + 1);
