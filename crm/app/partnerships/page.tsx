@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
 type Partnership = {
@@ -70,7 +71,10 @@ export default function PartnershipsPage() {
   return <div style={{ padding: "28px clamp(16px,3vw,34px) 44px", color: "#173d34" }}>
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, flexWrap: "wrap", marginBottom: 22 }}>
       <div><div style={{ color: brand, fontSize: 11, fontWeight: 800, letterSpacing: 1.5 }}>STRATEGIC RELATIONSHIPS</div><h1 style={{ margin: "7px 0 5px", fontSize: 28, fontWeight: 800 }}>Partnerships</h1><p style={{ margin: 0, color: "#718078", fontSize: 13 }}>Manage institutional relationships, agreements, activities and partnership outcomes.</p></div>
-      <button onClick={() => setShowForm((v) => !v)} style={{ border: 0, background: brand, color: "#fff", borderRadius: 9, padding: "11px 15px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>+ New Partnership</button>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <Link href="/partnerships/agreements" style={{ display: "inline-flex", alignItems: "center", padding: "10px 12px", border: "1px solid #d9e4dd", borderRadius: 8, color: brand, background: "#fff", textDecoration: "none", fontSize: 12, fontWeight: 750 }}>Agreements & Activities</Link>
+        <button onClick={() => setShowForm((v) => !v)} style={{ border: 0, background: brand, color: "#fff", borderRadius: 9, padding: "11px 15px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>+ New Partnership</button>
+      </div>
     </div>
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 13, marginBottom: 20 }}>
       {metric("All Partnerships", total, "All registered relationships")}{metric("Active Partnerships", active, "Currently operational")}{metric("Pipeline", pipeline, "Prospects and negotiations")}{metric("Renewal Watch", expiring, "Ending within 90 days")}
