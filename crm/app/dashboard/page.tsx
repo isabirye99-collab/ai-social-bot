@@ -829,17 +829,17 @@ export default function DashboardPage() {
           DASHBOARD HEADER
       ===================================================== */}
 
-      <header className="mb-4 flex flex-col justify-between gap-4 md:flex-row md:items-center">
+      <header className="relative mb-5 flex flex-col justify-between gap-4 overflow-hidden rounded-2xl border border-[#dfe9e3] bg-white px-5 py-5 shadow-[0_8px_28px_rgba(20,50,40,.045)] md:flex-row md:items-center sm:px-6">
         <div>
           <div className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-[#8bc53f]" />
+            <span className="h-2.5 w-2.5 rounded-full bg-[#8bc53f] shadow-[0_0_0_5px_rgba(139,197,63,.13)]" />
 
             <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#718179]">
               CIU Admissions Dashboard
             </span>
           </div>
 
-          <h1 className="mt-1 text-2xl font-black tracking-[-0.035em] text-[#17211b] sm:text-[28px]">
+          <h1 className="mt-1 text-2xl font-black tracking-[-0.04em] text-[#123d30] sm:text-[30px]">
             {greeting}, {firstName}
           </h1>
 
@@ -916,12 +916,12 @@ export default function DashboardPage() {
           KPI STRIP
       ===================================================== */}
 
-      <section className="mb-4 grid gap-px overflow-hidden rounded-2xl border border-[#e2e9e5] bg-[#e2e9e5] shadow-[0_4px_18px_rgba(20,50,40,.035)] sm:grid-cols-2 xl:grid-cols-5">
+      <section className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         {/* Total Leads */}
 
         <Link
           href="/leads"
-          className="group bg-white p-4 transition hover:bg-[#fbfdfb]"
+          className="group relative overflow-hidden rounded-2xl border border-[#e2eae4] bg-white p-4 shadow-[0_5px_20px_rgba(20,50,40,.04)] transition duration-200 hover:-translate-y-0.5 hover:border-[#b8d99c] hover:shadow-[0_10px_26px_rgba(20,50,40,.08)]"
         >
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold uppercase tracking-[0.11em] text-[#819087]">
@@ -951,7 +951,7 @@ export default function DashboardPage() {
 
         <Link
           href="/pipeline"
-          className="group bg-white p-4 transition hover:bg-[#fbfdfb]"
+          className="group relative overflow-hidden rounded-2xl border border-[#e2eae4] bg-white p-4 shadow-[0_5px_20px_rgba(20,50,40,.04)] transition duration-200 hover:-translate-y-0.5 hover:border-[#b8d99c] hover:shadow-[0_10px_26px_rgba(20,50,40,.08)]"
         >
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold uppercase tracking-[0.11em] text-[#819087]">
@@ -981,7 +981,7 @@ export default function DashboardPage() {
 
         <Link
           href="/pipeline"
-          className="group bg-white p-4 transition hover:bg-[#fbfdfb]"
+          className="group relative overflow-hidden rounded-2xl border border-[#e2eae4] bg-white p-4 shadow-[0_5px_20px_rgba(20,50,40,.04)] transition duration-200 hover:-translate-y-0.5 hover:border-[#b8d99c] hover:shadow-[0_10px_26px_rgba(20,50,40,.08)]"
         >
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold uppercase tracking-[0.11em] text-[#819087]">
@@ -1011,7 +1011,7 @@ export default function DashboardPage() {
 
         <Link
           href="/pipeline"
-          className="group bg-white p-4 transition hover:bg-[#fbfdfb]"
+          className="group relative overflow-hidden rounded-2xl border border-[#e2eae4] bg-white p-4 shadow-[0_5px_20px_rgba(20,50,40,.04)] transition duration-200 hover:-translate-y-0.5 hover:border-[#b8d99c] hover:shadow-[0_10px_26px_rgba(20,50,40,.08)]"
         >
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold uppercase tracking-[0.11em] text-[#819087]">
@@ -1044,11 +1044,11 @@ export default function DashboardPage() {
           className="bg-[#075442] p-4 transition hover:bg-[#064b3b]"
         >
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-[0.11em] text-[#b9d4c8]">
+            <span className="text-[10px] font-bold uppercase tracking-[0.11em] text-[#6d8578]">
               Enrolled
             </span>
 
-            <span className="text-[#a9d66b]">
+            <span className="text-[#75a936]">
               <Icon
                 name="student"
                 size={17}
@@ -1061,7 +1061,7 @@ export default function DashboardPage() {
               {stats.enrolled}
             </span>
 
-            <span className="text-[10px] font-bold text-[#b9d4c8]">
+            <span className="text-[10px] font-bold text-[#6d8578]">
               {stats.monthlyEnrolled} this month
             </span>
           </div>
@@ -1075,7 +1075,7 @@ export default function DashboardPage() {
       <section className="grid gap-4 lg:grid-cols-[1.65fr_.85fr]">
         {/* Admissions funnel */}
 
-        <div className="rounded-2xl border border-[#e2e9e5] bg-white shadow-[0_4px_18px_rgba(20,50,40,.035)]">
+        <div className="rounded-2xl border border-[#e0e9e3] bg-white shadow-[0_8px_26px_rgba(20,50,40,.045)]">
           <div className="flex items-center justify-between border-b border-[#edf1ef] px-5 py-4">
             <div>
               <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-[#819087]">
@@ -1118,7 +1118,7 @@ export default function DashboardPage() {
                       </span>
                     </div>
 
-                    <div className="relative h-[185px] overflow-hidden rounded-xl bg-[#f4f7f5]">
+                    <div className="relative h-[185px] overflow-hidden rounded-xl border border-[#e7eee8] bg-[linear-gradient(180deg,#f8fbf8_0%,#edf4ef_100%)]">
                       <div
                         className="absolute bottom-0 left-0 right-0 transition-all duration-500"
                         style={{
@@ -1198,7 +1198,7 @@ export default function DashboardPage() {
 
         {/* Today's focus */}
 
-        <div className="rounded-2xl border border-[#e2e9e5] bg-white shadow-[0_4px_18px_rgba(20,50,40,.035)]">
+        <div className="rounded-2xl border border-[#e0e9e3] bg-white shadow-[0_8px_26px_rgba(20,50,40,.045)]">
           <div className="flex items-center justify-between border-b border-[#edf1ef] px-5 py-4">
             <div>
               <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-[#819087]">
@@ -1275,8 +1275,8 @@ export default function DashboardPage() {
             )}
           </div>
 
-          <div className="m-4 rounded-xl bg-[#075442] px-4 py-3">
-            <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-[#b8d4c8]">
+          <div className="m-4 rounded-xl border border-[#d8e8d8] bg-gradient-to-r from-[#edf6e7] to-[#f7faf3] px-4 py-3">
+            <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-[#66806e]">
               Immediate workload
             </p>
 
@@ -1286,7 +1286,7 @@ export default function DashboardPage() {
                   stats.tasksToday}
               </p>
 
-              <span className="text-[9px] font-semibold text-[#b8d4c8]">
+              <span className="text-[9px] font-semibold text-[#66806e]">
                 actions requiring attention
               </span>
             </div>
@@ -1301,7 +1301,7 @@ export default function DashboardPage() {
       <section className="mt-4 grid gap-4 lg:grid-cols-[1.1fr_.9fr]">
         {/* Pipeline overview */}
 
-        <div className="rounded-2xl border border-[#e2e9e5] bg-white shadow-[0_4px_18px_rgba(20,50,40,.035)]">
+        <div className="rounded-2xl border border-[#e0e9e3] bg-white shadow-[0_8px_26px_rgba(20,50,40,.045)]">
           <div className="flex items-center justify-between border-b border-[#edf1ef] px-5 py-4">
             <div>
               <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-[#819087]">
@@ -1379,7 +1379,7 @@ export default function DashboardPage() {
                       </div>
                     </div>
 
-                    <div className="h-2 overflow-hidden rounded-full bg-[#edf1ef]">
+                    <div className="h-2.5 overflow-hidden rounded-full bg-[#edf1ef]">
                       <div
                         className="h-full rounded-full transition-all duration-500"
                         style={{
@@ -1417,7 +1417,7 @@ export default function DashboardPage() {
 
         {/* Performance */}
 
-        <div className="rounded-2xl border border-[#e2e9e5] bg-white shadow-[0_4px_18px_rgba(20,50,40,.035)]">
+        <div className="rounded-2xl border border-[#e0e9e3] bg-white shadow-[0_8px_26px_rgba(20,50,40,.045)]">
           <div className="flex items-center justify-between border-b border-[#edf1ef] px-5 py-4">
             <div>
               <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-[#819087]">
