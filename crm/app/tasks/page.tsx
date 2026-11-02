@@ -1069,9 +1069,8 @@ export default function TasksPage() {
 
     setOutcomeTask(task);
     setSelectedOutcome("");
-    setOutcomeNotes(
-      lead?.feedback || ""
-    );
+    // Require a fresh comment for each recorded outcome.
+    setOutcomeNotes("");
     const defaultFollowUp = new Date();
     defaultFollowUp.setDate(defaultFollowUp.getDate() + 7);
     setOutcomeDate(
