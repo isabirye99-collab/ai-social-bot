@@ -1432,10 +1432,11 @@ export default function TasksPage() {
       return;
     }
 
-    if (
-      ["Interested", "Follow up later", "No Answer", "Unreachable"].includes(selectedOutcome) &&
-      !outcomeDate
-    ) {
+    const requiresFollowUp =
+      !PIPELINE_WAITING_OUTCOMES.includes(selectedOutcome) &&
+      selectedOutcome !== "Enrolled";
+
+    if (requiresFollowUp && !outcomeDate) {
       setError("Please set the next follow-up date.");
       return;
     }
@@ -1502,12 +1503,9 @@ export default function TasksPage() {
         );
       }
 
-      if (
-        selectedOutcome === "Interested" ||
-        selectedOutcome === "Follow up later" ||
-        selectedOutcome === "No Answer" ||
-        selectedOutcome === "Unreachable"
-      ) {
+      // Every non-pipeline outcome remains in the Tasks follow-up workflow.
+      // Pipeline milestones are the only outcomes that do not receive a new follow-up task.
+      if (requiresFollowUp) {
         await createFollowUpTask(outcomeTask, outcomeDate);
       }
 
@@ -1558,7 +1556,7 @@ export default function TasksPage() {
       style={{
         minHeight: "100vh",
         background: "#f6f8f7",
-        padding: "20px 16px",
+        padding: "14px 12px",
       }}
     >
       <div
@@ -1579,8 +1577,8 @@ export default function TasksPage() {
             gap: "18px",
             flexWrap: "wrap",
             overflow: "visible",
-            marginBottom: "20px",
-            padding: "20px 24px",
+            marginBottom: "14px",
+            padding: "16px 20px",
             background: "linear-gradient(110deg, #ffffff 0%, #f7fbf8 100%)",
             border: "1px solid #dfe9e3",
             borderRadius: "16px",
@@ -1718,9 +1716,9 @@ export default function TasksPage() {
           style={{
             display: "grid",
             gridTemplateColumns:
-              "repeat(auto-fit, minmax(190px, 1fr))",
-            gap: "14px",
-            marginBottom: "22px",
+              "repeat(auto-fit, minmax(180px, 1fr))",
+            gap: "10px",
+            marginBottom: "14px",
           }}
         >
           <div
@@ -1729,7 +1727,7 @@ export default function TasksPage() {
               border:
                 "1px solid #e5e7eb",
               borderRadius: "14px",
-              padding: "18px",
+              padding: "14px",
             }}
           >
             <div
@@ -2905,7 +2903,7 @@ export default function TasksPage() {
             <form
               onSubmit={saveTask}
               style={{
-                padding: "22px",
+                padding: "16px",
               }}
             >
               <div
@@ -3550,7 +3548,7 @@ export default function TasksPage() {
         >
           <div
             style={{
-              width: "min(620px, 100%)",
+              width: "min(600px, 100%)",
               maxHeight:
                 "calc(100vh - 40px)",
               overflowY: "auto",
@@ -3688,10 +3686,15 @@ export default function TasksPage() {
                   onChange={(event) => {
                     const nextOutcome = event.target.value;
                     setSelectedOutcome(nextOutcome);
-                    if (nextOutcome === "Interested") {
+                    if (
+                      !PIPELINE_WAITING_OUTCOMES.includes(nextOutcome) &&
+                      nextOutcome !== "Enrolled"
+                    ) {
                       const due = new Date();
                       due.setDate(due.getDate() + 7);
                       setOutcomeDate(toDateTimeLocal(due.toISOString()));
+                    } else {
+                      setOutcomeDate("");
                     }
                   }}
                   style={{
@@ -3788,12 +3791,9 @@ export default function TasksPage() {
                 />
               </div>
 
-              {[
-                "Interested",
-                "Follow up later",
-                "No Answer",
-                "Unreachable",
-              ].includes(selectedOutcome) && (
+              {selectedOutcome &&
+                !PIPELINE_WAITING_OUTCOMES.includes(selectedOutcome) &&
+                selectedOutcome !== "Enrolled" && (
                 <div
                   style={{
                     marginTop:
@@ -3814,7 +3814,7 @@ export default function TasksPage() {
                         "#374151",
                     }}
                   >
-                    {selectedOutcome === "Interested" ? "Default 7-Day Follow-up" : "Next Follow-up"}
+                    Default 7-Day Follow-up
                   </label>
 
                   <input
@@ -3857,9 +3857,7 @@ export default function TasksPage() {
                         "#64748b",
                     }}
                   >
-                    {selectedOutcome === "Interested"
-                      ? "A follow-up task will be created automatically, due 7 days from the date this Interested outcome is saved. You may adjust the date if needed."
-                      : "A new follow-up task will be created automatically."}
+                    A follow-up task will be created automatically, due 7 days from the date this outcome is saved. You may adjust the date if needed.
                   </div>
                 </div>
               )}
