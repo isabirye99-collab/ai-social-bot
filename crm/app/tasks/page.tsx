@@ -1886,26 +1886,6 @@ export default function TasksPage() {
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
-          <button
-            type="button"
-            onClick={() => setStatusFilter(statusFilter === "recorded" ? "all" : "recorded")}
-            aria-pressed={statusFilter === "recorded"}
-            style={{
-              border: statusFilter === "recorded" ? "1px solid #047857" : "1px solid #d1d5db",
-              background: statusFilter === "recorded" ? "#ecfdf5" : "#ffffff",
-              color: statusFilter === "recorded" ? "#047857" : "#374151",
-              borderRadius: 9,
-              padding: "9px 13px",
-              fontSize: 13,
-              fontWeight: 700,
-              cursor: "pointer",
-            }}
-          >
-            View Recorded Outcomes ({stats.completed})
-          </button>
-        </div>
-
         {/* FILTER BAR */}
         <div
           style={{
@@ -2146,6 +2126,25 @@ export default function TasksPage() {
                 shown
               </div>
             </div>
+
+            <button
+              type="button"
+              onClick={() => setStatusFilter(statusFilter === "recorded" ? "all" : "recorded")}
+              aria-pressed={statusFilter === "recorded"}
+              style={{
+                border: statusFilter === "recorded" ? "1px solid #075442" : "1px solid #dfe9e3",
+                background: statusFilter === "recorded" ? "#eaf4ee" : "#ffffff",
+                color: "#075442",
+                borderRadius: "8px",
+                padding: "8px 12px",
+                cursor: "pointer",
+                fontSize: "12px",
+                fontWeight: 700,
+                whiteSpace: "nowrap",
+              }}
+            >
+              View Recorded Outcomes ({stats.completed})
+            </button>
 
             <button
               type="button"
