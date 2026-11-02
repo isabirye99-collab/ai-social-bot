@@ -1,6 +1,7 @@
 "use client";
 
 import { ChangeEvent, useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
 type AlumniRow = {
@@ -163,10 +164,14 @@ export default function AlumniPage() {
   return <div style={{ padding: "28px clamp(16px,3vw,34px) 44px", color: "#173d34" }}>
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, flexWrap: "wrap", marginBottom: 22 }}>
       <div><div style={{ color: brand, fontSize: 11, fontWeight: 800, letterSpacing: 1.5 }}>RELATIONSHIP MANAGEMENT</div><h1 style={{ margin: "7px 0 5px", fontSize: 28, fontWeight: 800 }}>Alumni</h1><p style={{ margin: 0, color: "#718078", fontSize: 13 }}>Manage graduate records, verify profiles and strengthen lifelong connections with CIU.</p></div>
-      <label style={{ display: "inline-flex", alignItems: "center", gap: 9, padding: "11px 15px", borderRadius: 9, background: brand, color: "#fff", fontSize: 13, fontWeight: 700, cursor: importing ? "wait" : "pointer", opacity: importing ? .65 : 1 }}>
-        {importing ? "Importing…" : "Import alumni CSV"}
-        <input type="file" accept=".csv,text/csv" onChange={importCsv} disabled={importing} style={{ display: "none" }} />
-      </label>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+        <Link href="/alumni/events" style={{ display: "inline-flex", alignItems: "center", padding: "10px 12px", border: "1px solid #d9e4dd", borderRadius: 8, color: brand, background: "#fff", textDecoration: "none", fontSize: 12, fontWeight: 750 }}>Events & Attendance</Link>
+        <Link href="/alumni/reviews" style={{ display: "inline-flex", alignItems: "center", padding: "10px 12px", border: "1px solid #d9e4dd", borderRadius: 8, color: brand, background: "#fff", textDecoration: "none", fontSize: 12, fontWeight: 750 }}>Profile Reviews</Link>
+        <label style={{ display: "inline-flex", alignItems: "center", gap: 9, padding: "11px 15px", borderRadius: 9, background: brand, color: "#fff", fontSize: 13, fontWeight: 700, cursor: importing ? "wait" : "pointer", opacity: importing ? .65 : 1 }}>
+          {importing ? "Importing…" : "Import alumni CSV"}
+          <input type="file" accept=".csv,text/csv" onChange={importCsv} disabled={importing} style={{ display: "none" }} />
+        </label>
+      </div>
     </div>
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 13, marginBottom: 20 }}>
       {metric("Total Alumni", total, "Graduate records in the database")}
