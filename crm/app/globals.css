@@ -705,10 +705,10 @@ a {
 
 /* CIU CRM visual system */
 :root {
-  --ciu-green: #00695c;
-  --ciu-green-dark: #004d40;
-  --ciu-green-deep: #003f36;
-  --ciu-lime: #8bc63f;
+  --ciu-green: #106053;
+  --ciu-green-dark: #0a443b;
+  --ciu-green-deep: #0a443b;
+  --ciu-lime: #8dc642;
   --ciu-lime-soft: #eef7df;
   --ciu-mint: #eaf5f2;
   --ciu-ink: #17322c;
@@ -730,12 +730,12 @@ a {
 }
 
 .ciu-hero {
-  background: linear-gradient(135deg, var(--ciu-green-deep) 0%, var(--ciu-green) 68%, #087b68 100%);
+  background: linear-gradient(135deg, var(--ciu-green-deep) 0%, var(--ciu-green) 68%, #106053 100%);
   color: white;
   border-radius: 18px;
   padding: 24px 26px;
   margin-bottom: 20px;
-  box-shadow: 0 14px 34px rgba(0,77,64,.16);
+  box-shadow: 0 14px 34px rgba(16,96,83,.16);
   position: relative;
   overflow: hidden;
 }
@@ -748,7 +748,7 @@ a {
   right: -55px;
   top: -70px;
   border-radius: 50%;
-  background: rgba(139,198,63,.18);
+  background: rgba(141,198,66,.18);
 }
 
 .ciu-hero h1 { margin: 0; font-size: 28px; letter-spacing: -.6px; }
@@ -782,10 +782,10 @@ a {
   border-radius: 9px;
   padding: 0 15px;
   background: var(--ciu-lime);
-  color: #17320e;
+  color: #ffffff;
   font-weight: 800;
   font-size: 12px;
-  box-shadow: 0 5px 14px rgba(139,198,63,.22);
+  box-shadow: 0 5px 14px rgba(141,198,66,.22);
   visibility: visible !important;
   opacity: 1 !important;
 }
@@ -950,7 +950,7 @@ a {
   top: 0;
   bottom: 0;
   width: 5px;
-  background: #00695c;
+  background: #106053;
 }
 
 .ciu-hero h1 {
@@ -1057,15 +1057,15 @@ a {
 }
 
 .ciu-btn {
-  background: #00695c;
+  background: #106053;
   color: #ffffff;
-  box-shadow: 0 5px 14px rgba(0, 105, 92, 0.18);
+  box-shadow: 0 5px 14px rgba(16, 96, 83, 0.18);
 }
 
 .ciu-btn:hover {
-  background: #00574d;
+  background: #0a443b;
   transform: translateY(-1px);
-  box-shadow: 0 8px 18px rgba(0, 105, 92, 0.22);
+  box-shadow: 0 8px 18px rgba(16, 96, 83, 0.22);
 }
 
 .ciu-btn-light {
@@ -1128,7 +1128,7 @@ a {
 }
 
 .ciu-report-table tbody td:first-child {
-  color: #00695c;
+  color: #106053;
   font-weight: 750;
 }
 
@@ -1150,7 +1150,7 @@ a {
 .ciu-page select:focus,
 .ciu-page textarea:focus {
   border-color: #7db9a8 !important;
-  box-shadow: 0 0 0 3px rgba(0, 105, 92, 0.09);
+  box-shadow: 0 0 0 3px rgba(16, 96, 83, 0.09);
 }
 
 /* =========================================================
@@ -1232,3 +1232,35 @@ a {
 .ciu-table-scroll::-webkit-scrollbar-thumb:hover {
   background: #6f9c8d;
 }
+
+
+/* CIU OFFICIAL BRAND COLOURS — final shared overrides */
+:root {
+  --brand: #106053;
+  --brand-dark: #0a443b;
+  --brand-light: #b7d1c8;
+  --accent: #8dc642;
+  --ciu-green: #106053;
+  --ciu-green-dark: #0a443b;
+  --ciu-green-deep: #0a443b;
+  --ciu-lime: #8dc642;
+}
+
+.crm-btn:not(.secondary),
+.crm-btn.accent,
+.ciu-btn {
+  color: #ffffff !important;
+}
+
+.crm-btn:not(.secondary) svg,
+.crm-btn.accent svg,
+.ciu-btn svg {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+.crm-btn:not(.secondary) { background: #106053; }
+.crm-btn:not(.secondary):hover { background: #0a443b; }
+.crm-btn.accent { background: #8dc642; }
+.ciu-btn { background: #106053; }
+.ciu-btn:hover { background: #0a443b; }
