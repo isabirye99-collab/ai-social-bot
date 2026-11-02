@@ -100,11 +100,13 @@ export default function AlumniPage() {
         const yearRaw = get(r, "Graduation Year");
         const yearMatch = yearRaw.match(/\b(19|20)\d{2}\b/);
         const year = yearMatch ? Number(yearMatch[0]) : Number(yearRaw);
-        if (!get(r, "Phone") && !get(r, "WhatsApp")) missing.push("phone");
+        const phoneValue = get(r, "Phone");
+        const whatsappValue = get(r, "WhatsApp");
+        if (!phoneValue && !whatsappValue) missing.push("phone");
         if (!get(r, "Work Email")) missing.push("work_email");
         if (!get(r, "Student No")) missing.push("student_no");
         if (!get(r, "Program")) missing.push("program");
-        if (!yearRaw) missing.push("graduation_year");
+        if (!Number.isFinite(year) || year <= 1900) missing.push("graduation_year");
         if (!get(r, "Faculty")) missing.push("faculty");
         if (!get(r, "City")) missing.push("city");
         if (!get(r, "LinkedIn")) missing.push("linkedin");
@@ -112,15 +114,16 @@ export default function AlumniPage() {
         if (!get(r, "Employer")) missing.push("employer");
         if (!get(r, "Job Title")) missing.push("job_title");
         if (!get(r, "Industry")) missing.push("industry");
-        const score = Number(get(r, "Engagement Score"));
+        const scoreRaw = get(r, "Engagement Score");
+        const score = scoreRaw ? Number(scoreRaw) : Number.NaN;
         return {
           alumni_id: get(r, "Alumni ID") || "CIU-ALM-" + String(i + 1).padStart(5, "0"),
           student_no: get(r, "Student No") || null,
           full_name: fullName,
           gender: get(r, "Gender") || null,
           work_email: get(r, "Work Email") || null,
-          phone: get(r, "Phone") || null,
-          whatsapp: get(r, "WhatsApp") || null,
+          phone: phoneValue || null,
+          whatsapp: whatsappValue || null,
           linkedin: get(r, "LinkedIn") || null,
           city: get(r, "City") || null,
           nationality: get(r, "Nationality") || null,
@@ -138,20 +141,24 @@ export default function AlumniPage() {
           whatsapp_group: yes(get(r, "WhatsApp Group")),
           linkedin_follower: yes(get(r, "LinkedIn Follower")),
           engagement_score: Number.isFinite(score) ? score : null,
-          verification_status: (!get(r, "Phone") && !get(r, "WhatsApp")) || !get(r, "Work Email") ? "contact_required" : "needs_review",
+          verification_status: (!phoneValue && !whatsappValue && !get(r, "Work Email")) ? "contact_required" : "needs_review",
           missing_fields: missing,
           source_import: file.name,
         };
       }).filter(Boolean) as Record<string, unknown>[];
       if (!records.length) throw new Error("No valid alumni names were found in the CSV.");
       const batchSize = 200;
+      let insertedCount = 0;
       for (let i = 0; i < records.length; i += batchSize) {
         const batch = records.slice(i, i + batchSize);
-        const { error: insertError } = await supabase.from("alumni").upsert(batch, { onConflict: "alumni_id", ignoreDuplicates: true });
+        const { data: inserted, error: insertError } = await supabase.from("alumni")
+          .upsert(batch, { onConflict: "alumni_id", ignoreDuplicates: true }).select("id");
         if (insertError) throw insertError;
-        setProgress("Imported batch " + Math.min(i + batch.length, records.length) + " of " + records.length + " records…");
+        insertedCount += inserted?.length || 0;
+        setProgress("Processed " + Math.min(i + batch.length, records.length).toLocaleString() + " of " + records.length.toLocaleString() + " records · " + insertedCount.toLocaleString() + " new records added…");
       }
-      setProgress("Import completed. " + records.length + " alumni records were processed. Existing Alumni IDs were skipped.");
+      const skippedCount = records.length - insertedCount;
+      setProgress("Import completed: " + insertedCount.toLocaleString() + " new alumni records added; " + skippedCount.toLocaleString() + " existing Alumni IDs skipped. Incomplete profiles have been flagged for review.");
       await load();
     } catch (e) { setError(e instanceof Error ? e.message : "The import could not be completed."); }
     finally { setImporting(false); event.target.value = ""; }
