@@ -586,11 +586,41 @@ export default function LeadsPage() {
     }
   }
 
-  function handleView(
+  async function handleView(
     lead: Lead
   ) {
+    if (
+      currentRole === "salesperson" &&
+      lead.assigned_to !== currentUserId
+    ) {
+      alert("You can only view details for leads assigned to you.");
+      return;
+    }
+
     setSelectedLead(lead);
+    setActivities([]);
+    setLoadingHistory(true);
     setShowViewModal(true);
+
+    try {
+      const { data, error } = await supabase
+        .from("activities")
+        .select("id, lead_id, type, subject, description, activity_at, created_by")
+        .eq("lead_id", lead.id)
+        .order("activity_at", { ascending: false });
+
+      if (error) throw error;
+      setActivities((data || []) as Activity[]);
+    } catch (err) {
+      console.error("Lead activity log error:", err);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to load this lead's activity log."
+      );
+    } finally {
+      setLoadingHistory(false);
+    }
   }
 
   async function openHistory(
@@ -1396,24 +1426,6 @@ export default function LeadsPage() {
                                 View
                               </button>
 
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  openHistory(
-                                    lead
-                                  )
-                                }
-                                className="ciu-btn-light"
-                                style={{
-                                  padding:
-                                    "7px 10px",
-                                  fontSize:
-                                    12,
-                                }}
-                              >
-                                History
-                              </button>
-
                               {isInterested &&
                                 !isClosed && (
                                   <button
@@ -1552,178 +1564,46 @@ export default function LeadsPage() {
                   />
                 </div>
 
-                <div
-                  style={{
-                    marginTop: 22,
-                    padding: 13,
-                    borderRadius: 9,
-                    background:
-                      "#eaf5f2",
-                    color: "#00695c",
-                    fontSize: 13,
-                  }}
-                >
-                  <strong>
-                    CRM workflow:
-                  </strong>{" "}
-                  Lead prospecting is
-                  handled here. Actual
-                  calls, WhatsApp,
-                  email follow-ups and
-                  scheduled work are
-                  managed from Tasks.
-                </div>
-              </div>
-            </ModalOverlay>
-          )}
-
-        {/* HISTORY MODAL */}
-        {showHistoryModal &&
-          historyLead && (
-            <ModalOverlay
-              onClose={() =>
-                setShowHistoryModal(
-                  false
-                )
-              }
-            >
-              <div
-                style={{
-                  width: "100%",
-                  maxWidth: 800,
-                  maxHeight: "90vh",
-                  overflowY: "auto",
-                  background: "#ffffff",
-                  borderRadius: 16,
-                  padding: 24,
-                  boxShadow:
-                    "0 25px 60px rgba(15, 23, 42, 0.25)",
-                }}
-              >
-                <ModalHeader
-                  title="Communication History"
-                  subtitle={
-                    historyLead.name ||
-                    "Lead"
-                  }
-                  onClose={() =>
-                    setShowHistoryModal(
-                      false
-                    )
-                  }
-                />
-
-                {loadingHistory ? (
-                  <div
-                    style={{
-                      padding: 45,
-                      textAlign: "center",
-                      color:
-                        "#6b7f78",
-                    }}
-                  >
-                    Loading
-                    communication
-                    history...
+                <div style={{ marginTop: 24, borderTop: "1px solid #e5eee9", paddingTop: 20 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
+                    <div>
+                      <h3 style={{ margin: 0, color: "#17322c", fontSize: 15, fontWeight: 800 }}>Contact & Activity History</h3>
+                      <p style={{ margin: "4px 0 0", color: "#718078", fontSize: 11 }}>A dated log of recorded calls, messages, emails and follow-up activities.</p>
+                    </div>
+                    <span style={{ padding: "5px 9px", borderRadius: 999, background: "#eaf5f2", color: "#106053", fontSize: 10, fontWeight: 800 }}>
+                      {activities.length} {activities.length === 1 ? "record" : "records"}
+                    </span>
                   </div>
-                ) : activities.length ===
-                  0 ? (
-                  <div
-                    style={{
-                      marginTop: 20,
-                      padding: 40,
-                      textAlign:
-                        "center",
-                      background:
-                        "#f5f8f7",
-                      borderRadius: 10,
-                      color:
-                        "#6b7f78",
-                    }}
-                  >
-                    No communication
-                    history has been
-                    recorded for this
-                    lead yet.
-                  </div>
-                ) : (
-                  <div
-                    style={{
-                      display: "grid",
-                      gap: 12,
-                      marginTop: 20,
-                    }}
-                  >
-                    {activities.map(
-                      (activity) => (
-                        <div
-                          key={
-                            activity.id
-                          }
-                          style={{
-                            border:
-                              "1px solid #dfe9e5",
-                            borderRadius:
-                              12,
-                            padding: 15,
-                          }}
-                        >
-                          <div
-                            style={{
-                              display:
-                                "flex",
-                              justifyContent:
-                                "space-between",
-                              gap: 15,
-                              flexWrap:
-                                "wrap",
-                              marginBottom:
-                                8,
-                            }}
-                          >
-                            <strong>
-                              {
-                                activity.subject
-                              }
-                            </strong>
 
-                            <span
-                              style={{
-                                color:
-                                  "#6b7f78",
-                                fontSize:
-                                  12,
-                              }}
-                            >
-                              {formatDateTime(
-                                activity.activity_at
-                              )}
-                            </span>
+                  {loadingHistory ? (
+                    <div style={{ padding: 24, textAlign: "center", color: "#718078", fontSize: 12 }}>Loading activity log...</div>
+                  ) : activities.length === 0 ? (
+                    <div style={{ padding: 20, borderRadius: 10, background: "#f6f9f7", border: "1px dashed #d7e5de", color: "#718078", fontSize: 12, textAlign: "center" }}>
+                      No contact activities have been recorded for this lead yet. Contact dates will appear here when calls, WhatsApp messages, emails or other interactions are logged in the CRM.
+                    </div>
+                  ) : (
+                    <div style={{ display: "grid", gap: 0 }}>
+                      {activities.map((activity, index) => (
+                        <div key={activity.id} style={{ display: "grid", gridTemplateColumns: "18px minmax(0, 1fr)", gap: 12, position: "relative", paddingBottom: index === activities.length - 1 ? 0 : 16 }}>
+                          <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                            <span style={{ width: 10, height: 10, borderRadius: 99, background: "#8dc642", border: "2px solid #eaf5f2", marginTop: 3, zIndex: 1 }} />
+                            {index !== activities.length - 1 && <span style={{ width: 2, flex: 1, background: "#e2ece6", marginTop: 2 }} />}
                           </div>
-
-                          {activity.description && (
-                            <div
-                              style={{
-                                whiteSpace:
-                                  "pre-wrap",
-                                color:
-                                  "#53665f",
-                                fontSize:
-                                  13,
-                                lineHeight:
-                                  1.6,
-                              }}
-                            >
-                              {
-                                activity.description
-                              }
+                          <div style={{ border: "1px solid #e2eae4", borderRadius: 10, padding: "11px 13px", background: "#fff" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, flexWrap: "wrap" }}>
+                              <div>
+                                <strong style={{ display: "block", color: "#17322c", fontSize: 12 }}>{activity.subject || activity.type || "Contact activity"}</strong>
+                                <span style={{ display: "inline-block", marginTop: 5, color: "#106053", background: "#eaf5f2", borderRadius: 99, padding: "3px 7px", fontSize: 9, fontWeight: 800, textTransform: "capitalize" }}>{(activity.type || "activity").replaceAll("_", " ")}</span>
+                              </div>
+                              <time dateTime={activity.activity_at} style={{ color: "#718078", fontSize: 10, whiteSpace: "nowrap" }}>{formatDateTime(activity.activity_at)}</time>
                             </div>
-                          )}
+                            {activity.description && <p style={{ margin: "9px 0 0", color: "#53665f", fontSize: 11, lineHeight: 1.55, whiteSpace: "pre-wrap" }}>{activity.description}</p>}
+                          </div>
                         </div>
-                      )
-                    )}
-                  </div>
-                )}
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </ModalOverlay>
           )}
