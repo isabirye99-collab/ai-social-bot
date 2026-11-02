@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
 
 type Period = "day" | "week" | "month";
 
@@ -118,6 +119,7 @@ function formatDate(value: Date) {
 }
 
 export default function ReportsPage() {
+  const router = useRouter();
   const [period, setPeriod] = useState<Period>("month");
 
   const [selectedDate, setSelectedDate] = useState(() => {
@@ -196,6 +198,10 @@ export default function ReportsPage() {
       }
 
       const role = String(currentProfile.data?.role || "").trim().toLowerCase().replace(/[ -]/g, "_");
+      if (!["super_admin", "admin", "manager", "salesperson"].includes(role)) {
+        router.replace("/dashboard");
+        return;
+      }
       setViewerRole(role);
 
       const eligibleProfiles = ((p.data || []) as Profile[]).filter((profile) => {
