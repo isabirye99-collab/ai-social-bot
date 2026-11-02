@@ -42,11 +42,11 @@ export default function AlumniProfileReviewsPage() {
       const { data: authData, error: authError } = await supabase.auth.getUser();
       if (authError || !authData.user) throw new Error("Your staff session has expired. Sign in again.");
       if (decision === "approved") {
-        const allowed = ["work_email","phone","whatsapp","linkedin","city","employment_status","employer","job_title","industry","profile_bio","career_interests","allow_email","allow_sms","allow_whatsapp"];
+        const allowed = ["gender","student_no","program","faculty","graduation_year","work_email","phone","whatsapp","linkedin","city","employment_status","employer","job_title","industry","profile_bio","career_interests","allow_email","allow_sms","allow_whatsapp"];
         const changes = Object.fromEntries(Object.entries(item.proposed_changes || {}).filter(([key]) => allowed.includes(key)));
         if (Object.keys(changes).length === 0) throw new Error("This request has no supported profile changes.");
         const { data: current, error: currentError } = await supabase.from("alumni")
-          .select("missing_fields,work_email,phone,whatsapp,student_no,program,graduation_year,faculty,city,linkedin,employment_status,employer,job_title,industry")
+          .select("missing_fields,gender,work_email,phone,whatsapp,student_no,program,graduation_year,faculty,city,linkedin,employment_status,employer,job_title,industry")
           .eq("id", item.alumni_id).single();
         if (currentError) throw currentError;
         const merged = { ...current, ...changes } as Record<string, unknown>;
