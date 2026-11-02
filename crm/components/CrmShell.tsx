@@ -38,6 +38,7 @@ export default function CrmShell({
   const supabase = createClient();
 
   const [role, setRole] = useState<CrmRole | null>(null);
+  const [modulePermissions, setModulePermissions] = useState<string[] | null>(null);
   const [userEmail, setUserEmail] = useState("");
   const [loading, setLoading] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -190,7 +191,7 @@ export default function CrmShell({
 
         const { data: profile } = await supabase
           .from("profiles")
-          .select("role")
+          .select("role, module_permissions")
           .eq("id", user.id)
           .maybeSingle();
 
@@ -198,6 +199,7 @@ export default function CrmShell({
           setRole(
             (profile?.role as CrmRole) || null,
           );
+          setModulePermissions((profile?.module_permissions as string[] | null) ?? null);
           setLoading(false);
         }
       } catch (error) {
@@ -252,9 +254,12 @@ export default function CrmShell({
     }
   }
 
-  const visibleItems = navItems.filter((item) =>
-    item.label !== "Staff" && hasModuleAccess(role, item.module),
-  );
+  const visibleItems = navItems.filter((item) => {
+    if (item.label === "Staff") return false;
+    if (modulePermissions !== null) return modulePermissions.includes(item.module);
+    if (role === "super_admin") return true;
+    return hasModuleAccess(role, item.module);
+  });
 
   const isActive = (href: string) =>
     href === "/dashboard"
