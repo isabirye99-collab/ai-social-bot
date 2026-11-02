@@ -59,8 +59,8 @@ const DEFAULT_BRANDING: CrmBrandingPreferences = {
   crmName: "CIU Business CRM",
   tagline: "Lead · Innovate · Transform",
   navigationOrientation: "vertical",
-  primaryColor: "#00695c",
-  secondaryColor: "#8bc63f",
+  primaryColor: "#106053",
+  secondaryColor: "#8dc642",
 };
 
 const LOGO_STORAGE_KEY = "ciu_crm_logo";
@@ -1148,9 +1148,9 @@ export default function Settings() {
   return (
     <>
       <div className="ciu-page">
-        <div className="ciu-page-inner">
+        <div className="ciu-page-inner settings-page-inner">
           <div
-            className="ciu-hero"
+            className="ciu-hero settings-page-hero"
             style={{
               marginBottom: 10,
               padding: "12px 18px",
@@ -1162,7 +1162,7 @@ export default function Settings() {
                 style={{
                   fontSize: 12,
                   fontWeight: 800,
-                  color: "#00695c",
+                  color: "#106053",
                   marginBottom: 5,
                   textTransform:
                     "uppercase",
@@ -1198,7 +1198,7 @@ export default function Settings() {
                 borderRadius: 8,
                 background:
                   "#eaf5f2",
-                color: "#00695c",
+                color: "#106053",
                 border:
                   "1px solid #cfe5de",
                 fontSize: 13,
@@ -1230,7 +1230,7 @@ export default function Settings() {
             style={{
               display: "grid",
               gridTemplateColumns:
-                "repeat(5,minmax(145px,1fr))",
+                "repeat(5,minmax(0,1fr))",
               gap: 8,
               marginBottom: 12,
               overflowX: "auto",
@@ -1255,7 +1255,7 @@ export default function Settings() {
                       textAlign:
                         "left",
                       border: active
-                        ? "1px solid #00695c"
+                        ? "1px solid #106053"
                         : "1px solid #dfe9e5",
                       background: active
                         ? "#eaf5f2"
@@ -1280,11 +1280,11 @@ export default function Settings() {
                         marginBottom: 4,
                         background:
                           active
-                            ? "#00695c"
+                            ? "#106053"
                             : "#eef7df",
                         color: active
                           ? "#ffffff"
-                          : "#00695c",
+                          : "#106053",
                         fontSize: 12,
                         fontWeight: 900,
                       }}
@@ -1297,7 +1297,7 @@ export default function Settings() {
                         display:
                           "block",
                         color: active
-                          ? "#00695c"
+                          ? "#106053"
                           : "#17322c",
                         fontSize: 13,
                       }}
@@ -1426,7 +1426,7 @@ export default function Settings() {
                     <strong
                       style={{
                         color:
-                          "#00695c",
+                          "#106053",
                       }}
                     >
                       Active
@@ -1440,7 +1440,7 @@ export default function Settings() {
           {activeSection ===
             "branding" && (
             <div
-              className="crm-card"
+              className="crm-card settings-branding-card"
               style={{
                 border:
                   "1px solid #cfe5de",
@@ -1510,7 +1510,7 @@ export default function Settings() {
                         style={{
                           fontSize: 32,
                           color:
-                            "#00695c",
+                            "#106053",
                         }}
                       >
                         CIU
@@ -1546,7 +1546,7 @@ export default function Settings() {
                           fontSize: 12,
                           fontWeight: 700,
                           color:
-                            "#00695c",
+                            "#106053",
                         }}
                       >
                         Logo loaded
@@ -1559,10 +1559,10 @@ export default function Settings() {
                 <h3 style={{ margin: "0 0 12px", color: "#17322c", fontSize: 14 }}>Brand colors</h3>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 16 }}>
                   <label style={{ display: "grid", gap: 8, fontSize: 12, fontWeight: 700, color: "#17322c" }}>Primary color
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}><input type="color" value={branding.primaryColor || "#00695c"} onChange={(event) => { setBranding((current) => ({ ...current, primaryColor: event.target.value })); setSaved(false); }} style={{ width: 54, height: 40, border: 0, background: "transparent" }} /><input value={branding.primaryColor || "#00695c"} onChange={(event) => { setBranding((current) => ({ ...current, primaryColor: event.target.value })); setSaved(false); }} style={{ flex: 1, minHeight: 40, padding: "8px 10px", border: "1px solid #cbd5e1", borderRadius: 8 }} /></div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}><input type="color" value={branding.primaryColor || "#106053"} onChange={(event) => { setBranding((current) => ({ ...current, primaryColor: event.target.value })); setSaved(false); }} style={{ width: 54, height: 40, border: 0, background: "transparent" }} /><input value={branding.primaryColor || "#106053"} onChange={(event) => { setBranding((current) => ({ ...current, primaryColor: event.target.value })); setSaved(false); }} style={{ flex: 1, minHeight: 40, padding: "8px 10px", border: "1px solid #cbd5e1", borderRadius: 8 }} /></div>
                   </label>
                   <label style={{ display: "grid", gap: 8, fontSize: 12, fontWeight: 700, color: "#17322c" }}>Secondary color
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}><input type="color" value={branding.secondaryColor || "#8bc63f"} onChange={(event) => { setBranding((current) => ({ ...current, secondaryColor: event.target.value })); setSaved(false); }} style={{ width: 54, height: 40, border: 0, background: "transparent" }} /><input value={branding.secondaryColor || "#8bc63f"} onChange={(event) => { setBranding((current) => ({ ...current, secondaryColor: event.target.value })); setSaved(false); }} style={{ flex: 1, minHeight: 40, padding: "8px 10px", border: "1px solid #cbd5e1", borderRadius: 8 }} /></div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}><input type="color" value={branding.secondaryColor || "#8dc642"} onChange={(event) => { setBranding((current) => ({ ...current, secondaryColor: event.target.value })); setSaved(false); }} style={{ width: 54, height: 40, border: 0, background: "transparent" }} /><input value={branding.secondaryColor || "#8dc642"} onChange={(event) => { setBranding((current) => ({ ...current, secondaryColor: event.target.value })); setSaved(false); }} style={{ flex: 1, minHeight: 40, padding: "8px 10px", border: "1px solid #cbd5e1", borderRadius: 8 }} /></div>
                   </label>
                 </div>
                 <p style={{ marginTop: 12, color: "#64748b", fontSize: 11 }}>These colors are saved centrally. The shared CRM layout must read them before they affect every module.</p>
@@ -1632,7 +1632,7 @@ export default function Settings() {
                     <label style={{ display: "grid", gap: 6, fontSize: 12, fontWeight: 700, color: "#17322c" }}>Temporary password<input required type="password" autoComplete="new-password" minLength={10} value={newStaff.temporary_password} onChange={(event) => setNewStaff((current) => ({ ...current, temporary_password: event.target.value }))} placeholder="At least 10 characters" style={{ minHeight: 38, padding: "8px 10px", border: "1px solid #cbd5e1", borderRadius: 7 }} /><span style={{ color: "#64748b", fontSize: 11, fontWeight: 400 }}>Share this password securely with the staff member. Do not email it.</span></label>
                     <label style={{ display: "grid", gap: 6, fontSize: 12, fontWeight: 700, color: "#17322c" }}>CRM role<select value={newStaff.role} onChange={(event) => setNewStaff((current) => ({ ...current, role: event.target.value }))} style={{ minHeight: 38, padding: "8px 10px", border: "1px solid #cbd5e1", borderRadius: 7, background: "#fff" }}>{ROLES.filter((item) => item.value !== "super_admin").map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
                   </div>
-                  <div><button type="submit" disabled={creatingStaff} style={{ border: 0, borderRadius: 8, padding: "10px 15px", background: creatingStaff ? "#94a3b8" : "#00695c", color: "#fff", fontWeight: 800, cursor: creatingStaff ? "wait" : "pointer" }}>{creatingStaff ? "Creating staff account..." : "Create Staff Account"}</button></div>
+                  <div><button type="submit" disabled={creatingStaff} style={{ border: 0, borderRadius: 8, padding: "10px 15px", background: creatingStaff ? "#94a3b8" : "#106053", color: "#fff", fontWeight: 800, cursor: creatingStaff ? "wait" : "pointer" }}>{creatingStaff ? "Creating staff account..." : "Create Staff Account"}</button></div>
                 </form>
                 <div
                   style={{
@@ -1659,7 +1659,7 @@ export default function Settings() {
                       display:
                         "grid",
                       gridTemplateColumns:
-                        "repeat(3,minmax(0,1fr))",
+                        "repeat(auto-fit,minmax(210px,1fr))",
                       gap: 10,
                     }}
                   >
@@ -1676,7 +1676,7 @@ export default function Settings() {
                               display:
                                 "block",
                               color:
-                                "#00695c",
+                                "#106053",
                             }}
                           >
                             {
@@ -1899,7 +1899,7 @@ export default function Settings() {
                                         background:
                                           "#eef7df",
                                         color:
-                                          "#00695c",
+                                          "#106053",
                                         fontSize:
                                           9,
                                         fontWeight:
@@ -1937,7 +1937,7 @@ export default function Settings() {
                                           : "#f1f5f9",
                                       color:
                                         profile.is_active
-                                          ? "#00695c"
+                                          ? "#106053"
                                           : "#64748b",
                                       fontSize:
                                         11,
@@ -1952,7 +1952,7 @@ export default function Settings() {
                                 </td>
 
                                 <td>
-                                  <button type="button" style={{ border: "1px solid #cfe5de", background: "#fff", borderRadius: 7, padding: "6px 12px", cursor: "pointer", fontWeight: 700, color: "#00695c" }} onClick={() => openEditProfile(profile)}>
+                                  <button type="button" style={{ border: "1px solid #cfe5de", background: "#fff", borderRadius: 7, padding: "6px 12px", cursor: "pointer", fontWeight: 700, color: "#106053" }} onClick={() => openEditProfile(profile)}>
                                     Edit
                                   </button>
                                 </td>
@@ -2491,7 +2491,7 @@ export default function Settings() {
                   <span style={{ display: "block", marginTop: 4, color: "#64748b", fontSize: 11 }}>Choose which CRM sections this user can access.</span>
                 </div>
                 {editProfile.role === "super_admin" ? (
-                  <div style={{ padding: 10, borderRadius: 8, background: "#eaf5f2", color: "#00695c", fontSize: 12, fontWeight: 700 }}>
+                  <div style={{ padding: 10, borderRadius: 8, background: "#eaf5f2", color: "#106053", fontSize: 12, fontWeight: 700 }}>
                     Super Admin automatically has access to every module.
                   </div>
                 ) : (
@@ -2617,7 +2617,7 @@ export default function Settings() {
                       fontSize: 12,
                       color:
                         editProfile.is_active
-                          ? "#00695c"
+                          ? "#106053"
                           : "#64748b",
                     }}
                   >
@@ -2682,11 +2682,11 @@ export default function Settings() {
                   }
                   style={{
                     border:
-                      "1px solid #004d40",
+                      "1px solid #0a443b",
                     background:
                       editSaving
                         ? "#94a3b8"
-                        : "#00695c",
+                        : "#106053",
                     color:
                       "#ffffff",
                     borderRadius: 8,
@@ -2710,6 +2710,96 @@ export default function Settings() {
         </div>
       )}
       <style jsx global>{`
+        /* Settings page: compact, consistent CIU administration layout */
+        .settings-page-inner {
+          padding-top: 18px !important;
+          padding-bottom: 32px !important;
+        }
+        .settings-page-hero {
+          align-items: center !important;
+          gap: 14px !important;
+          padding: 14px 20px !important;
+          margin-bottom: 12px !important;
+        }
+        .settings-page-hero > div:last-child {
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+          gap: 9px;
+          flex-wrap: wrap;
+        }
+        .settings-page-inner > div[style*="repeat(5"] {
+          gap: 8px !important;
+          margin-bottom: 14px !important;
+          overflow: visible !important;
+        }
+        .settings-page-inner > div[style*="repeat(5"] > button {
+          min-width: 0 !important;
+          padding: 10px 12px !important;
+          border-radius: 10px !important;
+          transition: border-color .15s ease, background .15s ease, transform .15s ease;
+        }
+        .settings-page-inner > div[style*="repeat(5"] > button:hover {
+          border-color: #106053 !important;
+          transform: translateY(-1px);
+        }
+        .settings-page-inner .crm-card {
+          border-radius: 12px !important;
+          box-shadow: 0 3px 12px rgba(16, 96, 83, .045);
+        }
+        .settings-page-inner .crm-card-header {
+          padding: 16px 20px !important;
+        }
+        .settings-page-inner .crm-card-body {
+          padding: 18px 20px !important;
+        }
+        .settings-page-inner input:not([type="checkbox"]):not([type="file"]):not([type="color"]),
+        .settings-page-inner select {
+          min-height: 40px;
+          box-sizing: border-box;
+        }
+        .settings-page-inner .ciu-report-table th {
+          background: #106053 !important;
+          color: #ffffff !important;
+          white-space: nowrap;
+        }
+        .settings-page-inner .ciu-report-table td {
+          vertical-align: middle;
+        }
+        @media (max-width: 900px) {
+          .settings-page-hero {
+            align-items: flex-start !important;
+          }
+          .settings-page-inner > div[style*="repeat(5"] {
+            grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+          }
+        }
+        @media (max-width: 620px) {
+          .settings-page-inner {
+            padding: 14px 12px 76px !important;
+          }
+          .settings-page-hero {
+            padding: 14px !important;
+          }
+          .settings-page-hero > div:last-child {
+            justify-content: flex-start;
+          }
+          .settings-page-inner > div[style*="repeat(5"] {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+          }
+          .settings-page-inner .crm-card-header,
+          .settings-page-inner .crm-card-body {
+            padding: 14px !important;
+          }
+          .settings-page-inner input[type="text"],
+          .settings-page-inner input[type="email"],
+          .settings-page-inner input[type="password"],
+          .settings-page-inner select {
+            min-width: 0 !important;
+            width: 100%;
+          }
+        }
+
         .ciu-page {
           color: #17322c;
         }
@@ -2718,7 +2808,7 @@ export default function Settings() {
           background: #ffffff !important;
           color: #17322c !important;
           border: 1px solid #dfe9e5 !important;
-          border-left: 5px solid #00695c !important;
+          border-left: 5px solid #106053 !important;
           border-radius: 12px !important;
           box-shadow: 0 4px 14px rgba(23, 50, 44, 0.045) !important;
         }
@@ -2731,7 +2821,7 @@ export default function Settings() {
         .ciu-page .crm-card {
           background: #ffffff !important;
           border: 1px solid #dfe9e5 !important;
-          border-left: 4px solid #00695c !important;
+          border-left: 4px solid #106053 !important;
           border-radius: 12px !important;
           box-shadow: 0 4px 14px rgba(23, 50, 44, 0.045);
         }
@@ -2759,7 +2849,7 @@ export default function Settings() {
         .ciu-page input:not([type="checkbox"]):not([type="file"]):focus,
         .ciu-page select:focus {
           outline: 2px solid rgba(0, 105, 92, 0.14);
-          border-color: #00695c !important;
+          border-color: #106053 !important;
         }
 
         .ciu-page .ciu-report-table thead th {
