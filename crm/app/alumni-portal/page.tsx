@@ -22,6 +22,8 @@ export default function AlumniPortalPage(){
   const [loading,setLoading]=useState(true); const [saving,setSaving]=useState(false);
   const [message,setMessage]=useState(""); const [error,setError]=useState("");
   const [needsClaim,setNeedsClaim]=useState(false); const [claimId,setClaimId]=useState(""); const [claiming,setClaiming]=useState(false);
+  const [referral,setReferral]=useState({name:"",phone:"",email:"",program:"",intake:"",notes:""});
+  const [referralSaving,setReferralSaving]=useState(false);
   const load=useCallback(async()=>{
     setLoading(true);setError("");
     try{
