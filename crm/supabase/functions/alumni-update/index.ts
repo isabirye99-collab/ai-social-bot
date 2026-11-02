@@ -33,10 +33,11 @@ Deno.serve(async (req: Request) => {
       const [byEmail,byIp,match]=await Promise.all([
         db.from("alumni_update_verifications").select("id",{count:"exact",head:true}).eq("email",email).gte("created_at",hourAgo),
         db.from("alumni_update_verifications").select("id",{count:"exact",head:true}).eq("request_ip_hash",ipHash).gte("created_at",hourAgo),
-        db.from("alumni").select("id",{count:"exact",head:true}).ilike("work_email",email),
+        db.rpc("lookup_alumni_for_public_update",{p_email:email}),
       ]);
       if(byEmail.error||byIp.error||match.error) throw new Error("Unable to process verification.");
-      if((byEmail.count||0)>=3||(byIp.count||0)>=10||(match.count||0)===0) return json({message:"If this email matches a CIU alumni record, a verification code will be sent shortly."},200,origin);
+      const matchCount=Number(match.data?.match_count||0);
+      if((byEmail.count||0)>=3||(byIp.count||0)>=10||matchCount===0) return json({message:"If this email matches a CIU alumni record, a verification code will be sent shortly."},200,origin);
       const code=randomDigits(), codeHash=await hash(email+":"+code+":"+pepper);
       const {error:insertError}=await db.from("alumni_update_verifications").insert({email,code_hash:codeHash,expires_at:new Date(Date.now()+600000).toISOString(),request_ip_hash:ipHash});
       if(insertError) throw insertError;
@@ -54,11 +55,11 @@ Deno.serve(async (req: Request) => {
       const sessionToken=randomToken();
       const {error:updateError}=await db.from("alumni_update_verifications").update({verified_token_hash:await hash(sessionToken+":"+pepper),verified_expires_at:new Date(Date.now()+1800000).toISOString()}).eq("id",challenge.id);
       if(updateError) throw updateError;
-      const {data:matches,error:profileError}=await db.from("alumni").select("id,alumni_id,full_name,work_email,phone,whatsapp,linkedin,city,nationality,employment_status,employer,job_title,industry,profile_bio,career_interests,allow_email,allow_sms,allow_whatsapp").ilike("work_email",email).limit(2);
+      const {data:lookup,error:profileError}=await db.rpc("lookup_alumni_for_public_update",{p_email:email});
       if(profileError) throw profileError;
-      if(!matches||matches.length===0) return json({error:"No alumni record matches this email. Please contact the CIU Alumni Office."},404,origin);
-      if(matches.length>1) return json({error:"This email matches multiple alumni records. The Alumni Office must resolve the duplicates before an update can be submitted."},409,origin);
-      return json({sessionToken,profile:matches[0]},200,origin);
+      if(Number(lookup?.match_count||0)===0) return json({error:"No alumni record matches this email. Please contact the CIU Alumni Office."},404,origin);
+      if(Number(lookup?.match_count||0)>1) return json({error:"This email matches multiple alumni records. The Alumni Office must resolve the duplicates before an update can be submitted."},409,origin);
+      return json({sessionToken,profile:lookup.profile},200,origin);
     }
     if(action==="submit_update") {
       const sessionToken=String(body.sessionToken||""), changes=body.changes;
