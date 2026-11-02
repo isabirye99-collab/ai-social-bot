@@ -52,6 +52,7 @@ export default function AlumniProfileReviewsPage() {
         const merged = { ...current, ...changes } as Record<string, unknown>;
         const missing = (current.missing_fields || []).filter((field: string) => {
           const value = merged[field];
+          if (field === "phone") return !String(merged.phone || "").trim() && !String(merged.whatsapp || "").trim();
           return value == null || String(value).trim() === "";
         });
         const hasContact = Boolean(merged.work_email || merged.phone || merged.whatsapp);
