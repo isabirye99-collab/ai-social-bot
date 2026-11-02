@@ -154,19 +154,6 @@ export default function ReportsPage() {
         throw new Error("You are not signed in.");
       }
 
-      const { data: currentProfile, error: profileError } =
-        await supabase
-          .from("profiles")
-          .select("id,full_name,role")
-          .eq("id", user.id)
-          .maybeSingle();
-
-      if (profileError) {
-        throw new Error(profileError.message);
-      }
-
-      const role = currentProfile?.role || "";
-
       const profilesQuery = supabase
         .from("profiles")
         .select("id,full_name,role")
