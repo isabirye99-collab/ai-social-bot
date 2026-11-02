@@ -5,7 +5,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
 type Partner = { id: string; name: string };
-type Agreement = { id: string; partnership_id: string; agreement_title: string; agreement_type: string; reference_number: string | null; signed_date: string | null; effective_date: string | null; expiry_date: string | null; renewal_notice_days: number; status: string; notes: string | null; partnerships: { name: string } | null };
+type Agreement = { id: string; partnership_id: string; agreement_title: string; agreement_type: string; reference_number: string | null; signed_date: string | null; effective_date: string | null; expiry_date: string | null; renewal_notice_days: number; status: string; notes: string | null; document_url: string | null; partnerships: { name: string } | null };
 type Activity = { id: string; partnership_id: string; activity_title: string; activity_type: string | null; planned_date: string | null; completed_date: string | null; target_beneficiaries: number | null; actual_beneficiaries: number | null; status: string; outcome: string | null; partnerships: { name: string } | null };
 
 const card: React.CSSProperties = { background: "#fff", border: "1px solid #e4ebe6", borderRadius: 14, padding: 18, boxShadow: "0 4px 16px rgba(20,54,39,.035)" };
@@ -24,6 +24,7 @@ export default function PartnershipAgreementsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [documentFile, setDocumentFile] = useState<File | null>(null);
   const [agreement, setAgreement] = useState({ partnership_id: "", agreement_title: "", agreement_type: "MoU", reference_number: "", signed_date: "", effective_date: "", expiry_date: "", renewal_notice_days: "90", status: "draft", notes: "" });
   const [activity, setActivity] = useState({ partnership_id: "", activity_title: "", activity_type: "Implementation", planned_date: "", target_beneficiaries: "", status: "planned", outcome: "" });
 
@@ -31,7 +32,7 @@ export default function PartnershipAgreementsPage() {
     setLoading(true); setError("");
     const [p, a, x] = await Promise.all([
       supabase.from("partnerships").select("id,name").order("name"),
-      supabase.from("partnership_agreements").select("id,partnership_id,agreement_title,agreement_type,reference_number,signed_date,effective_date,expiry_date,renewal_notice_days,status,notes,partnerships(name)").order("expiry_date", { ascending: true }),
+      supabase.from("partnership_agreements").select("id,partnership_id,agreement_title,agreement_type,reference_number,signed_date,effective_date,expiry_date,renewal_notice_days,status,notes,document_url,partnerships(name)").order("expiry_date", { ascending: true }),
       supabase.from("partnership_activities").select("id,partnership_id,activity_title,activity_type,planned_date,completed_date,target_beneficiaries,actual_beneficiaries,status,outcome,partnerships(name)").order("planned_date", { ascending: false })
     ]);
     const failure = p.error || a.error || x.error;
@@ -44,16 +45,39 @@ export default function PartnershipAgreementsPage() {
 
   async function saveAgreement(e: FormEvent) {
     e.preventDefault(); setSaving(true); setError(""); setNotice("");
-    const { error: saveError } = await supabase.from("partnership_agreements").insert({
-      partnership_id: agreement.partnership_id, agreement_title: agreement.agreement_title.trim(),
-      agreement_type: agreement.agreement_type, reference_number: agreement.reference_number || null,
-      signed_date: agreement.signed_date || null, effective_date: agreement.effective_date || null,
-      expiry_date: agreement.expiry_date || null, renewal_notice_days: Number(agreement.renewal_notice_days) || 90,
-      status: agreement.status, notes: agreement.notes || null
-    });
-    if (saveError) setError(saveError.message);
-    else { setNotice("Agreement added to the register."); setShowForm(false); setAgreement({ partnership_id: "", agreement_title: "", agreement_type: "MoU", reference_number: "", signed_date: "", effective_date: "", expiry_date: "", renewal_notice_days: "90", status: "draft", notes: "" }); await load(); }
-    setSaving(false);
+    try {
+      if (documentFile && documentFile.size > 20 * 1024 * 1024) throw new Error("The agreement file must be 20 MB or smaller.");
+      if (documentFile && !["application/pdf","application/msword","application/vnd.openxmlformats-officedocument.wordprocessingml.document"].includes(documentFile.type)) {
+        throw new Error("Upload a PDF, DOC or DOCX agreement file.");
+      }
+      const { data: created, error: saveError } = await supabase.from("partnership_agreements").insert({
+        partnership_id: agreement.partnership_id, agreement_title: agreement.agreement_title.trim(),
+        agreement_type: agreement.agreement_type, reference_number: agreement.reference_number || null,
+        signed_date: agreement.signed_date || null, effective_date: agreement.effective_date || null,
+        expiry_date: agreement.expiry_date || null, renewal_notice_days: Number(agreement.renewal_notice_days) || 90,
+        status: agreement.status, notes: agreement.notes || null
+      }).select("id").single();
+      if (saveError) throw saveError;
+      if (documentFile) {
+        const safeName = documentFile.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+        const objectPath = agreement.partnership_id + "/" + created.id + "/" + Date.now() + "-" + safeName;
+        const { error: uploadError } = await supabase.storage.from("partnership-documents").upload(objectPath, documentFile, { contentType: documentFile.type, upsert: false });
+        if (uploadError) throw uploadError;
+        const { error: linkError } = await supabase.from("partnership_agreements").update({ document_url: objectPath }).eq("id", created.id);
+        if (linkError) throw linkError;
+      }
+      setNotice(documentFile ? "Agreement and document uploaded successfully." : "Agreement added to the register.");
+      setShowForm(false); setDocumentFile(null);
+      setAgreement({ partnership_id: "", agreement_title: "", agreement_type: "MoU", reference_number: "", signed_date: "", effective_date: "", expiry_date: "", renewal_notice_days: "90", status: "draft", notes: "" });
+      await load();
+    } catch (err) { setError(err instanceof Error ? err.message : "Unable to save the agreement."); }
+    finally { setSaving(false); }
+  }
+
+  async function openDocument(path: string) {
+    const { data, error: urlError } = await supabase.storage.from("partnership-documents").createSignedUrl(path, 60);
+    if (urlError) setError(urlError.message);
+    else if (data?.signedUrl) window.location.assign(data.signedUrl);
   }
 
   async function saveActivity(e: FormEvent) {
@@ -103,6 +127,7 @@ export default function PartnershipAgreementsPage() {
         <label style={{ fontSize: 12, fontWeight: 700 }}>Renewal notice (days)<input type="number" min="1" value={agreement.renewal_notice_days} onChange={e => setAgreement({ ...agreement, renewal_notice_days: e.target.value })} style={field} /></label>
         <label style={{ fontSize: 12, fontWeight: 700 }}>Status<select value={agreement.status} onChange={e => setAgreement({ ...agreement, status: e.target.value })} style={field}>{["draft","under_review","signed","expired","terminated"].map(x => <option key={x} value={x}>{x.replaceAll("_"," ")}</option>)}</select></label>
         <label style={{ fontSize: 12, fontWeight: 700, gridColumn: "1 / -1" }}>Notes<textarea rows={2} value={agreement.notes} onChange={e => setAgreement({ ...agreement, notes: e.target.value })} style={{ ...field, height: "auto", padding: 10 }} /></label>
+        <label style={{ fontSize: 12, fontWeight: 700, gridColumn: "1 / -1" }}>Upload signed agreement (PDF, DOC or DOCX; max 20 MB)<input type="file" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={e => setDocumentFile(e.target.files?.[0] || null)} style={{ ...field, height: "auto", padding: 9 }} /></label>
       </div> : <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(210px,1fr))", gap: 12 }}>
         <label style={{ fontSize: 12, fontWeight: 700 }}>Partner *<select required value={activity.partnership_id} onChange={e => setActivity({ ...activity, partnership_id: e.target.value })} style={field}><option value="">Select partner</option>{partners.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
         <label style={{ fontSize: 12, fontWeight: 700 }}>Activity title *<input required value={activity.activity_title} onChange={e => setActivity({ ...activity, activity_title: e.target.value })} style={field} /></label>
@@ -115,7 +140,7 @@ export default function PartnershipAgreementsPage() {
       <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 14 }}><button disabled={saving || partners.length === 0} style={primary}>{saving ? "Saving…" : "Save record"}</button></div>
     </form>}
     <section style={card}>
-      {loading ? <p style={{ color: "#819087" }}>Loading partnership records…</p> : tab === "agreements" ? <><h2 style={{ margin: "0 0 12px", fontSize: 17, fontWeight: 850 }}>Agreement register</h2><div style={{ overflowX: "auto" }}><table style={{ width: "100%", minWidth: 850, borderCollapse: "collapse", fontSize: 12 }}><thead><tr style={{ background: "#f4f8f5", textAlign: "left" }}>{["Partner / agreement","Type & reference","Effective period","Status","Action"].map(x => <th key={x} style={{ padding: 11 }}>{x}</th>)}</tr></thead><tbody>{agreements.length === 0 ? <tr><td colSpan={5} style={{ padding: 22, textAlign: "center", color: "#819087" }}>No agreements have been recorded yet.</td></tr> : agreements.map(a => <tr key={a.id} style={{ borderTop: "1px solid #edf1ee" }}><td style={{ padding: 11, fontWeight: 800 }}>{a.agreement_title}<div style={{ color: "#819087", marginTop: 3 }}>{a.partnerships?.name || "Partner"}</div></td><td style={{ padding: 11 }}>{a.agreement_type}<div style={{ color: "#819087" }}>{a.reference_number || "No reference"}</div></td><td style={{ padding: 11 }}>{a.effective_date || "—"} → {a.expiry_date || "No expiry"}</td><td style={{ padding: 11, textTransform: "capitalize" }}>{a.status.replaceAll("_"," ")}</td><td style={{ padding: 11 }}>{a.status !== "signed" && a.status !== "terminated" && <button style={primary} onClick={() => void updateAgreementStatus(a.id, "signed")}>Mark signed</button>}{a.status === "signed" && <button style={secondary} onClick={() => void updateAgreementStatus(a.id, "expired")}>Mark expired</button>}</td></tr>)}</tbody></table></div></> : <><h2 style={{ margin: "0 0 12px", fontSize: 17, fontWeight: 850 }}>Partnership activity tracker</h2><div style={{ overflowX: "auto" }}><table style={{ width: "100%", minWidth: 850, borderCollapse: "collapse", fontSize: 12 }}><thead><tr style={{ background: "#f4f8f5", textAlign: "left" }}>{["Partner","Activity","Planned date","Beneficiaries","Status","Outcome / action"].map(x => <th key={x} style={{ padding: 11 }}>{x}</th>)}</tr></thead><tbody>{activities.length === 0 ? <tr><td colSpan={6} style={{ padding: 22, textAlign: "center", color: "#819087" }}>No partnership activities have been recorded yet.</td></tr> : activities.map(a => <tr key={a.id} style={{ borderTop: "1px solid #edf1ee" }}><td style={{ padding: 11 }}>{a.partnerships?.name || "Partner"}</td><td style={{ padding: 11, fontWeight: 800 }}>{a.activity_title}<div style={{ color: "#819087" }}>{a.activity_type || ""}</div></td><td style={{ padding: 11 }}>{a.planned_date || "—"}</td><td style={{ padding: 11 }}>{a.actual_beneficiaries ?? "—"} / {a.target_beneficiaries ?? "—"}</td><td style={{ padding: 11, textTransform: "capitalize" }}>{a.status.replaceAll("_"," ")}</td><td style={{ padding: 11 }}>{a.outcome || "—"}{a.status !== "completed" && a.status !== "cancelled" && <div style={{ marginTop: 6 }}><button style={secondary} onClick={() => void completeActivity(a)}>Mark completed</button></div>}</td></tr>)}</tbody></table></div></>}
+      {loading ? <p style={{ color: "#819087" }}>Loading partnership records…</p> : tab === "agreements" ? <><h2 style={{ margin: "0 0 12px", fontSize: 17, fontWeight: 850 }}>Agreement register</h2><div style={{ overflowX: "auto" }}><table style={{ width: "100%", minWidth: 850, borderCollapse: "collapse", fontSize: 12 }}><thead><tr style={{ background: "#f4f8f5", textAlign: "left" }}>{["Partner / agreement","Type & reference","Effective period","Status","Action"].map(x => <th key={x} style={{ padding: 11 }}>{x}</th>)}</tr></thead><tbody>{agreements.length === 0 ? <tr><td colSpan={5} style={{ padding: 22, textAlign: "center", color: "#819087" }}>No agreements have been recorded yet.</td></tr> : agreements.map(a => <tr key={a.id} style={{ borderTop: "1px solid #edf1ee" }}><td style={{ padding: 11, fontWeight: 800 }}>{a.agreement_title}<div style={{ color: "#819087", marginTop: 3 }}>{a.partnerships?.name || "Partner"}</div></td><td style={{ padding: 11 }}>{a.agreement_type}<div style={{ color: "#819087" }}>{a.reference_number || "No reference"}</div></td><td style={{ padding: 11 }}>{a.effective_date || "—"} → {a.expiry_date || "No expiry"}</td><td style={{ padding: 11, textTransform: "capitalize" }}>{a.status.replaceAll("_"," ")}</td><td style={{ padding: 11 }}>{a.document_url && <button style={secondary} onClick={() => void openDocument(a.document_url!)}>View document</button>}{a.status !== "signed" && a.status !== "terminated" && <button style={primary} onClick={() => void updateAgreementStatus(a.id, "signed")}>Mark signed</button>}{a.status === "signed" && <button style={secondary} onClick={() => void updateAgreementStatus(a.id, "expired")}>Mark expired</button>}</td></tr>)}</tbody></table></div></> : <><h2 style={{ margin: "0 0 12px", fontSize: 17, fontWeight: 850 }}>Partnership activity tracker</h2><div style={{ overflowX: "auto" }}><table style={{ width: "100%", minWidth: 850, borderCollapse: "collapse", fontSize: 12 }}><thead><tr style={{ background: "#f4f8f5", textAlign: "left" }}>{["Partner","Activity","Planned date","Beneficiaries","Status","Outcome / action"].map(x => <th key={x} style={{ padding: 11 }}>{x}</th>)}</tr></thead><tbody>{activities.length === 0 ? <tr><td colSpan={6} style={{ padding: 22, textAlign: "center", color: "#819087" }}>No partnership activities have been recorded yet.</td></tr> : activities.map(a => <tr key={a.id} style={{ borderTop: "1px solid #edf1ee" }}><td style={{ padding: 11 }}>{a.partnerships?.name || "Partner"}</td><td style={{ padding: 11, fontWeight: 800 }}>{a.activity_title}<div style={{ color: "#819087" }}>{a.activity_type || ""}</div></td><td style={{ padding: 11 }}>{a.planned_date || "—"}</td><td style={{ padding: 11 }}>{a.actual_beneficiaries ?? "—"} / {a.target_beneficiaries ?? "—"}</td><td style={{ padding: 11, textTransform: "capitalize" }}>{a.status.replaceAll("_"," ")}</td><td style={{ padding: 11 }}>{a.outcome || "—"}{a.status !== "completed" && a.status !== "cancelled" && <div style={{ marginTop: 6 }}><button style={secondary} onClick={() => void completeActivity(a)}>Mark completed</button></div>}</td></tr>)}</tbody></table></div></>}
     </section>
   </main>;
 }
