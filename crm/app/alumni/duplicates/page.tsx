@@ -16,14 +16,21 @@ export default function AlumniDuplicatesPage(){
  async function update(item:Candidate,status:"not_duplicate"|"confirmed_duplicate",canonicalId?:string){
   if(status==="confirmed_duplicate"&&(!canonicalId||canonicalId===item.id)){setError("Choose another record to keep as the primary record.");return;}
   setBusy(item.id);setError("");setNotice("");
-  const {data:{user}}=await supabase.auth.getUser();
-  const {error:uError}=await supabase.from("alumni").update({duplicate_review_status:status,duplicate_of:status==="confirmed_duplicate"?canonicalId:null,duplicate_reviewed_at:new Date().toISOString(),duplicate_reviewed_by:user?.id||null,updated_at:new Date().toISOString()}).eq("id",item.id);
-  if(uError)setError(uError.message);else{setNotice(status==="confirmed_duplicate"?"Record confirmed as a duplicate and linked to the primary record. The record is retained for audit; no data was deleted.":"Record marked as a separate alumnus.");await load();}
+  let actionError: string | null = null;
+  if(status==="confirmed_duplicate"){
+   const {error:mergeError}=await supabase.rpc("resolve_alumni_duplicate",{p_duplicate_id:item.id,p_primary_id:canonicalId});
+   actionError=mergeError?.message||null;
+  }else{
+   const {data:{user}}=await supabase.auth.getUser();
+   const {error:reviewError}=await supabase.from("alumni").update({duplicate_review_status:"not_duplicate",duplicate_of:null,duplicate_reviewed_at:new Date().toISOString(),duplicate_reviewed_by:user?.id||null,updated_at:new Date().toISOString()}).eq("id",item.id);
+   actionError=reviewError?.message||null;
+  }
+  if(actionError)setError(actionError);else{setNotice(status==="confirmed_duplicate"?"Missing information was copied into the selected primary profile. The duplicate record was archived for audit; no data was deleted.":"Record marked as a separate alumnus.");await load();}
   setBusy("");
  }
  return <main style={{padding:"28px clamp(16px,3vw,34px) 48px",color:"#173d34"}}>
   <Link href="/alumni" style={{color:"#106053",fontSize:12,fontWeight:750,textDecoration:"none"}}>← Alumni directory</Link>
-  <header style={{margin:"14px 0 20px"}}><div style={{fontSize:11,color:"#106053",fontWeight:850,letterSpacing:1.3}}>DATA QUALITY</div><h1 style={{fontSize:28,fontWeight:850,margin:"6px 0"}}>Duplicate Records</h1><p style={{fontSize:13,color:"#718078",margin:0}}>Review possible matches by email, student number and phone. Similar records are never deleted automatically.</p></header>
+  <header style={{margin:"14px 0 20px"}}><div style={{fontSize:11,color:"#106053",fontWeight:850,letterSpacing:1.3}}>DATA QUALITY</div><h1 style={{fontSize:28,fontWeight:850,margin:"6px 0"}}>Duplicate Records</h1><p style={{fontSize:13,color:"#718078",margin:0}}>Review possible matches by email, student number, phone and WhatsApp. When you confirm a duplicate, missing details are copied into the primary profile and the duplicate is archived; no record is permanently deleted.</p></header>
   {notice&&<div style={{...card,color:"#17643f",background:"#eff9f1",marginBottom:12}}>{notice}</div>}{error&&<div role="alert" style={{...card,color:"#a32828",borderColor:"#f2cccc",marginBottom:12}}>{error}</div>}
   <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:10,marginBottom:14}}>
    <div style={card}><div style={{fontSize:11,color:"#718078"}}>Potential match groups</div><div style={{fontSize:27,fontWeight:850}}>{groups.length.toLocaleString()}</div></div>
@@ -40,7 +47,7 @@ export default function AlumniDuplicatesPage(){
         <div style={{fontSize:11,color:"#61736a",overflowWrap:"anywhere"}}>{item.work_email||"No email"}<br/>{item.phone||item.whatsapp||"No phone"}<br/>Student No: {item.student_no||"—"}</div>
         <div style={{display:"flex",gap:7,flexWrap:"wrap",alignItems:"center"}}>
           <span style={{fontSize:10,fontWeight:800,color:item.duplicate_review_status==="unreviewed"?"#855b0a":"#17643f"}}>{item.duplicate_review_status.replaceAll("_"," ")}</span>
-          {item.duplicate_review_status==="unreviewed"&&<><select aria-label={"Primary record for "+item.full_name} id={"primary-"+item.id} style={{maxWidth:150,border:"1px solid #dce5df",borderRadius:7,padding:7,fontSize:10}} defaultValue=""><option value="">Keep which record?</option>{group.items.filter(x=>x.id!==item.id).map(x=><option key={x.id} value={x.id}>{x.full_name} · {x.alumni_id}</option>)}</select><button disabled={busy===item.id} style={primary} onClick={()=>{const el=document.getElementById("primary-"+item.id) as HTMLSelectElement|null;void update(item,"confirmed_duplicate",el?.value);}}>Confirm duplicate</button><button disabled={busy===item.id} style={secondary} onClick={()=>void update(item,"not_duplicate")}>Not duplicate</button></>}
+          {item.duplicate_review_status==="unreviewed"&&<><select aria-label={"Primary record for "+item.full_name} id={"primary-"+item.id} style={{maxWidth:150,border:"1px solid #dce5df",borderRadius:7,padding:7,fontSize:10}} defaultValue=""><option value="">Keep which record?</option>{group.items.filter(x=>x.id!==item.id).map(x=><option key={x.id} value={x.id}>{x.full_name} · {x.alumni_id}</option>)}</select><button disabled={busy===item.id} style={primary} onClick={()=>{const el=document.getElementById("primary-"+item.id) as HTMLSelectElement|null;void update(item,"confirmed_duplicate",el?.value);}}>Merge & archive</button><button disabled={busy===item.id} style={secondary} onClick={()=>void update(item,"not_duplicate")}>Not duplicate</button></>}
         </div>
       </div>)}</div>
     </article>)}
