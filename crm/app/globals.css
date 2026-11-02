@@ -1264,3 +1264,67 @@ a {
 .crm-btn.accent { background: #8dc642; }
 .ciu-btn { background: #106053; }
 .ciu-btn:hover { background: #0a443b; }
+
+
+/* CIU CRM compact module headers — shared spacing and alignment */
+.ciu-page-inner {
+  padding-top: 20px;
+  padding-bottom: 38px;
+}
+
+.ciu-page .ciu-hero {
+  padding: 16px 22px;
+  margin-bottom: 14px;
+}
+
+.ciu-page .ciu-hero > div,
+.ciu-page .ciu-hero > div > div {
+  min-width: 0;
+}
+
+.ciu-page .ciu-hero h1 {
+  margin-top: 0;
+  margin-bottom: 3px;
+  font-size: 24px;
+  line-height: 1.2;
+}
+
+.ciu-page .ciu-hero p {
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+.crm-page-heading {
+  align-items: center;
+  margin-bottom: 16px;
+  gap: 12px;
+}
+
+.crm-page-heading h1 {
+  font-size: 24px;
+  line-height: 1.2;
+}
+
+.crm-page-heading p {
+  margin-top: 4px;
+}
+
+@media (max-width: 760px) {
+  .ciu-page-inner {
+    padding: 16px 14px 76px;
+  }
+
+  .ciu-page .ciu-hero {
+    padding: 15px 16px;
+  }
+
+  .ciu-page .ciu-hero h1,
+  .crm-page-heading h1 {
+    font-size: 21px;
+  }
+
+  .crm-page-heading {
+    align-items: flex-start;
+    margin-bottom: 13px;
+  }
+}
