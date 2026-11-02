@@ -120,9 +120,13 @@ function formatDate(value: Date) {
 export default function ReportsPage() {
   const [period, setPeriod] = useState<Period>("month");
 
-  const [selectedDate, setSelectedDate] = useState(
-    new Date().toISOString().slice(0, 10)
-  );
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+    const day = String(today.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  });
 
   const [currentUserId, setCurrentUserId] = useState("");
   const [currentRole, setCurrentRole] = useState("");
@@ -170,12 +174,11 @@ export default function ReportsPage() {
 
       setCurrentRole(role);
 
-      const isSalesperson = role === "salesperson";
-
       const profilesQuery = supabase
         .from("profiles")
         .select("id,full_name,role")
         .eq("is_active", true)
+        .not("role", "in", "(admin,super_admin)")
         .order("full_name");
 
       const leadsQuery = supabase
@@ -192,13 +195,7 @@ export default function ReportsPage() {
           "id,assigned_to,task_type,status,completed_at,created_at"
         );
 
-      if (isSalesperson) {
-        leadsQuery.eq("assigned_to", user.id);
-        admissionsQuery.eq("assigned_to", user.id);
-        tasksQuery.eq("assigned_to", user.id);
-      }
-
-      const [p, l, a, t] = await Promise.all([
+            const [p, l, a, t] = await Promise.all([
         profilesQuery,
         leadsQuery,
         admissionsQuery,
@@ -211,21 +208,11 @@ export default function ReportsPage() {
         throw new Error(failed.error.message);
       }
 
-      if (isSalesperson) {
-        setProfiles(
-          currentProfile
-            ? [
-                {
-                  id: currentProfile.id,
-                  full_name: currentProfile.full_name,
-                  role: currentProfile.role,
-                },
-              ]
-            : []
-        );
-      } else {
-        setProfiles((p.data || []) as Profile[]);
-      }
+      setProfiles(
+        ((p.data || []) as Profile[]).filter(
+          (profile) => !["admin", "super_admin"].includes((profile.role || "").toLowerCase())
+        )
+      );
 
       setLeads((l.data || []) as Lead[]);
       setAdmissions((a.data || []) as Admission[]);
@@ -251,13 +238,7 @@ export default function ReportsPage() {
     const end = getEnd(period, selectedDate);
 
     const rows: ReportRow[] = profiles
-      .filter((profile) => {
-        if (currentRole === "salesperson") {
-          return profile.id === currentUserId;
-        }
-
-        return true;
-      })
+      .filter((profile) => !["admin", "super_admin"].includes((profile.role || "").toLowerCase()))
       .map((profile) => {
         const staffLeads = leads.filter(
           (lead) =>
@@ -450,13 +431,9 @@ export default function ReportsPage() {
     leads,
     admissions,
     tasks,
-    currentRole,
-    currentUserId,
   ]);
 
-  const isSalesperson = currentRole === "salesperson";
-
-  const topPerformer = useMemo(() => {
+    const topPerformer = useMemo(() => {
     if (!report.rows.length) return null;
 
     return [...report.rows].sort(
@@ -495,15 +472,11 @@ export default function ReportsPage() {
               </div>
 
               <h1>
-                {isSalesperson
-                  ? "My Performance Report"
-                  : "Staff Performance Reports"}
+                {"Staff Performance Report"}
               </h1>
 
               <p>
-                {isSalesperson
-                  ? "Monitor your lead generation, follow-ups and admissions performance."
-                  : "Monitor lead generation, staff activity and admissions performance across the team."}
+                {"Review lead generation, follow-ups, tasks and admissions performance across active staff."}
               </p>
             </div>
 
@@ -557,9 +530,7 @@ export default function ReportsPage() {
           <div>
             <span className="period-label">
               {periodLabel(period)}{" "}
-              {isSalesperson
-                ? "Personal Performance"
-                : "Team Performance"}
+              {"Team Performance"}
             </span>
 
             <strong>
@@ -570,9 +541,7 @@ export default function ReportsPage() {
           </div>
 
           <div className="period-meta">
-            {isSalesperson
-              ? "Your performance"
-              : `${report.rows.length} active staff`}
+            `${report.rows.length} active staff (excluding Admin and Super Admin)`
           </div>
         </section>
 
@@ -881,15 +850,11 @@ export default function ReportsPage() {
           <div className="ciu-card-head report-card-head">
             <div>
               <h2>
-                {isSalesperson
-                  ? "My Performance"
-                  : "Staff Performance"}
+                {"Staff Performance"}
               </h2>
 
               <span>
-                {isSalesperson
-                  ? "Detailed summary of your activity and admissions results."
-                  : "Detailed performance summary for every active staff member."}
+                {"Detailed performance summary for all active staff, excluding Admin and Super Admin."}
               </span>
             </div>
           </div>
@@ -899,9 +864,7 @@ export default function ReportsPage() {
               <thead>
                 <tr>
                   <th>
-                    {isSalesperson
-                      ? "Performance"
-                      : "Staff Member"}
+                    {"Staff Member"}
                   </th>
                   <th>Leads</th>
                   <th>Calls</th>
@@ -979,9 +942,7 @@ export default function ReportsPage() {
                 <tr>
                   <td>
                     <strong>
-                      {isSalesperson
-                        ? "MY TOTAL"
-                        : "TOTAL"}
+                      {"TEAM TOTAL"}
                     </strong>
                   </td>
 
