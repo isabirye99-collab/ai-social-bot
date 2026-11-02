@@ -66,13 +66,13 @@ export default function AlumniPage() {
     try {
       const [all, review, good, work] = await Promise.all([
         supabase.from("alumni").select("id", { count: "exact", head: true }).neq("duplicate_review_status", "confirmed_duplicate"),
-        supabase.from("alumni").select("id", { count: "exact", head: true }).in("verification_status", ["needs_review", "contact_required", "in_progress"]).neq("duplicate_review_status", "merged"),
-        supabase.from("alumni").select("id", { count: "exact", head: true }).eq("verification_status", "verified").neq("duplicate_review_status", "merged"),
-        supabase.from("alumni").select("id", { count: "exact", head: true }).ilike("employment_status", "employed").neq("duplicate_review_status", "merged"),
+        supabase.from("alumni").select("id", { count: "exact", head: true }).in("verification_status", ["needs_review", "contact_required", "in_progress"]).neq("duplicate_review_status", "confirmed_duplicate"),
+        supabase.from("alumni").select("id", { count: "exact", head: true }).eq("verification_status", "verified").neq("duplicate_review_status", "confirmed_duplicate"),
+        supabase.from("alumni").select("id", { count: "exact", head: true }).ilike("employment_status", "employed").neq("duplicate_review_status", "confirmed_duplicate"),
       ]);
       if (all.error) throw all.error;
       setTotal(all.count || 0); setNeedsReview(review.count || 0); setVerified(good.count || 0); setEmployed(work.count || 0);
-      let query = supabase.from("alumni").select("id,alumni_id,full_name,program,graduation_year,phone,work_email,employment_status,verification_status,missing_fields", { count: "exact" }).neq("duplicate_review_status", "merged").order("full_name").range(page * pageSize, page * pageSize + pageSize - 1);
+      let query = supabase.from("alumni").select("id,alumni_id,full_name,program,graduation_year,phone,work_email,employment_status,verification_status,missing_fields", { count: "exact" }).neq("duplicate_review_status", "confirmed_duplicate").order("full_name").range(page * pageSize, page * pageSize + pageSize - 1);
       if (search.trim()) query = query.or("full_name.ilike.%"+search.trim()+"%,alumni_id.ilike.%"+search.trim()+"%,work_email.ilike.%"+search.trim()+"%");
       if (status !== "all") query = query.eq("verification_status", status);
       const result = await query;
