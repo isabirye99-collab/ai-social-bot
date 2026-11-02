@@ -1168,6 +1168,20 @@ export default function LeadsPage() {
 
             <button
               type="button"
+              onClick={() => {
+                setSearch("");
+                setProgramFilter("All");
+                setStatusFilter(statusFilter === "Interested" ? "All" : "Interested");
+              }}
+              className={statusFilter === "Interested" ? "ciu-btn" : "ciu-btn-light"}
+              style={{ visibility: "visible", opacity: 1 }}
+              aria-pressed={statusFilter === "Interested"}
+            >
+              {statusFilter === "Interested" ? "Show All Applicants" : `Interested Applicants (${interestedLeads})`}
+            </button>
+
+            <button
+              type="button"
               onClick={loadLeads}
               className="ciu-btn-light"
               style={{
