@@ -48,6 +48,9 @@ export default function AlumniPage() {
   const supabase = createClient();
   const [rows, setRows] = useState<AlumniRow[]>([]);
   const [total, setTotal] = useState(0);
+  const [matchCount, setMatchCount] = useState(0);
+  const [page, setPage] = useState(0);
+  const pageSize = 100;
   const [needsReview, setNeedsReview] = useState(0);
   const [verified, setVerified] = useState(0);
   const [employed, setEmployed] = useState(0);
@@ -69,15 +72,16 @@ export default function AlumniPage() {
       ]);
       if (all.error) throw all.error;
       setTotal(all.count || 0); setNeedsReview(review.count || 0); setVerified(good.count || 0); setEmployed(work.count || 0);
-      let query = supabase.from("alumni").select("id,alumni_id,full_name,program,graduation_year,phone,work_email,employment_status,verification_status,missing_fields").order("full_name").limit(100);
+      let query = supabase.from("alumni").select("id,alumni_id,full_name,program,graduation_year,phone,work_email,employment_status,verification_status,missing_fields", { count: "exact" }).order("full_name").range(page * pageSize, page * pageSize + pageSize - 1);
       if (search.trim()) query = query.or("full_name.ilike.%"+search.trim()+"%,alumni_id.ilike.%"+search.trim()+"%,work_email.ilike.%"+search.trim()+"%");
       if (status !== "all") query = query.eq("verification_status", status);
       const result = await query;
       if (result.error) throw result.error;
       setRows((result.data || []) as AlumniRow[]);
+      setMatchCount(result.count || 0);
     } catch (e) { setError(e instanceof Error ? e.message : "Unable to load alumni records."); }
     finally { setLoading(false); }
-  }, [search, status]);
+  }, [search, status, page]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -204,12 +208,12 @@ export default function AlumniPage() {
     {error && <div role="alert" style={{ ...card, marginBottom: 14, borderColor: "#f4c7c7", color: "#a32828", fontSize: 13 }}>{error}</div>}
     <section style={card}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
-        <div><h2 style={{ margin: 0, fontSize: 17, fontWeight: 800 }}>Alumni Directory</h2><p style={{ margin: "4px 0 0", fontSize: 12, color: "#829088" }}>Showing up to 100 matching records. Search by name, Alumni ID or email.</p></div>
+        <div><h2 style={{ margin: 0, fontSize: 17, fontWeight: 800 }}>Alumni Directory</h2><p style={{ margin: "4px 0 0", fontSize: 12, color: "#829088" }}>Showing {matchCount.toLocaleString()} matching records. Page {page + 1} of {Math.max(1, Math.ceil(matchCount / pageSize))}. Search by name, Alumni ID or email.</p></div>
         <button onClick={() => void load()} style={{ border: "1px solid #d9e4dd", background: "#fff", color: brand, borderRadius: 8, padding: "9px 13px", fontWeight: 700, cursor: "pointer" }}>Refresh</button>
       </div>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
-        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search alumni…" style={{ flex: "1 1 240px", minWidth: 180, border: "1px solid #dce5df", borderRadius: 8, padding: "10px 12px", color: "#173d34" }} />
-        <select value={status} onChange={(e) => setStatus(e.target.value)} style={{ border: "1px solid #dce5df", borderRadius: 8, padding: "10px 12px", color: "#173d34", background: "#fff" }}>
+        <input value={search} onChange={(e) => { setPage(0); setSearch(e.target.value); }} placeholder="Search alumni…" style={{ flex: "1 1 240px", minWidth: 180, border: "1px solid #dce5df", borderRadius: 8, padding: "10px 12px", color: "#173d34" }} />
+        <select value={status} onChange={(e) => { setPage(0); setStatus(e.target.value); }} style={{ border: "1px solid #dce5df", borderRadius: 8, padding: "10px 12px", color: "#173d34", background: "#fff" }}>
           <option value="all">All verification statuses</option><option value="needs_review">Needs review</option><option value="contact_required">Contact required</option><option value="in_progress">In progress</option><option value="verified">Verified</option>
         </select>
       </div>
@@ -224,7 +228,13 @@ export default function AlumniPage() {
           <td style={{ padding: 12 }}>{a.verification_status === "verified" ? <span style={{ color: "#17643f", fontWeight: 750 }}>Verified</span> : a.missing_fields?.length ? <span style={{ color: "#9b6b1a" }}>Complete missing fields</span> : <button onClick={() => void verifyAlumnus(a)} style={{ border: 0, borderRadius: 7, padding: "7px 10px", background: "#106053", color: "#fff", fontSize: 11, fontWeight: 750, cursor: "pointer" }}>Mark verified</button>}</td>
         </tr>)}</tbody>
       </table></div>
-      <div style={{ color: "#84928b", fontSize: 11, marginTop: 12 }}>Database total: {total.toLocaleString()} alumni records.</div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginTop: 14 }}>
+        <div style={{ color: "#84928b", fontSize: 11 }}>Showing {matchCount === 0 ? 0 : page * pageSize + 1}–{Math.min((page + 1) * pageSize, matchCount)} of {matchCount.toLocaleString()} matching records · Database total: {total.toLocaleString()}.</div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button disabled={page === 0 || loading} onClick={() => setPage((current) => Math.max(0, current - 1))} style={{ border: "1px solid #d9e4dd", background: page === 0 ? "#f4f7f5" : "#fff", color: brand, borderRadius: 8, padding: "8px 12px", fontWeight: 700, cursor: page === 0 ? "not-allowed" : "pointer", opacity: page === 0 ? .55 : 1 }}>Previous</button>
+          <button disabled={(page + 1) * pageSize >= matchCount || loading} onClick={() => setPage((current) => current + 1)} style={{ border: "1px solid #d9e4dd", background: (page + 1) * pageSize >= matchCount ? "#f4f7f5" : "#fff", color: brand, borderRadius: 8, padding: "8px 12px", fontWeight: 700, cursor: (page + 1) * pageSize >= matchCount ? "not-allowed" : "pointer", opacity: (page + 1) * pageSize >= matchCount ? .55 : 1 }}>Next</button>
+        </div>
+      </div>
     </section>
     <div style={{ marginTop: 14, color: "#7c8982", fontSize: 11 }}>Import tip: export the “Master Alumni Database” worksheet from your workbook as CSV (UTF-8), then upload it here. The import keeps all records and skips duplicate Alumni IDs.</div>
   </div>;
