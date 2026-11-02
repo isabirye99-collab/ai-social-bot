@@ -1024,42 +1024,35 @@ export default function TasksPage() {
   ) => {
     if (!task.lead_id) return;
 
+    // The database lead_status enum only accepts:
+    // new, contacted, qualified, unqualified, converted, lost.
+    // Keep the detailed call outcome in follow_up_status (text).
     const leadStatusMap: Record<
       string,
-      string
+      "new" | "contacted" | "qualified" | "unqualified" | "converted" | "lost"
     > = {
-      Interested: "Interested",
+      Interested: "qualified",
 
-      Applied: "Converted",
-      "Application Submitted":
-        "Converted",
-      Admitted: "Converted",
-      "Paid Application Fee":
-        "Converted",
-      "Acceptance Fee Paid":
-        "Converted",
-      "Paid Acceptance Fee":
-        "Converted",
-      Enrolled: "Converted",
+      Applied: "converted",
+      "Application Submitted": "converted",
+      Admitted: "converted",
+      "Paid Application Fee": "converted",
+      "Acceptance Fee Paid": "converted",
+      "Paid Acceptance Fee": "converted",
+      Enrolled: "converted",
 
-      "Follow up later":
-        "Follow up later",
-      "Financial issues":
-        "Financial issues",
-      "No Answer": "No Answer",
-      Unreachable: "Unreachable",
+      "Follow up later": "contacted",
+      "Financial issues": "contacted",
+      "No Answer": "contacted",
+      Unreachable: "contacted",
 
-      "Not interested":
-        "Not interested",
-      "Lost Leads": "Lost Leads",
-      "Wrong Number":
-        "Ineffective Data",
-      Dropped: "Dropped",
+      "Not interested": "lost",
+      "Lost Leads": "lost",
+      "Wrong Number": "unqualified",
+      Dropped: "lost",
     };
 
-    const leadStatus =
-      leadStatusMap[outcome] ||
-      "Called";
+    const leadStatus = leadStatusMap[outcome] || "contacted";
 
     const { error } =
       await supabase
