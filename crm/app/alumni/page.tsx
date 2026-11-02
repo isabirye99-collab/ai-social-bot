@@ -65,7 +65,7 @@ export default function AlumniPage() {
     setLoading(true); setError("");
     try {
       const [all, review, good, work] = await Promise.all([
-        supabase.from("alumni").select("id", { count: "exact", head: true }).neq("duplicate_review_status", "merged"),
+        supabase.from("alumni").select("id", { count: "exact", head: true }).neq("duplicate_review_status", "confirmed_duplicate"),
         supabase.from("alumni").select("id", { count: "exact", head: true }).in("verification_status", ["needs_review", "contact_required", "in_progress"]).neq("duplicate_review_status", "merged"),
         supabase.from("alumni").select("id", { count: "exact", head: true }).eq("verification_status", "verified").neq("duplicate_review_status", "merged"),
         supabase.from("alumni").select("id", { count: "exact", head: true }).ilike("employment_status", "employed").neq("duplicate_review_status", "merged"),
