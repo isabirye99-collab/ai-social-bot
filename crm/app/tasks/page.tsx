@@ -90,8 +90,6 @@ const TASK_TYPES: TaskType[] = [
   "WhatsApp",
 ];
 
-const TASK_STATUSES: TaskStatus[] = OUTCOMES;
-
 const OUTCOMES = [
   "Interested",
   "Applied",
@@ -110,6 +108,8 @@ const OUTCOMES = [
   "Wrong Number",
   "Dropped",
 ];
+
+const TASK_STATUSES: TaskStatus[] = OUTCOMES;
 
 const PIPELINE_WAITING_OUTCOMES = [
   "Interested",
@@ -1854,12 +1854,12 @@ export default function TasksPage() {
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
           <button
             type="button"
-            onClick={() => setStatusFilter(statusFilter === "completed" ? "all" : "completed")}
-            aria-pressed={statusFilter === "completed"}
+            onClick={() => setStatusFilter(statusFilter === "recorded" ? "all" : "recorded")}
+            aria-pressed={statusFilter === "recorded"}
             style={{
-              border: statusFilter === "completed" ? "1px solid #047857" : "1px solid #d1d5db",
-              background: statusFilter === "completed" ? "#ecfdf5" : "#ffffff",
-              color: statusFilter === "completed" ? "#047857" : "#374151",
+              border: statusFilter === "recorded" ? "1px solid #047857" : "1px solid #d1d5db",
+              background: statusFilter === "recorded" ? "#ecfdf5" : "#ffffff",
+              color: statusFilter === "recorded" ? "#047857" : "#374151",
               borderRadius: 9,
               padding: "9px 13px",
               fontSize: 13,
