@@ -48,31 +48,30 @@ export default function AlumniPortalPage(){
       const {data:{user},error:authError}=await supabase.auth.getUser();
       if(authError||!user)throw new Error("Please sign in again.");
       if(!claimId.trim())throw new Error("Enter your CIU Alumni ID.");
-      const {data:record,error:recordError}=await supabase.from("alumni").select("id").eq("alumni_id",claimId.trim()).maybeSingle();
-      if(recordError)throw recordError;
-      if(!record)throw new Error("We could not match that Alumni ID to your signed-in email. Check the ID and use the email address recorded with CIU.");
-      const {error:linkError}=await supabase.from("alumni_accounts").insert({alumni_id:record.id,auth_user_id:user.id});
-      if(linkError)throw linkError;
-      setNeedsClaim(false);setMessage("Your alumni profile has been linked successfully.");await load();
+      const {error:claimError}=await supabase.rpc("claim_alumni_profile",{p_alumni_id:claimId.trim()});
+      if(claimError)throw claimError;
+      setNeedsClaim(false);setMessage("Your alumni profile has been securely linked.");await load();
     }catch(e){setError(e instanceof Error?e.message:"Unable to link your alumni profile.");}
     finally{setClaiming(false);}
   }
   async function save(){
     if(!profile)return;setSaving(true);setMessage("");setError("");
-    const {error:saveError}=await supabase.from("alumni").update({
+    const changes={
       work_email:profile.work_email,phone:profile.phone,whatsapp:profile.whatsapp,linkedin:profile.linkedin,
       city:profile.city,employment_status:profile.employment_status,employer:profile.employer,
       job_title:profile.job_title,industry:profile.industry,profile_bio:profile.profile_bio,
       career_interests:profile.career_interests,allow_email:profile.allow_email,allow_sms:profile.allow_sms,
-      allow_whatsapp:profile.allow_whatsapp,updated_at:new Date().toISOString()
-    }).eq("id",profile.id);
-    if(saveError)setError(saveError.message);else setMessage("Your profile has been updated.");
+      allow_whatsapp:profile.allow_whatsapp
+    };
+    const {error:saveError}=await supabase.rpc("submit_alumni_profile_update",{p_changes:changes});
+    if(saveError)setError(saveError.message);else setMessage("Your changes have been submitted to the CIU Alumni Office for review.");
     setSaving(false);
   }
   async function register(eventId:string){
     if(!profile)return;setMessage("");setError("");
-    const {error:regError}=await supabase.from("alumni_event_registrations").insert({event_id:eventId,alumni_id:profile.id});
-    if(regError)setError(regError.code==="23505"?"You are already registered for this event.":regError.message);else setMessage("Your event registration has been received.");
+    const {data:registrationStatus,error:regError}=await supabase.rpc("register_alumni_event",{p_event_id:eventId});
+    if(regError)setError(regError.message);
+    else setMessage(registrationStatus==="waitlisted"?"The event is currently full. You have been added to the waitlist.":"Your event registration has been confirmed.");
   }
   async function signOut(){await supabase.auth.signOut();router.replace("/alumni-login");router.refresh();}
 
