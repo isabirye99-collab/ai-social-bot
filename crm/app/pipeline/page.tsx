@@ -180,6 +180,8 @@ export default function Pipeline() {
     [],
   );
 
+  const [staffProfiles, setStaffProfiles] = useState<Profile[]>([]);
+
   const [currentProfile, setCurrentProfile] =
     useState<Profile | null>(null);
 
@@ -321,9 +323,17 @@ export default function Pipeline() {
           data: leadData,
           error: leadError,
         },
+        {
+          data: staffData,
+          error: staffError,
+        },
       ] = await Promise.all([
         opportunityQuery,
         leadQuery,
+        supabase
+          .from("profiles")
+          .select("id, full_name, role, is_active")
+          .order("full_name", { ascending: true }),
       ]);
 
       if (opportunityError) {
@@ -346,6 +356,13 @@ export default function Pipeline() {
       setLeads(
         (leadData as Lead[]) || [],
       );
+
+      if (staffError) {
+        console.warn("Pipeline staff names could not be loaded:", staffError.message);
+        setStaffProfiles([]);
+      } else {
+        setStaffProfiles((staffData as Profile[]) || []);
+      }
     } catch (error) {
       console.error(
         "Pipeline loading error:",
@@ -1463,8 +1480,12 @@ export default function Pipeline() {
 
                             <td>
                               <span className="assigned-cell">
-                                {deal.assigned_to ||
-                                  "Unassigned"}
+                                {deal.assigned_to
+                                  ? staffProfiles.find(
+                                      (staffMember) =>
+                                        staffMember.id === deal.assigned_to,
+                                    )?.full_name || "Assigned staff"
+                                  : "Unassigned"}
                               </span>
                             </td>
 
