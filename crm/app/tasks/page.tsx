@@ -231,8 +231,16 @@ function statusLabel(status: string) {
   }
 }
 
+function normalizeTaskType(type: string): TaskType {
+  const value = String(type || "").trim().toLowerCase();
+  if (value === "whatsapp") return "WhatsApp";
+  if (value === "email") return "Email";
+  if (value === "call") return "Call";
+  return "Call";
+}
+
 function taskTypeIcon(type: string) {
-  switch (type) {
+  switch (normalizeTaskType(type)) {
     case "Call":
       return "☎";
     case "WhatsApp":
@@ -505,7 +513,12 @@ export default function TasksPage() {
         throw stagesResult.error;
 
       setTasks(
-        (tasksResult.data || []) as Task[]
+        (tasksResult.data || []).map((task: Task) => ({
+          ...task,
+          // Supabase stores activity_type enum values in lowercase;
+          // the interface continues to display title-case labels.
+          task_type: normalizeTaskType(task.task_type),
+        })) as Task[]
       );
 
       setProfiles(
@@ -871,7 +884,8 @@ export default function TasksPage() {
       const payload = {
         title: form.title.trim(),
         description: [form.description.trim(), !editingTask && walkInMode ? `Walk-in registration: ${walkInName.trim()}${walkInProgramme.trim() ? ` | Programme: ${walkInProgramme.trim()}` : ""}${walkInNotes.trim() ? ` | Notes: ${walkInNotes.trim()}` : ""}` : ""].filter(Boolean).join("\n") || null,
-        task_type: form.task_type,
+        // activity_type is a lowercase PostgreSQL enum.
+        task_type: form.task_type.toLowerCase(),
         lead_id: linkedLeadId,
         opportunity_id: linkedOpportunityId,
         assigned_to: !editingTask && walkInMode ? linkedAssigneeId : (form.assigned_to || null),
@@ -1408,12 +1422,8 @@ export default function TasksPage() {
           }`,
           description:
             "Follow-up task automatically created after the previous task outcome.",
-          task_type:
-            task.task_type === "WhatsApp"
-              ? "WhatsApp"
-              : task.task_type === "Email"
-              ? "Email"
-              : "Call",
+          // Keep task_type compatible with the lowercase activity_type enum.
+          task_type: normalizeTaskType(task.task_type).toLowerCase(),
           lead_id:
             task.lead_id,
           opportunity_id:
