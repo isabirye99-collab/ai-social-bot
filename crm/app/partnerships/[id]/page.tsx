@@ -46,7 +46,7 @@ export default function PartnershipDetailPage(){
  async function openDocument(path:string){const {data,error:e1}=await supabase.storage.from("partnership-documents").createSignedUrl(path,60);if(e1)setError(e1.message);else if(data?.signedUrl)window.open(data.signedUrl,"_blank","noopener,noreferrer");}
  if(loading)return <main style={{padding:28,color:"#173d34"}}>Loading partnership record…</main>;
  if(!partner)return <main style={{padding:28,color:"#173d34"}}><Link href="/partnerships" style={{color:brand}}>← Partnerships</Link><div role="alert" style={{...card,marginTop:14,color:"#a32828"}}>{error||"Partnership record not found."}</div></main>;
- const set=<K extends keyof Partner>(key:K,value:Partner[K])=>setPartner(current=>current?{...current,[key]:value}:current);
+ const set = <K extends keyof Partner,>(key:K,value:Partner[K])=>setPartner(current=>current?{...current,[key]:value}:current);
  const textField=(label:string,key:keyof Partner,type="text")=><label style={{fontSize:12,fontWeight:750,color:"#52665b"}}>{label}<input type={type} value={String(partner[key]??"")} onChange={e=>set(key,(type==="number"?(e.target.value===""?null:Number(e.target.value)):e.target.value||null) as Partner[typeof key])} style={field}/></label>;
  return <main style={{padding:"28px clamp(16px,3vw,34px) 48px",color:"#173d34",maxWidth:1450,margin:"0 auto"}}>
   <Link href="/partnerships" style={{color:brand,fontSize:12,fontWeight:750,textDecoration:"none"}}>← Partnerships register</Link>
