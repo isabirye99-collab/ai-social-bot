@@ -4,7 +4,7 @@ import { FormEvent, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 type AlumniProfile = {
-  id:string; alumni_id:string; full_name:string; work_email:string|null; phone:string|null; whatsapp:string|null;
+  id:string; alumni_id:string; full_name:string; gender:string|null; student_no:string|null; program:string|null; faculty:string|null; graduation_year:number|null; work_email:string|null; phone:string|null; whatsapp:string|null;
   linkedin:string|null; city:string|null; nationality:string|null; employment_status:string|null; employer:string|null;
   job_title:string|null; industry:string|null; profile_bio:string|null; career_interests:string|null;
   allow_email:boolean; allow_sms:boolean; allow_whatsapp:boolean;
@@ -53,7 +53,7 @@ export default function AlumniUpdatePage(){
   async function submit(e:FormEvent){
     e.preventDefault();if(!profile)return;setBusy(true);setError("");setNotice("");
     const changes={
-      work_email:profile.work_email,phone:profile.phone,whatsapp:profile.whatsapp,linkedin:profile.linkedin,
+      gender:profile.gender,student_no:profile.student_no,program:profile.program,faculty:profile.faculty,graduation_year:profile.graduation_year,work_email:profile.work_email,phone:profile.phone,whatsapp:profile.whatsapp,linkedin:profile.linkedin,
       city:profile.city,nationality:profile.nationality,employment_status:profile.employment_status,
       employer:profile.employer,job_title:profile.job_title,industry:profile.industry,
       profile_bio:profile.profile_bio,career_interests:profile.career_interests,
@@ -63,7 +63,7 @@ export default function AlumniUpdatePage(){
     catch(err){setError(err instanceof Error?err.message:"Unable to submit your changes.");}
     finally{setBusy(false);}
   }
-  const input=(title:string,key:keyof AlumniProfile,type="text")=><label style={label}>{title}<input type={type} value={String(profile?.[key]??"")} onChange={e=>change(key,(e.target.value||null) as AlumniProfile[typeof key])} style={field}/></label>;
+  const input=(title:string,key:keyof AlumniProfile,type="text")=><label style={label}>{title}<input type={type} value={String(profile?.[key]??"")} onChange={e=>change(key,(type==="number"?(e.target.value===""?null:Number(e.target.value)):e.target.value||null) as AlumniProfile[typeof key])} style={field}/></label>;
   return <main style={{minHeight:"100vh",background:"#f3f7f4",padding:"36px 16px 60px",color:"#173d34"}}>
     <div style={{maxWidth:760,margin:"0 auto"}}>
       <header style={{display:"flex",alignItems:"center",gap:13,marginBottom:22}}>
@@ -80,7 +80,7 @@ export default function AlumniUpdatePage(){
           <div style={{padding:13,borderRadius:10,background:"#f3f8f4"}}><div style={{fontSize:10,color:"#718078",fontWeight:800}}>MATCHED CIU ALUMNI RECORD</div><div style={{fontSize:18,fontWeight:850,marginTop:4}}>{profile.full_name}</div><div style={{fontSize:11,color:"#718078",marginTop:3}}>{profile.alumni_id} · {profile.work_email}</div></div>
           <p style={{fontSize:12,color:"#718078",margin:0}}>Please review and update the information below. Your changes will only be applied after the Alumni Office approves them. If you change your email address, the new address may need separate confirmation.</p>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:13}}>
-            {input("Email address","work_email","email")}{input("Phone number","phone","tel")}{input("WhatsApp number","whatsapp","tel")}{input("LinkedIn profile","linkedin","url")}{input("City / location","city")}{input("Nationality","nationality")}{input("Employment status","employment_status")}{input("Employer / organisation","employer")}{input("Job title","job_title")}{input("Industry","industry")}
+            {input("Gender","gender")}{input("Student number","student_no")}{input("Programme","program")}{input("Faculty","faculty")}{input("Graduation year","graduation_year","number")}{input("Email address","work_email","email")}{input("Phone number","phone","tel")}{input("WhatsApp number","whatsapp","tel")}{input("LinkedIn profile","linkedin","url")}{input("City / location","city")}{input("Nationality","nationality")}{input("Employment status","employment_status")}{input("Employer / organisation","employer")}{input("Job title","job_title")}{input("Industry","industry")}
           </div>
           <label style={label}>Professional bio<textarea rows={3} value={profile.profile_bio||""} onChange={e=>change("profile_bio",e.target.value||null)} style={{...field,minHeight:90}}/></label>
           <label style={label}>Career interests<textarea rows={3} value={profile.career_interests||""} onChange={e=>change("career_interests",e.target.value||null)} style={{...field,minHeight:90}}/></label>
