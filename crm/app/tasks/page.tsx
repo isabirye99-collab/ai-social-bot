@@ -1783,6 +1783,26 @@ export default function TasksPage() {
           </div>
         </div>
 
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
+          <button
+            type="button"
+            onClick={() => setStatusFilter(statusFilter === "completed" ? "all" : "completed")}
+            aria-pressed={statusFilter === "completed"}
+            style={{
+              border: statusFilter === "completed" ? "1px solid #047857" : "1px solid #d1d5db",
+              background: statusFilter === "completed" ? "#ecfdf5" : "#ffffff",
+              color: statusFilter === "completed" ? "#047857" : "#374151",
+              borderRadius: 9,
+              padding: "9px 13px",
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            View Completed Tasks ({stats.completed})
+          </button>
+        </div>
+
         {/* FILTER BAR */}
         <div
           style={{
