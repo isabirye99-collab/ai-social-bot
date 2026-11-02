@@ -1565,56 +1565,36 @@ export default function TasksPage() {
           margin: "0 auto",
         }}
       >
-        {/* HEADER */}
-        <div
+        {/* DASHBOARD-MATCHED HEADER */}
+        <header
           style={{
+            position: "relative",
             display: "flex",
-            justifyContent:
-              "space-between",
-            alignItems: "flex-start",
-            gap: "16px",
-            marginBottom: "24px",
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: "18px",
             flexWrap: "wrap",
+            overflow: "visible",
+            marginBottom: "20px",
+            padding: "20px 24px",
+            background: "linear-gradient(110deg, #ffffff 0%, #f7fbf8 100%)",
+            border: "1px solid #dfe9e3",
+            borderRadius: "16px",
+            boxShadow: "0 8px 28px rgba(20,50,40,.045)",
           }}
         >
           <div>
-            <div
-              style={{
-                fontSize: "12px",
-                fontWeight: 700,
-                color: "#64748b",
-                textTransform:
-                  "uppercase",
-                letterSpacing:
-                  "0.08em",
-                marginBottom: "6px",
-              }}
-            >
-              CRM Work Centre
+            <div style={{ display: "flex", alignItems: "center", gap: "9px", marginBottom: "5px" }}>
+              <span style={{ width: "9px", height: "9px", borderRadius: "50%", background: "#8bc53f", boxShadow: "0 0 0 5px rgba(139,197,63,.13)" }} />
+              <span style={{ fontSize: "10px", fontWeight: 800, textTransform: "uppercase", letterSpacing: ".16em", color: "#718179" }}>
+                CRM Work Centre
+              </span>
             </div>
-
-            <h1
-              style={{
-                margin: 0,
-                fontSize: "30px",
-                lineHeight: 1.15,
-                fontWeight: 800,
-                color: "#0f172a",
-              }}
-            >
-              {isSalesperson
-                ? "My Tasks"
-                : "Tasks & Follow-ups"}
+            <h1 style={{ margin: 0, fontSize: "30px", lineHeight: 1.15, fontWeight: 850, letterSpacing: "-.04em", color: "#123d30" }}>
+              {isSalesperson ? "My Tasks" : "Tasks & Follow-ups"}
             </h1>
-
-            <p
-              style={{
-                margin:
-                  "7px 0 0",
-                color: "#64748b",
-                fontSize: "14px",
-              }}
-            >
+            <p style={{ margin: "6px 0 0", color: "#7d8b84", fontSize: "13px" }}>
               {isSalesperson
                 ? "Manage your assigned student activities and follow-ups."
                 : "Manage student activities, follow-ups and admissions actions."}
@@ -1627,29 +1607,33 @@ export default function TasksPage() {
               onClick={() => setShowTaskMenu((open) => !open)}
               aria-expanded={showTaskMenu}
               style={{
-                border: "none",
-                borderRadius: "10px",
-                padding: "12px 18px",
-                background: "#111827",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "10px",
+                border: "1px solid #075442",
+                borderRadius: "11px",
+                padding: "11px 16px",
+                background: "#075442",
                 color: "#ffffff",
-                fontWeight: 700,
+                fontWeight: 750,
                 cursor: "pointer",
-                fontSize: "14px",
+                fontSize: "13px",
+                boxShadow: "0 4px 12px rgba(7,84,66,.14)",
               }}
             >
-              + Task <span style={{ marginLeft: 8 }}>▾</span>
+              + New Task <span style={{ color: "#c7e59c" }}>▾</span>
             </button>
             {showTaskMenu && (
               <div style={{
                 position: "absolute",
                 top: "calc(100% + 8px)",
                 right: 0,
-                minWidth: "190px",
+                minWidth: "205px",
                 padding: "6px",
                 background: "#ffffff",
-                border: "1px solid #e5e7eb",
-                borderRadius: "10px",
-                boxShadow: "0 12px 28px rgba(15,23,42,0.14)",
+                border: "1px solid #dfe9e3",
+                borderRadius: "11px",
+                boxShadow: "0 12px 28px rgba(15,23,42,.14)",
                 zIndex: 50,
               }}>
                 <button
@@ -1658,7 +1642,7 @@ export default function TasksPage() {
                     setShowTaskMenu(false);
                     openNewTask();
                   }}
-                  style={{ ...actionMenuItemStyle, fontWeight: 650 }}
+                  style={{ ...actionMenuItemStyle, fontWeight: 700, padding: "11px 12px" }}
                 >
                   Update Task
                 </button>
@@ -1682,14 +1666,14 @@ export default function TasksPage() {
                       task_type: "Call",
                     }));
                   }}
-                  style={{ ...actionMenuItemStyle, fontWeight: 650, color: "#087443" }}
+                  style={{ ...actionMenuItemStyle, fontWeight: 700, color: "#075442", padding: "11px 12px" }}
                 >
-                  Register Walk-in
+                  + Register Walk-in
                 </button>
               </div>
             )}
           </div>
-        </div>
+        </header>
 
         {/* ALERTS */}
         {error && (
