@@ -2403,19 +2403,26 @@ export default function TasksPage() {
                                       "Unnamed Student"}
                                   </div>
 
+                                  {lead.ciu_number && (
+                                    <div
+                                      style={{
+                                        marginTop: "2px",
+                                        color: "#64748b",
+                                        fontSize: "11px",
+                                      }}
+                                    >
+                                      CIU No: {lead.ciu_number}
+                                    </div>
+                                  )}
                                   <div
                                     style={{
-                                      marginTop:
-                                        "2px",
-                                      color:
-                                        "#64748b",
-                                      fontSize:
-                                        "11px",
+                                      marginTop: "3px",
+                                      color: lead.phone ? "#0f766e" : "#dc2626",
+                                      fontSize: "11px",
+                                      fontWeight: 600,
                                     }}
                                   >
-                                    {lead.ciu_number ||
-                                      lead.phone ||
-                                      "No contact"}
+                                    Tel: {lead.phone || "No telephone number recorded"}
                                   </div>
                                 </div>
                               </div>
@@ -4152,17 +4159,34 @@ export default function TasksPage() {
                         {lead?.ciu_number && (
                           <div
                             style={{
-                              marginTop:
-                                "3px",
-                              color:
-                                "#64748b",
-                              fontSize:
-                                "11px",
+                              marginTop: "3px",
+                              color: "#64748b",
+                              fontSize: "11px",
                             }}
                           >
-                            {
-                              lead.ciu_number
-                            }
+                            CIU No: {lead.ciu_number}
+                          </div>
+                        )}
+                        <div
+                          style={{
+                            marginTop: "5px",
+                            color: lead?.phone ? "#0f766e" : "#dc2626",
+                            fontSize: "12px",
+                            fontWeight: 650,
+                          }}
+                        >
+                          Telephone: {lead?.phone || "No telephone number recorded"}
+                        </div>
+                        {lead?.email && (
+                          <div
+                            style={{
+                              marginTop: "3px",
+                              color: "#64748b",
+                              fontSize: "11px",
+                              overflowWrap: "anywhere",
+                            }}
+                          >
+                            Email: {lead.email}
                           </div>
                         )}
                       </div>
