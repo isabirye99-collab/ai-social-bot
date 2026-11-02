@@ -243,8 +243,8 @@ function isToday(value: string | null) {
 function isOverdue(task: Task) {
   if (
     !task.due_at ||
-    task.status === "completed" ||
-    task.status === "cancelled"
+    (OUTCOMES.includes(task.status) && task.status !== "Follow up later") ||
+    ["completed", "cancelled", "canceled"].includes(task.status.toLowerCase())
   ) {
     return false;
   }
@@ -254,8 +254,9 @@ function isOverdue(task: Task) {
 
 function isActiveTask(task: Task) {
   return (
-    !OUTCOMES.includes(task.status) &&
-    !["completed", "cancelled", "canceled"].includes(task.status.toLowerCase())
+    task.status === "Follow up later" ||
+    (!OUTCOMES.includes(task.status) &&
+      !["completed", "cancelled", "canceled"].includes(task.status.toLowerCase()))
   );
 }
 
@@ -924,7 +925,7 @@ export default function TasksPage() {
           .update({
             status,
             completed_at:
-              status === "completed"
+              OUTCOMES.includes(status)
                 ? new Date().toISOString()
                 : null,
             updated_at:
