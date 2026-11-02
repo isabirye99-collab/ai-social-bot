@@ -157,8 +157,6 @@ export default function LeadsPage() {
   const [loadingHistory, setLoadingHistory] =
     useState(false);
 
-  const [qualifyingLeadId, setQualifyingLeadId] =
-    useState<string | null>(null);
 
   const [newLead, setNewLead] = useState({
     ciu_number: "",
@@ -695,231 +693,6 @@ export default function LeadsPage() {
     }
   }
 
-  async function qualifyLead(
-    lead: Lead
-  ) {
-    if (
-      currentRole ===
-        "salesperson" &&
-      lead.assigned_to !==
-        currentUserId
-    ) {
-      alert(
-        "You can only qualify leads assigned to you."
-      );
-      return;
-    }
-
-    if (
-      !lead.organization_id
-    ) {
-      alert(
-        "This lead does not have an organization ID. The Pipeline opportunity cannot be created yet."
-      );
-      return;
-    }
-
-    setQualifyingLeadId(
-      lead.id
-    );
-
-    setError("");
-
-    try {
-      const {
-        data: stages,
-        error:
-          stageError,
-      } = await supabase
-        .from("pipeline_stages")
-        .select(
-          "id, name, probability"
-        )
-        .order(
-          "position",
-          {
-            ascending: true,
-          }
-        );
-
-      if (stageError) {
-        throw stageError;
-      }
-
-      const interestedStage =
-        (stages || []).find(
-          (stage) =>
-            stage.name
-              .trim()
-              .toLowerCase() ===
-            "interested"
-        );
-
-      if (
-        !interestedStage
-      ) {
-        throw new Error(
-          'The "Interested" Pipeline stage could not be found.'
-        );
-      }
-
-      const {
-        data:
-          existingOpportunity,
-        error:
-          opportunityLookupError,
-      } = await supabase
-        .from("opportunities")
-        .select(
-          "id, stage_id, status"
-        )
-        .eq(
-          "lead_id",
-          lead.id
-        )
-        .maybeSingle();
-
-      if (
-        opportunityLookupError
-      ) {
-        throw opportunityLookupError;
-      }
-
-      if (
-        existingOpportunity
-      ) {
-        const {
-          error:
-            opportunityUpdateError,
-        } = await supabase
-          .from("opportunities")
-          .update({
-            stage_id:
-              interestedStage.id,
-
-            probability:
-              Number(
-                interestedStage.probability ||
-                  0
-              ),
-
-            status:
-              "open",
-
-            updated_at:
-              new Date().toISOString(),
-          })
-          .eq(
-            "id",
-            existingOpportunity.id
-          );
-
-        if (
-          opportunityUpdateError
-        ) {
-          throw opportunityUpdateError;
-        }
-      } else {
-        const {
-          error:
-            opportunityCreateError,
-        } = await supabase
-          .from("opportunities")
-          .insert({
-            lead_id:
-              lead.id,
-
-            organization_id:
-              lead.organization_id,
-
-            contact_id:
-              lead.contact_id ||
-              null,
-
-            title:
-              lead.name ||
-              "Unnamed Lead",
-
-            value: 0,
-
-            currency:
-              "UGX",
-
-            stage_id:
-              interestedStage.id,
-
-            status:
-              "open",
-
-            probability:
-              Number(
-                interestedStage.probability ||
-                  0
-              ),
-
-            assigned_to:
-              lead.assigned_to,
-
-            notes:
-              "Qualified from Leads and moved into the Pipeline at Interested stage.",
-          });
-
-        if (
-          opportunityCreateError
-        ) {
-          throw opportunityCreateError;
-        }
-      }
-
-      const {
-        error:
-          leadUpdateError,
-      } = await supabase
-        .from("leads")
-        .update({
-          status:
-            "qualified",
-
-          follow_up_status:
-            "Moved to Pipeline",
-
-          next_follow_up_at:
-            null,
-
-          updated_at:
-            new Date().toISOString(),
-        })
-        .eq(
-          "id",
-          lead.id
-        );
-
-      if (leadUpdateError) {
-        throw leadUpdateError;
-      }
-
-      await loadLeads();
-
-      alert(
-        `${lead.name || "Lead"} has been qualified and moved to the Interested stage in Pipeline.`
-      );
-    } catch (err) {
-      console.error(
-        "Qualify lead error:",
-        err
-      );
-
-      setError(
-        err instanceof Error
-          ? err.message
-          : "The lead could not be moved to Pipeline."
-      );
-    } finally {
-      setQualifyingLeadId(
-        null
-      );
-    }
-  }
 
   return (
     <div className="ciu-page">
@@ -932,7 +705,7 @@ export default function LeadsPage() {
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            gap: 20,
+            gap: 12,
             flexWrap: "wrap",
           }}
         >
@@ -1010,8 +783,8 @@ export default function LeadsPage() {
             display: "grid",
             gridTemplateColumns:
               "repeat(4, minmax(0, 1fr))",
-            gap: 16,
-            marginTop: 20,
+            gap: 12,
+            marginTop: 14,
           }}
         >
           <KpiCard
@@ -1095,7 +868,7 @@ export default function LeadsPage() {
         <div
           className="ciu-strip"
           style={{
-            marginTop: 18,
+            marginTop: 12,
           }}
         >
           <div
@@ -1103,7 +876,7 @@ export default function LeadsPage() {
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
-              gap: 20,
+              gap: 8,
               flexWrap: "wrap",
             }}
           >
@@ -1117,8 +890,7 @@ export default function LeadsPage() {
                   marginLeft: 12,
                 }}
               >
-                Prospect → Contacted →
-                Interested → Pipeline
+                Prospect → Contacted → Interested → Applied / Admissions
               </span>
             </div>
 
@@ -1138,8 +910,8 @@ export default function LeadsPage() {
         <div
           className="ciu-card"
           style={{
-            marginTop: 18,
-            padding: 16,
+            marginTop: 12,
+            padding: 12,
           }}
         >
           <div
@@ -1240,7 +1012,7 @@ export default function LeadsPage() {
         <div
           className="ciu-card"
           style={{
-            marginTop: 18,
+            marginTop: 12,
             overflow: "hidden",
           }}
         >
@@ -1438,37 +1210,7 @@ export default function LeadsPage() {
                                 View
                               </button>
 
-                              {isInterested &&
-                                !isClosed && (
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      qualifyLead(
-                                        lead
-                                      )
-                                    }
-                                    disabled={
-                                      qualifyingLeadId ===
-                                      lead.id
-                                    }
-                                    className="ciu-btn"
-                                    style={{
-                                      padding:
-                                        "7px 11px",
-                                      fontSize:
-                                        12,
-                                      visibility:
-                                        "visible",
-                                      opacity:
-                                        1,
-                                    }}
-                                  >
-                                    {qualifyingLeadId ===
-                                    lead.id
-                                      ? "Moving..."
-                                      : "Move to Pipeline"}
-                                  </button>
-                                )}
+
                             </div>
                           </td>
                         </tr>
