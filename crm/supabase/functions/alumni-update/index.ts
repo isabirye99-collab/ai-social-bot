@@ -53,7 +53,7 @@ Deno.serve(async (req: Request) => {
       if(!challenge||new Date(challenge.expires_at).getTime()<=Date.now()||challenge.attempts>=5) return json({error:"The code has expired or is no longer valid. Request a new code."},400,origin);
       if(await hash(email+":"+code+":"+pepper)!==challenge.code_hash){await db.from("alumni_update_verifications").update({attempts:challenge.attempts+1}).eq("id",challenge.id);return json({error:"The verification code is incorrect."},400,origin);}
       const sessionToken=randomToken();
-      const {error:updateError}=await db.from("alumni_update_verifications").update({verified_token_hash:await hash(sessionToken+":"+pepper),verified_expires_at:new Date(Date.now()+1800000).toISOString()}).eq("id",challenge.id);
+      const {error:updateError}=await db.from("alumni_update_verifications").update({verified_token_hash:await hash(sessionToken+":"+pepper),verified_expires_at:new Date(Date.now()+1800000).toISOString(),attempts:5}).eq("id",challenge.id);
       if(updateError) throw updateError;
       const {data:lookup,error:profileError}=await db.rpc("lookup_alumni_for_public_update",{p_email:email});
       if(profileError) throw profileError;
