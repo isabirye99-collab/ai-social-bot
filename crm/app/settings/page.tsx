@@ -1953,40 +1953,42 @@ export default function Settings() {
                                 </td>
 
                                 <td>
-                                  <button
-                                    type="button"
-                                    style={{
-                                      border:
-                                        "1px solid #cfe5de",
-                                      background:
-                                        "#ffffff",
-                                      borderRadius:
-                                        7,
-                                      padding:
-                                        "6px 10px",
-                                      cursor:
-                                        "pointer",
-                                      fontWeight:
-                                        700,
-                                      color:
-                                        "#00695c",
-                                    }}
-                                    onClick={() =>
-                                      openEditProfile(
-                                        profile,
-                                      )
-                                    }
-                                  >
-                                    Edit
-                                  </button>
-                                  <button
-                                    type="button"
-                                    disabled={profile.id === currentUserId || profile.role === "super_admin" || deletingStaffId === profile.id}
-                                    onClick={() => void deleteStaff(profile)}
-                                    style={{ marginLeft: 6, border: "1px solid #fecaca", background: "#fff", borderRadius: 7, padding: "6px 10px", cursor: profile.id === currentUserId || profile.role === "super_admin" || deletingStaffId === profile.id ? "not-allowed" : "pointer", fontWeight: 700, color: "#b91c1c", opacity: profile.id === currentUserId || profile.role === "super_admin" ? 0.45 : 1 }}
-                                  >
-                                    {deletingStaffId === profile.id ? "Deleting..." : "Delete"}
-                                  </button>
+                                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 6, minWidth: 76 }}>
+                                    <button
+                                      type="button"
+                                      style={{
+                                        border: "1px solid #cfe5de",
+                                        background: "#ffffff",
+                                        borderRadius: 7,
+                                        padding: "6px 12px",
+                                        cursor: "pointer",
+                                        fontWeight: 700,
+                                        color: "#00695c",
+                                        width: 76,
+                                      }}
+                                      onClick={() => openEditProfile(profile)}
+                                    >
+                                      Edit
+                                    </button>
+                                    <button
+                                      type="button"
+                                      disabled={profile.id === currentUserId || profile.role === "super_admin" || deletingStaffId === profile.id}
+                                      onClick={() => void deleteStaff(profile)}
+                                      style={{
+                                        border: "1px solid #fecaca",
+                                        background: "#fff",
+                                        borderRadius: 7,
+                                        padding: "6px 12px",
+                                        cursor: profile.id === currentUserId || profile.role === "super_admin" || deletingStaffId === profile.id ? "not-allowed" : "pointer",
+                                        fontWeight: 700,
+                                        color: "#b91c1c",
+                                        opacity: profile.id === currentUserId || profile.role === "super_admin" ? 0.45 : 1,
+                                        width: 76,
+                                      }}
+                                    >
+                                      {deletingStaffId === profile.id ? "Deleting..." : "Delete"}
+                                    </button>
+                                  </div>
                                 </td>
                               </tr>
                             ),
