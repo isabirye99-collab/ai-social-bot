@@ -179,8 +179,8 @@ export default function AlumniPage() {
     finally { setImporting(false); event.target.value = ""; }
   }
 
-  const metric = (label: string, value: number, hint: string) => (
-    <div style={card}><div style={{ color: "#66766e", fontSize: 12, fontWeight: 700 }}>{label}</div><div style={{ color: "#173d34", fontSize: 30, fontWeight: 800, marginTop: 7 }}>{value.toLocaleString()}</div><div style={{ color: "#84928b", fontSize: 11, marginTop: 4 }}>{hint}</div></div>
+  const metric = (label: string, value: number, hint: string, href?: string) => (
+    <div style={{ ...card, position: "relative" }}><div style={{ color: "#66766e", fontSize: 12, fontWeight: 700 }}>{label}</div><div style={{ color: "#173d34", fontSize: 30, fontWeight: 800, marginTop: 7 }}>{value.toLocaleString()}</div><div style={{ color: "#84928b", fontSize: 11, marginTop: 4 }}>{hint}</div>{href && <Link href={href} style={{ display: "inline-flex", marginTop: 10, color: brand, fontSize: 12, fontWeight: 800, textDecoration: "none" }}>View profiles →</Link>}</div>
   );
 
   return <div style={{ padding: "28px clamp(16px,3vw,34px) 44px", color: "#173d34" }}>
@@ -191,7 +191,7 @@ export default function AlumniPage() {
         <Link href="/alumni/mentorship" style={{ display: "inline-flex", alignItems: "center", padding: "10px 12px", border: "1px solid #d9e4dd", borderRadius: 8, color: brand, background: "#fff", textDecoration: "none", fontSize: 12, fontWeight: 750 }}>Mentorship</Link>
         <Link href="/alumni/referrals" style={{ display: "inline-flex", alignItems: "center", padding: "10px 12px", border: "1px solid #d9e4dd", borderRadius: 8, color: brand, background: "#fff", textDecoration: "none", fontSize: 12, fontWeight: 750 }}>Referrals</Link>
         <Link href="/alumni/communications" style={{ display: "inline-flex", alignItems: "center", padding: "10px 12px", border: "1px solid #d9e4dd", borderRadius: 8, color: brand, background: "#fff", textDecoration: "none", fontSize: 12, fontWeight: 750 }}>Communications</Link>
-        <Link href="/alumni/reviews" style={{ display: "inline-flex", alignItems: "center", padding: "10px 12px", border: "1px solid #d9e4dd", borderRadius: 8, color: brand, background: "#fff", textDecoration: "none", fontSize: 12, fontWeight: 750 }}>Profile Reviews</Link>
+        <Link href="/alumni/reviews" style={{ display: "inline-flex", alignItems: "center", padding: "10px 12px", border: "1px solid #d9e4dd", borderRadius: 8, color: brand, background: "#fff", textDecoration: "none", fontSize: 12, fontWeight: 750 }}>Submitted Changes</Link>
         <label style={{ display: "inline-flex", alignItems: "center", gap: 9, padding: "11px 15px", borderRadius: 9, background: brand, color: "#fff", fontSize: 13, fontWeight: 700, cursor: importing ? "wait" : "pointer", opacity: importing ? .65 : 1 }}>
           {importing ? "Importing…" : "Import alumni CSV"}
           <input type="file" accept=".csv,text/csv" onChange={importCsv} disabled={importing} style={{ display: "none" }} />
@@ -200,7 +200,7 @@ export default function AlumniPage() {
     </div>
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 13, marginBottom: 20 }}>
       {metric("Total Alumni", total, "Graduate records in the database")}
-      {metric("Profiles Requiring Review", needsReview, "Incomplete or unverified profiles")}
+      {metric("Profiles Requiring Review", needsReview, "Incomplete or unverified profiles", "/alumni?status=needs_review") }
       {metric("Verified Profiles", verified, "Confirmed by the Alumni Office")}
       {metric("Marked Employed", employed, "Employment status recorded")}
     </div>
@@ -218,14 +218,14 @@ export default function AlumniPage() {
         </select>
       </div>
       <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse", minWidth: 780, fontSize: 12 }}>
-        <thead><tr style={{ background: "#f4f8f5", textAlign: "left", color: "#61736a" }}>{["Alumni","Programme","Graduation","Contact","Employment","Profile status","Action"].map((h) => <th key={h} style={{ padding: 12, fontWeight: 800 }}>{h}</th>)}</tr></thead>
+        <thead><tr style={{ background: "#f4f8f5", textAlign: "left", color: "#61736a" }}>{["Alumni","Programme","Graduation","Contact","Employment","Profile status","Action"].map((h) => <th key={h} style={{ padding: 12, fontWeight: 800 }}>{h === "Action" ? "Profile" : h}</th>)}</tr></thead>
         <tbody>{loading ? <tr><td colSpan={7} style={{ padding: 24, textAlign: "center", color: "#819087" }}>Loading alumni records…</td></tr> : rows.length === 0 ? <tr><td colSpan={7} style={{ padding: 24, textAlign: "center", color: "#819087" }}>No matching alumni records found.</td></tr> : rows.map((a) => <tr key={a.id} style={{ borderTop: "1px solid #edf1ee" }}>
           <td style={{ padding: 12 }}><Link href={`/alumni/${a.id}`} style={{ fontWeight: 800, color: "#106053", textDecoration: "none" }}>{a.full_name}</Link><div style={{ color: "#87958d", marginTop: 3 }}>{a.alumni_id}</div></td>
           <td style={{ padding: 12 }}>{a.program || "—"}</td><td style={{ padding: 12 }}>{a.graduation_year || "—"}</td>
           <td style={{ padding: 12 }}><div>{a.phone || "No phone"}</div><div style={{ color: "#87958d", marginTop: 3 }}>{a.work_email || "No email"}</div></td>
           <td style={{ padding: 12 }}>{a.employment_status || "Not updated"}</td>
           <td style={{ padding: 12 }}><span style={{ display: "inline-block", padding: "5px 8px", borderRadius: 20, fontWeight: 700, fontSize: 10, color: a.verification_status === "verified" ? "#17643f" : "#855b0a", background: a.verification_status === "verified" ? "#e7f5ec" : "#fff4d9" }}>{a.verification_status.replaceAll("_", " ")}</span>{a.missing_fields?.length ? <div style={{ color: "#9b6b1a", fontSize: 10, marginTop: 4 }}>{a.missing_fields.length} missing fields</div> : null}</td>
-          <td style={{ padding: 12 }}>{a.verification_status === "verified" ? <span style={{ color: "#17643f", fontWeight: 750 }}>Verified</span> : a.missing_fields?.length ? <span style={{ color: "#9b6b1a" }}>Complete missing fields</span> : <button onClick={() => void verifyAlumnus(a)} style={{ border: 0, borderRadius: 7, padding: "7px 10px", background: "#106053", color: "#fff", fontSize: 11, fontWeight: 750, cursor: "pointer" }}>Mark verified</button>}</td>
+          <td style={{ padding: 12 }}><Link href={`/alumni/${a.id}`} style={{ display: "inline-flex", alignItems: "center", border: "1px solid #106053", borderRadius: 7, padding: "7px 10px", background: "#106053", color: "#fff", fontSize: 11, fontWeight: 750, textDecoration: "none", whiteSpace: "nowrap" }}>View profile</Link></td>
         </tr>)}</tbody>
       </table></div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginTop: 14 }}>
