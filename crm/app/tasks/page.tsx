@@ -290,6 +290,18 @@ function getPriority(task: Task) {
 }
 
 export default function TasksPage() {
+  const actionMenuItemStyle: React.CSSProperties = {
+    display: "block",
+    width: "100%",
+    padding: "10px",
+    border: "none",
+    background: "#ffffff",
+    color: "#374151",
+    textAlign: "left",
+    cursor: "pointer",
+    fontSize: "12px",
+    borderRadius: "6px",
+  };
   const [tasks, setTasks] = useState<Task[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -325,6 +337,8 @@ export default function TasksPage() {
 
   const [selectedTask, setSelectedTask] =
     useState<Task | null>(null);
+  const [openActionsTaskId, setOpenActionsTaskId] =
+    useState<string | null>(null);
 
   const [form, setForm] =
     useState<TaskForm>(EMPTY_FORM);
@@ -2606,165 +2620,140 @@ export default function TasksPage() {
                               "Unassigned"}
                           </td>
 
-                          {/* ACTIONS */}
-                          <td
-                            style={{
-                              padding:
-                                "15px 16px",
-                              verticalAlign:
-                                "top",
-                            }}
-                          >
-                            <div
-                              style={{
-                                display:
-                                  "flex",
-                                justifyContent:
-                                  "flex-end",
-                                gap: "6px",
-                                flexWrap:
-                                  "wrap",
-                              }}
-                            >
-                              {lead?.phone && (
-                                <>
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      callStudent(
-                                        lead
-                                      )
-                                    }
-                                    title="Call"
-                                    style={{
-                                      border:
-                                        "1px solid #d1d5db",
-                                      background:
-                                        "#ffffff",
-                                      borderRadius:
-                                        "7px",
-                                      padding:
-                                        "7px 9px",
-                                      cursor:
-                                        "pointer",
-                                      fontSize:
-                                        "12px",
-                                    }}
-                                  >
-                                    Call
-                                  </button>
+                          
+{/* ACTIONS */}
+<td
+  style={{
+    padding: "15px 16px",
+    verticalAlign: "top",
+    textAlign: "right",
+    position: "relative",
+    whiteSpace: "nowrap",
+  }}
+>
+  <div
+    style={{
+      display: "inline-block",
+      position: "relative",
+    }}
+  >
+    <button
+      type="button"
+      onClick={() =>
+        setOpenActionsTaskId(
+          openActionsTaskId === task.id
+            ? null
+            : task.id
+        )
+      }
+      style={{
+        border: "1px solid #d1d5db",
+        background: "#ffffff",
+        color: "#166534",
+        borderRadius: "8px",
+        padding: "8px 12px",
+        cursor: "pointer",
+        fontSize: "12px",
+        fontWeight: 700,
+      }}
+    >
+      Actions ▾
+    </button>
 
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      whatsappStudent(
-                                        lead
-                                      )
-                                    }
-                                    title="WhatsApp"
-                                    style={{
-                                      border:
-                                        "1px solid #d1d5db",
-                                      background:
-                                        "#ffffff",
-                                      borderRadius:
-                                        "7px",
-                                      padding:
-                                        "7px 9px",
-                                      cursor:
-                                        "pointer",
-                                      fontSize:
-                                        "12px",
-                                    }}
-                                  >
-                                    WhatsApp
-                                  </button>
-                                </>
-                              )}
+    {openActionsTaskId === task.id && (
+      <div
+        style={{
+          position: "absolute",
+          top: "calc(100% + 6px)",
+          right: 0,
+          minWidth: "185px",
+          background: "#ffffff",
+          border: "1px solid #e5e7eb",
+          borderRadius: "10px",
+          boxShadow: "0 10px 25px rgba(0,0,0,0.12)",
+          padding: "6px",
+          zIndex: 100,
+          textAlign: "left",
+        }}
+      >
+        {lead?.phone && (
+          <>
+            <button
+              type="button"
+              onClick={() => {
+                setOpenActionsTaskId(null);
+                callStudent(lead);
+              }}
+              style={actionMenuItemStyle}
+            >
+              📞 Call Student
+            </button>
 
-                              {lead?.email && (
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    emailStudent(
-                                      lead
-                                    )
-                                  }
-                                  title="Email"
-                                  style={{
-                                    border:
-                                      "1px solid #d1d5db",
-                                    background:
-                                      "#ffffff",
-                                    borderRadius:
-                                      "7px",
-                                    padding:
-                                      "7px 9px",
-                                    cursor:
-                                      "pointer",
-                                    fontSize:
-                                      "12px",
-                                  }}
-                                >
-                                  Email
-                                </button>
-                              )}
+            <button
+              type="button"
+              onClick={() => {
+                setOpenActionsTaskId(null);
+                whatsappStudent(lead);
+              }}
+              style={actionMenuItemStyle}
+            >
+              WhatsApp
+            </button>
+          </>
+        )}
 
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  openOutcome(
-                                    task
-                                  )
-                                }
-                                style={{
-                                  border:
-                                    "none",
-                                  background:
-                                    "#111827",
-                                  color:
-                                    "#ffffff",
-                                  borderRadius:
-                                    "7px",
-                                  padding:
-                                    "7px 10px",
-                                  cursor:
-                                    "pointer",
-                                  fontSize:
-                                    "12px",
-                                  fontWeight:
-                                    700,
-                                }}
-                              >
-                                Outcome
-                              </button>
+        {lead?.email && (
+          <button
+            type="button"
+            onClick={() => {
+              setOpenActionsTaskId(null);
+              emailStudent(lead);
+            }}
+            style={actionMenuItemStyle}
+          >
+            ✉ Email
+          </button>
+        )}
 
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  openEditTask(
-                                    task
-                                  )
-                                }
-                                style={{
-                                  border:
-                                    "1px solid #d1d5db",
-                                  background:
-                                    "#ffffff",
-                                  borderRadius:
-                                    "7px",
-                                  padding:
-                                    "7px 9px",
-                                  cursor:
-                                    "pointer",
-                                  fontSize:
-                                    "12px",
-                                }}
-                              >
-                                Edit
-                              </button>
-                            </div>
-                          </td>
+        <button
+          type="button"
+          onClick={() => {
+            setOpenActionsTaskId(null);
+            openOutcome(task);
+          }}
+          style={actionMenuItemStyle}
+        >
+          Record Outcome
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setOpenActionsTaskId(null);
+            openEditTask(task);
+          }}
+          style={actionMenuItemStyle}
+        >
+          ✏ Edit Task
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setOpenActionsTaskId(null);
+            void deleteTask(task);
+          }}
+          style={{
+            ...actionMenuItemStyle,
+            color: "#dc2626",
+          }}
+        >
+          Delete Task
+        </button>
+      </div>
+    )}
+  </div>
+</td>
                         </tr>
                       );
                     }
