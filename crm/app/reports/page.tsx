@@ -129,6 +129,8 @@ export default function ReportsPage() {
   });
 
   const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [viewerId, setViewerId] = useState("");
+  const [viewerRole, setViewerRole] = useState("");
   const [leads, setLeads] = useState<Lead[]>([]);
   const [admissions, setAdmissions] = useState<Admission[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -154,11 +156,16 @@ export default function ReportsPage() {
         throw new Error("You are not signed in.");
       }
 
+      const currentProfileQuery = supabase
+        .from("profiles")
+        .select("id,role")
+        .eq("id", user.id)
+        .maybeSingle();
+
       const profilesQuery = supabase
         .from("profiles")
         .select("id,full_name,role")
         .eq("is_active", true)
-        .not("role", "in", "(admin,super_admin)")
         .order("full_name");
 
       const leadsQuery = supabase
@@ -175,23 +182,34 @@ export default function ReportsPage() {
           "id,assigned_to,task_type,status,completed_at,created_at"
         );
 
-            const [p, l, a, t] = await Promise.all([
+            const [currentProfile, p, l, a, t] = await Promise.all([
+        currentProfileQuery,
         profilesQuery,
         leadsQuery,
         admissionsQuery,
         tasksQuery,
       ]);
 
-      const failed = [p, l, a, t].find((result) => result.error);
+      const failed = [currentProfile, p, l, a, t].find((result) => result.error);
 
       if (failed?.error) {
         throw new Error(failed.error.message);
       }
 
+      const role = String(currentProfile.data?.role || "").trim().toLowerCase().replace(/[ -]/g, "_");
+      setViewerId(user.id);
+      setViewerRole(role);
+
+      const eligibleProfiles = ((p.data || []) as Profile[]).filter((profile) => {
+        const profileRole = String(profile.role || "").trim().toLowerCase().replace(/[ -]/g, "_");
+        return !["admin", "super_admin"].includes(profileRole);
+      });
+
+      const canViewTeam = ["manager", "admin", "super_admin"].includes(role);
       setProfiles(
-        ((p.data || []) as Profile[]).filter(
-          (profile) => !["admin", "super_admin"].includes((profile.role || "").toLowerCase())
-        )
+        canViewTeam
+          ? eligibleProfiles
+          : eligibleProfiles.filter((profile) => profile.id === user.id)
       );
 
       setLeads((l.data || []) as Lead[]);
@@ -462,7 +480,7 @@ export default function ReportsPage() {
               </h1>
 
               <p>
-                {"Review lead generation, follow-ups, tasks and admissions performance across active staff."}
+                {"{["manager", "admin", "super_admin"].includes(viewerRole) ? "Review team lead generation, follow-ups, tasks and admissions performance." : "Review your personal lead generation, follow-ups, tasks and admissions performance."}"}
               </p>
             </div>
 
@@ -516,7 +534,7 @@ export default function ReportsPage() {
           <div>
             <span className="period-label">
               {periodLabel(period)}{" "}
-              {"Team Performance"}
+              {["manager", "admin", "super_admin"].includes(viewerRole) ? "Team Performance" : "My Performance"}
             </span>
 
             <strong>
@@ -527,7 +545,7 @@ export default function ReportsPage() {
           </div>
 
           <div className="period-meta">
-            `${report.rows.length} active staff (excluding Admin and Super Admin)`
+            {["manager", "admin", "super_admin"].includes(viewerRole) ? `${report.rows.length} active staff (excluding Admin and Super Admin)` : "Your individual performance report"}
           </div>
         </section>
 
