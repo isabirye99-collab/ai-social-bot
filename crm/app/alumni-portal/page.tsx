@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
@@ -73,6 +73,20 @@ export default function AlumniPortalPage(){
     if(regError)setError(regError.message);
     else setMessage(registrationStatus==="waitlisted"?"The event is currently full. You have been added to the waitlist.":"Your event registration has been confirmed.");
   }
+  async function submitReferral(event:FormEvent<HTMLFormElement>){
+    event.preventDefault();setReferralSaving(true);setMessage("");setError("");
+    const {error:referralError}=await supabase.rpc("submit_alumni_referral",{
+      p_referred_student_name:referral.name,
+      p_referred_student_phone:referral.phone||null,
+      p_referred_student_email:referral.email||null,
+      p_program:referral.program||null,
+      p_intake:referral.intake||null,
+      p_notes:referral.notes||null
+    });
+    if(referralError)setError(referralError.message);
+    else{setMessage("Thank you. Your referral has been submitted to the CIU Admissions team.");setReferral({name:"",phone:"",email:"",program:"",intake:"",notes:""});}
+    setReferralSaving(false);
+  }
   async function signOut(){await supabase.auth.signOut();router.replace("/alumni-login");router.refresh();}
 
   return <main style={{minHeight:"100vh",background:"#f4f8f5",color:"#173d34",padding:"26px clamp(16px,4vw,48px) 50px"}}>
@@ -110,6 +124,19 @@ export default function AlumniPortalPage(){
           </section>
           <aside style={{display:"grid",gap:16}}>
             <section style={card}><h2 style={{fontSize:17,fontWeight:850,margin:"0 0 12px"}}>Upcoming alumni events</h2>{events.length===0?<p style={{fontSize:12,color:"#819087"}}>There are no published upcoming events at the moment.</p>:events.map(ev=><div key={ev.id} style={{padding:"12px 0",borderTop:"1px solid #edf1ee"}}><div style={{fontWeight:800,fontSize:13}}>{ev.title}</div><div style={{fontSize:11,color:"#819087",marginTop:4}}>{new Date(ev.starts_at).toLocaleString()} {ev.venue?"· "+ev.venue:""}</div>{ev.description&&<p style={{fontSize:12,color:"#64756c"}}>{ev.description}</p>}<button onClick={()=>void register(ev.id)} style={{border:"1px solid #cddfd3",background:"#f5faf6",color:"#106053",borderRadius:7,padding:"7px 10px",fontSize:11,fontWeight:800}}>Register</button></div>)}</section>
+            <section style={card}>
+              <h2 style={{fontSize:16,fontWeight:850,margin:"0 0 7px"}}>Refer a prospective student</h2>
+              <p style={{fontSize:12,color:"#74847b",lineHeight:1.6}}>Recommend someone who may be interested in studying at CIU. The Admissions team will follow up.</p>
+              <form onSubmit={submitReferral} style={{display:"grid",gap:9}}>
+                <label style={label}>Student full name *<input required value={referral.name} onChange={e=>setReferral({...referral,name:e.target.value})} style={field}/></label>
+                <label style={label}>Phone number<input value={referral.phone} onChange={e=>setReferral({...referral,phone:e.target.value})} style={field}/></label>
+                <label style={label}>Email address<input type="email" value={referral.email} onChange={e=>setReferral({...referral,email:e.target.value})} style={field}/></label>
+                <label style={label}>Programme of interest<input value={referral.program} onChange={e=>setReferral({...referral,program:e.target.value})} style={field}/></label>
+                <label style={label}>Intake<input value={referral.intake} onChange={e=>setReferral({...referral,intake:e.target.value})} placeholder="e.g. February 2027" style={field}/></label>
+                <label style={label}>Additional notes<textarea rows={2} value={referral.notes} onChange={e=>setReferral({...referral,notes:e.target.value})} style={{...field,height:"auto",padding:10}}/></label>
+                <button disabled={referralSaving} style={{border:0,borderRadius:8,padding:"10px 13px",background:"#106053",color:"#fff",fontWeight:800}}>{referralSaving?"Submitting…":"Submit referral"}</button>
+              </form>
+            </section>
             <section style={card}><h2 style={{fontSize:16,fontWeight:850,margin:"0 0 7px"}}>Stay connected</h2><p style={{fontSize:12,color:"#74847b",lineHeight:1.6}}>Update your career progress, volunteer as a mentor, share opportunities and take part in CIU alumni activities.</p><div style={{fontSize:11,color:"#87958d"}}>For corrections to your academic details, please contact the CIU Alumni Office.</div></section>
           </aside>
         </div>
