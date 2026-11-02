@@ -112,7 +112,6 @@ const OUTCOMES = [
 const TASK_STATUSES: TaskStatus[] = OUTCOMES;
 
 const PIPELINE_WAITING_OUTCOMES = [
-  "Interested",
   "Applied",
   "Application Submitted",
   "Admitted",
