@@ -45,7 +45,22 @@ export default function AlumniProfileReviewsPage() {
         const allowed = ["work_email","phone","whatsapp","linkedin","city","employment_status","employer","job_title","industry","profile_bio","career_interests","allow_email","allow_sms","allow_whatsapp"];
         const changes = Object.fromEntries(Object.entries(item.proposed_changes || {}).filter(([key]) => allowed.includes(key)));
         if (Object.keys(changes).length === 0) throw new Error("This request has no supported profile changes.");
-        const { error: applyError } = await supabase.from("alumni").update({ ...changes, updated_at: new Date().toISOString() }).eq("id", item.alumni_id);
+        const { data: current, error: currentError } = await supabase.from("alumni")
+          .select("missing_fields,work_email,phone,whatsapp,student_no,program,graduation_year,faculty,city,linkedin,employment_status,employer,job_title,industry")
+          .eq("id", item.alumni_id).single();
+        if (currentError) throw currentError;
+        const merged = { ...current, ...changes } as Record<string, unknown>;
+        const missing = (current.missing_fields || []).filter((field: string) => {
+          const value = merged[field];
+          return value == null || String(value).trim() === "";
+        });
+        const hasContact = Boolean(merged.work_email || merged.phone || merged.whatsapp);
+        const now = new Date().toISOString();
+        const verificationStatus = missing.length === 0 ? "verified" : hasContact ? "needs_review" : "contact_required";
+        const { error: applyError } = await supabase.from("alumni").update({
+          ...changes, missing_fields: missing, verification_status: verificationStatus,
+          last_verified_at: missing.length === 0 ? now : null, updated_at: now
+        }).eq("id", item.alumni_id);
         if (applyError) throw applyError;
       }
       const { error: reviewError } = await supabase.from("alumni_profile_updates").update({
