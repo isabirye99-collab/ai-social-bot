@@ -44,7 +44,7 @@ export async function updateSession(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
   // The shared alumni information update page is public and does not require a CRM staff session.
-  if (pathname === "/alumni-update") return supabaseResponse;
+  if (pathname === "/alumni-update" || pathname === "/alumni-login" || pathname.startsWith("/alumni-portal")) return supabaseResponse;
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
