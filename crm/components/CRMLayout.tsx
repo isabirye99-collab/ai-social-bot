@@ -30,6 +30,8 @@ const nav: NavItem[] = [
   { label: "Pipeline", href: "/pipeline", module: "pipeline" },
   { label: "Tasks", href: "/tasks", module: "tasks" },
   { label: "Marketing", href: "/marketing", module: "marketing" },
+  { label: "Partnerships", href: "/partnerships", module: "partnerships" },
+  { label: "Alumni", href: "/alumni", module: "alumni" },
   { label: "Reports", href: "/reports", module: "reports" },
   { label: "Settings", href: "/settings", module: "settings" },
 ];
@@ -211,7 +213,7 @@ export default function CRMLayout({
     };
   }, []);
 
-  if (pathname === "/login") return <>{children}</>;
+  if (pathname === "/login" || pathname === "/alumni-login" || pathname.startsWith("/alumni-portal")) return <>{children}</>;
 
   const horizontal = branding.navigationOrientation === "horizontal";
   const allowedModules = getEffectiveModules(role, modulePermissions);
