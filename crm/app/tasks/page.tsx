@@ -1587,7 +1587,7 @@ export default function TasksPage() {
         >
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: "9px", marginBottom: "5px" }}>
-              <span style={{ width: "9px", height: "9px", borderRadius: "50%", background: "#8bc53f", boxShadow: "0 0 0 5px rgba(139,197,63,.13)" }} />
+              <span style={{ width: "9px", height: "9px", borderRadius: "50%", background: "#8dc642", boxShadow: "0 0 0 5px rgba(141,198,66,.16)" }} />
               <span style={{ fontSize: "10px", fontWeight: 800, textTransform: "uppercase", letterSpacing: ".16em", color: "#718179" }}>
                 CRM Work Centre
               </span>
@@ -1611,18 +1611,18 @@ export default function TasksPage() {
                 display: "inline-flex",
                 alignItems: "center",
                 gap: "10px",
-                border: "1px solid #075442",
+                border: "1px solid #106053",
                 borderRadius: "11px",
                 padding: "11px 16px",
-                background: "#075442",
+                background: "#106053",
                 color: "#ffffff",
                 fontWeight: 750,
                 cursor: "pointer",
                 fontSize: "13px",
-                boxShadow: "0 4px 12px rgba(7,84,66,.14)",
+                boxShadow: "0 4px 12px rgba(16,96,83,.14)",
               }}
             >
-              + New Task <span style={{ color: "#c7e59c" }}>▾</span>
+              + New Task <span style={{ color: "#ffffff" }}>▾</span>
             </button>
             {showTaskMenu && (
               <div style={{
@@ -1667,7 +1667,7 @@ export default function TasksPage() {
                       task_type: "Call",
                     }));
                   }}
-                  style={{ ...actionMenuItemStyle, fontWeight: 700, color: "#075442", padding: "11px 12px" }}
+                  style={{ ...actionMenuItemStyle, fontWeight: 700, color: "#106053", padding: "11px 12px" }}
                 >
                   + Register Walk-in
                 </button>
@@ -1786,7 +1786,7 @@ export default function TasksPage() {
                 marginTop: "7px",
                 fontSize: "28px",
                 fontWeight: 800,
-                color: "#2563eb",
+                color: "#106053",
               }}
             >
               {stats.dueToday}
@@ -1868,7 +1868,7 @@ export default function TasksPage() {
                 marginTop: "7px",
                 fontSize: "28px",
                 fontWeight: 800,
-                color: "#059669",
+                color: "#106053",
               }}
             >
               {stats.completed}
@@ -2132,9 +2132,9 @@ export default function TasksPage() {
               onClick={() => setStatusFilter(statusFilter === "recorded" ? "all" : "recorded")}
               aria-pressed={statusFilter === "recorded"}
               style={{
-                border: statusFilter === "recorded" ? "1px solid #075442" : "1px solid #dfe9e3",
+                border: statusFilter === "recorded" ? "1px solid #106053" : "1px solid #dfe9e3",
                 background: statusFilter === "recorded" ? "#eaf4ee" : "#ffffff",
-                color: "#075442",
+                color: "#106053",
                 borderRadius: "8px",
                 padding: "8px 12px",
                 cursor: "pointer",
@@ -2241,8 +2241,10 @@ export default function TasksPage() {
           ) : (
             <div
               style={{
-                overflowX:
-                  "auto",
+                overflowX: "auto",
+                overflowY: "auto",
+                maxHeight: "680px",
+                scrollbarGutter: "stable",
               }}
             >
               <table
@@ -2291,10 +2293,13 @@ export default function TasksPage() {
                               "#64748b",
                             letterSpacing:
                               "0.04em",
-                            borderBottom:
-                              "1px solid #e5e7eb",
-                            whiteSpace:
-                              "nowrap",
+                            borderBottom: "1px solid #d8e5df",
+                            whiteSpace: "nowrap",
+                            position: "sticky",
+                            top: 0,
+                            zIndex: 5,
+                            background: "#106053",
+                            color: "#ffffff",
                           }}
                         >
                           {heading}
@@ -2754,132 +2759,25 @@ export default function TasksPage() {
     padding: "15px 16px",
     verticalAlign: "top",
     textAlign: "right",
-    position: "relative",
     whiteSpace: "nowrap",
   }}
 >
-  <div
+  <button
+    type="button"
+    onClick={() => openEditTask(task)}
     style={{
-      display: "inline-block",
-      position: "relative",
+      border: "1px solid #d8e5df",
+      background: "#ffffff",
+      color: "#106053",
+      borderRadius: "8px",
+      padding: "8px 13px",
+      cursor: "pointer",
+      fontSize: "12px",
+      fontWeight: 750,
     }}
   >
-    <button
-      type="button"
-      onClick={() =>
-        setOpenActionsTaskId(
-          openActionsTaskId === task.id
-            ? null
-            : task.id
-        )
-      }
-      style={{
-        border: "1px solid #d1d5db",
-        background: "#ffffff",
-        color: "#166534",
-        borderRadius: "8px",
-        padding: "8px 12px",
-        cursor: "pointer",
-        fontSize: "12px",
-        fontWeight: 700,
-      }}
-    >
-      Actions ▾
-    </button>
-
-    {openActionsTaskId === task.id && (
-      <div
-        style={{
-          position: "absolute",
-          top: "calc(100% + 6px)",
-          right: 0,
-          minWidth: "185px",
-          background: "#ffffff",
-          border: "1px solid #e5e7eb",
-          borderRadius: "10px",
-          boxShadow: "0 10px 25px rgba(0,0,0,0.12)",
-          padding: "6px",
-          zIndex: 100,
-          textAlign: "left",
-        }}
-      >
-        {lead?.phone && (
-          <>
-            <button
-              type="button"
-              onClick={() => {
-                setOpenActionsTaskId(null);
-                callStudent(lead);
-              }}
-              style={actionMenuItemStyle}
-            >
-              📞 Call Student
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setOpenActionsTaskId(null);
-                whatsappStudent(lead);
-              }}
-              style={actionMenuItemStyle}
-            >
-              WhatsApp
-            </button>
-          </>
-        )}
-
-        {lead?.email && (
-          <button
-            type="button"
-            onClick={() => {
-              setOpenActionsTaskId(null);
-              emailStudent(lead);
-            }}
-            style={actionMenuItemStyle}
-          >
-            ✉ Email
-          </button>
-        )}
-
-        <button
-          type="button"
-          onClick={() => {
-            setOpenActionsTaskId(null);
-            openOutcome(task);
-          }}
-          style={actionMenuItemStyle}
-        >
-          Record Outcome
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            setOpenActionsTaskId(null);
-            openEditTask(task);
-          }}
-          style={actionMenuItemStyle}
-        >
-          ✏ Edit Task
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            setOpenActionsTaskId(null);
-            void deleteTask(task);
-          }}
-          style={{
-            ...actionMenuItemStyle,
-            color: "#dc2626",
-          }}
-        >
-          Delete Task
-        </button>
-      </div>
-    )}
-  </div>
+    Edit
+  </button>
 </td>
                         </tr>
                       );
@@ -3237,7 +3135,7 @@ export default function TasksPage() {
 
                   {walkInMode && !editingTask ? (
                     <div style={{ gridColumn: "1 / -1", display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "12px", padding: "14px", border: "1px solid #bbf7d0", background: "#f0fdf4", borderRadius: "10px", marginBottom: "8px" }}>
-                      <div style={{ gridColumn: "1 / -1", color: "#166534", fontSize: "12px", fontWeight: 700 }}>New walk-in student details</div>
+                      <div style={{ gridColumn: "1 / -1", color: "#106053", fontSize: "12px", fontWeight: 700 }}>New walk-in student details</div>
                       <div>
                         <label style={{ display: "block", marginBottom: "5px", fontSize: "12px", fontWeight: 700, color: "#374151" }}>Full name *</label>
                         <input value={walkInName} onChange={(event) => setWalkInName(event.target.value)} required={walkInMode} placeholder="Student's full name" style={{ width: "100%", boxSizing: "border-box", border: "1px solid #d1d5db", borderRadius: "8px", padding: "10px", fontSize: "13px", background: "#ffffff" }} />
