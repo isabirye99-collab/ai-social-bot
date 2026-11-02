@@ -18,9 +18,16 @@ export default function MarketingSectionTabs() {
     {
       href: "/marketing/social",
       label: "Social Media Hub",
-      description: "Content, calendar and approvals",
+      description: "Content creation and publishing calendar",
       number: "02",
-      active: socialActive,
+      active: pathname === "/marketing/social",
+    },
+    {
+      href: "/marketing/social/approvals",
+      label: "Approvals",
+      description: "Manager review before publication",
+      number: "03",
+      active: pathname === "/marketing/social/approvals",
     },
   ];
 
