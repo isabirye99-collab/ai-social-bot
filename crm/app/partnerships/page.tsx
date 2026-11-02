@@ -18,6 +18,11 @@ export default function PartnershipsPage() {
   const supabase = createClient();
   const [rows, setRows] = useState<Partnership[]>([]);
   const [total, setTotal] = useState(0);
+  const [matchCount, setMatchCount] = useState(0);
+  const [page, setPage] = useState(0);
+  const pageSize = 50;
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [active, setActive] = useState(0);
   const [pipeline, setPipeline] = useState(0);
   const [expiring, setExpiring] = useState(0);
@@ -32,18 +37,21 @@ export default function PartnershipsPage() {
     try {
       const today = new Date();
       const soon = new Date(); soon.setDate(today.getDate() + 90);
+      let listQuery = supabase.from("partnerships").select("id,name,category,status,primary_contact_name,primary_contact_email,start_date,end_date,next_action,next_action_date,estimated_value,currency", { count: "exact" }).order("updated_at", { ascending: false }).range(page * pageSize, page * pageSize + pageSize - 1);
+      if (search.trim()) listQuery = listQuery.or("name.ilike.%"+search.trim()+"%,primary_contact_name.ilike.%"+search.trim()+"%,primary_contact_email.ilike.%"+search.trim()+"%");
+      if (statusFilter !== "all") listQuery = listQuery.eq("status", statusFilter);
       const [all, live, prospects, ending, list] = await Promise.all([
         supabase.from("partnerships").select("id", { count: "exact", head: true }),
         supabase.from("partnerships").select("id", { count: "exact", head: true }).eq("status", "active"),
         supabase.from("partnerships").select("id", { count: "exact", head: true }).in("status", ["prospect", "engaging", "negotiation"]),
         supabase.from("partnerships").select("id", { count: "exact", head: true }).gte("end_date", today.toISOString().slice(0,10)).lte("end_date", soon.toISOString().slice(0,10)),
-        supabase.from("partnerships").select("id,name,category,status,primary_contact_name,primary_contact_email,start_date,end_date,next_action,next_action_date,estimated_value,currency").order("updated_at", { ascending: false }).limit(100),
+        listQuery,
       ]);
       if (list.error) throw list.error;
-      setTotal(all.count || 0); setActive(live.count || 0); setPipeline(prospects.count || 0); setExpiring(ending.count || 0); setRows((list.data || []) as Partnership[]);
+      setTotal(all.count || 0); setActive(live.count || 0); setPipeline(prospects.count || 0); setExpiring(ending.count || 0); setRows((list.data || []) as Partnership[]); setMatchCount(list.count || 0);
     } catch (e) { setError(e instanceof Error ? e.message : "Unable to load partnerships."); }
     finally { setLoading(false); }
-  }, []);
+  }, [search, statusFilter, page]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -97,13 +105,15 @@ export default function PartnershipsPage() {
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 9, marginTop: 15 }}><button type="button" onClick={()=>setShowForm(false)} style={secondary}>Cancel</button><button disabled={saving} type="submit" style={primary}>{saving?"Saving…":"Save Partnership"}</button></div>
     </form>}
     <section style={card}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}><div><h2 style={{ margin: 0, fontSize: 17, fontWeight: 800 }}>Partnership Register</h2><p style={{ margin: "4px 0 0", color: "#829088", fontSize: 12 }}>Central register of CIU's institutional relationships.</p></div><button onClick={()=>void load()} style={secondary}>Refresh</button></div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 14 }}><div><h2 style={{ margin: 0, fontSize: 17, fontWeight: 800 }}>Partnership Register</h2><p style={{ margin: "4px 0 0", color: "#829088", fontSize: 12 }}>Showing {matchCount.toLocaleString()} matching relationships · Page {page + 1} of {Math.max(1,Math.ceil(matchCount/pageSize))}.</p></div><button onClick={()=>void load()} style={secondary}>Refresh</button></div>
+      <div style={{display:"flex",gap:9,flexWrap:"wrap",marginBottom:13}}><input value={search} onChange={e=>{setPage(0);setSearch(e.target.value);}} placeholder="Search partner or contact…" style={{flex:"1 1 240px",minWidth:180,border:"1px solid #dce5df",borderRadius:8,padding:"9px 11px",color:"#173d34"}}/><select value={statusFilter} onChange={e=>{setPage(0);setStatusFilter(e.target.value);}} style={{border:"1px solid #dce5df",borderRadius:8,padding:"9px 11px",background:"#fff",color:"#173d34"}}><option value="all">All statuses</option>{["prospect","engaging","negotiation","active","on_hold","expired","closed"].map(s=><option key={s} value={s}>{s.replaceAll("_"," ")}</option>)}</select></div>
       <div style={{ overflowX: "auto" }}><table style={{ width: "100%", minWidth: 780, borderCollapse: "collapse", fontSize: 12 }}>
         <thead><tr style={{ background: "#f4f8f5", textAlign: "left", color: "#61736a" }}>{["Partner","Category","Status","Contact","Next action","Agreement period"].map(x=><th key={x} style={{ padding: 12 }}>{x}</th>)}</tr></thead>
         <tbody>{loading?<tr><td colSpan={6} style={{ padding: 24, textAlign: "center" }}>Loading partnerships…</td></tr>:rows.length===0?<tr><td colSpan={6} style={{ padding: 28, textAlign: "center", color: "#819087" }}>No partnership records yet. Add your first organisation above.</td></tr>:rows.map(x=><tr key={x.id} style={{ borderTop: "1px solid #edf1ee" }}>
           <td style={{ padding: 12, fontWeight: 800 }}><Link href={`/partnerships/${x.id}`} style={{ color: "#106053", textDecoration: "none" }}>{x.name}</Link><div style={{ fontSize: 10, color: "#87958d", marginTop: 3 }}>View relationship →</div></td><td style={{ padding: 12 }}>{x.category||"—"}</td><td style={{ padding: 12 }}><span style={{ background:x.status==="active"?"#e6f5eb":"#fff4d9",color:x.status==="active"?"#17643f":"#855b0a",padding:"5px 8px",borderRadius:18,fontWeight:700 }}>{x.status.replaceAll("_"," ")}</span></td><td style={{ padding: 12 }}>{x.primary_contact_name||"—"}<div style={{ color:"#87958d",marginTop:3 }}>{x.primary_contact_email||""}</div></td><td style={{ padding: 12 }}>{x.next_action||"—"}<div style={{ color:"#87958d",marginTop:3 }}>{x.next_action_date||""}</div></td><td style={{ padding: 12 }}>{x.start_date||"—"} to {x.end_date||"—"}</td>
         </tr>)}</tbody>
       </table></div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,flexWrap:"wrap",marginTop:13}}><span style={{fontSize:11,color:"#819087"}}>Showing {matchCount===0?0:page*pageSize+1}–{Math.min((page+1)*pageSize,matchCount)} of {matchCount.toLocaleString()} matching partnerships</span><div style={{display:"flex",gap:8}}><button disabled={page===0||loading} onClick={()=>setPage(p=>Math.max(0,p-1))} style={{...secondary,opacity:page===0?0.5:1}}>Previous</button><button disabled={(page+1)*pageSize>=matchCount||loading} onClick={()=>setPage(p=>p+1)} style={{...secondary,opacity:(page+1)*pageSize>=matchCount?0.5:1}}>Next</button></div></div>
     </section>
   </div>;
 }
