@@ -96,11 +96,21 @@ export default function AlumniPage() {
         const fullName = get(r, "Full Name");
         if (!fullName) return null;
         const missing: string[] = [];
+        const yearRaw = get(r, "Graduation Year");
+        const yearMatch = yearRaw.match(/\\b(19|20)\\d{2}\\b/);
+        const year = yearMatch ? Number(yearMatch[0]) : Number(yearRaw);
         if (!get(r, "Phone") && !get(r, "WhatsApp")) missing.push("phone");
         if (!get(r, "Work Email")) missing.push("work_email");
+        if (!get(r, "Student No")) missing.push("student_no");
         if (!get(r, "Program")) missing.push("program");
-        if (!get(r, "Graduation Year")) missing.push("graduation_year");
-        const year = Number(get(r, "Graduation Year"));
+        if (!yearRaw) missing.push("graduation_year");
+        if (!get(r, "Faculty")) missing.push("faculty");
+        if (!get(r, "City")) missing.push("city");
+        if (!get(r, "LinkedIn")) missing.push("linkedin");
+        if (!get(r, "Employment Status")) missing.push("employment_status");
+        if (!get(r, "Employer")) missing.push("employer");
+        if (!get(r, "Job Title")) missing.push("job_title");
+        if (!get(r, "Industry")) missing.push("industry");
         const score = Number(get(r, "Engagement Score"));
         return {
           alumni_id: get(r, "Alumni ID") || "CIU-ALM-" + String(i + 1).padStart(5, "0"),
@@ -127,7 +137,7 @@ export default function AlumniPage() {
           whatsapp_group: yes(get(r, "WhatsApp Group")),
           linkedin_follower: yes(get(r, "LinkedIn Follower")),
           engagement_score: Number.isFinite(score) ? score : null,
-          verification_status: missing.length ? "contact_required" : "needs_review",
+          verification_status: (!get(r, "Phone") && !get(r, "WhatsApp")) || !get(r, "Work Email") ? "contact_required" : "needs_review",
           missing_fields: missing,
           source_import: file.name,
         };
