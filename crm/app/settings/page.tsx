@@ -2716,17 +2716,48 @@ export default function Settings() {
           padding-bottom: 32px !important;
         }
         .settings-page-hero {
+          display: grid !important;
+          grid-template-columns: minmax(0, 1fr) auto !important;
           align-items: center !important;
-          gap: 14px !important;
-          padding: 14px 20px !important;
-          margin-bottom: 12px !important;
+          column-gap: 18px !important;
+          row-gap: 6px !important;
+          min-height: 0 !important;
+          padding: 9px 16px !important;
+          margin-bottom: 10px !important;
+        }
+        .settings-page-hero > div:first-child {
+          min-width: 0;
+        }
+        .settings-page-hero > div:first-child h1 {
+          font-size: 20px !important;
+          line-height: 1.15 !important;
+          margin: 0 0 2px !important;
+        }
+        .settings-page-hero > div:first-child p {
+          font-size: 10px !important;
+          line-height: 1.25 !important;
         }
         .settings-page-hero > div:last-child {
-          display: flex;
-          align-items: center;
-          justify-content: flex-end;
-          gap: 9px;
-          flex-wrap: wrap;
+          display: flex !important;
+          flex-direction: row !important;
+          align-items: center !important;
+          justify-content: flex-end !important;
+          gap: 8px !important;
+          flex-wrap: nowrap !important;
+          white-space: nowrap;
+        }
+        .settings-page-hero > div:last-child > div {
+          padding: 6px 9px !important;
+          font-size: 10px !important;
+        }
+        .settings-page-hero > div:last-child button {
+          min-height: 34px !important;
+          min-width: 112px !important;
+          padding: 0 12px !important;
+          font-size: 12px !important;
+        }
+        .settings-page-hero > div:last-child span {
+          font-size: 9px !important;
         }
         .settings-page-inner > div[style*="repeat(5"] {
           gap: 8px !important;
@@ -2768,7 +2799,9 @@ export default function Settings() {
         }
         @media (max-width: 900px) {
           .settings-page-hero {
-            align-items: flex-start !important;
+            grid-template-columns: minmax(0, 1fr) auto !important;
+            align-items: center !important;
+            column-gap: 10px !important;
           }
           .settings-page-inner > div[style*="repeat(5"] {
             grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
@@ -2779,10 +2812,12 @@ export default function Settings() {
             padding: 14px 12px 76px !important;
           }
           .settings-page-hero {
-            padding: 14px !important;
+            grid-template-columns: 1fr !important;
+            padding: 10px 12px !important;
           }
           .settings-page-hero > div:last-child {
-            justify-content: flex-start;
+            justify-content: flex-start !important;
+            flex-wrap: wrap !important;
           }
           .settings-page-inner > div[style*="repeat(5"] {
             grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
