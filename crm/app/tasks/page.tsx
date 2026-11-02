@@ -10,11 +10,7 @@ import { createClient } from "@/lib/supabase/client";
 
 const supabase = createClient();
 
-type TaskStatus =
-  | "pending"
-  | "in_progress"
-  | "completed"
-  | "cancelled";
+type TaskStatus = string;
 
 type TaskType =
   | "Call"
@@ -94,12 +90,7 @@ const TASK_TYPES: TaskType[] = [
   "WhatsApp",
 ];
 
-const TASK_STATUSES: TaskStatus[] = [
-  "pending",
-  "in_progress",
-  "completed",
-  "cancelled",
-];
+const TASK_STATUSES: TaskStatus[] = OUTCOMES;
 
 const OUTCOMES = [
   "Interested",
@@ -138,7 +129,7 @@ const EMPTY_FORM: TaskForm = {
   opportunity_id: "",
   assigned_to: "",
   due_at: "",
-  status: "pending",
+  status: "Follow up later",
 };
 
 function formatDate(value: string | null) {
@@ -209,16 +200,11 @@ function getInitials(name: string | null) {
 
 function statusLabel(status: string) {
   switch (status) {
-    case "pending":
-      return "Pending";
-    case "in_progress":
-      return "In Progress";
-    case "completed":
-      return "Completed";
-    case "cancelled":
-      return "Cancelled";
-    default:
-      return status;
+    case "pending": return "Pending (legacy)";
+    case "in_progress": return "In Progress (legacy)";
+    case "completed": return "Completed (legacy)";
+    case "cancelled": return "Cancelled (legacy)";
+    default: return status;
   }
 }
 
@@ -268,8 +254,8 @@ function isOverdue(task: Task) {
 
 function isActiveTask(task: Task) {
   return (
-    task.status !== "completed" &&
-    task.status !== "cancelled"
+    !OUTCOMES.includes(task.status) &&
+    !["completed", "cancelled", "canceled"].includes(task.status.toLowerCase())
   );
 }
 
@@ -594,8 +580,7 @@ export default function TasksPage() {
     ).length;
 
     const completed = tasks.filter(
-      (task) =>
-        task.status === "completed"
+      (task) => OUTCOMES.includes(task.status)
     ).length;
 
     return {
@@ -634,7 +619,9 @@ export default function TasksPage() {
           return false;
         }
 
-        if (
+        if (statusFilter === "recorded") {
+          if (!OUTCOMES.includes(task.status)) return false;
+        } else if (
           statusFilter !== "all" &&
           task.status !== statusFilter
         ) {
@@ -1404,7 +1391,7 @@ export default function TasksPage() {
             new Date(
               dateValue
             ).toISOString(),
-          status: "pending",
+          status: "Follow up later",
           created_by:
             currentUserId,
         });
@@ -1479,7 +1466,7 @@ export default function TasksPage() {
           .update({
             description:
               newDescription,
-            status: "completed",
+            status: selectedOutcome,
             completed_at:
               new Date().toISOString(),
             updated_at:
@@ -1880,7 +1867,7 @@ export default function TasksPage() {
               cursor: "pointer",
             }}
           >
-            View Completed Tasks ({stats.completed})
+            View Recorded Outcomes ({stats.completed})
           </button>
         </div>
 
@@ -1947,7 +1934,7 @@ export default function TasksPage() {
               }}
             >
               <option value="all">
-                All Statuses
+                All Outcomes
               </option>
 
               {TASK_STATUSES.map(
@@ -3180,6 +3167,8 @@ export default function TasksPage() {
                         "#ffffff",
                     }}
                   >
+
+                    <option value="">Select outcome</option>
                     {TASK_STATUSES.map(
                       (status) => (
                         <option
