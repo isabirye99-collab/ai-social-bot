@@ -2435,17 +2435,24 @@ const isSalesperson =
 
                                   <div
                                     style={{
-                                      marginTop:
-                                        "2px",
-                                      color:
-                                        "#64748b",
-                                      fontSize:
-                                        "11px",
+                                      marginTop: "2px",
+                                      color: "#64748b",
+                                      fontSize: "11px",
                                     }}
                                   >
-                                    {lead.ciu_number ||
-                                      lead.phone ||
-                                      "No contact"}
+                                    {lead.ciu_number
+                                      ? `CIU No: ${lead.ciu_number}`
+                                      : "No CIU number"}
+                                  </div>
+                                  <div
+                                    style={{
+                                      marginTop: "3px",
+                                      color: lead.phone ? "#0f766e" : "#dc2626",
+                                      fontSize: "11px",
+                                      fontWeight: 600,
+                                    }}
+                                  >
+                                    Tel: {lead.phone || "No telephone number recorded"}
                                   </div>
                                 </div>
                               </div>
@@ -4186,17 +4193,34 @@ const isSalesperson =
                         {lead?.ciu_number && (
                           <div
                             style={{
-                              marginTop:
-                                "3px",
-                              color:
-                                "#64748b",
-                              fontSize:
-                                "11px",
+                              marginTop: "3px",
+                              color: "#64748b",
+                              fontSize: "11px",
                             }}
                           >
-                            {
-                              lead.ciu_number
-                            }
+                            CIU No: {lead.ciu_number}
+                          </div>
+                        )}
+                        <div
+                          style={{
+                            marginTop: "5px",
+                            color: lead?.phone ? "#0f766e" : "#dc2626",
+                            fontSize: "12px",
+                            fontWeight: 650,
+                          }}
+                        >
+                          Telephone: {lead?.phone || "No telephone number recorded"}
+                        </div>
+                        {lead?.email && (
+                          <div
+                            style={{
+                              marginTop: "3px",
+                              color: "#64748b",
+                              fontSize: "11px",
+                              overflowWrap: "anywhere",
+                            }}
+                          >
+                            Email: {lead.email}
                           </div>
                         )}
                       </div>
