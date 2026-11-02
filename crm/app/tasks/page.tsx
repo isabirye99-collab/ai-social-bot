@@ -2769,11 +2769,11 @@ export default function TasksPage() {
 >
   <button
     type="button"
-    onClick={() => openEditTask(task)}
+    onClick={() => openOutcome(task)}
     style={{
-      border: "1px solid #d8e5df",
-      background: "#ffffff",
-      color: "#106053",
+      border: "none",
+      background: "#106053",
+      color: "#ffffff",
       borderRadius: "8px",
       padding: "8px 13px",
       cursor: "pointer",
@@ -2781,7 +2781,7 @@ export default function TasksPage() {
       fontWeight: 750,
     }}
   >
-    Edit
+    Record Outcome
   </button>
 </td>
                         </tr>
