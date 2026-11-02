@@ -51,6 +51,7 @@ export default function AlumniProfilePage() {
 
   function calculateMissing(record: AlumniProfile) {
     return missingKeys.filter(key => {
+      if (key === "phone") return !record.phone?.trim() && !record.whatsapp?.trim();
       const value = record[key];
       return value == null || String(value).trim() === "";
     });
