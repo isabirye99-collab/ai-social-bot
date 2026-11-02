@@ -975,7 +975,7 @@ export default function MarketingPage() {
       <main
         style={{
           minHeight: "100vh",
-          background: "#f8fafc",
+          background: "#f5f8f6",
           padding: 32,
           fontFamily:
             "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif",
@@ -1014,7 +1014,7 @@ export default function MarketingPage() {
           "28px 32px 48px",
         fontFamily:
           "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif",
-        color: "#111827",
+        color: "#163d36",
       }}
     >
       <div
@@ -1023,11 +1023,6 @@ export default function MarketingPage() {
           margin: "0 auto",
         }}
       >
-        {/* MARKETING SECTION NAVIGATION */}
-        <div style={{ marginBottom: 24 }}>
-          <MarketingSectionTabs />
-        </div>
-
         {/* HEADER */}
         <div
           style={{
@@ -1128,9 +1123,9 @@ export default function MarketingPage() {
                 opacity: 1,
                 color: "#ffffff",
                 background:
-                  "#2563eb",
+                  "#106053",
                 border:
-                  "1px solid #2563eb",
+                  "1px solid #106053",
                 padding:
                   "10px 16px",
                 borderRadius: 8,
@@ -1144,6 +1139,11 @@ export default function MarketingPage() {
               + New Campaign
             </button>
           </div>
+        </div>
+
+        {/* MARKETING SECTIONS */}
+        <div style={{ marginBottom: 24 }}>
+          <MarketingSectionTabs />
         </div>
 
         {/* ERROR */}
