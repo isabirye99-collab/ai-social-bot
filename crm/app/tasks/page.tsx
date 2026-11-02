@@ -3751,7 +3751,7 @@ export default function TasksPage() {
                       "#374151",
                   }}
                 >
-                  Notes / Feedback
+                  Reason / Comment *
                 </label>
 
                 <textarea
@@ -3767,8 +3767,9 @@ export default function TasksPage() {
                         .value
                     )
                   }
+                  required
                   rows={5}
-                  placeholder="Record what the student said, next steps, payment information, application information, etc."
+                  placeholder="Record what happened, the applicant response, next steps, or why this outcome was selected..."
                   style={{
                     width:
                       "100%",
@@ -3786,23 +3787,6 @@ export default function TasksPage() {
                       "vertical",
                   }}
                 />
-              </div>
-
-              <div style={{ marginTop: "15px" }}>
-                <label style={{ display: "block", marginBottom: "7px", fontSize: "12px", fontWeight: 700, color: "#374151" }}>
-                  Reason / Comment *
-                </label>
-                <textarea
-                  value={outcomeNotes}
-                  onChange={(event) => setOutcomeNotes(event.target.value)}
-                  required
-                  rows={4}
-                  placeholder="Record what happened, the applicant's response, or why this outcome was selected..."
-                  style={{ width: "100%", boxSizing: "border-box", border: "1px solid #d1d5db", borderRadius: "9px", padding: "10px 12px", fontSize: "13px", resize: "vertical" }}
-                />
-                <div style={{ marginTop: "5px", fontSize: "11px", color: "#64748b" }}>
-                  A reason or comment is required for every outcome and will be added to the applicant's activity notes.
-                </div>
               </div>
 
               {[
