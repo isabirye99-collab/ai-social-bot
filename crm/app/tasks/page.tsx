@@ -334,6 +334,12 @@ export default function TasksPage() {
 
   const [form, setForm] =
     useState<TaskForm>(EMPTY_FORM);
+  const [walkInMode, setWalkInMode] = useState(false);
+  const [walkInName, setWalkInName] = useState("");
+  const [walkInPhone, setWalkInPhone] = useState("");
+  const [walkInEmail, setWalkInEmail] = useState("");
+  const [walkInProgramme, setWalkInProgramme] = useState("");
+  const [walkInNotes, setWalkInNotes] = useState("");
 
   const [outcomeTask, setOutcomeTask] =
     useState<Task | null>(null);
@@ -683,6 +689,12 @@ export default function TasksPage() {
   ) => {
     setEditingTask(null);
 
+    setWalkInMode(false);
+    setWalkInName("");
+    setWalkInPhone("");
+    setWalkInEmail("");
+    setWalkInProgramme("");
+    setWalkInNotes("");
     setForm({
       ...EMPTY_FORM,
       lead_id: lead?.id || "",
@@ -755,33 +767,95 @@ export default function TasksPage() {
       }
 
       if (
-        isSalesperson &&
-        form.assigned_to &&
-        form.assigned_to !== currentUserId
-      ) {
-        throw new Error(
-          "You can only assign tasks to yourself."
-        );
+  isSalesperson &&
+  !isAdmin &&
+  form.assigned_to &&
+  form.assigned_to !== currentUserId
+) {
+  throw new Error(
+    "You can only assign tasks to yourself."
+  );
+}
+
+      let linkedLeadId = form.lead_id || null;
+      let linkedOpportunityId = form.opportunity_id || null;
+      let linkedAssigneeId = form.assigned_to || null;
+
+      if (!editingTask && walkInMode) {
+        if (!walkInName.trim()) throw new Error("Please enter the walk-in student's full name.");
+        if (!walkInPhone.trim() && !walkInEmail.trim()) throw new Error("Enter at least a telephone number or email address for the walk-in.");
+
+        // Automatically distribute walk-ins to the active salesperson with the fewest open tasks.
+        const activeSalespeople = profiles
+          .filter((profile) => profile.is_active !== false && profile.role === "salesperson")
+          .sort((a, b) => {
+            const aOpenTasks = tasks.filter((task) => task.assigned_to === a.id && !["completed", "cancelled", "canceled"].includes(String(task.status).toLowerCase())).length;
+            const bOpenTasks = tasks.filter((task) => task.assigned_to === b.id && !["completed", "cancelled", "canceled"].includes(String(task.status).toLowerCase())).length;
+            return aOpenTasks - bOpenTasks || String(a.full_name || "").localeCompare(String(b.full_name || ""));
+          });
+
+        if (activeSalespeople.length === 0) {
+          throw new Error("No active salesperson is available to assign this walk-in. Ask an administrator to activate a salesperson account.");
+        }
+
+        linkedAssigneeId = activeSalespeople[0].id;
+
+        const leadPayload = {
+          name: walkInName.trim(),
+          phone: walkInPhone.trim() || null,
+          email: walkInEmail.trim() || null,
+          product_service: walkInProgramme.trim() || null,
+          location: "Walk-in",
+          status: "new",
+          assigned_to: linkedAssigneeId,
+          feedback: walkInNotes.trim() || null,
+          notes: ["Lead source: Walk-in", walkInNotes.trim()].filter(Boolean).join("\n"),
+          follow_up_status: "Pending",
+          next_follow_up_at: form.due_at ? new Date(form.due_at).toISOString() : null,
+          updated_at: new Date().toISOString(),
+        };
+
+        const { data: newLead, error: leadInsertError } = await supabase
+          .from("leads")
+          .insert(leadPayload)
+          .select("id,name,assigned_to")
+          .single();
+
+        if (leadInsertError) throw leadInsertError;
+        linkedLeadId = newLead.id;
+
+        const { data: existingOpportunity, error: opportunityLookupError } = await supabase
+          .from("opportunities").select("id").eq("lead_id", newLead.id).maybeSingle();
+        if (opportunityLookupError) throw opportunityLookupError;
+
+        if (!existingOpportunity) {
+          const firstStage = stages.find((stage) => !stage.is_won && !stage.is_lost) || stages[0];
+          const { data: newOpportunity, error: opportunityInsertError } = await supabase
+            .from("opportunities")
+            .insert({
+              lead_id: newLead.id,
+              title: `${newLead.name || "Walk-in student"} - Admission`,
+              assigned_to: linkedAssigneeId,
+              status: "open",
+              stage_id: firstStage?.id || null,
+              probability: Number(firstStage?.probability || 0),
+            })
+            .select("id").maybeSingle();
+          if (opportunityInsertError) throw opportunityInsertError;
+          linkedOpportunityId = newOpportunity?.id || null;
+        }
       }
 
       const payload = {
         title: form.title.trim(),
-        description:
-          form.description.trim() || null,
+        description: [form.description.trim(), !editingTask && walkInMode ? `Walk-in registration: ${walkInName.trim()}${walkInProgramme.trim() ? ` | Programme: ${walkInProgramme.trim()}` : ""}${walkInNotes.trim() ? ` | Notes: ${walkInNotes.trim()}` : ""}` : ""].filter(Boolean).join("\n") || null,
         task_type: form.task_type,
-        lead_id: form.lead_id || null,
-        opportunity_id:
-          form.opportunity_id || null,
-        assigned_to:
-          form.assigned_to || null,
-        due_at: form.due_at
-          ? new Date(
-              form.due_at
-            ).toISOString()
-          : null,
+        lead_id: linkedLeadId,
+        opportunity_id: linkedOpportunityId,
+        assigned_to: !editingTask && walkInMode ? linkedAssigneeId : (form.assigned_to || null),
+        due_at: form.due_at ? new Date(form.due_at).toISOString() : null,
         status: form.status,
-        updated_at:
-          new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       };
 
       if (editingTask) {
@@ -812,22 +886,37 @@ export default function TasksPage() {
         if (error) throw error;
 
         setSuccess(
-          "Task created successfully."
+          walkInMode
+            ? "Walk-in student registered, added to the pipeline, and follow-up task created."
+            : "Task created successfully."
         );
       }
 
       setShowTaskModal(false);
       setEditingTask(null);
       setForm(EMPTY_FORM);
+      setWalkInMode(false);
+      setWalkInName("");
+      setWalkInPhone("");
+      setWalkInEmail("");
+      setWalkInProgramme("");
+      setWalkInNotes("");
 
       await loadAll();
-    } catch (err) {
-      console.error(err);
+    } catch (err: unknown) {
+      console.error("Failed to save task:", err);
+
+      const message =
+        err &&
+        typeof err === "object" &&
+        "message" in err
+          ? String(err.message)
+          : err instanceof Error
+            ? err.message
+            : JSON.stringify(err);
 
       setError(
-        err instanceof Error
-          ? err.message
-          : "Failed to save task."
+        message || "Failed to save task. Check the browser console."
       );
     } finally {
       setSaving(false);
@@ -3111,23 +3200,43 @@ export default function TasksPage() {
                 </div>
 
                 <div>
-                  <label
-                    style={{
-                      display:
-                        "block",
-                      marginBottom:
-                        "6px",
-                      fontSize:
-                        "12px",
-                      fontWeight:
-                        700,
-                      color:
-                        "#374151",
-                    }}
-                  >
-                    Student
-                  </label>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", marginBottom: "8px" }}>
+                    <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "#374151" }}>Student / Lead</label>
+                    {!editingTask && (
+                      <button type="button" onClick={() => {
+                        setWalkInMode((value) => !value);
+                        setForm((current) => ({ ...current, lead_id: "", opportunity_id: "", title: walkInMode ? "" : "Follow up with new walk-in", assigned_to: current.assigned_to || currentUserId }));
+                      }} style={{ border: "1px solid #087443", borderRadius: "8px", padding: "7px 10px", background: walkInMode ? "#ecfdf5" : "#ffffff", color: "#087443", fontWeight: 700, fontSize: "11px", cursor: "pointer" }}>
+                        {walkInMode ? "Select Existing Lead" : "+ Register New Walk-in"}
+                      </button>
+                    )}
+                  </div>
 
+                  {walkInMode && !editingTask ? (
+                    <div style={{ gridColumn: "1 / -1", display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "12px", padding: "14px", border: "1px solid #bbf7d0", background: "#f0fdf4", borderRadius: "10px", marginBottom: "8px" }}>
+                      <div style={{ gridColumn: "1 / -1", color: "#166534", fontSize: "12px", fontWeight: 700 }}>New walk-in student details</div>
+                      <div>
+                        <label style={{ display: "block", marginBottom: "5px", fontSize: "12px", fontWeight: 700, color: "#374151" }}>Full name *</label>
+                        <input value={walkInName} onChange={(event) => setWalkInName(event.target.value)} required={walkInMode} placeholder="Student's full name" style={{ width: "100%", boxSizing: "border-box", border: "1px solid #d1d5db", borderRadius: "8px", padding: "10px", fontSize: "13px", background: "#ffffff" }} />
+                      </div>
+                      <div>
+                        <label style={{ display: "block", marginBottom: "5px", fontSize: "12px", fontWeight: 700, color: "#374151" }}>Telephone *</label>
+                        <input value={walkInPhone} onChange={(event) => setWalkInPhone(event.target.value)} required={walkInMode && !walkInEmail.trim()} placeholder="e.g. 07..." style={{ width: "100%", boxSizing: "border-box", border: "1px solid #d1d5db", borderRadius: "8px", padding: "10px", fontSize: "13px", background: "#ffffff" }} />
+                      </div>
+                      <div>
+                        <label style={{ display: "block", marginBottom: "5px", fontSize: "12px", fontWeight: 700, color: "#374151" }}>Email</label>
+                        <input type="email" value={walkInEmail} onChange={(event) => setWalkInEmail(event.target.value)} required={walkInMode && !walkInPhone.trim()} placeholder="student@example.com" style={{ width: "100%", boxSizing: "border-box", border: "1px solid #d1d5db", borderRadius: "8px", padding: "10px", fontSize: "13px", background: "#ffffff" }} />
+                      </div>
+                      <div style={{ gridColumn: "1 / -1" }}>
+                        <label style={{ display: "block", marginBottom: "5px", fontSize: "12px", fontWeight: 700, color: "#374151" }}>Programme of interest</label>
+                        <input value={walkInProgramme} onChange={(event) => setWalkInProgramme(event.target.value)} placeholder="e.g. Bachelor of Nursing" style={{ width: "100%", boxSizing: "border-box", border: "1px solid #d1d5db", borderRadius: "8px", padding: "10px", fontSize: "13px", background: "#ffffff" }} />
+                      </div>
+                      <div style={{ gridColumn: "1 / -1" }}>
+                        <label style={{ display: "block", marginBottom: "5px", fontSize: "12px", fontWeight: 700, color: "#374151" }}>Visit / follow-up notes</label>
+                        <textarea value={walkInNotes} onChange={(event) => setWalkInNotes(event.target.value)} rows={2} placeholder="What did the visitor ask about? Any next steps?" style={{ width: "100%", boxSizing: "border-box", border: "1px solid #d1d5db", borderRadius: "8px", padding: "10px", fontSize: "13px", background: "#ffffff", resize: "vertical" }} />
+                      </div>
+                    </div>
+                  ) : (
                   <select
                     value={
                       form.lead_id
@@ -3200,7 +3309,9 @@ export default function TasksPage() {
                       )
                     )}
                   </select>
+                  )}
                 </div>
+
 
                 <div>
                   <label
