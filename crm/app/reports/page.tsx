@@ -478,7 +478,7 @@ export default function ReportsPage() {
               </h1>
 
               <p>
-                {"{["manager", "admin", "super_admin"].includes(viewerRole) ? "Review team lead generation, follow-ups, tasks and admissions performance." : "Review your personal lead generation, follow-ups, tasks and admissions performance."}"}
+                {["manager", "admin", "super_admin"].includes(viewerRole) ? "Review team lead generation, follow-ups, tasks and admissions performance." : "Review your personal lead generation, follow-ups, tasks and admissions performance."}
               </p>
             </div>
 
