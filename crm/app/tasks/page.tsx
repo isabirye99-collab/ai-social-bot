@@ -1072,14 +1072,12 @@ export default function TasksPage() {
     setOutcomeNotes(
       lead?.feedback || ""
     );
+    const defaultFollowUp = new Date();
+    defaultFollowUp.setDate(defaultFollowUp.getDate() + 7);
     setOutcomeDate(
       task.due_at
-        ? toDateTimeLocal(
-            task.due_at
-          )
-        : toDateTimeLocal(
-            new Date().toISOString()
-          )
+        ? toDateTimeLocal(task.due_at)
+        : toDateTimeLocal(defaultFollowUp.toISOString())
     );
 
     setError("");
@@ -1426,9 +1424,20 @@ export default function TasksPage() {
     if (!outcomeTask) return;
 
     if (!selectedOutcome) {
-      setError(
-        "Please select an outcome."
-      );
+      setError("Please select an outcome.");
+      return;
+    }
+
+    if (!outcomeNotes.trim()) {
+      setError("Please enter a reason or comment before saving this outcome.");
+      return;
+    }
+
+    if (
+      ["Interested", "Follow up later", "No Answer", "Unreachable"].includes(selectedOutcome) &&
+      !outcomeDate
+    ) {
+      setError("Please set the next follow-up date.");
       return;
     }
 
@@ -1495,17 +1504,12 @@ export default function TasksPage() {
       }
 
       if (
-        selectedOutcome ===
-          "Follow up later" ||
-        selectedOutcome ===
-          "No Answer" ||
-        selectedOutcome ===
-          "Unreachable"
+        selectedOutcome === "Interested" ||
+        selectedOutcome === "Follow up later" ||
+        selectedOutcome === "No Answer" ||
+        selectedOutcome === "Unreachable"
       ) {
-        await createFollowUpTask(
-          outcomeTask,
-          outcomeDate
-        );
+        await createFollowUpTask(outcomeTask, outcomeDate);
       }
 
       setOutcomeTask(null);
@@ -3682,15 +3686,15 @@ export default function TasksPage() {
                   value={
                     selectedOutcome
                   }
-                  onChange={(
-                    event
-                  ) =>
-                    setSelectedOutcome(
-                      event
-                        .target
-                        .value
-                    )
-                  }
+                  onChange={(event) => {
+                    const nextOutcome = event.target.value;
+                    setSelectedOutcome(nextOutcome);
+                    if (nextOutcome === "Interested") {
+                      const due = new Date();
+                      due.setDate(due.getDate() + 7);
+                      setOutcomeDate(toDateTimeLocal(due.toISOString()));
+                    }
+                  }}
                   style={{
                     width:
                       "100%",
@@ -3784,13 +3788,29 @@ export default function TasksPage() {
                 />
               </div>
 
+              <div style={{ marginTop: "15px" }}>
+                <label style={{ display: "block", marginBottom: "7px", fontSize: "12px", fontWeight: 700, color: "#374151" }}>
+                  Reason / Comment *
+                </label>
+                <textarea
+                  value={outcomeNotes}
+                  onChange={(event) => setOutcomeNotes(event.target.value)}
+                  required
+                  rows={4}
+                  placeholder="Record what happened, the applicant's response, or why this outcome was selected..."
+                  style={{ width: "100%", boxSizing: "border-box", border: "1px solid #d1d5db", borderRadius: "9px", padding: "10px 12px", fontSize: "13px", resize: "vertical" }}
+                />
+                <div style={{ marginTop: "5px", fontSize: "11px", color: "#64748b" }}>
+                  A reason or comment is required for every outcome and will be added to the applicant's activity notes.
+                </div>
+              </div>
+
               {[
+                "Interested",
                 "Follow up later",
                 "No Answer",
                 "Unreachable",
-              ].includes(
-                selectedOutcome
-              ) && (
+              ].includes(selectedOutcome) && (
                 <div
                   style={{
                     marginTop:
@@ -3811,7 +3831,7 @@ export default function TasksPage() {
                         "#374151",
                     }}
                   >
-                    Next Follow-up
+                    {selectedOutcome === "Interested" ? "Default 7-Day Follow-up" : "Next Follow-up"}
                   </label>
 
                   <input
@@ -3854,9 +3874,9 @@ export default function TasksPage() {
                         "#64748b",
                     }}
                   >
-                    A new follow-up
-                    task will be
-                    created automatically.
+                    {selectedOutcome === "Interested"
+                      ? "A follow-up task will be created automatically, due 7 days from the date this Interested outcome is saved. You may adjust the date if needed."
+                      : "A new follow-up task will be created automatically."}
                   </div>
                 </div>
               )}
