@@ -11,7 +11,7 @@
   --card: #ffffff;
   --border: #d8e5df;
   --danger: #c94b4b;
-  --shadow: 0 8px 30px rgba(23,33,27,.07);
+  --shadow: 0 8px 30px rgba(16,96,83,.08);
 }
 
 * { box-sizing: border-box; }
@@ -45,7 +45,7 @@ a {
 .crm-sidebar {
   width: 250px;
   min-height: 100vh;
-  background: linear-gradient(180deg, #073d29 0%, #0b5d3b 100%);
+  background: linear-gradient(180deg, #0a443b 0%, #106053 100%);
   color: white;
   position: fixed;
   left: 0;
@@ -254,7 +254,7 @@ a {
 
 .crm-btn.accent {
   background: var(--accent);
-  color: #352707;
+  color: #ffffff;
 }
 
 .crm-kpis {
@@ -358,7 +358,7 @@ a {
 
 .crm-bar {
   flex: 1;
-  background: linear-gradient(180deg, #0b5d3b, #66a88b);
+  background: linear-gradient(180deg, #106053, #8dc642);
   border-radius: 6px 6px 2px 2px;
   min-width: 10px;
 }
