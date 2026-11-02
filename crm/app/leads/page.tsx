@@ -316,6 +316,9 @@ export default function LeadsPage() {
 
       const matchesStatus =
         statusFilter === "All" ||
+        (statusFilter === "__active__" && !statusIsClosed(lead.status)) ||
+        (statusFilter === "__interested__" && statusIsQualified(lead.status)) ||
+        (statusFilter === "__closed__" && statusIsClosed(lead.status)) ||
         displayStatus === statusFilter;
 
       const matchesProgram =
@@ -1013,35 +1016,58 @@ export default function LeadsPage() {
         >
           <KpiCard
             label={
-              currentRole ===
-              "salesperson"
+              currentRole === "salesperson"
                 ? "My Leads"
                 : "Total Leads"
             }
             value={leads.length}
-            description="Current CRM records"
+            description="View all lead records"
             type="total"
+            selected={statusFilter === "All"}
+            onClick={() => {
+              setStatusFilter("All");
+              setProgramFilter("All");
+              setSearch("");
+            }}
           />
 
           <KpiCard
             label="Active Prospects"
             value={activeLeads}
-            description="Current CRM records"
+            description="View active prospects"
             type="active"
+            selected={statusFilter === "__active__"}
+            onClick={() => {
+              setStatusFilter(statusFilter === "__active__" ? "All" : "__active__");
+              setProgramFilter("All");
+              setSearch("");
+            }}
           />
 
           <KpiCard
             label="Interested"
             value={interestedLeads}
-            description="Current CRM records"
+            description="View interested leads"
             type="interested"
+            selected={statusFilter === "__interested__"}
+            onClick={() => {
+              setStatusFilter(statusFilter === "__interested__" ? "All" : "__interested__");
+              setProgramFilter("All");
+              setSearch("");
+            }}
           />
 
           <KpiCard
             label="Closed / Unqualified"
             value={closedLeads}
-            description="Current CRM records"
+            description="View closed and unqualified leads"
             type="closed"
+            selected={statusFilter === "__closed__"}
+            onClick={() => {
+              setStatusFilter(statusFilter === "__closed__" ? "All" : "__closed__");
+              setProgramFilter("All");
+              setSearch("");
+            }}
           />
         </div>
 
@@ -1859,6 +1885,8 @@ function KpiCard({
   value,
   description,
   type,
+  selected = false,
+  onClick,
 }: {
   label: string;
   value: number;
@@ -1868,6 +1896,8 @@ function KpiCard({
     | "active"
     | "interested"
     | "closed";
+  selected?: boolean;
+  onClick: () => void;
 }) {
   const styles = {
     total: { accent: "#106053", icon: "users" },
@@ -1886,7 +1916,11 @@ function KpiCard({
   };
 
   return (
-    <div
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={selected}
+      aria-label={`${label}: ${value}. ${description}`}
       style={{
         position: "relative",
         display: "flex",
@@ -1894,12 +1928,15 @@ function KpiCard({
         justifyContent: "space-between",
         minWidth: 0,
         minHeight: 126,
+        width: "100%",
         padding: "16px 17px",
-        border: "1px solid #e2eae4",
+        border: selected ? "2px solid #106053" : "1px solid #e2eae4",
         borderRadius: 16,
-        background: "#ffffff",
-        boxShadow: "0 5px 20px rgba(20,50,40,.04)",
+        background: selected ? "#f2f8f5" : "#ffffff",
+        boxShadow: selected ? "0 7px 22px rgba(16,96,83,.12)" : "0 5px 20px rgba(20,50,40,.04)",
         transition: "transform .18s ease, box-shadow .18s ease",
+        textAlign: "left",
+        cursor: "pointer",
       }}
     >
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
@@ -1923,7 +1960,7 @@ function KpiCard({
       <div style={{ height: 3, borderRadius: 99, background: "#edf2ee", marginTop: 13, overflow: "hidden" }}>
         <div style={{ width: type === "total" ? "100%" : type === "active" ? "72%" : type === "interested" ? "56%" : "34%", height: "100%", background: selected.accent, borderRadius: 99 }} />
       </div>
-    </div>
+    </button>
   );
 }
 
