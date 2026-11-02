@@ -28,6 +28,11 @@ export default function AlumniEventsPage() {
   const [showForm, setShowForm] = useState(false);
   const [selected, setSelected] = useState<AlumniEvent | null>(null);
   const [registrations, setRegistrations] = useState<Registration[]>([]);
+  const [showAddAttendee, setShowAddAttendee] = useState(false);
+  const [alumniSearch, setAlumniSearch] = useState("");
+  const [alumniMatches, setAlumniMatches] = useState<{id:string;full_name:string;alumni_id:string;work_email:string|null;phone:string|null}[]>([]);
+  const [selectedAlumniId, setSelectedAlumniId] = useState("");
+  const [attendeeStatus, setAttendeeStatus] = useState("registered");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [form, setForm] = useState({ title: "", description: "", event_type: "Networking", venue: "", starts_at: "", ends_at: "", registration_deadline: "", capacity: "" });
@@ -74,6 +79,29 @@ export default function AlumniEventsPage() {
       .eq("event_id", event.id).order("registered_at", { ascending: true });
     if (queryError) setError(queryError.message);
     else setRegistrations((data || []) as unknown as Registration[]);
+  }
+
+  async function searchAlumni(event: FormEvent) {
+    event.preventDefault(); setError(""); setAlumniMatches([]);
+    const term = alumniSearch.trim();
+    if (term.length < 2) { setError("Enter at least two characters to search alumni."); return; }
+    const { data, error: searchError } = await supabase.from("alumni")
+      .select("id,full_name,alumni_id,work_email,phone")
+      .or("full_name.ilike.%"+term+"%,alumni_id.ilike.%"+term+"%,work_email.ilike.%"+term+"%")
+      .neq("duplicate_review_status","merged").order("full_name").limit(20);
+    if (searchError) setError(searchError.message);
+    else setAlumniMatches((data || []) as typeof alumniMatches);
+  }
+
+  async function addAttendee() {
+    if (!selected || !selectedAlumniId) { setError("Select an alumnus first."); return; }
+    setSaving(true); setError(""); setNotice("");
+    const { error: insertError } = await supabase.from("alumni_event_registrations").insert({
+      event_id: selected.id, alumni_id: selectedAlumniId, registration_status: attendeeStatus
+    });
+    if (insertError) setError(insertError.message);
+    else { setNotice("Alumnus added to the event register."); setShowAddAttendee(false); setSelectedAlumniId(""); setAlumniSearch(""); setAlumniMatches([]); await openRegistrations(selected); }
+    setSaving(false);
   }
 
   async function updateRegistration(id: string, registration_status: string) {
@@ -124,7 +152,12 @@ export default function AlumniEventsPage() {
       </table></div>
     </section>
     {selected && <section style={{ ...card, marginTop: 16 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}><div><h2 style={{ margin: 0, fontSize: 17, fontWeight: 850 }}>Registrations: {selected.title}</h2><p style={{ margin: "4px 0 0", color: "#819087", fontSize: 12 }}>Mark registered alumni as attended when they arrive.</p></div><button style={secondary} onClick={() => setSelected(null)}>Close</button></div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}><div><h2 style={{ margin: 0, fontSize: 17, fontWeight: 850 }}>Registrations: {selected.title}</h2><p style={{ margin: "4px 0 0", color: "#819087", fontSize: 12 }}>Staff can add alumni and record attendance. Alumni do not need portal accounts.</p></div><div style={{display:"flex",gap:8}}><button style={primary} onClick={()=>{setShowAddAttendee(v=>!v);setAlumniMatches([]);setSelectedAlumniId("");}}>+ Add attendee</button><button style={secondary} onClick={() => setSelected(null)}>Close</button></div></div>
+      {showAddAttendee && <div style={{background:"#f7faf8",border:"1px solid #e7eee9",borderRadius:10,padding:14,marginTop:12}}>
+        <form onSubmit={searchAlumni} style={{display:"flex",gap:8,flexWrap:"wrap"}}><input value={alumniSearch} onChange={e=>setAlumniSearch(e.target.value)} placeholder="Search by name, Alumni ID or email…" style={{flex:"1 1 240px",minWidth:180,border:"1px solid #dce5df",borderRadius:8,padding:"9px 11px"}}/><button style={secondary}>Search alumni</button></form>
+        {alumniMatches.length>0&&<div style={{display:"grid",gap:6,marginTop:10}}>{alumniMatches.map(person=><button key={person.id} type="button" onClick={()=>setSelectedAlumniId(person.id)} style={{textAlign:"left",padding:10,borderRadius:8,border:selectedAlumniId===person.id?"2px solid #106053":"1px solid #dce5df",background:selectedAlumniId===person.id?"#edf6ef":"#fff",color:"#173d34"}}><strong style={{fontSize:12}}>{person.full_name}</strong><span style={{display:"block",fontSize:10,color:"#718078"}}>{person.alumni_id} · {person.work_email||person.phone||"No contact recorded"}</span></button>)}</div>}
+        <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",marginTop:10}}><label style={{fontSize:11,fontWeight:700}}>Registration status<select value={attendeeStatus} onChange={e=>setAttendeeStatus(e.target.value)} style={{marginLeft:7,border:"1px solid #dce5df",borderRadius:7,padding:8,background:"#fff"}}><option value="registered">Registered</option><option value="waitlisted">Waitlisted</option></select></label><button disabled={saving||!selectedAlumniId} onClick={()=>void addAttendee()} style={primary}>{saving?"Adding…":"Add to event"}</button><button type="button" style={secondary} onClick={()=>setShowAddAttendee(false)}>Cancel</button></div>
+      </div>}
       <div style={{ overflowX: "auto", marginTop: 12 }}><table style={{ width: "100%", minWidth: 650, borderCollapse: "collapse", fontSize: 12 }}><thead><tr style={{ background: "#f4f8f5", textAlign: "left" }}>{["Alumnus","Contact","Registration","Attendance"].map(x => <th key={x} style={{ padding: 10 }}>{x}</th>)}</tr></thead>
         <tbody>{registrations.length === 0 ? <tr><td colSpan={4} style={{ padding: 20, textAlign: "center", color: "#819087" }}>No registrations yet.</td></tr> : registrations.map(r => <tr key={r.id} style={{ borderTop: "1px solid #edf1ee" }}><td style={{ padding: 10, fontWeight: 750 }}>{r.alumni?.full_name || "Alumni"}<div style={{ color: "#87958d" }}>{r.alumni?.alumni_id || ""}</div></td><td style={{ padding: 10 }}>{r.alumni?.work_email || r.alumni?.phone || "—"}</td><td style={{ padding: 10, textTransform: "capitalize" }}>{r.registration_status}</td><td style={{ padding: 10 }}>{r.registration_status === "waitlisted" ? "Waitlisted" : <button style={r.registration_status === "attended" ? secondary : primary} onClick={() => void updateRegistration(r.id, r.registration_status === "attended" ? "registered" : "attended")}>{r.registration_status === "attended" ? "Undo check-in" : "Mark attended"}</button>}</td></tr>)}</tbody>
       </table></div>
