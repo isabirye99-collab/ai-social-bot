@@ -2387,9 +2387,24 @@ export default function TasksPage() {
                           key={
                             task.id
                           }
+                          onClick={(event) => {
+                            const target = event.target as HTMLElement;
+                            // Keep buttons and other controls independent from the row click.
+                            if (target.closest("button, a, input, select, textarea, label")) return;
+                            setSelectedTask(task);
+                          }}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              setSelectedTask(task);
+                            }
+                          }}
+                          tabIndex={0}
+                          role="button"
+                          aria-label={`Open task details for ${task.title}`}
                           style={{
-                            borderBottom:
-                              "1px solid #f1f5f9",
+                            borderBottom: "1px solid #f1f5f9",
+                            cursor: "pointer",
                           }}
                         >
                           {/* TASK */}
