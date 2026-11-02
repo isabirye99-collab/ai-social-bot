@@ -1347,6 +1347,7 @@ export default function TasksPage() {
         .in("status", [
           "pending",
           "in_progress",
+          "Follow up later",
         ])
         .limit(1);
 
