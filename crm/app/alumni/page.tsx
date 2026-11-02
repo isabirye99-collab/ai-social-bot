@@ -220,7 +220,7 @@ export default function AlumniPage() {
       <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse", minWidth: 780, fontSize: 12 }}>
         <thead><tr style={{ background: "#f4f8f5", textAlign: "left", color: "#61736a" }}>{["Alumni","Programme","Graduation","Contact","Employment","Profile status","Action"].map((h) => <th key={h} style={{ padding: 12, fontWeight: 800 }}>{h}</th>)}</tr></thead>
         <tbody>{loading ? <tr><td colSpan={7} style={{ padding: 24, textAlign: "center", color: "#819087" }}>Loading alumni records…</td></tr> : rows.length === 0 ? <tr><td colSpan={7} style={{ padding: 24, textAlign: "center", color: "#819087" }}>No matching alumni records found.</td></tr> : rows.map((a) => <tr key={a.id} style={{ borderTop: "1px solid #edf1ee" }}>
-          <td style={{ padding: 12 }}><div style={{ fontWeight: 800, color: "#203d33" }}>{a.full_name}</div><div style={{ color: "#87958d", marginTop: 3 }}>{a.alumni_id}</div></td>
+          <td style={{ padding: 12 }}><Link href={`/alumni/${a.id}`} style={{ fontWeight: 800, color: "#106053", textDecoration: "none" }}>{a.full_name}</Link><div style={{ color: "#87958d", marginTop: 3 }}>{a.alumni_id}</div></td>
           <td style={{ padding: 12 }}>{a.program || "—"}</td><td style={{ padding: 12 }}>{a.graduation_year || "—"}</td>
           <td style={{ padding: 12 }}><div>{a.phone || "No phone"}</div><div style={{ color: "#87958d", marginTop: 3 }}>{a.work_email || "No email"}</div></td>
           <td style={{ padding: 12 }}>{a.employment_status || "Not updated"}</td>
