@@ -2289,8 +2289,6 @@ export default function TasksPage() {
                               "11px",
                             fontWeight:
                               750,
-                            color:
-                              "#64748b",
                             letterSpacing:
                               "0.04em",
                             borderBottom: "1px solid #d8e5df",
