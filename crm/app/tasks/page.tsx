@@ -1457,13 +1457,25 @@ export default function TasksPage() {
 
       await loadAll();
     } catch (err) {
-      console.error(err);
+      console.error("Save outcome failed:", err);
 
-      setError(
+      const failure = err as {
+        message?: string;
+        details?: string;
+        hint?: string;
+        code?: string;
+      };
+      const message =
         err instanceof Error
           ? err.message
-          : "Failed to save outcome."
-      );
+          : failure?.message || "An unknown database error occurred.";
+      const details = [
+        failure?.code ? `Code: ${failure.code}` : "",
+        failure?.details || "",
+        failure?.hint ? `Hint: ${failure.hint}` : "",
+      ].filter(Boolean).join(" ");
+
+      setError(`Failed to save outcome: ${message}${details ? ` — ${details}` : ""}`);
     } finally {
       setSaving(false);
     }
