@@ -2783,6 +2783,23 @@ export default function TasksPage() {
   >
     Record Outcome
   </button>
+  <button
+    type="button"
+    onClick={() => openEditTask(task)}
+    style={{
+      border: "1px solid #d8e5df",
+      background: "#ffffff",
+      color: "#106053",
+      borderRadius: "8px",
+      padding: "8px 13px",
+      cursor: "pointer",
+      fontSize: "12px",
+      fontWeight: 750,
+      marginLeft: "6px",
+    }}
+  >
+    Edit
+  </button>
 </td>
                         </tr>
                       );
@@ -4587,6 +4604,26 @@ export default function TasksPage() {
                         }}
                       >
                         Record Outcome
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedTask(null);
+                          openEditTask(selectedTask);
+                        }}
+                        style={{
+                          border: "1px solid #d1d5db",
+                          background: "#ffffff",
+                          color: "#106053",
+                          borderRadius: "8px",
+                          padding: "9px 12px",
+                          cursor: "pointer",
+                          fontSize: "12px",
+                          fontWeight: 600,
+                        }}
+                      >
+                        Edit Task
                       </button>
 
                       {selectedTask.status !==
