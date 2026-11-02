@@ -435,11 +435,10 @@ export default function LeadsPage() {
           );
         }
 
-        const ids =
-          salespeople.map(
-            (person) =>
-              person.id
-          );
+        const salespersonList = salespeople as { id: string; full_name: string }[];
+        const ids: string[] = salespersonList.map(
+          (person: { id: string; full_name: string }) => person.id
+        );
 
         const {
           data: assignedLeads,
@@ -470,8 +469,8 @@ export default function LeadsPage() {
         );
 
         (
-          assignedLeads || []
-        ).forEach((lead) => {
+          (assignedLeads || []) as { assigned_to: string | null }[]
+        ).forEach((lead: { assigned_to: string | null }) => {
           if (
             lead.assigned_to
           ) {
@@ -485,10 +484,10 @@ export default function LeadsPage() {
         });
 
         const selected =
-          salespeople.reduce(
+          salespersonList.reduce(
             (
-              current,
-              person
+              current: { id: string; full_name: string },
+              person: { id: string; full_name: string }
             ) => {
               const currentCount =
                 counts.get(
