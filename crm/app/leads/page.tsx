@@ -908,7 +908,7 @@ export default function LeadsPage() {
               style={{
                 fontSize: 12,
                 fontWeight: 800,
-                color: "#8bc63f",
+                color: "#8dc642",
                 textTransform: "uppercase",
                 letterSpacing: "0.08em",
                 marginBottom: 6,
@@ -1070,7 +1070,7 @@ export default function LeadsPage() {
               style={{
                 fontSize: 12,
                 fontWeight: 700,
-                color: "#00695c",
+                color: "#106053",
               }}
             >
               Follow-ups are managed in Tasks
@@ -1990,97 +1990,58 @@ function KpiCard({
     | "closed";
 }) {
   const styles = {
-    total: {
-      border: "#dbe8e4",
-      background: "#ffffff",
-      accent: "#00695c",
-    },
-
-    active: {
-      border: "#dcebd4",
-      background: "#fbfdf9",
-      accent: "#5d8f1f",
-    },
-
-    interested: {
-      border: "#cfe7df",
-      background: "#f8fcfa",
-      accent: "#00866f",
-    },
-
-    closed: {
-      border: "#eadbdd",
-      background: "#fffafa",
-      accent: "#b45363",
-    },
+    total: { accent: "#106053", icon: "users" },
+    active: { accent: "#8dc642", icon: "target" },
+    interested: { accent: "#106053", icon: "check" },
+    closed: { accent: "#b45363", icon: "archive" },
   };
 
-  const selected =
-    styles[type];
+  const selected = styles[type];
+
+  const iconPaths: Record<string, React.ReactNode> = {
+    users: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" /></>,
+    target: <><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1.5" /></>,
+    check: <path d="m5 12 4 4L19 6" />,
+    archive: <><rect x="3" y="4" width="18" height="5" rx="1" /><path d="M5 9v11h14V9M10 13h4" /></>,
+  };
 
   return (
     <div
       style={{
         position: "relative",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
         minWidth: 0,
-        minHeight: 132,
-        padding: "20px 20px 18px",
-        border:
-          `1px solid ${selected.border}`,
-        borderRadius: 14,
-        background:
-          selected.background,
-        boxShadow:
-          "0 5px 18px rgba(23, 50, 44, 0.06)",
-        overflow: "hidden",
+        minHeight: 126,
+        padding: "16px 17px",
+        border: "1px solid #e2eae4",
+        borderRadius: 16,
+        background: "#ffffff",
+        boxShadow: "0 5px 20px rgba(20,50,40,.04)",
+        transition: "transform .18s ease, box-shadow .18s ease",
       }}
     >
-      <div
-        style={{
-          position: "absolute",
-          left: 0,
-          top: 0,
-          bottom: 0,
-          width: 4,
-          background:
-            selected.accent,
-        }}
-      />
-
-      <div
-        style={{
-          fontSize: 12,
-          fontWeight: 800,
-          color: "#6b7f78",
-          textTransform:
-            "uppercase",
-          letterSpacing:
-            "0.04em",
-        }}
-      >
-        {label}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+        <span style={{ fontSize: 10, fontWeight: 800, color: "#819087", textTransform: "uppercase", letterSpacing: ".11em" }}>
+          {label}
+        </span>
+        <span style={{ width: 34, height: 34, flex: "0 0 34px", display: "grid", placeItems: "center", borderRadius: 10, background: selected.accent === "#8dc642" ? "rgba(141,198,66,.16)" : "rgba(16,96,83,.09)", color: selected.accent }}>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            {iconPaths[selected.icon]}
+          </svg>
+        </span>
       </div>
-
-      <div
-        style={{
-          marginTop: 9,
-          fontSize: 34,
-          lineHeight: 1,
-          fontWeight: 900,
-          color: "#17322c",
-        }}
-      >
-        {value}
+      <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 8, marginTop: 13 }}>
+        <span style={{ fontSize: 28, lineHeight: 1, fontWeight: 900, letterSpacing: "-.04em", color: "#17211b" }}>
+          {value}
+        </span>
+        <span style={{ fontSize: 10, fontWeight: 600, color: "#7b8982", textAlign: "right" }}>
+          {description}
+        </span>
       </div>
-
-      <div
-        style={{
-          marginTop: 9,
-          fontSize: 12,
-          color: "#6b7f78",
-        }}
-      >
-        {description}
+      <div style={{ height: 3, borderRadius: 99, background: "#edf2ee", marginTop: 13, overflow: "hidden" }}>
+        <div style={{ width: type === "total" ? "100%" : type === "active" ? "72%" : type === "interested" ? "56%" : "34%", height: "100%", background: selected.accent, borderRadius: 99 }} />
       </div>
     </div>
   );
@@ -2120,7 +2081,7 @@ function StatusBadge({
           ? "#fff1f2"
           : "#f1f5f3",
         color: positive
-          ? "#00695c"
+          ? "#106053"
           : closed
           ? "#be123c"
           : "#53665f",
