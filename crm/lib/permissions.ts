@@ -77,9 +77,9 @@ export const ROLE_MODULES: Record<CrmRole, CrmModule[]> = {
     "reports",
     "advanced",
   ],
-  marketing: ["dashboard", "leads", "marketing", "reports", "advanced"],
-  finance: ["dashboard", "customers", "pipeline", "reports", "advanced"],
-  viewer: ["dashboard", "leads", "customers", "pipeline", "reports"],
+  marketing: ["dashboard", "leads", "marketing", "advanced"],
+  finance: ["dashboard", "customers", "pipeline", "advanced"],
+  viewer: ["dashboard", "leads", "customers", "pipeline"],
 };
 
 export function isValidCrmRole(
