@@ -869,20 +869,20 @@ export default function Settings() {
     }
   }
 
-  async function deleteStaff(profile: Profile) {
-    if (!isSuperAdmin || deletingStaffId) return;
+  async function deleteStaff(profile: Profile): Promise<boolean> {
+    if (!isSuperAdmin || deletingStaffId) return false;
     if (profile.id === currentUserId) {
       setError("You cannot delete your own Super Admin account.");
-      return;
+      return false;
     }
     if (profile.role === "super_admin") {
       setError("For safety, Super Admin accounts cannot be deleted from this screen.");
-      return;
+      return false;
     }
     const confirmed = window.confirm(
       `Permanently delete ${profile.full_name || "this staff account"}? They will lose CRM access. Existing leads, customers and other CRM records will not be intentionally deleted. This cannot be undone.`
     );
-    if (!confirmed) return;
+    if (!confirmed) return false;
     try {
       setDeletingStaffId(profile.id);
       setError("");
@@ -897,8 +897,10 @@ export default function Settings() {
       if (!response.ok) throw new Error(result.error || "Unable to delete this staff account.");
       await loadProfiles();
       setSuccessMessage(result.message || "Staff account deleted.");
+      return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to delete this staff account.");
+      return false;
     } finally {
       setDeletingStaffId(null);
     }
@@ -1150,7 +1152,9 @@ export default function Settings() {
           <div
             className="ciu-hero"
             style={{
-              marginBottom: 18,
+              marginBottom: 10,
+              padding: "12px 18px",
+              minHeight: 0,
             }}
           >
             <div>
@@ -1168,13 +1172,10 @@ export default function Settings() {
                 Super Admin
               </div>
 
-              <h1>Settings</h1>
+              <h1 style={{ margin: "2px 0 3px", fontSize: 22, lineHeight: 1.2 }}>Settings</h1>
 
-              <p>
-                Manage CRM configuration,
-                branding, users, staff,
-                roles and system
-                preferences.
+              <p style={{ margin: 0, fontSize: 11, lineHeight: 1.35 }}>
+                Manage CRM configuration, branding, users, staff, roles and preferences.
               </p>
             </div>
 
@@ -1232,8 +1233,8 @@ export default function Settings() {
               display: "grid",
               gridTemplateColumns:
                 "repeat(5,minmax(145px,1fr))",
-              gap: 10,
-              marginBottom: 20,
+              gap: 8,
+              marginBottom: 12,
               overflowX: "auto",
             }}
           >
@@ -1263,22 +1264,22 @@ export default function Settings() {
                         : "#ffffff",
                       borderRadius: 12,
                       padding:
-                        "13px 14px",
+                        "8px 10px",
                       cursor:
                         "pointer",
-                      minWidth: 145,
+                      minWidth: 120,
                     }}
                   >
                     <div
                       style={{
-                        width: 28,
-                        height: 28,
+                        width: 22,
+                        height: 22,
                         borderRadius: 8,
                         display:
                           "grid",
                         placeItems:
                           "center",
-                        marginBottom: 7,
+                        marginBottom: 4,
                         background:
                           active
                             ? "#00695c"
@@ -1953,42 +1954,9 @@ export default function Settings() {
                                 </td>
 
                                 <td>
-                                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 6, minWidth: 76 }}>
-                                    <button
-                                      type="button"
-                                      style={{
-                                        border: "1px solid #cfe5de",
-                                        background: "#ffffff",
-                                        borderRadius: 7,
-                                        padding: "6px 12px",
-                                        cursor: "pointer",
-                                        fontWeight: 700,
-                                        color: "#00695c",
-                                        width: 76,
-                                      }}
-                                      onClick={() => openEditProfile(profile)}
-                                    >
-                                      Edit
-                                    </button>
-                                    <button
-                                      type="button"
-                                      disabled={profile.id === currentUserId || profile.role === "super_admin" || deletingStaffId === profile.id}
-                                      onClick={() => void deleteStaff(profile)}
-                                      style={{
-                                        border: "1px solid #fecaca",
-                                        background: "#fff",
-                                        borderRadius: 7,
-                                        padding: "6px 12px",
-                                        cursor: profile.id === currentUserId || profile.role === "super_admin" || deletingStaffId === profile.id ? "not-allowed" : "pointer",
-                                        fontWeight: 700,
-                                        color: "#b91c1c",
-                                        opacity: profile.id === currentUserId || profile.role === "super_admin" ? 0.45 : 1,
-                                        width: 76,
-                                      }}
-                                    >
-                                      {deletingStaffId === profile.id ? "Deleting..." : "Delete"}
-                                    </button>
-                                  </div>
+                                  <button type="button" style={{ border: "1px solid #cfe5de", background: "#fff", borderRadius: 7, padding: "6px 12px", cursor: "pointer", fontWeight: 700, color: "#00695c" }} onClick={() => openEditProfile(profile)}>
+                                    Edit
+                                  </button>
                                 </td>
                               </tr>
                             ),
@@ -2662,17 +2630,22 @@ export default function Settings() {
                 </label>
               </div>
 
-              <div
-                style={{
-                  display:
-                    "flex",
-                  justifyContent:
-                    "flex-end",
-                  gap: 10,
-                  paddingTop: 4,
-                }}
-              >
-                <button
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, paddingTop: 4, flexWrap: "wrap" }}>
+                <button type="button" onClick={async () => {
+                  const deleted = await deleteStaff({
+                    id: editProfile.id,
+                    full_name: editProfile.full_name,
+                    phone: editProfile.phone || null,
+                    role: editProfile.role,
+                    is_active: editProfile.is_active,
+                    module_permissions: editProfile.module_permissions,
+                  });
+                  if (deleted) setEditProfile(null);
+                }} disabled={editProfile.id === currentUserId || editProfile.role === "super_admin" || deletingStaffId === editProfile.id || editSaving}
+                  style={{ border: "1px solid #fecaca", background: "#fff", color: "#b91c1c", borderRadius: 8, padding: "10px 14px", fontWeight: 700, cursor: editProfile.id === currentUserId || editProfile.role === "super_admin" || deletingStaffId === editProfile.id || editSaving ? "not-allowed" : "pointer", opacity: editProfile.id === currentUserId || editProfile.role === "super_admin" ? 0.45 : 1 }}>
+                  {deletingStaffId === editProfile.id ? "Deleting..." : "Delete User"}
+                </button>
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
                   type="button"
                   onClick={
                     closeEditProfile
@@ -2731,6 +2704,7 @@ export default function Settings() {
                     ? "Saving..."
                     : "Save User"}
                 </button>
+                </div>
               </div>
             </div>
           </div>
