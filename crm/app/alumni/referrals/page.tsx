@@ -4,6 +4,7 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
+type AlumniOption = { id: string; full_name: string; alumni_id: string };
 type Referral = {
   id: string;
   alumni_id: string;
@@ -27,6 +28,7 @@ const secondary: React.CSSProperties = { border: "1px solid #d9e4dd", borderRadi
 export default function AlumniReferralsPage() {
   const supabase = createClient();
   const [items, setItems] = useState<Referral[]>([]);
+  const [alumni, setAlumni] = useState<AlumniOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -36,11 +38,18 @@ export default function AlumniReferralsPage() {
 
   const load = useCallback(async () => {
     setLoading(true); setError("");
-    const { data, error: queryError } = await supabase.from("alumni_referrals")
-      .select("id,alumni_id,referred_student_name,referred_student_phone,referred_student_email,program,intake,enrollment_status,incentive_status,notes,created_at,alumni(full_name,alumni_id)")
-      .order("created_at", { ascending: false }).limit(500);
-    if (queryError) setError(queryError.message);
-    else setItems((data || []) as unknown as Referral[]);
+    const [referralsResult, alumniResult] = await Promise.all([
+      supabase.from("alumni_referrals")
+        .select("id,alumni_id,referred_student_name,referred_student_phone,referred_student_email,program,intake,enrollment_status,incentive_status,notes,created_at,alumni(full_name,alumni_id)")
+        .order("created_at", { ascending: false }).limit(500),
+      supabase.from("alumni").select("id,full_name,alumni_id").order("full_name").limit(2000)
+    ]);
+    const failure = referralsResult.error || alumniResult.error;
+    if (failure) setError(failure.message);
+    else {
+      setItems((referralsResult.data || []) as unknown as Referral[]);
+      setAlumni((alumniResult.data || []) as AlumniOption[]);
+    }
     setLoading(false);
   }, [supabase]);
 
@@ -89,7 +98,7 @@ export default function AlumniReferralsPage() {
     {showForm && <form onSubmit={save} style={{ ...card, marginBottom: 14 }}>
       <h2 style={{ margin: "0 0 14px", fontSize: 17, fontWeight: 850 }}>Record an alumni referral</h2>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(210px,1fr))", gap: 12 }}>
-        <label style={{ fontSize: 12, fontWeight: 700 }}>Referring Alumni Record ID *<input required value={form.alumni_id} onChange={e => setForm({ ...form, alumni_id: e.target.value })} placeholder="Paste alumni record UUID" style={field} /></label>
+        <label style={{ fontSize: 12, fontWeight: 700 }}>Referred by alumnus/alumna *<select required value={form.alumni_id} onChange={e => setForm({ ...form, alumni_id: e.target.value })} style={field}><option value="">Select alumni</option>{alumni.map(person => <option key={person.id} value={person.id}>{person.full_name} · {person.alumni_id}</option>)}</select></label>
         <label style={{ fontSize: 12, fontWeight: 700 }}>Prospective student name *<input required value={form.referred_student_name} onChange={e => setForm({ ...form, referred_student_name: e.target.value })} style={field} /></label>
         <label style={{ fontSize: 12, fontWeight: 700 }}>Phone<input value={form.referred_student_phone} onChange={e => setForm({ ...form, referred_student_phone: e.target.value })} style={field} /></label>
         <label style={{ fontSize: 12, fontWeight: 700 }}>Email<input type="email" value={form.referred_student_email} onChange={e => setForm({ ...form, referred_student_email: e.target.value })} style={field} /></label>
@@ -97,7 +106,7 @@ export default function AlumniReferralsPage() {
         <label style={{ fontSize: 12, fontWeight: 700 }}>Intake<input value={form.intake} onChange={e => setForm({ ...form, intake: e.target.value })} placeholder="e.g. February 2027" style={field} /></label>
         <label style={{ gridColumn: "1 / -1", fontSize: 12, fontWeight: 700 }}>Notes<textarea rows={2} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} style={{ ...field, height: "auto", padding: 10 }} /></label>
       </div>
-      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 14 }}><button disabled={saving} style={primary}>{saving ? "Saving…" : "Save referral"}</button></div>
+      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 14 }}><button disabled={saving || alumni.length === 0} style={primary}>{saving ? "Saving…" : "Save referral"}</button></div>
     </form>}
     <section style={card}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}><div><h2 style={{ margin: 0, fontSize: 17, fontWeight: 850 }}>Referral register</h2><p style={{ margin: "4px 0 0", color: "#819087", fontSize: 12 }}>Update admission progress and incentive status as the referral moves forward.</p></div><button style={secondary} onClick={() => void load()}>Refresh</button></div>
