@@ -13,12 +13,12 @@ export default function AlumniDuplicatesPage(){
  const load=useCallback(async()=>{setLoading(true);setError("");const {data,error:qError}=await supabase.from("alumni_duplicate_candidates").select("*").order("match_type").order("match_value").order("full_name").limit(3000);if(qError)setError(qError.message);else setRows((data||[]) as Candidate[]);setLoading(false);},[supabase]);
  useEffect(()=>{void load();},[load]);
  const groups=useMemo(()=>{const map=new Map<string,Candidate[]>();for(const row of rows){const key=row.match_type+"|"+row.match_value;map.set(key,[...(map.get(key)||[]),row]);}return [...map.entries()].map(([key,items])=>({key,items})).filter(g=>g.items.some(x=>x.duplicate_review_status==="unreviewed"));},[rows]);
- async function update(item:Candidate,status:"not_duplicate"|"merged",canonicalId?:string){
-  if(status==="merged"&&(!canonicalId||canonicalId===item.id)){setError("Choose another record to keep as the primary record.");return;}
+ async function update(item:Candidate,status:"not_duplicate"|"confirmed_duplicate",canonicalId?:string){
+  if(status==="confirmed_duplicate"&&(!canonicalId||canonicalId===item.id)){setError("Choose another record to keep as the primary record.");return;}
   setBusy(item.id);setError("");setNotice("");
   const {data:{user}}=await supabase.auth.getUser();
-  const {error:uError}=await supabase.from("alumni").update({duplicate_review_status:status,duplicate_of:status==="merged"?canonicalId:null,duplicate_reviewed_at:new Date().toISOString(),duplicate_reviewed_by:user?.id||null,updated_at:new Date().toISOString()}).eq("id",item.id);
-  if(uError)setError(uError.message);else{setNotice(status==="merged"?"Record marked as a duplicate. The original record has been retained; no data was deleted.":"Record marked as a separate alumnus.");await load();}
+  const {error:uError}=await supabase.from("alumni").update({duplicate_review_status:status,duplicate_of:status==="confirmed_duplicate"?canonicalId:null,duplicate_reviewed_at:new Date().toISOString(),duplicate_reviewed_by:user?.id||null,updated_at:new Date().toISOString()}).eq("id",item.id);
+  if(uError)setError(uError.message);else{setNotice(status==="confirmed_duplicate"?"Record confirmed as a duplicate and linked to the primary record. The record is retained for audit; no data was deleted.":"Record marked as a separate alumnus.");await load();}
   setBusy("");
  }
  return <main style={{padding:"28px clamp(16px,3vw,34px) 48px",color:"#173d34"}}>
@@ -40,7 +40,7 @@ export default function AlumniDuplicatesPage(){
         <div style={{fontSize:11,color:"#61736a",overflowWrap:"anywhere"}}>{item.work_email||"No email"}<br/>{item.phone||item.whatsapp||"No phone"}<br/>Student No: {item.student_no||"—"}</div>
         <div style={{display:"flex",gap:7,flexWrap:"wrap",alignItems:"center"}}>
           <span style={{fontSize:10,fontWeight:800,color:item.duplicate_review_status==="unreviewed"?"#855b0a":"#17643f"}}>{item.duplicate_review_status.replaceAll("_"," ")}</span>
-          {item.duplicate_review_status==="unreviewed"&&<><select aria-label={"Primary record for "+item.full_name} id={"primary-"+item.id} style={{maxWidth:150,border:"1px solid #dce5df",borderRadius:7,padding:7,fontSize:10}} defaultValue=""><option value="">Keep which record?</option>{group.items.filter(x=>x.id!==item.id).map(x=><option key={x.id} value={x.id}>{x.full_name} · {x.alumni_id}</option>)}</select><button disabled={busy===item.id} style={primary} onClick={()=>{const el=document.getElementById("primary-"+item.id) as HTMLSelectElement|null;void update(item,"merged",el?.value);}}>Mark duplicate</button><button disabled={busy===item.id} style={secondary} onClick={()=>void update(item,"not_duplicate")}>Not duplicate</button></>}
+          {item.duplicate_review_status==="unreviewed"&&<><select aria-label={"Primary record for "+item.full_name} id={"primary-"+item.id} style={{maxWidth:150,border:"1px solid #dce5df",borderRadius:7,padding:7,fontSize:10}} defaultValue=""><option value="">Keep which record?</option>{group.items.filter(x=>x.id!==item.id).map(x=><option key={x.id} value={x.id}>{x.full_name} · {x.alumni_id}</option>)}</select><button disabled={busy===item.id} style={primary} onClick={()=>{const el=document.getElementById("primary-"+item.id) as HTMLSelectElement|null;void update(item,"confirmed_duplicate",el?.value);}}>Confirm duplicate</button><button disabled={busy===item.id} style={secondary} onClick={()=>void update(item,"not_duplicate")}>Not duplicate</button></>}
         </div>
       </div>)}</div>
     </article>)}
