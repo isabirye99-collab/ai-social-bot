@@ -1892,7 +1892,7 @@ function KpiCard({
     closed: { accent: "#b45363", icon: "archive" },
   };
 
-  const selected = styles[type];
+  const styleConfig = styles[type];
 
   const iconPaths: Record<string, React.ReactNode> = {
     users: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" /></>,
@@ -1929,9 +1929,9 @@ function KpiCard({
         <span style={{ fontSize: 10, fontWeight: 800, color: "#819087", textTransform: "uppercase", letterSpacing: ".11em" }}>
           {label}
         </span>
-        <span style={{ width: 34, height: 34, flex: "0 0 34px", display: "grid", placeItems: "center", borderRadius: 10, background: selected.accent === "#8dc642" ? "rgba(141,198,66,.16)" : "rgba(16,96,83,.09)", color: selected.accent }}>
+        <span style={{ width: 34, height: 34, flex: "0 0 34px", display: "grid", placeItems: "center", borderRadius: 10, background: styleConfig.accent === "#8dc642" ? "rgba(141,198,66,.16)" : "rgba(16,96,83,.09)", color: styleConfig.accent }}>
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            {iconPaths[selected.icon]}
+            {iconPaths[styleConfig.icon]}
           </svg>
         </span>
       </div>
@@ -1944,7 +1944,7 @@ function KpiCard({
         </span>
       </div>
       <div style={{ height: 3, borderRadius: 99, background: "#edf2ee", marginTop: 13, overflow: "hidden" }}>
-        <div style={{ width: type === "total" ? "100%" : type === "active" ? "72%" : type === "interested" ? "56%" : "34%", height: "100%", background: selected.accent, borderRadius: 99 }} />
+        <div style={{ width: type === "total" ? "100%" : type === "active" ? "72%" : type === "interested" ? "56%" : "34%", height: "100%", background: styleConfig.accent, borderRadius: 99 }} />
       </div>
     </button>
   );
