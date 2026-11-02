@@ -13,6 +13,9 @@ on:
       - ".github/workflows/crm-ci.yml"
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   validate:
     runs-on: ubuntu-latest
@@ -36,10 +39,23 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
 
-      - name: Report dependency vulnerabilities
+      - name: Apply compatible dependency security updates
+        run: npm audit fix
+
+      - name: Verify dependency security
+        run: npm audit --audit-level=high
+
+      - name: Commit dependency lockfile updates
         run: |
-          npm audit --json > npm-audit.json || true
-          node -e 'const report = require("./npm-audit.json"); console.log(JSON.stringify(report.vulnerabilities || {}, null, 2));'
+          if git diff --quiet -- package.json package-lock.json; then
+            echo "No dependency lockfile changes to commit."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add package.json package-lock.json
+            git commit -m "chore(crm): apply compatible npm security updates"
+            git push
+          fi
 
       - name: TypeScript validation
         run: npx tsc --noEmit
