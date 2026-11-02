@@ -15,7 +15,11 @@ type TaskStatus = string;
 type TaskType =
   | "Call"
   | "Email"
-  | "WhatsApp";
+  | "WhatsApp"
+  | "Meeting"
+  | "Note"
+  | "Proposal"
+  | "Other";
 
 type Task = {
   id: string;
@@ -235,7 +239,10 @@ function normalizeTaskType(type: string): TaskType {
   const value = String(type || "").trim().toLowerCase();
   if (value === "whatsapp") return "WhatsApp";
   if (value === "email") return "Email";
-  if (value === "call") return "Call";
+  if (value === "meeting") return "Meeting";
+  if (value === "note") return "Note";
+  if (value === "proposal") return "Proposal";
+  if (value === "other") return "Other";
   return "Call";
 }
 
