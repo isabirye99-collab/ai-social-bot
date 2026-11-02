@@ -4626,38 +4626,6 @@ export default function TasksPage() {
                         Edit Task
                       </button>
 
-                      {selectedTask.status !==
-                        "completed" && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            markComplete(
-                              selectedTask
-                            )
-                          }
-                          style={{
-                            border:
-                              "1px solid #a7f3d0",
-                            background:
-                              "#ecfdf5",
-                            color:
-                              "#047857",
-                            borderRadius:
-                              "8px",
-                            padding:
-                              "9px 12px",
-                            cursor:
-                              "pointer",
-                            fontSize:
-                              "12px",
-                            fontWeight:
-                              700,
-                          }}
-                        >
-                          Complete
-                        </button>
-                      )}
-
                       {isAdmin && (
                         <button
                           type="button"
