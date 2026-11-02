@@ -72,7 +72,7 @@ export default function AlumniPage() {
       ]);
       if (all.error) throw all.error;
       setTotal(all.count || 0); setNeedsReview(review.count || 0); setVerified(good.count || 0); setEmployed(work.count || 0);
-      let query = supabase.from("alumni").select("id,alumni_id,full_name,program,graduation_year,phone,work_email,employment_status,verification_status,missing_fields", { count: "exact" }).order("full_name").range(page * pageSize, page * pageSize + pageSize - 1);
+      let query = supabase.from("alumni").select("id,alumni_id,full_name,program,graduation_year,phone,work_email,employment_status,verification_status,missing_fields", { count: "exact" }).neq("duplicate_review_status", "merged").order("full_name").range(page * pageSize, page * pageSize + pageSize - 1);
       if (search.trim()) query = query.or("full_name.ilike.%"+search.trim()+"%,alumni_id.ilike.%"+search.trim()+"%,work_email.ilike.%"+search.trim()+"%");
       if (status !== "all") query = query.eq("verification_status", status);
       const result = await query;
