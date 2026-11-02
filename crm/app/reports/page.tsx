@@ -129,7 +129,6 @@ export default function ReportsPage() {
   });
 
   const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [viewerId, setViewerId] = useState("");
   const [viewerRole, setViewerRole] = useState("");
   const [leads, setLeads] = useState<Lead[]>([]);
   const [admissions, setAdmissions] = useState<Admission[]>([]);
@@ -197,7 +196,6 @@ export default function ReportsPage() {
       }
 
       const role = String(currentProfile.data?.role || "").trim().toLowerCase().replace(/[ -]/g, "_");
-      setViewerId(user.id);
       setViewerRole(role);
 
       const eligibleProfiles = ((p.data || []) as Profile[]).filter((profile) => {
