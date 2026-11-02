@@ -444,6 +444,12 @@ export default function ReportsPage() {
     )[0];
   }, [report.rows]);
 
+  const chartRows = useMemo(
+    () => [...report.rows].sort((a, b) => b.leads - a.leads).slice(0, 6),
+    [report.rows]
+  );
+  const chartMaxLeads = Math.max(1, ...chartRows.map((row) => row.leads));
+
   if (loading) {
     return (
       <main className="ciu-page">
@@ -843,6 +849,31 @@ export default function ReportsPage() {
                 </strong>
               </div>
             </div>
+          </div>
+        </section>
+
+        <section className="ciu-card report-chart-card">
+          <div className="ciu-card-head report-card-head">
+            <div>
+              <h2>Staff Activity Comparison</h2>
+              <span>Lead generation and successful enrolments by staff member for the selected period.</span>
+            </div>
+            <div className="chart-legend">
+              <span><i className="legend-leads" /> Leads</span>
+              <span><i className="legend-enrolled" /> Enrolled</span>
+            </div>
+          </div>
+          <div className="staff-chart">
+            {chartRows.length ? chartRows.map((row) => (
+              <div className="staff-chart-row" key={row.id}>
+                <div className="staff-chart-name" title={row.name}>{row.name}</div>
+                <div className="staff-chart-bars">
+                  <div className="staff-chart-track"><span className="staff-chart-leads" style={{ width: `${(row.leads / chartMaxLeads) * 100}%` }} /></div>
+                  <div className="staff-chart-track staff-chart-track-small"><span className="staff-chart-enrolled" style={{ width: `${(row.enrolled / chartMaxLeads) * 100}%` }} /></div>
+                </div>
+                <div className="staff-chart-values"><strong>{row.leads}</strong><span>{row.enrolled}</span></div>
+              </div>
+            )) : <div className="empty-highlight">No staff activity to chart for this period.</div>}
           </div>
         </section>
 
@@ -1440,6 +1471,26 @@ export default function ReportsPage() {
           margin-bottom: 12px;
         }
 
+        .report-chart-card { margin-bottom: 18px; }
+        .chart-legend { display: flex; align-items: center; gap: 14px; color: #64748b; font-size: 11px; font-weight: 700; }
+        .chart-legend span { display: inline-flex; align-items: center; gap: 6px; }
+        .chart-legend i { width: 9px; height: 9px; border-radius: 3px; display: inline-block; }
+        .legend-leads { background: #0f766e; }
+        .legend-enrolled { background: #84cc16; }
+        .staff-chart { padding: 18px 20px 22px; display: grid; gap: 16px; }
+        .staff-chart-row { display: grid; grid-template-columns: minmax(130px, 190px) minmax(0, 1fr) 58px; align-items: center; gap: 14px; }
+        .staff-chart-name { overflow: hidden; color: #334155; font-size: 12px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+        .staff-chart-bars { display: grid; gap: 5px; }
+        .staff-chart-track { height: 10px; overflow: hidden; border-radius: 20px; background: #edf2f0; }
+        .staff-chart-track-small { height: 7px; }
+        .staff-chart-track span { display: block; height: 100%; min-width: 0; border-radius: inherit; transition: width .25s ease; }
+        .staff-chart-leads { background: linear-gradient(90deg, #0f766e, #2dd4bf); }
+        .staff-chart-enrolled { background: linear-gradient(90deg, #65a30d, #a3e635); }
+        .staff-chart-values { display: flex; justify-content: flex-end; gap: 10px; font-size: 11px; }
+        .staff-chart-values strong { color: #0f766e; }
+        .staff-chart-values span { color: #65a30d; font-weight: 800; }
+
+
         .report-table-scroll {
           overflow-x: auto;
         }
@@ -1609,6 +1660,10 @@ export default function ReportsPage() {
             flex-direction: column;
           }
 
+          .staff-chart-row { grid-template-columns: minmax(85px, 110px) minmax(0, 1fr) 48px; gap: 8px; }
+          .staff-chart-name { font-size: 10px; }
+          .chart-legend { gap: 8px; font-size: 10px; }
+          .staff-chart { padding: 14px; }
           .highlight {
             grid-template-columns: auto minmax(0, 1fr);
           }
