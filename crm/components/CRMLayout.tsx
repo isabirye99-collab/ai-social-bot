@@ -213,7 +213,7 @@ export default function CRMLayout({
     };
   }, []);
 
-  if (pathname === "/login" || pathname === "/alumni-login" || pathname.startsWith("/alumni-portal")) return <>{children}</>;
+  if (pathname === "/login" || pathname === "/alumni-update" || pathname === "/alumni-login" || pathname.startsWith("/alumni-portal")) return <>{children}</>;
 
   const horizontal = branding.navigationOrientation === "horizontal";
   const allowedModules = getEffectiveModules(role, modulePermissions);
