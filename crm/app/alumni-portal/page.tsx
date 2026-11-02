@@ -21,6 +21,7 @@ export default function AlumniPortalPage(){
   const [events,setEvents]=useState<any[]>([]);
   const [loading,setLoading]=useState(true); const [saving,setSaving]=useState(false);
   const [message,setMessage]=useState(""); const [error,setError]=useState("");
+  const [needsClaim,setNeedsClaim]=useState(false); const [claimId,setClaimId]=useState(""); const [claiming,setClaiming]=useState(false);
   const load=useCallback(async()=>{
     setLoading(true);setError("");
     try{
@@ -28,7 +29,8 @@ export default function AlumniPortalPage(){
       if(authError||!user)throw new Error("Please sign in to continue.");
       const {data:account,error:accountError}=await supabase.from("alumni_accounts").select("alumni_id").eq("auth_user_id",user.id).maybeSingle();
       if(accountError)throw accountError;
-      if(!account)throw new Error("Your account has not yet been linked to an approved CIU alumni record. Please contact the Alumni Office.");
+      if(!account){setNeedsClaim(true);setProfile(null);setLoading(false);return;}
+      setNeedsClaim(false);
       const [alumniResult,eventResult]=await Promise.all([
         supabase.from("alumni").select("*").eq("id",account.alumni_id).single(),
         supabase.from("alumni_events").select("id,title,description,event_type,venue,starts_at,registration_deadline").eq("status","published").gte("starts_at",new Date().toISOString()).order("starts_at").limit(6)
@@ -40,6 +42,21 @@ export default function AlumniPortalPage(){
   },[]);
   useEffect(()=>{void load()},[load]);
 
+  async function claimProfile(){
+    setClaiming(true);setError("");setMessage("");
+    try{
+      const {data:{user},error:authError}=await supabase.auth.getUser();
+      if(authError||!user)throw new Error("Please sign in again.");
+      if(!claimId.trim())throw new Error("Enter your CIU Alumni ID.");
+      const {data:record,error:recordError}=await supabase.from("alumni").select("id").eq("alumni_id",claimId.trim()).maybeSingle();
+      if(recordError)throw recordError;
+      if(!record)throw new Error("We could not match that Alumni ID to your signed-in email. Check the ID and use the email address recorded with CIU.");
+      const {error:linkError}=await supabase.from("alumni_accounts").insert({alumni_id:record.id,auth_user_id:user.id});
+      if(linkError)throw linkError;
+      setNeedsClaim(false);setMessage("Your alumni profile has been linked successfully.");await load();
+    }catch(e){setError(e instanceof Error?e.message:"Unable to link your alumni profile.");}
+    finally{setClaiming(false);}
+  }
   async function save(){
     if(!profile)return;setSaving(true);setMessage("");setError("");
     const {error:saveError}=await supabase.from("alumni").update({
@@ -65,7 +82,7 @@ export default function AlumniPortalPage(){
       <button onClick={signOut} style={{border:"1px solid #d7e2da",background:"#fff",borderRadius:8,padding:"9px 13px",color:"#106053",fontWeight:700,cursor:"pointer"}}>Sign out</button>
     </header>
     <div style={{maxWidth:1100,margin:"0 auto"}}>
-      {loading?<div style={card}>Loading your alumni profile…</div>:error&&!profile?<div style={{...card,borderColor:"#f2cccc",color:"#a32828"}}>{error}<button onClick={signOut} style={{display:"block",marginTop:14,border:0,background:"#106053",color:"#fff",padding:"9px 12px",borderRadius:8}}>Sign out</button></div>:profile?<>
+      {loading?<div style={card}>Loading your alumni profile…</div>:needsClaim?<div style={{...card,maxWidth:560,margin:"0 auto"}}><h1 style={{fontSize:22,fontWeight:850,margin:"0 0 8px"}}>Link your CIU alumni profile</h1><p style={{fontSize:13,color:"#718078",lineHeight:1.6}}>Enter the Alumni ID shown on your CIU alumni record. For security, the email address you used to sign in must match the email recorded by the Alumni Office.</p>{error&&<div role="alert" style={{padding:10,background:"#fff0f0",color:"#a32828",borderRadius:8,fontSize:12,marginBottom:12}}>{error}</div>}<label style={label}>CIU Alumni ID<input value={claimId} onChange={e=>setClaimId(e.target.value)} placeholder="e.g. CIU-ALM-00001" style={field}/></label><button disabled={claiming} onClick={()=>void claimProfile()} style={{marginTop:14,border:0,background:"#106053",color:"#fff",padding:"11px 15px",borderRadius:8,fontWeight:800}}>{claiming?"Verifying…":"Verify and link my profile"}</button><p style={{fontSize:11,color:"#87958d",marginTop:14}}>If your email address is missing or outdated in CIU records, contact the Alumni Office to update it before claiming your profile.</p><button onClick={signOut} style={{marginTop:8,border:"1px solid #d7e2da",background:"#fff",color:"#106053",padding:"9px 12px",borderRadius:8}}>Sign out</button></div>:error&&!profile?<div style={{...card,borderColor:"#f2cccc",color:"#a32828"}}>{error}<button onClick={signOut} style={{display:"block",marginTop:14,border:0,background:"#106053",color:"#fff",padding:"9px 12px",borderRadius:8}}>Sign out</button></div>:profile?<>
         <div style={{...card,background:"linear-gradient(120deg,#106053,#17483e)",color:"#fff",marginBottom:18}}>
           <div style={{fontSize:11,letterSpacing:1.2,color:"#d6e9c7",fontWeight:800}}>WELCOME BACK</div><h1 style={{fontSize:27,fontWeight:850,margin:"8px 0 4px"}}>{profile.full_name}</h1><div style={{fontSize:13,color:"#e0eee5"}}>{profile.program||"CIU Graduate"} {profile.graduation_year?"· Class of "+profile.graduation_year:""} · {profile.alumni_id}</div>
         </div>
