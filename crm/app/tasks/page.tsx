@@ -19,11 +19,7 @@ type TaskStatus =
 type TaskType =
   | "Call"
   | "Email"
-  | "WhatsApp"
-  | "Meeting"
-  | "Note"
-  | "Proposal"
-  | "Other";
+  | "WhatsApp";
 
 type Task = {
   id: string;
@@ -94,12 +90,8 @@ type TaskForm = {
 
 const TASK_TYPES: TaskType[] = [
   "Call",
-  "WhatsApp",
   "Email",
-  "Meeting",
-  "Note",
-  "Proposal",
-  "Other",
+  "WhatsApp",
 ];
 
 const TASK_STATUSES: TaskStatus[] = [
