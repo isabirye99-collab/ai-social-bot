@@ -310,6 +310,7 @@ export default function TasksPage() {
 
   const [showTaskModal, setShowTaskModal] =
     useState(false);
+  const [showTaskMenu, setShowTaskMenu] = useState(false);
 
   const [editingTask, setEditingTask] =
     useState<Task | null>(null);
@@ -1620,26 +1621,74 @@ export default function TasksPage() {
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={() =>
-              openNewTask()
-            }
-            style={{
-              border: "none",
-              borderRadius: "10px",
-              padding:
-                "12px 18px",
-              background:
-                "#111827",
-              color: "#ffffff",
-              fontWeight: 700,
-              cursor: "pointer",
-              fontSize: "14px",
-            }}
-          >
-            + New Task
-          </button>
+          <div style={{ position: "relative" }}>
+            <button
+              type="button"
+              onClick={() => setShowTaskMenu((open) => !open)}
+              aria-expanded={showTaskMenu}
+              style={{
+                border: "none",
+                borderRadius: "10px",
+                padding: "12px 18px",
+                background: "#111827",
+                color: "#ffffff",
+                fontWeight: 700,
+                cursor: "pointer",
+                fontSize: "14px",
+              }}
+            >
+              + Task <span style={{ marginLeft: 8 }}>▾</span>
+            </button>
+            {showTaskMenu && (
+              <div style={{
+                position: "absolute",
+                top: "calc(100% + 8px)",
+                right: 0,
+                minWidth: "190px",
+                padding: "6px",
+                background: "#ffffff",
+                border: "1px solid #e5e7eb",
+                borderRadius: "10px",
+                boxShadow: "0 12px 28px rgba(15,23,42,0.14)",
+                zIndex: 50,
+              }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowTaskMenu(false);
+                    openNewTask();
+                  }}
+                  style={{ ...actionMenuItemStyle, fontWeight: 650 }}
+                >
+                  Update Task
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowTaskMenu(false);
+                    openNewTask();
+                    setWalkInMode(true);
+                    setWalkInName("");
+                    setWalkInPhone("");
+                    setWalkInEmail("");
+                    setWalkInProgramme("");
+                    setWalkInNotes("");
+                    setForm((current) => ({
+                      ...current,
+                      lead_id: "",
+                      opportunity_id: "",
+                      title: "Follow up with new walk-in",
+                      assigned_to: currentUserId || "",
+                      task_type: "Call",
+                    }));
+                  }}
+                  style={{ ...actionMenuItemStyle, fontWeight: 650, color: "#087443" }}
+                >
+                  Register Walk-in
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* ALERTS */}
