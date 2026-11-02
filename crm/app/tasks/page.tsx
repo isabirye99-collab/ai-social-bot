@@ -1477,7 +1477,9 @@ export default function TasksPage() {
           .update({
             description:
               newDescription,
-            status: selectedOutcome,
+            // The applicant outcome is stored on the lead and in the
+            // task description; task status remains a valid workflow status.
+            status: "completed",
             completed_at:
               new Date().toISOString(),
             updated_at:
