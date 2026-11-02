@@ -128,9 +128,6 @@ export default function ReportsPage() {
     return `${year}-${month}-${day}`;
   });
 
-  const [currentUserId, setCurrentUserId] = useState("");
-  const [currentRole, setCurrentRole] = useState("");
-
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [admissions, setAdmissions] = useState<Admission[]>([]);
@@ -157,8 +154,6 @@ export default function ReportsPage() {
         throw new Error("You are not signed in.");
       }
 
-      setCurrentUserId(user.id);
-
       const { data: currentProfile, error: profileError } =
         await supabase
           .from("profiles")
@@ -171,8 +166,6 @@ export default function ReportsPage() {
       }
 
       const role = currentProfile?.role || "";
-
-      setCurrentRole(role);
 
       const profilesQuery = supabase
         .from("profiles")
@@ -869,7 +862,7 @@ export default function ReportsPage() {
                 <div className="staff-chart-name" title={row.name}>{row.name}</div>
                 <div className="staff-chart-bars">
                   <div className="staff-chart-track"><span className="staff-chart-leads" style={{ width: `${(row.leads / chartMaxLeads) * 100}%` }} /></div>
-                  <div className="staff-chart-track staff-chart-track-small"><span className="staff-chart-enrolled" style={{ width: `${(row.enrolled / chartMaxLeads) * 100}%` }} /></div>
+                  <div className="staff-chart-track staff-chart-track-small"><span className="staff-chart-enrolled" style={{ width: `${Math.min(100, (row.enrolled / chartMaxLeads) * 100)}%` }} /></div>
                 </div>
                 <div className="staff-chart-values"><strong>{row.leads}</strong><span>{row.enrolled}</span></div>
               </div>
