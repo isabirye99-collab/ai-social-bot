@@ -2646,6 +2646,7 @@ export default function Settings() {
                   {deletingStaffId === editProfile.id ? "Deleting..." : "Delete User"}
                 </button>
                 <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+                  <button
                   type="button"
                   onClick={
                     closeEditProfile
