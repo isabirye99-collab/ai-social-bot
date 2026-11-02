@@ -1179,16 +1179,14 @@ export default function Settings() {
               </p>
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10, flexWrap: "wrap" }}>
-                <div style={{ padding: "8px 12px", borderRadius: 999, background: "#eaf5f2", color: "#00695c", fontSize: 11, fontWeight: 800, whiteSpace: "nowrap" }}>
-                  Super Admin Access
-                </div>
-                <button type="button" onClick={saveChanges} disabled={saving} className="crm-btn" style={{ minHeight: 40, minWidth: 140, padding: "0 18px", background: saving ? "#94a3b8" : "#00695c", color: "#fff", border: "1px solid #004d40", borderRadius: 9, fontWeight: 700, cursor: saving ? "not-allowed" : "pointer" }}>
-                  {saving ? "Saving..." : saved ? "Saved" : "Save Changes"}
-                </button>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10, flexWrap: "wrap" }}>
+              <div style={{ padding: "8px 12px", borderRadius: 999, background: "#eaf5f2", color: "#106053", fontSize: 11, fontWeight: 800, whiteSpace: "nowrap" }}>
+                Super Admin Access
               </div>
-              {lastSavedAt && <span style={{ color: "#94a3b8", fontSize: 10 }}>Last saved: {new Date(lastSavedAt).toLocaleString()}</span>}
+              <button type="button" onClick={saveChanges} disabled={saving} className="crm-btn" style={{ minHeight: 40, minWidth: 140, padding: "0 18px", background: saving ? "#94a3b8" : "#106053", color: "#fff", border: "1px solid #0a443b", borderRadius: 9, fontWeight: 700, cursor: saving ? "not-allowed" : "pointer" }}>
+                {saving ? "Saving..." : saved ? "Saved" : "Save Changes"}
+              </button>
+              {lastSavedAt && <span style={{ color: "#647b73", fontSize: 10, whiteSpace: "nowrap" }}>Last saved: {new Date(lastSavedAt).toLocaleString()}</span>}
             </div>
           </div>
 
