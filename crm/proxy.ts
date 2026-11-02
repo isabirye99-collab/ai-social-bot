@@ -13,6 +13,8 @@ function getRequiredModule(pathname: string): CrmModule | null {
     ["/pipeline", "pipeline"],
     ["/tasks", "tasks"],
     ["/marketing", "marketing"],
+    ["/partnerships", "partnerships"],
+    ["/alumni", "alumni"],
     ["/reports", "reports"],
     ["/staff", "staff"],
     ["/advanced", "advanced"],
@@ -39,6 +41,10 @@ function redirectTo(request: NextRequest, pathname: string, error?: string) {
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
+  const pathname = request.nextUrl.pathname;
+
+  // The shared alumni information update page is public and does not require a CRM staff session.
+  if (pathname === "/alumni-update") return supabaseResponse;
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
@@ -73,7 +79,6 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
-  const pathname = request.nextUrl.pathname;
   const isLoginPage = pathname === "/login";
   const isVerifyCodePage = pathname === "/verify-code";
   const isSetPasswordPage = pathname === "/set-password";
