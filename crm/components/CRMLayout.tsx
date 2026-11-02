@@ -41,8 +41,8 @@ const DEFAULT_BRANDING: Required<BrandingPreferences> = {
   organizationName: "Clarke International University",
   tagline: "Lead Â· Innovate Â· Transform",
   navigationOrientation: "vertical",
-  primaryColor: "#00695c",
-  secondaryColor: "#8bc63f",
+  primaryColor: "#106053",
+  secondaryColor: "#8dc642",
 };
 
 function isOrientation(value: unknown): value is Orientation {
@@ -88,8 +88,12 @@ export default function CRMLayout({
           : isOrientation((prefs as BrandingPreferences & { layoutOrientation?: string }).layoutOrientation)
             ? { navigationOrientation: (prefs as BrandingPreferences & { layoutOrientation?: Orientation }).layoutOrientation! }
             : {}),
-        ...(isHexColor(prefs.primaryColor) ? { primaryColor: prefs.primaryColor } : {}),
-        ...(isHexColor(prefs.secondaryColor) ? { secondaryColor: prefs.secondaryColor } : {}),
+        ...(isHexColor(prefs.primaryColor)
+          ? { primaryColor: prefs.primaryColor.toLowerCase() === "#00695c" ? "#106053" : prefs.primaryColor }
+          : {}),
+        ...(isHexColor(prefs.secondaryColor)
+          ? { secondaryColor: prefs.secondaryColor.toLowerCase() === "#8bc63f" ? "#8dc642" : prefs.secondaryColor }
+          : {}),
       }));
     };
 
@@ -264,7 +268,8 @@ export default function CRMLayout({
             ? "shrink-0 whitespace-nowrap rounded-lg px-4 py-3 text-base font-semibold transition-colors"
             : "flex items-center rounded-lg px-4 py-3 text-base font-semibold transition-colors"} ${isActive(item.href) ? "text-white" : "text-white/75 hover:text-white"}`}
           style={{
-            background: isActive(item.href) ? "rgba(139,198,63,.24)" : "transparent",
+            background: isActive(item.href) ? "rgba(141,198,66,.24)" : "transparent",
+            color: "#ffffff",
           }}
         >
           {item.label}
@@ -332,7 +337,7 @@ export default function CRMLayout({
         {!horizontal && (
           <div className="border-t p-4" style={{ borderColor: "rgba(255,255,255,.12)" }}>
             <div className="mb-3 flex items-center gap-3 rounded-xl p-3" style={{ background: "rgba(255,255,255,.08)" }}>
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white" style={{ background: "rgba(139,198,63,.25)" }}>
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white" style={{ background: "rgba(141,198,66,.25)" }}>
                 {initials}
               </div>
               <div className="min-w-0">
