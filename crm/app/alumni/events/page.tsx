@@ -88,7 +88,7 @@ export default function AlumniEventsPage() {
     const { data, error: searchError } = await supabase.from("alumni")
       .select("id,full_name,alumni_id,work_email,phone")
       .or("full_name.ilike.%"+term+"%,alumni_id.ilike.%"+term+"%,work_email.ilike.%"+term+"%")
-      .neq("duplicate_review_status","merged").order("full_name").limit(20);
+      .neq("duplicate_review_status","confirmed_duplicate").order("full_name").limit(20);
     if (searchError) setError(searchError.message);
     else setAlumniMatches((data || []) as typeof alumniMatches);
   }
