@@ -376,9 +376,9 @@ export default function CRMLayout({
       </div>
 
       {!horizontal && (
-        <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-slate-200 bg-white shadow-lg lg:hidden" aria-label="Mobile navigation">
-          {visibleNav.slice(0, 5).map((item) => (
-            <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)} className={`flex flex-col items-center justify-center gap-1 px-1 py-3 text-xs font-semibold ${isActive(item.href) ? "text-emerald-800" : "text-slate-500"}`}>
+        <nav className="fixed inset-x-0 bottom-0 z-30 flex overflow-x-auto border-t border-slate-200 bg-white shadow-lg lg:hidden" aria-label="Mobile navigation">
+          {visibleNav.map((item) => (
+            <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)} className={`flex min-w-[76px] flex-1 flex-col items-center justify-center gap-1 px-2 py-3 text-xs font-semibold ${isActive(item.href) ? "text-emerald-800" : "text-slate-500"}`}>
               <span>{item.label}</span>
             </Link>
           ))}
