@@ -302,7 +302,8 @@ export default function CrmShell({
           ? "relative z-50 flex w-full flex-row items-center gap-4 px-4 py-3 shadow-md"
           : `fixed inset-y-0 left-0 z-50 flex w-64 flex-col shadow-lg transition-transform duration-200 lg:translate-x-0 ${mobileOpen ? "translate-x-0" : "-translate-x-full"}`}
         style={{
-          background: layoutOrientation === "horizontal" ? "#ffffff" : `linear-gradient(180deg,${primaryColor} 0%,${primaryColor}e8 72%,${primaryColor}cc 100%)`,
+          backgroundColor: layoutOrientation === "horizontal" ? "#ffffff" : primaryColor,
+          backgroundImage: layoutOrientation === "horizontal" ? "none" : `linear-gradient(180deg,${primaryColor} 0%,${primaryColor}e8 72%,${primaryColor}cc 100%)`,
           borderBottom: layoutOrientation === "horizontal" ? "1px solid #e2e8e5" : "none",
           boxShadow: layoutOrientation === "horizontal" ? "0 4px 18px rgba(20,45,32,.06)" : undefined,
         }}
@@ -367,7 +368,7 @@ export default function CrmShell({
 
               <div
                 className="text-xs font-medium"
-                style={{ color: "#cce8a8" }}
+                style={{ color: layoutOrientation === "horizontal" ? "#64748b" : "#cce8a8" }}
               >
                 Lead · Innovate · Transform
               </div>
