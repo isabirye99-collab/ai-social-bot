@@ -81,6 +81,17 @@ export default function AlumniPage() {
 
   useEffect(() => { void load(); }, [load]);
 
+  async function verifyAlumnus(alumnus: AlumniRow) {
+    if (alumnus.missing_fields?.length) return;
+    setError(""); setProgress("");
+    const now = new Date().toISOString();
+    const { error: verifyError } = await supabase.from("alumni").update({
+      verification_status: "verified", last_verified_at: now, updated_at: now
+    }).eq("id", alumnus.id);
+    if (verifyError) setError(verifyError.message);
+    else { setProgress(alumnus.full_name + " has been marked as verified."); await load(); }
+  }
+
   async function importCsv(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -203,13 +214,14 @@ export default function AlumniPage() {
         </select>
       </div>
       <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse", minWidth: 780, fontSize: 12 }}>
-        <thead><tr style={{ background: "#f4f8f5", textAlign: "left", color: "#61736a" }}>{["Alumni","Programme","Graduation","Contact","Employment","Profile status"].map((h) => <th key={h} style={{ padding: 12, fontWeight: 800 }}>{h}</th>)}</tr></thead>
-        <tbody>{loading ? <tr><td colSpan={6} style={{ padding: 24, textAlign: "center", color: "#819087" }}>Loading alumni records…</td></tr> : rows.length === 0 ? <tr><td colSpan={6} style={{ padding: 24, textAlign: "center", color: "#819087" }}>No matching alumni records found.</td></tr> : rows.map((a) => <tr key={a.id} style={{ borderTop: "1px solid #edf1ee" }}>
+        <thead><tr style={{ background: "#f4f8f5", textAlign: "left", color: "#61736a" }}>{["Alumni","Programme","Graduation","Contact","Employment","Profile status","Action"].map((h) => <th key={h} style={{ padding: 12, fontWeight: 800 }}>{h}</th>)}</tr></thead>
+        <tbody>{loading ? <tr><td colSpan={7} style={{ padding: 24, textAlign: "center", color: "#819087" }}>Loading alumni records…</td></tr> : rows.length === 0 ? <tr><td colSpan={7} style={{ padding: 24, textAlign: "center", color: "#819087" }}>No matching alumni records found.</td></tr> : rows.map((a) => <tr key={a.id} style={{ borderTop: "1px solid #edf1ee" }}>
           <td style={{ padding: 12 }}><div style={{ fontWeight: 800, color: "#203d33" }}>{a.full_name}</div><div style={{ color: "#87958d", marginTop: 3 }}>{a.alumni_id}</div></td>
           <td style={{ padding: 12 }}>{a.program || "—"}</td><td style={{ padding: 12 }}>{a.graduation_year || "—"}</td>
           <td style={{ padding: 12 }}><div>{a.phone || "No phone"}</div><div style={{ color: "#87958d", marginTop: 3 }}>{a.work_email || "No email"}</div></td>
           <td style={{ padding: 12 }}>{a.employment_status || "Not updated"}</td>
           <td style={{ padding: 12 }}><span style={{ display: "inline-block", padding: "5px 8px", borderRadius: 20, fontWeight: 700, fontSize: 10, color: a.verification_status === "verified" ? "#17643f" : "#855b0a", background: a.verification_status === "verified" ? "#e7f5ec" : "#fff4d9" }}>{a.verification_status.replaceAll("_", " ")}</span>{a.missing_fields?.length ? <div style={{ color: "#9b6b1a", fontSize: 10, marginTop: 4 }}>{a.missing_fields.length} missing fields</div> : null}</td>
+          <td style={{ padding: 12 }}>{a.verification_status === "verified" ? <span style={{ color: "#17643f", fontWeight: 750 }}>Verified</span> : a.missing_fields?.length ? <span style={{ color: "#9b6b1a" }}>Complete missing fields</span> : <button onClick={() => void verifyAlumnus(a)} style={{ border: 0, borderRadius: 7, padding: "7px 10px", background: "#106053", color: "#fff", fontSize: 11, fontWeight: 750, cursor: "pointer" }}>Mark verified</button>}</td>
         </tr>)}</tbody>
       </table></div>
       <div style={{ color: "#84928b", fontSize: 11, marginTop: 12 }}>Database total: {total.toLocaleString()} alumni records.</div>
