@@ -3777,7 +3777,7 @@ export default function TasksPage() {
                       "#374151",
                   }}
                 >
-                  Reason / Comment *
+                  How did the conversation go? *
                 </label>
 
                 <textarea
@@ -3795,7 +3795,7 @@ export default function TasksPage() {
                   }
                   required
                   rows={5}
-                  placeholder="Record what happened, the applicant response, next steps, or why this outcome was selected..."
+                  placeholder="Summarise the conversation: what the applicant said, their level of interest, questions or concerns, what you advised, and the agreed next step..."
                   style={{
                     width:
                       "100%",
