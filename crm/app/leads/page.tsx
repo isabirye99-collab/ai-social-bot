@@ -1123,16 +1123,6 @@ export default function LeadsPage() {
                           lead.status
                         );
 
-                      const isInterested =
-                        statusIsQualified(
-                          lead.status
-                        );
-
-                      const isClosed =
-                        statusIsClosed(
-                          lead.status
-                        );
-
                       return (
                         <tr
                           key={
