@@ -109,7 +109,13 @@ const OUTCOMES = [
   "Dropped",
 ];
 
-const TASK_STATUSES: TaskStatus[] = OUTCOMES;
+// Database task_status enum values. Applicant outcomes are recorded separately.
+const TASK_STATUSES: TaskStatus[] = [
+  "pending",
+  "in_progress",
+  "completed",
+  "cancelled",
+];
 
 const PIPELINE_WAITING_OUTCOMES = [
   "Applied",
@@ -128,7 +134,7 @@ const EMPTY_FORM: TaskForm = {
   opportunity_id: "",
   assigned_to: "",
   due_at: "",
-  status: "Follow up later",
+  status: "pending",
 };
 
 function formatDate(value: string | null) {
@@ -199,10 +205,10 @@ function getInitials(name: string | null) {
 
 function statusLabel(status: string) {
   switch (status) {
-    case "pending": return "Pending (legacy)";
-    case "in_progress": return "In Progress (legacy)";
-    case "completed": return "Completed (legacy)";
-    case "cancelled": return "Cancelled (legacy)";
+    case "pending": return "Pending";
+    case "in_progress": return "In Progress";
+    case "completed": return "Completed";
+    case "cancelled": return "Cancelled";
     default: return status;
   }
 }
@@ -253,9 +259,7 @@ function isOverdue(task: Task) {
 
 function isActiveTask(task: Task) {
   return (
-    task.status === "Follow up later" ||
-    (!OUTCOMES.includes(task.status) &&
-      !["completed", "cancelled", "canceled"].includes(task.status.toLowerCase()))
+    !["completed", "cancelled", "canceled"].includes(task.status.toLowerCase())
   );
 }
 
@@ -925,7 +929,7 @@ export default function TasksPage() {
           .update({
             status,
             completed_at:
-              OUTCOMES.includes(status)
+              status === "completed"
                 ? new Date().toISOString()
                 : null,
             updated_at:
@@ -1347,7 +1351,7 @@ export default function TasksPage() {
         .in("status", [
           "pending",
           "in_progress",
-          "Follow up later",
+          "pending",
         ])
         .limit(1);
 
@@ -1390,7 +1394,7 @@ export default function TasksPage() {
             new Date(
               dateValue
             ).toISOString(),
-          status: "Follow up later",
+          status: "pending",
           created_by:
             currentUserId,
         });
