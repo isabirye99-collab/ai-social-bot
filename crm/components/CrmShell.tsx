@@ -297,13 +297,14 @@ export default function CrmShell({
           ? "relative z-50 flex w-full flex-row items-center gap-4 px-4 py-3 shadow-md"
           : `fixed inset-y-0 left-0 z-50 flex w-64 flex-col shadow-lg transition-transform duration-200 lg:translate-x-0 ${mobileOpen ? "translate-x-0" : "-translate-x-full"}`}
         style={{
-          background: `linear-gradient(90deg,${primaryColor} 0%,${primaryColor}e8 72%,${primaryColor}cc 100%)`,
-          ...(layoutOrientation === "vertical" ? { background: `linear-gradient(180deg,${primaryColor} 0%,${primaryColor}e8 72%,${primaryColor}cc 100%)` } : {}),
+          background: layoutOrientation === "horizontal" ? "#ffffff" : `linear-gradient(180deg,${primaryColor} 0%,${primaryColor}e8 72%,${primaryColor}cc 100%)`,
+          borderBottom: layoutOrientation === "horizontal" ? "1px solid #e2e8e5" : "none",
+          boxShadow: layoutOrientation === "horizontal" ? "0 4px 18px rgba(20,45,32,.06)" : undefined,
         }}
       >
         <div
           className={layoutOrientation === "horizontal" ? "flex shrink-0 items-center border-r pr-4" : "flex h-24 items-center border-b px-5"}
-          style={{ borderColor: "rgba(255,255,255,.12)" }}
+          style={{ borderColor: layoutOrientation === "horizontal" ? "#e2e8e5" : "rgba(255,255,255,.12)" }}
         >
           <Link
             href="/dashboard"
@@ -354,7 +355,7 @@ export default function CrmShell({
             <div>
               <div
                 className="text-sm font-bold"
-                style={{ color: "#fff" }}
+                style={{ color: layoutOrientation === "horizontal" ? "#17211b" : "#fff" }}
               >
                 {crmName}
               </div>
@@ -399,27 +400,27 @@ export default function CrmShell({
                     }
                     className={`${layoutOrientation === "horizontal" ? "flex shrink-0 items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium transition" : "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition"} ${
                       active
-                        ? "text-white shadow-sm"
-                        : "hover:text-white"
+                        ? (layoutOrientation === "horizontal" ? "shadow-sm" : "text-white shadow-sm")
+                        : (layoutOrientation === "horizontal" ? "hover:bg-slate-50" : "hover:text-white")
                     }`}
                     style={{
                       background: active
-                        ? "rgba(139,198,63,.22)"
+                        ? (layoutOrientation === "horizontal" ? "#e8f5ef" : "rgba(139,198,63,.22)")
                         : "transparent",
                       color: active
-                        ? "#fff"
-                        : "rgba(255,255,255,.72)",
+                        ? (layoutOrientation === "horizontal" ? primaryColor : "#fff")
+                        : (layoutOrientation === "horizontal" ? "#475569" : "rgba(255,255,255,.72)"),
                     }}
                   >
                     <span
                       className="flex h-7 w-7 items-center justify-center rounded-md text-sm"
                       style={{
                         background: active
-                          ? "rgba(139,198,63,.24)"
-                          : "rgba(255,255,255,.08)",
+                          ? (layoutOrientation === "horizontal" ? "#dff2e6" : "rgba(139,198,63,.24)")
+                          : (layoutOrientation === "horizontal" ? "#f1f5f3" : "rgba(255,255,255,.08)"),
                         color: active
-                          ? "#cce8a8"
-                          : "rgba(255,255,255,.7)",
+                          ? primaryColor
+                          : (layoutOrientation === "horizontal" ? "#64748b" : "rgba(255,255,255,.7)"),
                       }}
                     >
                       {item.icon}
@@ -441,7 +442,7 @@ export default function CrmShell({
             className={layoutOrientation === "horizontal" ? "flex items-center gap-3" : "rounded-xl p-3"}
             style={{
               background:
-                "rgba(255,255,255,.08)",
+                layoutOrientation === "horizontal" ? "#f8faf9" : "rgba(255,255,255,.08)",
             }}
           >
             <div className={layoutOrientation === "horizontal" ? "hidden" : "flex items-center gap-3"}>
