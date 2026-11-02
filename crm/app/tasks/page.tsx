@@ -1555,13 +1555,14 @@ export default function TasksPage() {
     <div
       style={{
         minHeight: "100vh",
-        background: "#f8fafc",
-        padding: "24px",
+        background: "#f6f8f7",
+        padding: "20px 16px",
       }}
     >
       <div
         style={{
-          maxWidth: "1500px",
+          width: "100%",
+          maxWidth: "1540px",
           margin: "0 auto",
         }}
       >
