@@ -1,0 +1,43 @@
+name: CIU CRM Quality Checks
+
+on:
+  push:
+    branches:
+      - deploy/ciu-crm
+    paths:
+      - "crm/**"
+      - ".github/workflows/crm-ci.yml"
+  pull_request:
+    paths:
+      - "crm/**"
+      - ".github/workflows/crm-ci.yml"
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: crm
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: crm/package-lock.json
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: TypeScript validation
+        run: npx tsc --noEmit
+
+      - name: Next.js production build
+        run: npm run build
