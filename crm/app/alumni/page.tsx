@@ -200,7 +200,7 @@ export default function AlumniPage() {
     </div>
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 13, marginBottom: 20 }}>
       {metric("Total Alumni", total, "Graduate records in the database")}
-      {metric("Profiles Requiring Review", needsReview, "Incomplete or unverified profiles", "/alumni?status=needs_review") }
+      {metric("Profiles Requiring Review", needsReview, "Incomplete or unverified profiles", "/alumni") }
       {metric("Verified Profiles", verified, "Confirmed by the Alumni Office")}
       {metric("Marked Employed", employed, "Employment status recorded")}
     </div>
