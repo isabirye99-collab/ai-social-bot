@@ -34,17 +34,17 @@ export default function MarketingSectionTabs() {
           key={section.href}
           href={section.href}
           aria-current={section.active ? "page" : undefined}
-          className="flex items-center gap-3 rounded-xl border px-4 py-3 transition-colors"
+          className="flex items-center gap-3 rounded-2xl border px-4 py-4 transition-all"
           style={{
             borderColor: section.active
-              ? "var(--ciu-primary, #00695c)"
-              : "#dbe5e1",
+              ? "var(--ciu-primary, #106053)"
+              : "#e2eae4",
             background: section.active
-              ? "var(--ciu-primary, #00695c)"
+              ? "var(--ciu-primary, #106053)"
               : "#ffffff",
-            color: section.active ? "#ffffff" : "#23443b",
+            color: section.active ? "#ffffff" : "#17211b",
             boxShadow: section.active
-              ? "0 4px 12px rgba(0, 105, 92, 0.12)"
+              ? "0 8px 24px rgba(16, 96, 83, 0.16)"
               : "none",
             textDecoration: "none",
           }}
@@ -55,7 +55,7 @@ export default function MarketingSectionTabs() {
             style={{
               background: section.active
                 ? "rgba(255,255,255,0.14)"
-                : "#edf5f1",
+                : "#f1f6f1",
               color: section.active
                 ? "#ffffff"
                 : "var(--ciu-primary, #00695c)",
@@ -73,7 +73,7 @@ export default function MarketingSectionTabs() {
               style={{
                 color: section.active
                   ? "rgba(255,255,255,0.82)"
-                  : "#64776f",
+                  : "#68776f",
               }}
             >
               {section.description}
