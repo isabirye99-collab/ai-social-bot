@@ -117,6 +117,24 @@ const TASK_STATUSES: TaskStatus[] = [
   "cancelled",
 ];
 
+// Applicant statuses mirror the Leads module. These are lead values,
+// not values for the tasks.status database enum.
+const LEAD_STATUSES = [
+  "Pending",
+  "Called",
+  "WhatsApped",
+  "Email sent",
+  "Interested",
+  "Follow up later",
+  "Not interested",
+  "Financial issues",
+  "Lost Leads",
+  "Dropped",
+  "Ineffective Data",
+  "Unreachable",
+  "No Answer",
+];
+
 const PIPELINE_WAITING_OUTCOMES = [
   "Applied",
   "Application Submitted",
@@ -625,12 +643,24 @@ export default function TasksPage() {
         }
 
         if (statusFilter === "recorded") {
-          if (!OUTCOMES.includes(task.status)) return false;
-        } else if (
-          statusFilter !== "all" &&
-          task.status !== statusFilter
-        ) {
-          return false;
+          if (!["completed", "cancelled"].includes(task.status)) return false;
+        } else if (statusFilter !== "all") {
+          const applicantStatus =
+            lead?.follow_up_status ||
+            ({
+              new: "Pending",
+              pending: "Pending",
+              contacted: "Called",
+              qualified: "Interested",
+              interested: "Interested",
+              follow_up_later: "Follow up later",
+              unqualified: "Not interested",
+              converted: "Applied",
+              lost: "Lost Leads",
+            }[String(lead?.status || "").toLowerCase()] || "");
+          if (applicantStatus.toLowerCase() !== statusFilter.toLowerCase()) {
+            return false;
+          }
         }
 
         if (
@@ -1957,21 +1987,14 @@ export default function TasksPage() {
               }}
             >
               <option value="all">
-                All Outcomes
+                All Applicant Statuses
               </option>
 
-              {TASK_STATUSES.map(
-                (status) => (
-                  <option
-                    key={status}
-                    value={status}
-                  >
-                    {statusLabel(
-                      status
-                    )}
-                  </option>
-                )
-              )}
+              {LEAD_STATUSES.map((status) => (
+                <option key={status} value={status}>
+                  {status}
+                </option>
+              ))}
             </select>
 
             <select
