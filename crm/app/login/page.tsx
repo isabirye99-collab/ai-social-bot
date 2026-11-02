@@ -95,7 +95,7 @@ export default function Login() {
             </button>
           </form>
           <p style={{ margin: "22px 0 0", textAlign: "center", fontSize: 11, color: "#87948d" }}>Clarke International University</p>
-          <p style={{ margin: "12px 0 0", textAlign: "center", fontSize: 12 }}><Link href="/alumni-login" style={{ color: primaryColor, fontWeight: 700, textDecoration: "none" }}>Alumni? Sign in to the Alumni Portal</Link></p>
+          <p style={{ margin: "12px 0 0", textAlign: "center", fontSize: 12 }}><Link href="/alumni-update" style={{ color: primaryColor, fontWeight: 700, textDecoration: "none" }}>Alumni? Update your information</Link></p>
         </div>
       </div>
     </div>
