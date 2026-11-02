@@ -97,7 +97,7 @@ export default function AlumniPage() {
         if (!fullName) return null;
         const missing: string[] = [];
         const yearRaw = get(r, "Graduation Year");
-        const yearMatch = yearRaw.match(/\\b(19|20)\\d{2}\\b/);
+        const yearMatch = yearRaw.match(/\b(19|20)\d{2}\b/);
         const year = yearMatch ? Number(yearMatch[0]) : Number(yearRaw);
         if (!get(r, "Phone") && !get(r, "WhatsApp")) missing.push("phone");
         if (!get(r, "Work Email")) missing.push("work_email");
