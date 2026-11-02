@@ -773,9 +773,7 @@ export default function ReportsPage() {
                   <strong>{topPerformer.name}</strong>
 
                   <span>
-                    {isSalesperson
-                      ? "Your current performance"
-                      : "Top enrolment performance"}
+                    {"Top enrolment performance"}
                   </span>
                 </div>
 
