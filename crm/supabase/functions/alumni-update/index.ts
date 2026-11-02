@@ -12,7 +12,7 @@ const json = (body: unknown, status = 200, origin: string | null = null) =>
 const randomDigits = () => { const b = new Uint32Array(1); crypto.getRandomValues(b); return String(b[0] % 1_000_000).padStart(6,"0"); };
 const randomToken = () => { const b = new Uint8Array(32); crypto.getRandomValues(b); return Array.from(b,x=>x.toString(16).padStart(2,"0")).join(""); };
 async function hash(value: string) { const d=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(value)); return Array.from(new Uint8Array(d),x=>x.toString(16).padStart(2,"0")).join(""); }
-const allowedChanges = new Set(["work_email","phone","whatsapp","linkedin","city","nationality","employment_status","employer","job_title","industry","profile_bio","career_interests","allow_email","allow_sms","allow_whatsapp"]);
+const allowedChanges = new Set(["gender","student_no","program","faculty","graduation_year","work_email","phone","whatsapp","linkedin","city","nationality","employment_status","employer","job_title","industry","profile_bio","career_interests","allow_email","allow_sms","allow_whatsapp"]);
 
 Deno.serve(async (req: Request) => {
   const origin=req.headers.get("origin");
