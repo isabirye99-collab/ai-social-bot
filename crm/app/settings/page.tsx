@@ -2421,19 +2421,15 @@ export default function Settings() {
                   value={
                     editProfile.role
                   }
-                  onChange={(
-                    event,
-                  ) =>
-                    setEditProfile(
-                      {
-                        ...editProfile,
-                        role:
-                          event
-                            .target
-                            .value,
-                      },
-                    )
-                  }
+                  onChange={(event) => {
+                    const nextRole = event.target.value;
+                    setEditProfile({
+                      ...editProfile,
+                      role: nextRole,
+                      module_permissions:
+                        nextRole === "super_admin" ? null : getRoleModules(nextRole),
+                    });
+                  }}
                   disabled={
                     editProfile.id ===
                     currentUserId
