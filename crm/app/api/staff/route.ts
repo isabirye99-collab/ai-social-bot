@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 
+// Keep this allowlist aligned with the roles offered in CRM Settings.
 const ALLOWED_ROLES = [
   "admin",
   "manager",
