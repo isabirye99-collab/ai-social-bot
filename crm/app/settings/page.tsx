@@ -99,6 +99,12 @@ const ROLES = [
       "Manage campaigns and marketing activities.",
   },
   {
+    value: "alumni_relations_officer",
+    label: "Alumni Relations Officer",
+    description:
+      "Access only to Alumni and Partnerships modules.",
+  },
+  {
     value: "finance",
     label: "Finance",
     description:
