@@ -7,6 +7,7 @@ const ALLOWED_ROLES = [
   "manager",
   "salesperson",
   "marketing",
+  "alumni_relations_officer",
   "finance",
   "viewer",
 ] as const;
