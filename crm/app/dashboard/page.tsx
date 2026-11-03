@@ -265,6 +265,8 @@ export default function DashboardPage() {
   const [admissions, setAdmissions] = useState<
     { id: string; assigned_to: string | null; stage: string | null; enrolled_at: string | null }[]
   >([]);
+  const [alumniMetrics, setAlumniMetrics] = useState({ total: 0, verified: 0 });
+  const [partnershipMetrics, setPartnershipMetrics] = useState({ total: 0, active: 0 });
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -394,6 +396,15 @@ export default function DashboardPage() {
 
       setTasks((tasksResult.data || []) as Task[]);
       setAdmissions(admissionsResult.data || []);
+
+      const [alumniTotal, alumniVerified, partnershipTotal, partnershipActive] = await Promise.all([
+        supabase.from("alumni").select("id", { count: "exact", head: true }),
+        supabase.from("alumni").select("id", { count: "exact", head: true }).eq("verification_status", "verified"),
+        supabase.from("partnerships").select("id", { count: "exact", head: true }),
+        supabase.from("partnerships").select("id", { count: "exact", head: true }).eq("status", "active"),
+      ]);
+      setAlumniMetrics({ total: alumniTotal.count || 0, verified: alumniVerified.count || 0 });
+      setPartnershipMetrics({ total: partnershipTotal.count || 0, active: partnershipActive.count || 0 });
     } catch (err: any) {
       console.error("Dashboard loading error:", err);
 
@@ -1563,6 +1574,38 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
+      </section>
+
+      {/* Alumni and partnerships overview */}
+      <section className="mt-5 grid gap-4 md:grid-cols-2">
+        <Link href="/alumni" className="rounded-2xl border border-[#e0e9e3] bg-white p-5 shadow-[0_5px_20px_rgba(20,50,40,.04)] transition hover:border-[#b8d99c] hover:shadow-md">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#819087]">Alumni Relations</p>
+              <h2 className="mt-1 text-lg font-black text-[#17211b]">Alumni overview</h2>
+              <p className="mt-1 text-[11px] text-[#87948e]">Graduate records and profile verification</p>
+            </div>
+            <span className="rounded-xl bg-[#e8f5ef] p-3 text-[#075442]"><Icon name="student" size={20} /></span>
+          </div>
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            <div className="rounded-xl bg-[#f7faf8] p-3"><p className="text-[10px] font-semibold text-[#819087]">Total alumni</p><p className="mt-1 text-2xl font-black text-[#075442]">{alumniMetrics.total.toLocaleString()}</p></div>
+            <div className="rounded-xl bg-[#f7faf8] p-3"><p className="text-[10px] font-semibold text-[#819087]">Verified profiles</p><p className="mt-1 text-2xl font-black text-[#5f8e2b]">{alumniMetrics.verified.toLocaleString()}</p></div>
+          </div>
+        </Link>
+        <Link href="/partnerships" className="rounded-2xl border border-[#e0e9e3] bg-white p-5 shadow-[0_5px_20px_rgba(20,50,40,.04)] transition hover:border-[#b8d99c] hover:shadow-md">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#819087]">Strategic Relationships</p>
+              <h2 className="mt-1 text-lg font-black text-[#17211b]">Partnerships overview</h2>
+              <p className="mt-1 text-[11px] text-[#87948e]">Institutional relationships and agreements</p>
+            </div>
+            <span className="rounded-xl bg-[#f0f7e7] p-3 text-[#5f8e2b]"><Icon name="briefcase" size={20} /></span>
+          </div>
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            <div className="rounded-xl bg-[#f7faf8] p-3"><p className="text-[10px] font-semibold text-[#819087]">All partnerships</p><p className="mt-1 text-2xl font-black text-[#075442]">{partnershipMetrics.total.toLocaleString()}</p></div>
+            <div className="rounded-xl bg-[#f7faf8] p-3"><p className="text-[10px] font-semibold text-[#819087]">Active partnerships</p><p className="mt-1 text-2xl font-black text-[#5f8e2b]">{partnershipMetrics.active.toLocaleString()}</p></div>
+          </div>
+        </Link>
       </section>
 
       {/* =====================================================
