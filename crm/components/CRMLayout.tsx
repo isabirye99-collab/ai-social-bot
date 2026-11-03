@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { getEffectiveModules, type CrmModule, type CrmRole } from "@/lib/permissions";
@@ -61,6 +61,7 @@ export default function CRMLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [logo, setLogo] = useState("");
   const [branding, setBranding] = useState<Required<BrandingPreferences>>(DEFAULT_BRANDING);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -212,6 +213,18 @@ export default function CRMLayout({
       window.removeEventListener("storage", handleStorage);
     };
   }, []);
+
+  useEffect(() => {
+    if (!role || pathname === "/login" || pathname === "/alumni-update" || pathname === "/alumni-login" || pathname.startsWith("/alumni-portal")) return;
+    const allowed = getEffectiveModules(role, modulePermissions);
+    const currentModule = nav.find((item) =>
+      pathname === item.href || pathname.startsWith(`${item.href}/`)
+    )?.module;
+    if (currentModule && !allowed.includes(currentModule)) {
+      const firstAllowed = nav.find((item) => allowed.includes(item.module));
+      if (firstAllowed) router.replace(firstAllowed.href);
+    }
+  }, [role, modulePermissions, pathname, router]);
 
   if (pathname === "/login" || pathname === "/alumni-update" || pathname === "/alumni-login" || pathname.startsWith("/alumni-portal")) return <>{children}</>;
 
