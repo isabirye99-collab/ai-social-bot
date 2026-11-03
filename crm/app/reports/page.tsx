@@ -135,6 +135,7 @@ export default function ReportsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [admissions, setAdmissions] = useState<Admission[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [relationshipMetrics, setRelationshipMetrics] = useState({ alumniTotal: 0, alumniVerified: 0, alumniEmployed: 0, partnershipsTotal: 0, partnershipsActive: 0, partnershipsPipeline: 0, partnershipsRenewalWatch: 0 });
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -183,15 +184,26 @@ export default function ReportsPage() {
           "id,assigned_to,task_type,status,completed_at,created_at"
         );
 
-            const [currentProfile, p, l, a, t] = await Promise.all([
+      const relationshipQueries = Promise.all([
+        supabase.from("alumni").select("id", { count: "exact", head: true }),
+        supabase.from("alumni").select("id", { count: "exact", head: true }).eq("verification_status", "verified"),
+        supabase.from("alumni").select("id", { count: "exact", head: true }).eq("employment_status", "employed"),
+        supabase.from("partnerships").select("id", { count: "exact", head: true }),
+        supabase.from("partnerships").select("id", { count: "exact", head: true }).eq("status", "active"),
+        supabase.from("partnerships").select("id", { count: "exact", head: true }).in("status", ["prospect", "engaging", "negotiation"]),
+        supabase.from("partnerships").select("id", { count: "exact", head: true }).gte("end_date", new Date().toISOString().slice(0, 10)).lte("end_date", (() => { const d = new Date(); d.setDate(d.getDate() + 90); return d.toISOString().slice(0, 10); })()),
+      ]);
+
+      const [currentProfile, p, l, a, t, relationshipResults] = await Promise.all([
         currentProfileQuery,
         profilesQuery,
         leadsQuery,
         admissionsQuery,
         tasksQuery,
+        relationshipQueries,
       ]);
 
-      const failed = [currentProfile, p, l, a, t].find((result) => result.error);
+      const failed = [currentProfile, p, l, a, t, ...relationshipResults].find((result) => result.error);
 
       if (failed?.error) {
         throw new Error(failed.error.message);
@@ -219,6 +231,7 @@ export default function ReportsPage() {
       setLeads((l.data || []) as Lead[]);
       setAdmissions((a.data || []) as Admission[]);
       setTasks((t.data || []) as Task[]);
+      setRelationshipMetrics({ alumniTotal: relationshipResults[0].count || 0, alumniVerified: relationshipResults[1].count || 0, alumniEmployed: relationshipResults[2].count || 0, partnershipsTotal: relationshipResults[3].count || 0, partnershipsActive: relationshipResults[4].count || 0, partnershipsPipeline: relationshipResults[5].count || 0, partnershipsRenewalWatch: relationshipResults[6].count || 0 });
     } catch (err) {
       setError(
         err instanceof Error
@@ -551,6 +564,16 @@ export default function ReportsPage() {
           <div className="period-meta">
             {["manager", "admin", "super_admin"].includes(viewerRole) ? `${report.rows.length} active staff (excluding Admin and Super Admin)` : "Your individual performance report"}
           </div>
+        </section>
+
+        <section className="report-kpis" aria-label="Alumni and partnerships summary" style={{ marginBottom: 18 }}>
+          <div className="report-kpi"><span className="kpi-label">Total Alumni</span><strong>{relationshipMetrics.alumniTotal.toLocaleString()}</strong><small>Registered alumni records</small></div>
+          <div className="report-kpi"><span className="kpi-label">Verified Alumni</span><strong>{relationshipMetrics.alumniVerified.toLocaleString()}</strong><small>Verified alumni profiles</small></div>
+          <div className="report-kpi"><span className="kpi-label">Employed Alumni</span><strong>{relationshipMetrics.alumniEmployed.toLocaleString()}</strong><small>Marked as employed</small></div>
+          <div className="report-kpi"><span className="kpi-label">All Partnerships</span><strong>{relationshipMetrics.partnershipsTotal.toLocaleString()}</strong><small>Registered relationships</small></div>
+          <div className="report-kpi"><span className="kpi-label">Active Partnerships</span><strong>{relationshipMetrics.partnershipsActive.toLocaleString()}</strong><small>Currently active</small></div>
+          <div className="report-kpi"><span className="kpi-label">Partnership Pipeline</span><strong>{relationshipMetrics.partnershipsPipeline.toLocaleString()}</strong><small>Prospects and negotiations</small></div>
+          <div className="report-kpi"><span className="kpi-label">Renewal Watch</span><strong>{relationshipMetrics.partnershipsRenewalWatch.toLocaleString()}</strong><small>Ending in the next 90 days</small></div>
         </section>
 
         <section className="report-kpis">
