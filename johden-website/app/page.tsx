@@ -191,10 +191,10 @@ export default function Home() {
         <h2>Let’s make something<br /><em>worth moving forward.</em></h2>
         <p>Tell us what you are working on. We’ll help you explore the right next step for your business.</p>
         <div className="cta-actions">
-          <a className="button button-gold" href="mailto:info@johden.com?subject=Johden%20Consultancy%20Enquiry">Start a conversation <span>↗</span></a>
-          <a className="cta-email" href="mailto:info@johden.com">Email us about your project</a>
+          <a className="button button-gold" href="https://johden.my.canva.site/" target="_blank" rel="noreferrer">Start a conversation <span>↗</span></a>
+          <a className="cta-email" href="https://johden.my.canva.site/" target="_blank" rel="noreferrer">Email us about your project</a>
         </div>
-        <small className="contact-note">Contact details and official business links can be finalised before launch.</small>
+        <small className="contact-note">Temporary contact link opens the current Johden website; confirm official contact details before launch.</small>
       </section>
 
       <footer className="site-footer">
