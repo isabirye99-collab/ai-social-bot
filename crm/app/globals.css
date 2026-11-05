@@ -1407,3 +1407,13 @@ input:focus, select:focus, textarea:focus, button:focus-visible, a:focus-visible
 @media (max-width: 760px) {
   .crm-mobile-nav { left: 12px; right: 12px; bottom: 12px; }
 }
+
+/* Override legacy inline hero gradients so the same clean theme applies everywhere. */
+.ciu-hero {
+  background: #ffffff !important;
+  color: #172033 !important;
+  box-shadow: none !important;
+}
+.ciu-hero h1 { color: #172033 !important; }
+.ciu-hero p { color: #64748b !important; }
+.crm-sidebar { background: #ffffff !important; color: #172033 !important; }
