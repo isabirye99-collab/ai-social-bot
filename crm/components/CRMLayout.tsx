@@ -240,8 +240,8 @@ export default function CRMLayout({
         )}
       </div>
       <div className="min-w-0">
-        <div className="truncate text-base font-bold text-white">{branding.crmName}</div>
-        <div className="truncate text-xs font-medium" style={{ color: "#d9edc4" }}>
+        <div className="truncate text-base font-bold" style={{ color: "#123f35" }}>{branding.crmName}</div>
+        <div className="truncate text-xs font-medium" style={{ color: "#64748b" }}>
           {branding.tagline}
         </div>
       </div>
@@ -261,10 +261,10 @@ export default function CRMLayout({
           href={item.href}
           onClick={() => setMobileOpen(false)}
           className={`${horizontal
-            ? "shrink-0 whitespace-nowrap rounded-lg px-4 py-3 text-base font-semibold transition-colors"
-            : "flex items-center rounded-lg px-4 py-3 text-base font-semibold transition-colors"} ${isActive(item.href) ? "text-white" : "text-white/75 hover:text-white"}`}
+            ? "shrink-0 whitespace-nowrap rounded-lg px-4 py-3 text-sm font-semibold transition-colors"
+            : "flex items-center rounded-lg px-4 py-3 text-sm font-semibold transition-colors"} ${isActive(item.href) ? "text-white" : "text-slate-700 hover:text-emerald-900"}`}
           style={{
-            background: isActive(item.href) ? "rgba(139,198,63,.24)" : "transparent",
+            background: isActive(item.href) ? branding.primaryColor : "transparent",
           }}
         >
           {item.label}
@@ -278,7 +278,9 @@ export default function CRMLayout({
       className={horizontal ? "flex min-h-screen flex-col" : "min-h-screen"}
       data-navigation-orientation={branding.navigationOrientation}
       style={{
-        background: "#f5f8f7",
+        background: "#ffffff",
+        color: "#172033",
+        fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
         ["--ciu-primary" as string]: branding.primaryColor,
         ["--ciu-secondary" as string]: branding.secondaryColor,
       } as React.CSSProperties}
@@ -297,13 +299,13 @@ export default function CRMLayout({
           ? "relative z-30 flex w-full items-center gap-x-4 px-4 py-3 shadow-md"
           : `fixed inset-y-0 left-0 z-50 flex w-72 flex-col shadow-lg transition-transform duration-200 lg:translate-x-0 ${mobileOpen ? "translate-x-0" : "-translate-x-full"}`}
         style={{
-          background: horizontal
-            ? `linear-gradient(90deg, ${branding.primaryColor} 0%, ${branding.primaryColor}e8 72%, ${branding.primaryColor}cc 100%)`
-            : `linear-gradient(180deg, ${branding.primaryColor} 0%, ${branding.primaryColor}e8 72%, ${branding.primaryColor}cc 100%)`,
+          background: "#ffffff",
+          borderRight: horizontal ? "none" : "1px solid #e5e7eb",
+          color: "#172033",
         }}
       >
         <div className={horizontal ? "flex shrink-0 items-center" : "flex min-h-24 items-center border-b px-5 py-4"}
-          style={{ borderColor: "rgba(255,255,255,.12)" }}>
+          style={{ borderColor: "#e5e7eb" }}>
           {headerBrand}
         </div>
         {navLinks}
@@ -321,7 +323,7 @@ export default function CRMLayout({
                 }
                 window.location.replace("/login");
               }}
-              className="rounded-lg bg-white px-4 py-2 text-sm font-semibold"
+              className="rounded-lg border bg-white px-4 py-2 text-sm font-semibold"
               style={{ color: branding.primaryColor }}
             >
               Sign out
@@ -330,14 +332,14 @@ export default function CRMLayout({
         )}
 
         {!horizontal && (
-          <div className="border-t p-4" style={{ borderColor: "rgba(255,255,255,.12)" }}>
-            <div className="mb-3 flex items-center gap-3 rounded-xl p-3" style={{ background: "rgba(255,255,255,.08)" }}>
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white" style={{ background: "rgba(139,198,63,.25)" }}>
+          <div className="border-t p-4" style={{ borderColor: "#e5e7eb" }}>
+            <div className="mb-3 flex items-center gap-3 rounded-xl p-3" style={{ background: "#f8fafc" }}>
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white" style={{ background: "#dcefe6", color: branding.primaryColor }}>
                 {initials}
               </div>
               <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-white">{userEmail || "Authenticated user"}</p>
-                <p className="text-xs text-white/60">{branding.organizationName}</p>
+                <p className="truncate text-sm font-semibold text-slate-800">{userEmail || "Authenticated user"}</p>
+                <p className="text-xs text-slate-500">{branding.organizationName}</p>
               </div>
             </div>
             <button type="button" onClick={async () => {
@@ -348,7 +350,7 @@ export default function CRMLayout({
                 return;
               }
               window.location.replace("/login");
-            }} className="w-full rounded-lg bg-white px-3 py-2.5 text-sm font-semibold" style={{ color: branding.primaryColor }}>
+            }} className="w-full rounded-lg border bg-white px-3 py-2.5 text-sm font-semibold" style={{ color: branding.primaryColor }}>
               Sign out
             </button>
           </div>
