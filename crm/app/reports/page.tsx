@@ -50,6 +50,8 @@ type ReportRow = {
   enrolled: number;
   completedTasks: number;
   conversion: number;
+  role: string;
+  module_permissions?: string[] | null;
 };
 
 const supabase = createClient();
@@ -224,8 +226,10 @@ export default function ReportsPage() {
         const isSalesperson = profileRole === "salesperson";
         const isAlumniRelations = [
           "alumni_relations", "alumni_coordinator", "alumni_officer",
-        ].includes(profileRole) || (profileRole === "marketing" && (modules === null || modules.includes("alumni"))) || modules?.includes("alumni") === true;
-        return isSalesperson || isAlumniRelations;
+        ].includes(profileRole) || modules?.includes("alumni") === true;
+        const isPartnerships = modules?.includes("partnerships") === true ||
+          (profileRole === "marketing" && modules === null);
+        return isSalesperson || isAlumniRelations || isPartnerships;
       });
 
       const canViewTeam = ["manager", "admin", "super_admin"].includes(role);
@@ -356,6 +360,8 @@ export default function ReportsPage() {
         return {
           id: profile.id,
           name: profile.full_name || "Unnamed Staff",
+          role: String(profile.role || "").toLowerCase().replace(/[ -]/g, "_"),
+          module_permissions: profile.module_permissions || null,
           leads: staffLeads.length,
           calls,
           followUps,
