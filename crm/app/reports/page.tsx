@@ -473,7 +473,7 @@ export default function ReportsPage() {
   }, [report.rows]);
 
   const chartRows = useMemo(
-    () => [...report.rows].sort((a, b) => b.leads - a.leads).slice(0, 6),
+    () => [...report.rows.filter((row) => row.role === "salesperson")].sort((a, b) => b.leads - a.leads).slice(0, 6),
     [report.rows]
   );
   const chartMaxLeads = Math.max(1, ...chartRows.map((row) => row.leads));
@@ -1021,8 +1021,7 @@ export default function ReportsPage() {
               </thead>
 
               <tbody>
-                {report.rows.length ? (
-                  report.rows.map((row) => (
+                {salesRows.length ? (\n                  salesRows.map((row) => (
                     <tr key={row.id}>
                       <td>
                         <div className="staff-cell">
