@@ -265,7 +265,7 @@ export default function DashboardPage() {
   const [admissions, setAdmissions] = useState<
     { id: string; assigned_to: string | null; stage: string | null; enrolled_at: string | null }[]
   >([]);
-  const [alumniRecords, setAlumniRecords] = useState<{ id: string; verification_status: string | null }[]>([]);
+  const [alumniCounts, setAlumniCounts] = useState({ total: 0, verified: 0 });
   const [partnershipRecords, setPartnershipRecords] = useState<{ id: string; status: string | null; category: string | null }[]>([]);
   const [alumniReportAvailable, setAlumniReportAvailable] = useState(true);
   const [partnershipReportAvailable, setPartnershipReportAvailable] = useState(true);
@@ -353,7 +353,10 @@ export default function DashboardPage() {
       );
 
       // Optional dashboard summaries: these must not block core admissions metrics.
-      const alumniQuery = supabase.from("alumni").select("id,verification_status");
+      // Use exact server-side counts: PostgREST limits returned rows by default,
+      // so selecting every alumni row would make the dashboard stop at 1,000.
+      const alumniTotalQuery = supabase.from("alumni").select("id", { count: "exact", head: true });
+      const alumniVerifiedQuery = supabase.from("alumni").select("id", { count: "exact", head: true }).ilike("verification_status", "verified");
       const partnershipsQuery = supabase.from("partnerships").select("id,status,category");
 
       const [
@@ -362,7 +365,8 @@ export default function DashboardPage() {
         pipelineStagesResult,
         tasksResult,
         admissionsResult,
-        alumniResult,
+        alumniTotalResult,
+        alumniVerifiedResult,
         partnershipsResult,
       ] = await Promise.all([
         leadsQuery,
@@ -370,7 +374,8 @@ export default function DashboardPage() {
         pipelineStagesQuery,
         tasksQuery,
         admissionsQuery,
-        alumniQuery,
+        alumniTotalQuery,
+        alumniVerifiedQuery,
         partnershipsQuery,
       ]);
 
@@ -406,9 +411,12 @@ export default function DashboardPage() {
 
       setTasks((tasksResult.data || []) as Task[]);
       setAdmissions(admissionsResult.data || []);
-      setAlumniReportAvailable(!alumniResult.error);
+      setAlumniReportAvailable(!alumniTotalResult.error && !alumniVerifiedResult.error);
       setPartnershipReportAvailable(!partnershipsResult.error);
-      setAlumniRecords(alumniResult.error ? [] : (alumniResult.data || []) as { id: string; verification_status: string | null }[]);
+      setAlumniCounts({
+        total: alumniTotalResult.error ? 0 : (alumniTotalResult.count ?? 0),
+        verified: alumniVerifiedResult.error ? 0 : (alumniVerifiedResult.count ?? 0),
+      });
       setPartnershipRecords(partnershipsResult.error ? [] : (partnershipsResult.data || []) as { id: string; status: string | null; category: string | null }[]);
     } catch (err: any) {
       console.error("Dashboard loading error:", err);
@@ -1600,15 +1608,15 @@ export default function DashboardPage() {
           <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
             <div className="rounded-xl bg-[#f7faf8] p-3">
               <p className="text-xs font-medium text-[#718078]">Total alumni</p>
-              <p className="mt-1 text-2xl font-black text-[#173b2b]">{alumniReportAvailable ? alumniRecords.length.toLocaleString() : "—"}</p>
+              <p className="mt-1 text-2xl font-black text-[#173b2b]">{alumniReportAvailable ? alumniCounts.total.toLocaleString() : "—"}</p>
             </div>
             <div className="rounded-xl bg-[#f7faf8] p-3">
               <p className="text-xs font-medium text-[#718078]">Verified</p>
-              <p className="mt-1 text-2xl font-black text-[#00695c]">{alumniReportAvailable ? alumniRecords.filter((item) => (item.verification_status || "").toLowerCase() === "verified").length.toLocaleString() : "—"}</p>
+              <p className="mt-1 text-2xl font-black text-[#00695c]">{alumniReportAvailable ? alumniCounts.verified.toLocaleString() : "—"}</p>
             </div>
             <div className="rounded-xl bg-[#f7faf8] p-3">
               <p className="text-xs font-medium text-[#718078]">Pending review</p>
-              <p className="mt-1 text-2xl font-black text-[#8a6420]">{alumniReportAvailable ? alumniRecords.filter((item) => (item.verification_status || "").toLowerCase() !== "verified").length.toLocaleString() : "—"}</p>
+              <p className="mt-1 text-2xl font-black text-[#8a6420]">{alumniReportAvailable ? Math.max(0, alumniCounts.total - alumniCounts.verified).toLocaleString() : "—"}</p>
             </div>
           </div>
           <Link href="/alumni" className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-[#00695c] hover:underline">
