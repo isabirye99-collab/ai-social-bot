@@ -1417,3 +1417,8 @@ input:focus, select:focus, textarea:focus, button:focus-visible, a:focus-visible
 .ciu-hero h1 { color: #172033 !important; }
 .ciu-hero p { color: #64748b !important; }
 .crm-sidebar { background: #ffffff !important; color: #172033 !important; }
+
+/* Keep typography consistent across every CRM page with the dashboard. */
+html, body, body * {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+}
