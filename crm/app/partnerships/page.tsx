@@ -86,6 +86,17 @@ function getValue(row: Record<string, string>, names: string[]) {
   return "";
 }
 
+function normalizeStatus(value: string) {
+  const key = value.trim().toLowerCase().replace(/[ -]+/g, "_");
+  const allowed: Record<string, string> = { prospect: "prospect", prospective: "prospect", engaging: "engaging", engagement: "engaging", negotiation: "negotiation", negotiating: "negotiation", active: "active", on_hold: "on_hold", "on hold": "on_hold", hold: "on_hold", expired: "expired", closed: "closed", inactive: "closed" };
+  return allowed[key] || "prospect";
+}
+
+function readableError(error: unknown) {
+  if (error && typeof error === "object" && "message" in error && typeof error.message === "string") return error.message;
+  return error instanceof Error ? error.message : "Unknown database error. Check your access and try again.";
+}
+
 function mapCsv(text: string): CsvRecord[] {
   const parsed = parseCsv(text);
   if (parsed.length < 2) return [];
@@ -101,7 +112,7 @@ function mapCsv(text: string): CsvRecord[] {
       email: getValue(row, ["Email", "Email Address", "Contact Email"]),
       phone: getValue(row, ["Phone", "Telephone", "Phone Number", "Telephone Number", "Mobile", "Contact Number"]),
       partnership_type: getValue(row, ["Partnership Type", "Type", "Category", "Area of Collaboration"]),
-      status: getValue(row, ["Status"]) || "Active",
+      status: normalizeStatus(getValue(row, ["Status"]) || "prospect"),
       notes: getValue(row, ["Notes", "Description", "Comments", "Agreement Details"]),
     };
   });
@@ -128,6 +139,9 @@ export default function PartnershipsPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
   const [showImport, setShowImport] = useState(false);
+  const [showAddContact, setShowAddContact] = useState(false);
+  const [savingContact, setSavingContact] = useState(false);
+  const [contactForm, setContactForm] = useState({ name: "", primary_contact_name: "", primary_contact_email: "", primary_contact_phone: "", category: "", status: "prospect", notes: "" });
   const [fileName, setFileName] = useState("");
   const [preview, setPreview] = useState<CsvRecord[]>([]);
   const [fileError, setFileError] = useState("");
@@ -244,7 +258,7 @@ export default function PartnershipsPage() {
           primary_contact_email: row.email || null,
           primary_contact_phone: row.phone || null,
           category: row.partnership_type || null,
-          status: row.status || "prospect",
+          status: normalizeStatus(row.status || "prospect"),
           notes: row.notes || null,
           created_by: authData.user?.id || null,
         }));
@@ -259,10 +273,35 @@ export default function PartnershipsPage() {
       setFileName("");
       if (fileRef.current) fileRef.current.value = "";
     } catch (error) {
-      setFileError(error instanceof Error ? error.message : "Import failed. Please check the CSV and try again.");
+      setFileError(`Import failed: ${readableError(error)}`);
     } finally {
       setImporting(false);
     }
+  };
+
+  const saveContact = async () => {
+    if (!contactForm.name.trim()) { setFileError("Organization name is required."); return; }
+    setSavingContact(true); setFileError(""); setImportResult("");
+    try {
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
+      const { error } = await supabase.from("partnerships").insert({
+        name: contactForm.name.trim(),
+        primary_contact_name: contactForm.primary_contact_name.trim() || null,
+        primary_contact_email: contactForm.primary_contact_email.trim() || null,
+        primary_contact_phone: contactForm.primary_contact_phone.trim() || null,
+        category: contactForm.category.trim() || null,
+        status: normalizeStatus(contactForm.status),
+        notes: contactForm.notes.trim() || null,
+        created_by: authData.user?.id || null,
+      });
+      if (error) throw error;
+      setShowAddContact(false);
+      setContactForm({ name: "", primary_contact_name: "", primary_contact_email: "", primary_contact_phone: "", category: "", status: "prospect", notes: "" });
+      await loadRecords();
+    } catch (error) {
+      setFileError(`Could not add contact: ${readableError(error)}`);
+    } finally { setSavingContact(false); }
   };
 
   return (
@@ -279,6 +318,7 @@ export default function PartnershipsPage() {
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={() => { setFileError(""); setContactForm({ name: "", primary_contact_name: "", primary_contact_email: "", primary_contact_phone: "", category: "", status: "prospect", notes: "" }); setShowAddContact(true); }} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-[#00695c] bg-white px-4 text-sm font-semibold text-[#00695c] hover:bg-emerald-50"><Users size={16} /> Add Contact</button>
             <button type="button" onClick={downloadTemplate} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
               <Download size={16} /> CSV template
             </button>
@@ -360,6 +400,24 @@ export default function PartnershipsPage() {
         </section>
       </div>
 
+      {showAddContact && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/40 p-3 sm:p-6" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !savingContact) setShowAddContact(false); }}>
+          <section role="dialog" aria-modal="true" aria-labelledby="add-partnership-title" className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4"><div><h2 id="add-partnership-title" className="font-semibold text-slate-900">Add Contact</h2><p className="mt-1 text-sm text-slate-500">Add a partner organisation and its primary contact.</p></div><button type="button" aria-label="Close form" onClick={() => setShowAddContact(false)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X size={18} /></button></div>
+            <div className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-2">
+              <label className="text-sm font-medium text-slate-700 sm:col-span-2">Organization name *<input value={contactForm.name} onChange={(e) => setContactForm({ ...contactForm, name: e.target.value })} required className="mt-1.5 h-10 w-full rounded-lg border border-slate-300 px-3 font-normal outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-100" placeholder="Partner organization" /></label>
+              <label className="text-sm font-medium text-slate-700">Contact person<input value={contactForm.primary_contact_name} onChange={(e) => setContactForm({ ...contactForm, primary_contact_name: e.target.value })} className="mt-1.5 h-10 w-full rounded-lg border border-slate-300 px-3 font-normal outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-100" placeholder="Full name" /></label>
+              <label className="text-sm font-medium text-slate-700">Email<input type="email" value={contactForm.primary_contact_email} onChange={(e) => setContactForm({ ...contactForm, primary_contact_email: e.target.value })} className="mt-1.5 h-10 w-full rounded-lg border border-slate-300 px-3 font-normal outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-100" placeholder="name@organization.org" /></label>
+              <label className="text-sm font-medium text-slate-700">Telephone<input value={contactForm.primary_contact_phone} onChange={(e) => setContactForm({ ...contactForm, primary_contact_phone: e.target.value })} className="mt-1.5 h-10 w-full rounded-lg border border-slate-300 px-3 font-normal outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-100" placeholder="+256..." /></label>
+              <label className="text-sm font-medium text-slate-700">Partnership category<input value={contactForm.category} onChange={(e) => setContactForm({ ...contactForm, category: e.target.value })} className="mt-1.5 h-10 w-full rounded-lg border border-slate-300 px-3 font-normal outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-100" placeholder="Academic, health, industry..." /></label>
+              <label className="text-sm font-medium text-slate-700">Status<select value={contactForm.status} onChange={(e) => setContactForm({ ...contactForm, status: e.target.value })} className="mt-1.5 h-10 w-full rounded-lg border border-slate-300 bg-white px-3 font-normal outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-100"><option value="prospect">Prospect</option><option value="engaging">Engaging</option><option value="negotiation">Negotiation</option><option value="active">Active</option><option value="on_hold">On hold</option><option value="expired">Expired</option><option value="closed">Closed</option></select></label>
+              <label className="text-sm font-medium text-slate-700 sm:col-span-2">Notes<textarea value={contactForm.notes} onChange={(e) => setContactForm({ ...contactForm, notes: e.target.value })} rows={3} className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-100" placeholder="Relationship details or follow-up notes" /></label>
+              {fileError && <p className="text-sm text-red-700 sm:col-span-2">{fileError}</p>}
+            </div>
+            <div className="flex justify-end gap-2 border-t border-slate-200 bg-slate-50 px-5 py-4"><button type="button" disabled={savingContact} onClick={() => setShowAddContact(false)} className="rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700">Cancel</button><button type="button" disabled={savingContact || !contactForm.name.trim()} onClick={() => void saveContact()} className="rounded-lg bg-[#00695c] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">{savingContact ? "Saving…" : "Save Contact"}</button></div>
+          </section>
+        </div>
+      )}
       {showImport && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/40 p-3 sm:p-6" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !importing) setShowImport(false); }}>
           <section role="dialog" aria-modal="true" aria-labelledby="partnership-import-title" className="max-h-[92vh] w-full max-w-4xl overflow-hidden rounded-2xl bg-white shadow-2xl">
