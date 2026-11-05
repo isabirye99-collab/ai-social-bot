@@ -69,6 +69,7 @@ export const ROLE_MODULES: Record<CrmRole, CrmModule[]> = {
     "customers",
     "pipeline",
     "tasks",
+    "partnerships",
     "reports",
     "advanced",
   ],
