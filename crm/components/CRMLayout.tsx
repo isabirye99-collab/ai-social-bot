@@ -30,6 +30,7 @@ const nav: NavItem[] = [
   { label: "Pipeline", href: "/pipeline", module: "pipeline" },
   { label: "Tasks", href: "/tasks", module: "tasks" },
   { label: "Marketing", href: "/marketing", module: "marketing" },
+  { label: "Partnerships", href: "/partnerships", module: "partnerships" },
   { label: "Reports", href: "/reports", module: "reports" },
   { label: "Settings", href: "/settings", module: "settings" },
 ];
@@ -41,8 +42,8 @@ const DEFAULT_BRANDING: Required<BrandingPreferences> = {
   organizationName: "Clarke International University",
   tagline: "Lead Â· Innovate Â· Transform",
   navigationOrientation: "vertical",
-  primaryColor: "#65a30d",
-  secondaryColor: "#a3e635",
+  primaryColor: "#00695c",
+  secondaryColor: "#8bc63f",
 };
 
 function isOrientation(value: unknown): value is Orientation {
@@ -88,8 +89,8 @@ export default function CRMLayout({
           : isOrientation((prefs as BrandingPreferences & { layoutOrientation?: string }).layoutOrientation)
             ? { navigationOrientation: (prefs as BrandingPreferences & { layoutOrientation?: Orientation }).layoutOrientation! }
             : {}),
-        ...(isHexColor(prefs.primaryColor) ? { primaryColor: prefs.primaryColor.toLowerCase() === "#00695c" ? "#65a30d" : prefs.primaryColor } : {}),
-        ...(isHexColor(prefs.secondaryColor) ? { secondaryColor: prefs.secondaryColor.toLowerCase() === "#8bc63f" ? "#a3e635" : prefs.secondaryColor } : {}),
+        ...(isHexColor(prefs.primaryColor) ? { primaryColor: prefs.primaryColor } : {}),
+        ...(isHexColor(prefs.secondaryColor) ? { secondaryColor: prefs.secondaryColor } : {}),
       }));
     };
 
@@ -281,7 +282,7 @@ export default function CRMLayout({
       className={horizontal ? "flex min-h-screen flex-col" : "min-h-screen"}
       data-navigation-orientation={branding.navigationOrientation}
       style={{
-        background: "#f5f8f7",
+        background: "#ffffff",
         ["--ciu-primary" as string]: branding.primaryColor,
         ["--ciu-secondary" as string]: branding.secondaryColor,
       } as React.CSSProperties}
