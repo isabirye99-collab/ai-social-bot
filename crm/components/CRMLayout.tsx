@@ -228,7 +228,7 @@ export default function CRMLayout({
     <Link href="/dashboard" className="flex min-w-0 items-center gap-3 no-underline">
       <div
         className="flex h-14 w-20 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white p-2"
-        style={{ border: "1px solid rgba(255,255,255,.28)" }}
+        style={{ border: "1px solid #e2e8f0" }}
       >
         {logo ? (
           <img
@@ -267,8 +267,8 @@ export default function CRMLayout({
             ? "shrink-0 whitespace-nowrap rounded-xl px-4 py-3 text-sm font-semibold transition-all"
             : "flex items-center rounded-xl px-4 py-3 text-sm font-semibold transition-all"} ${isActive(item.href) ? "text-emerald-900" : "text-slate-600 hover:text-emerald-900 hover:bg-emerald-50"}`}
           style={{
-            background: isActive(item.href) ? "#ecfccb" : "transparent",
-            boxShadow: isActive(item.href) && !horizontal ? "inset 3px 0 0 #65a30d" : "none",
+            background: isActive(item.href) ? "#e8f4f0" : "transparent",
+            boxShadow: isActive(item.href) && !horizontal ? "inset 3px 0 0 #00695c" : "none",
           }}
         >
           {item.label}
