@@ -267,6 +267,8 @@ export default function DashboardPage() {
   >([]);
   const [alumniRecords, setAlumniRecords] = useState<{ id: string; verification_status: string | null }[]>([]);
   const [partnershipRecords, setPartnershipRecords] = useState<{ id: string; status: string | null; category: string | null }[]>([]);
+  const [alumniReportAvailable, setAlumniReportAvailable] = useState(true);
+  const [partnershipReportAvailable, setPartnershipReportAvailable] = useState(true);
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -404,6 +406,8 @@ export default function DashboardPage() {
 
       setTasks((tasksResult.data || []) as Task[]);
       setAdmissions(admissionsResult.data || []);
+      setAlumniReportAvailable(!alumniResult.error);
+      setPartnershipReportAvailable(!partnershipsResult.error);
       setAlumniRecords(alumniResult.error ? [] : (alumniResult.data || []) as { id: string; verification_status: string | null }[]);
       setPartnershipRecords(partnershipsResult.error ? [] : (partnershipsResult.data || []) as { id: string; status: string | null; category: string | null }[]);
     } catch (err: any) {
@@ -1587,6 +1591,7 @@ export default function DashboardPage() {
               <p className="text-xs font-bold uppercase tracking-[.12em] text-[#718078]">Community report</p>
               <h2 className="mt-1 text-lg font-bold text-[#173b2b]">Alumni Overview</h2>
               <p className="mt-1 text-sm text-[#718078]">Alumni records and verification progress</p>
+              {!alumniReportAvailable && <p className="mt-1 text-xs text-amber-700">Summary unavailable for this account</p>}
             </div>
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#e8f4f0] text-[#00695c]">
               <Icon name="users" size={19} />
@@ -1595,15 +1600,15 @@ export default function DashboardPage() {
           <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
             <div className="rounded-xl bg-[#f7faf8] p-3">
               <p className="text-xs font-medium text-[#718078]">Total alumni</p>
-              <p className="mt-1 text-2xl font-black text-[#173b2b]">{alumniRecords.length.toLocaleString()}</p>
+              <p className="mt-1 text-2xl font-black text-[#173b2b]">{alumniReportAvailable ? alumniRecords.length.toLocaleString() : "—"}</p>
             </div>
             <div className="rounded-xl bg-[#f7faf8] p-3">
               <p className="text-xs font-medium text-[#718078]">Verified</p>
-              <p className="mt-1 text-2xl font-black text-[#00695c]">{alumniRecords.filter((item) => (item.verification_status || "").toLowerCase() === "verified").length.toLocaleString()}</p>
+              <p className="mt-1 text-2xl font-black text-[#00695c]">{alumniReportAvailable ? alumniRecords.filter((item) => (item.verification_status || "").toLowerCase() === "verified").length.toLocaleString() : "—"}</p>
             </div>
             <div className="rounded-xl bg-[#f7faf8] p-3">
               <p className="text-xs font-medium text-[#718078]">Pending review</p>
-              <p className="mt-1 text-2xl font-black text-[#8a6420]">{alumniRecords.filter((item) => (item.verification_status || "").toLowerCase() !== "verified").length.toLocaleString()}</p>
+              <p className="mt-1 text-2xl font-black text-[#8a6420]">{alumniReportAvailable ? alumniRecords.filter((item) => (item.verification_status || "").toLowerCase() !== "verified").length.toLocaleString() : "—"}</p>
             </div>
           </div>
           <Link href="/alumni" className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-[#00695c] hover:underline">
@@ -1617,6 +1622,7 @@ export default function DashboardPage() {
               <p className="text-xs font-bold uppercase tracking-[.12em] text-[#718078]">Relationship report</p>
               <h2 className="mt-1 text-lg font-bold text-[#173b2b]">Partnerships Overview</h2>
               <p className="mt-1 text-sm text-[#718078]">Partner pipeline and active relationships</p>
+              {!partnershipReportAvailable && <p className="mt-1 text-xs text-amber-700">Summary unavailable for this account</p>}
             </div>
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#f0f7e7] text-[#5f8e2b]">
               <Icon name="layers" size={19} />
@@ -1625,15 +1631,15 @@ export default function DashboardPage() {
           <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
             <div className="rounded-xl bg-[#f7faf8] p-3">
               <p className="text-xs font-medium text-[#718078]">Total partners</p>
-              <p className="mt-1 text-2xl font-black text-[#173b2b]">{partnershipRecords.length.toLocaleString()}</p>
+              <p className="mt-1 text-2xl font-black text-[#173b2b]">{partnershipReportAvailable ? partnershipRecords.length.toLocaleString() : "—"}</p>
             </div>
             <div className="rounded-xl bg-[#f7faf8] p-3">
               <p className="text-xs font-medium text-[#718078]">Active</p>
-              <p className="mt-1 text-2xl font-black text-[#00695c]">{partnershipRecords.filter((item) => (item.status || "").toLowerCase() === "active").length.toLocaleString()}</p>
+              <p className="mt-1 text-2xl font-black text-[#00695c]">{partnershipReportAvailable ? partnershipRecords.filter((item) => (item.status || "").toLowerCase() === "active").length.toLocaleString() : "—"}</p>
             </div>
             <div className="rounded-xl bg-[#f7faf8] p-3">
               <p className="text-xs font-medium text-[#718078]">In negotiation</p>
-              <p className="mt-1 text-2xl font-black text-[#8a6420]">{partnershipRecords.filter((item) => ["negotiation", "engaging"].includes((item.status || "").toLowerCase())).length.toLocaleString()}</p>
+              <p className="mt-1 text-2xl font-black text-[#8a6420]">{partnershipReportAvailable ? partnershipRecords.filter((item) => ["negotiation", "engaging"].includes((item.status || "").toLowerCase())).length.toLocaleString() : "—"}</p>
             </div>
           </div>
           <Link href="/partnerships" className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-[#00695c] hover:underline">
