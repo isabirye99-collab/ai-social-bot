@@ -885,32 +885,26 @@ export default function ReportsPage() {
           </div>
         </section>
 
-        <section className="ciu-card report-chart-card">
-          <div className="ciu-card-head report-card-head">
-            <div>
-              <h2>Staff Activity Comparison</h2>
-              <span>Lead generation and successful enrolments by staff member for the selected period.</span>
-            </div>
-            <div className="chart-legend">
-              <span><i className="legend-leads" /> Leads</span>
-              <span><i className="legend-enrolled" /> Enrolled</span>
+        <section className="report-visual-grid">
+          <div className="ciu-card report-chart-card">
+            <div className="ciu-card-head report-card-head"><div><h2>Activity by Team</h2><span>Logged contact activities during the selected period.</span></div></div>
+            <div className="team-activity-chart">
+              <div className="team-activity-row"><div className="team-activity-label"><strong>Alumni Relations</strong><span>{alumniRows.reduce((sum, row) => sum + row.contactActivities, 0).toLocaleString()} activities</span></div><div className="team-activity-track"><span className="team-activity-fill team-alumni" style={{ width: String(Math.min(100, alumniRows.reduce((sum, row) => sum + row.contactActivities, 0) / Math.max(1, report.rows.reduce((sum, row) => sum + row.contactActivities, 0)) * 100)) + "%" }} /></div><div className="team-activity-detail">Calls {alumniRows.reduce((sum, row) => sum + row.calls, 0)} · Emails {alumniRows.reduce((sum, row) => sum + row.emails, 0)} · WhatsApp {alumniRows.reduce((sum, row) => sum + row.whatsapp, 0)} · Meetings {alumniRows.reduce((sum, row) => sum + row.meetings, 0)}</div></div>
+              <div className="team-activity-row"><div className="team-activity-label"><strong>Partnerships</strong><span>{partnershipRows.reduce((sum, row) => sum + row.contactActivities, 0).toLocaleString()} activities</span></div><div className="team-activity-track"><span className="team-activity-fill team-partnerships" style={{ width: String(Math.min(100, partnershipRows.reduce((sum, row) => sum + row.contactActivities, 0) / Math.max(1, report.rows.reduce((sum, row) => sum + row.contactActivities, 0)) * 100)) + "%" }} /></div><div className="team-activity-detail">Calls {partnershipRows.reduce((sum, row) => sum + row.calls, 0)} · Emails {partnershipRows.reduce((sum, row) => sum + row.emails, 0)} · WhatsApp {partnershipRows.reduce((sum, row) => sum + row.whatsapp, 0)} · Meetings {partnershipRows.reduce((sum, row) => sum + row.meetings, 0)}</div></div>
+              <div className="team-activity-row"><div className="team-activity-label"><strong>Sales</strong><span>{salesRows.reduce((sum, row) => sum + row.contactActivities, 0).toLocaleString()} activities</span></div><div className="team-activity-track"><span className="team-activity-fill team-sales" style={{ width: String(Math.min(100, salesRows.reduce((sum, row) => sum + row.contactActivities, 0) / Math.max(1, report.rows.reduce((sum, row) => sum + row.contactActivities, 0)) * 100)) + "%" }} /></div><div className="team-activity-detail">Calls {salesRows.reduce((sum, row) => sum + row.calls, 0)} · Emails {salesRows.reduce((sum, row) => sum + row.emails, 0)} · WhatsApp {salesRows.reduce((sum, row) => sum + row.whatsapp, 0)} · Meetings {salesRows.reduce((sum, row) => sum + row.meetings, 0)}</div></div>
             </div>
           </div>
-          <div className="staff-chart">
-            {chartRows.length ? chartRows.map((row) => (
-              <div className="staff-chart-row" key={row.id}>
-                <div className="staff-chart-name" title={row.name}>{row.name}</div>
-                <div className="staff-chart-bars">
-                  <div className="staff-chart-track"><span className="staff-chart-leads" style={{ width: `${(row.leads / chartMaxLeads) * 100}%` }} /></div>
-                  <div className="staff-chart-track staff-chart-track-small"><span className="staff-chart-enrolled" style={{ width: `${Math.min(100, (row.enrolled / chartMaxLeads) * 100)}%` }} /></div>
-                </div>
-                <div className="staff-chart-values"><strong>{row.leads}</strong><span>{row.enrolled}</span></div>
-              </div>
-            )) : <div className="empty-highlight">No staff activity to chart for this period.</div>}
+          <div className="ciu-card report-chart-card">
+            <div className="ciu-card-head report-card-head"><div><h2>Key Highlights</h2><span>Quick overview for the selected period.</span></div></div>
+            <div className="team-share-list">
+              <div className="report-highlight-line"><span>Total contact activities</span><strong>{report.rows.reduce((sum, row) => sum + row.contactActivities, 0).toLocaleString()}</strong></div>
+              <div className="report-highlight-line"><span>Sales enrolments</span><strong>{salesRows.reduce((sum, row) => sum + row.enrolled, 0).toLocaleString()}</strong></div>
+              <div className="report-highlight-line"><span>Active partnerships</span><strong>{relationshipMetrics.partnershipsActive.toLocaleString()}</strong></div>
+              <div className="report-highlight-line"><span>Verified alumni</span><strong>{relationshipMetrics.alumniVerified.toLocaleString()}</strong></div>
+              <div className="report-chart-note">Contact activities are logged calls, emails, WhatsApp messages and meetings. They do not represent unique individuals contacted.</div>
+            </div>
           </div>
         </section>
-
-
         <section className="ciu-card report-table-card">
           <div className="ciu-card-head report-card-head"><div><h2>Alumni Relations Activity</h2><span>Contact and follow-up activity for Alumni Relations staff in the selected period.</span></div></div>
           <div className="report-table-scroll"><table className="report-table">
@@ -1220,6 +1214,20 @@ export default function ReportsPage() {
           transform: translateY(-1px);
         }
 
+        .report-print { min-height: 40px; border: 1px solid #c8ded4; border-radius: 9px; padding: 0 16px; background: #fff; color: #075442; font-size: 12px; font-weight: 800; cursor: pointer; }
+        .report-print:hover { background: #f1f8f4; }
+        .report-visual-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr); gap: 18px; margin-bottom: 18px; }
+        .team-activity-chart { padding: 22px; display: grid; gap: 22px; }
+        .team-activity-row { display: grid; gap: 8px; }
+        .team-activity-label { display: flex; justify-content: space-between; align-items: center; gap: 10px; color: #233b32; font-size: 12px; }
+        .team-activity-label span { color: #647b70; font-variant-numeric: tabular-nums; }
+        .team-activity-track { height: 11px; border-radius: 20px; overflow: hidden; background: #edf2ee; }
+        .team-activity-fill { display: block; height: 100%; border-radius: inherit; }
+        .team-alumni { background: #159b69; } .team-partnerships { background: #a3c84b; } .team-sales { background: #2587d8; }
+        .team-activity-detail { color: #7b8b85; font-size: 10px; }
+        .report-highlight-line { display: flex; justify-content: space-between; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid #edf2f0; color: #647b70; font-size: 12px; }
+        .report-highlight-line strong { color: #075442; font-size: 15px; }
+        .report-chart-note { padding: 10px 12px; border-radius: 8px; background: #f7faf8; color: #687c72; font-size: 10px; line-height: 1.5; }
         .report-refresh:disabled {
           cursor: not-allowed;
           opacity: 0.65;
@@ -1686,6 +1694,7 @@ export default function ReportsPage() {
           animation: spin 0.8s linear infinite;
         }
 
+        @media print { .report-controls, .report-refresh, .report-print { display: none !important; } .ciu-page { padding: 0; background: #fff; } .ciu-card, .report-kpi, .report-hero, .period-banner { box-shadow: none; break-inside: avoid; } .report-table-scroll { overflow: visible; } .report-table { min-width: 0; } }
         @keyframes spin {
           to {
             transform: rotate(360deg);
@@ -1702,6 +1711,7 @@ export default function ReportsPage() {
         }
 
         @media (max-width: 1000px) {
+          .report-visual-grid { grid-template-columns: 1fr; }
           .report-main-grid {
             grid-template-columns: 1fr;
           }
