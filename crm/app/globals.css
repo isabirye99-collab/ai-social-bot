@@ -1,13 +1,13 @@
 @import "tailwindcss";
 
 :root {
-  --brand: #4d7c0f;
-  --brand-dark: #365314;
-  --brand-light: #f0f7e8;
+  --brand: #00695c;
+  --brand-dark: #00574f;
+  --brand-light: #e8f4f0;
   --accent: #f4b942;
-  --ink: #17211b;
-  --muted: #718078;
-  --bg: #f7faf8;
+  --ink: #172033;
+  --muted: #64748b;
+  --bg: #ffffff;
   --card: #ffffff;
   --border: #e4e9e6;
   --danger: #c94b4b;
@@ -20,7 +20,7 @@ html, body {
   margin: 0;
   padding: 0;
   min-height: 100%;
-  font-family: Inter, Arial, sans-serif;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background: var(--bg);
   color: var(--ink);
 }
@@ -45,8 +45,9 @@ a {
 .crm-sidebar {
   width: 250px;
   min-height: 100vh;
-  background: linear-gradient(180deg, #3f6212 0%, #65a30d 100%);
-  color: white;
+  background: #ffffff;
+  color: #172033;
+  border-right: 1px solid var(--border);
   position: fixed;
   left: 0;
   top: 0;
@@ -101,13 +102,13 @@ a {
   padding: 12px 13px;
   border-radius: 10px;
   font-size: 13px;
-  color: rgba(255,255,255,.76);
+  color: #334155;
   transition: .2s;
 }
 
 .crm-nav a:hover,
 .crm-nav a.active {
-  background: rgba(255,255,255,.14);
+  background: #00695c;
   color: white;
 }
 
@@ -119,7 +120,7 @@ a {
 
 .crm-sidebar-bottom {
   margin-top: auto;
-  border-top: 1px solid rgba(255,255,255,.13);
+  border-top: 1px solid var(--border);
   padding-top: 15px;
 }
 
@@ -680,7 +681,8 @@ a {
     right: 10px;
     bottom: 10px;
     height: 62px;
-    background: #3f6212;
+    background: #ffffff;
+    border: 1px solid var(--border);
     border-radius: 15px;
     z-index: 100;
     justify-content: space-around;
@@ -689,7 +691,7 @@ a {
   }
 
   .crm-mobile-nav a {
-    color: rgba(255,255,255,.7);
+    color: #475569;
     font-size: 9px;
     text-align: center;
   }
@@ -1315,4 +1317,93 @@ a {
   .crm-kpi { padding: 15px; }
   .crm-card-body { padding: 16px; }
   .ciu-page-inner { padding: 18px 15px 84px; }
+}
+
+
+/* Consistent, accessible CIU CRM design system */
+:root {
+  --brand: #00695c;
+  --brand-dark: #00574f;
+  --brand-light: #e8f4f0;
+  --ink: #172033;
+  --muted: #64748b;
+  --bg: #ffffff;
+  --card: #ffffff;
+  --border: #e2e8f0;
+  --shadow: 0 4px 18px rgba(15, 23, 42, .045);
+  --ciu-green: #00695c;
+  --ciu-green-dark: #00574f;
+  --ciu-green-deep: #123f35;
+  --ciu-lime: #8bc63f;
+  --ciu-lime-soft: #f3f8ed;
+  --ciu-mint: #f4f8f6;
+  --ciu-ink: #172033;
+  --ciu-muted: #64748b;
+  --ciu-bg: #ffffff;
+  --ciu-border: #e2e8f0;
+}
+html, body { background: #ffffff; color: #172033; }
+body, button, input, select, textarea { font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+.crm-shell, .crm-main, .crm-content, .ciu-page { background: #ffffff; color: #172033; }
+.crm-sidebar {
+  background: #ffffff;
+  color: #172033;
+  border-right: 1px solid #e2e8f0;
+}
+.crm-nav a { color: #334155; font-size: 14px; font-weight: 600; }
+.crm-nav a:hover, .crm-nav a.active { background: #e8f4f0; color: #00574f; }
+.crm-mobile-nav {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, .10);
+}
+.crm-mobile-nav a { color: #475569; }
+.crm-mobile-nav a.active { color: #00695c; font-weight: 700; }
+.ciu-page { background: #ffffff; }
+.ciu-hero {
+  background: #ffffff;
+  color: #172033;
+  border: 1px solid #e2e8f0;
+  border-left: 4px solid #00695c;
+  border-radius: 12px;
+  box-shadow: none;
+}
+.ciu-hero:after { display: none; }
+.ciu-hero p { color: #64748b; }
+.ciu-hero h1 { color: #172033; }
+.ciu-btn {
+  background: #00695c;
+  color: #ffffff;
+  box-shadow: none;
+  font-size: 13px;
+  font-weight: 650;
+  border-radius: 8px;
+}
+.ciu-btn:hover { background: #00574f; filter: none; }
+.ciu-btn-light {
+  background: #ffffff;
+  color: #00695c;
+  border: 1px solid #cbd5e1;
+}
+.ciu-kpi, .ciu-card, .crm-kpi, .crm-card {
+  box-shadow: 0 4px 18px rgba(15, 23, 42, .045);
+  border-color: #e2e8f0;
+  border-radius: 12px;
+}
+.ciu-kpi-value, .ciu-attention-item strong { color: #123f35; }
+.ciu-strip { background: #f4f8f6; border-color: #dbe7e1; color: #475569; }
+.ciu-attention-item { background: #ffffff; border-color: #e2e8f0; }
+.crm-page-heading h1 { color: #172033; font-size: 26px; letter-spacing: -.45px; }
+.crm-page-heading p { font-size: 14px; line-height: 1.5; }
+.crm-btn { background: #00695c; font-size: 13px; border-radius: 8px; }
+.crm-btn:hover { background: #00574f; }
+.crm-btn.secondary { background: #ffffff; }
+.crm-table th { background: #f8fafc; font-size: 11px; color: #64748b; }
+.crm-table td { font-size: 13px; }
+input:focus, select:focus, textarea:focus, button:focus-visible, a:focus-visible {
+  outline: 3px solid rgba(0, 105, 92, .22);
+  outline-offset: 2px;
+}
+@media (max-width: 760px) {
+  .crm-mobile-nav { left: 12px; right: 12px; bottom: 12px; }
 }
