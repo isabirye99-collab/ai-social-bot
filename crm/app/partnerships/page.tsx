@@ -17,11 +17,11 @@ import { createClient } from "@/lib/supabase/client";
 
 type Partnership = {
   id: string;
-  organization_name: string;
-  contact_person: string | null;
-  email: string | null;
-  phone: string | null;
-  partnership_type: string | null;
+  name: string;
+  primary_contact_name: string | null;
+  primary_contact_email: string | null;
+  primary_contact_phone: string | null;
+  category: string | null;
   status: string;
   notes: string | null;
   created_at: string;
@@ -139,12 +139,12 @@ export default function PartnershipsPage() {
     setRefreshing(true);
     const { data, error } = await supabase
       .from("partnerships")
-      .select("id, organization_name, contact_person, email, phone, partnership_type, status, notes, created_at")
+      .select("id, name, primary_contact_name, primary_contact_email, primary_contact_phone, category, status, notes, created_at")
       .order("created_at", { ascending: false });
 
     if (error) {
       setFileError(error.message.includes("partnerships")
-        ? "The Partnerships database table is not available yet. Apply the new Partnerships migration, then refresh this page."
+        ? "Unable to load the Partnerships register. Please check your access and refresh the page."
         : error.message);
       setRecords([]);
     } else {
@@ -163,7 +163,7 @@ export default function PartnershipsPage() {
     const term = search.trim().toLowerCase();
     if (!term) return records;
     return records.filter((item) =>
-      [item.organization_name, item.contact_person, item.email, item.phone, item.partnership_type, item.status]
+      [item.name, item.primary_contact_name, item.primary_contact_email, item.primary_contact_phone, item.category, item.status]
         .some((value) => (value || "").toLowerCase().includes(term)),
     );
   }, [records, search]);
@@ -213,13 +213,13 @@ export default function PartnershipsPage() {
 
       const { data: existing, error: existingError } = await supabase
         .from("partnerships")
-        .select("organization_name, email");
+        .select("name, primary_contact_email");
       if (existingError) throw existingError;
 
       const known = new Set<string>();
-      (existing || []).forEach((row: { organization_name: string; email: string | null }) => {
-        known.add(`name:${row.organization_name.trim().toLowerCase()}`);
-        if (row.email?.trim()) known.add(`email:${row.email.trim().toLowerCase()}`);
+      (existing || []).forEach((row: { name: string; primary_contact_email: string | null }) => {
+        known.add(`name:${row.name.trim().toLowerCase()}`);
+        if (row.primary_contact_email?.trim()) known.add(`email:${row.primary_contact_email.trim().toLowerCase()}`);
       });
 
       const unique: CsvRecord[] = [];
@@ -239,7 +239,13 @@ export default function PartnershipsPage() {
       let inserted = 0;
       for (let i = 0; i < unique.length; i += 100) {
         const batch = unique.slice(i, i + 100).map((row) => ({
-          ...row,
+          name: row.organization_name,
+          primary_contact_name: row.contact_person || null,
+          primary_contact_email: row.email || null,
+          primary_contact_phone: row.phone || null,
+          category: row.partnership_type || null,
+          status: row.status || "prospect",
+          notes: row.notes || null,
           created_by: authData.user?.id || null,
         }));
         const { data, error } = await supabase.from("partnerships").insert(batch).select("id");
@@ -289,11 +295,11 @@ export default function PartnershipsPage() {
           </div>
           <div className="rounded-xl border border-slate-200 bg-white p-5">
             <div className="text-sm font-medium text-slate-500">Active partnerships</div>
-            <div className="mt-3 text-3xl font-semibold tracking-tight text-slate-900">{records.filter((r) => (r.status || "").toLowerCase() === "active").length.toLocaleString()}</div>
+            <div className="mt-3 text-3xl font-semibold tracking-tight text-slate-900">{records.filter((r) => ["active", "signed", "in progress"].includes((r.status || "").toLowerCase())).length.toLocaleString()}</div>
           </div>
           <div className="rounded-xl border border-slate-200 bg-white p-5">
             <div className="text-sm font-medium text-slate-500">Partnership categories</div>
-            <div className="mt-3 text-3xl font-semibold tracking-tight text-slate-900">{new Set(records.map((r) => r.partnership_type).filter(Boolean)).size.toLocaleString()}</div>
+            <div className="mt-3 text-3xl font-semibold tracking-tight text-slate-900">{new Set(records.map((r) => r.category).filter(Boolean)).size.toLocaleString()}</div>
           </div>
         </div>
 
@@ -339,10 +345,10 @@ export default function PartnershipsPage() {
                 <tbody className="divide-y divide-slate-100 text-sm">
                   {filtered.map((record) => (
                     <tr key={record.id} className="hover:bg-slate-50/70">
-                      <td className="px-5 py-4 font-medium text-slate-900">{record.organization_name}</td>
-                      <td className="px-5 py-4 text-slate-700">{record.contact_person || "—"}</td>
-                      <td className="px-5 py-4"><div className="text-slate-700">{record.email || "—"}</div><div className="mt-1 text-xs text-slate-500">{record.phone || ""}</div></td>
-                      <td className="px-5 py-4 text-slate-600">{record.partnership_type || "—"}</td>
+                      <td className="px-5 py-4 font-medium text-slate-900">{record.name}</td>
+                      <td className="px-5 py-4 text-slate-700">{record.primary_contact_name || "—"}</td>
+                      <td className="px-5 py-4"><div className="text-slate-700">{record.primary_contact_email || "—"}</div><div className="mt-1 text-xs text-slate-500">{record.primary_contact_phone || ""}</div></td>
+                      <td className="px-5 py-4 text-slate-600">{record.category || "—"}</td>
                       <td className="px-5 py-4"><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${(record.status || "").toLowerCase() === "active" ? "bg-emerald-50 text-emerald-800" : "bg-slate-100 text-slate-600"}`}>{record.status || "Unspecified"}</span></td>
                       <td className="px-5 py-4 text-slate-500">{displayDate(record.created_at)}</td>
                     </tr>
