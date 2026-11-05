@@ -1021,7 +1021,8 @@ export default function ReportsPage() {
               </thead>
 
               <tbody>
-                {salesRows.length ? (\n                  salesRows.map((row) => (
+                {salesRows.length ? (
+                  salesRows.map((row) => (
                     <tr key={row.id}>
                       <td>
                         <div className="staff-cell">
