@@ -41,6 +41,10 @@ type ReportRow = {
   name: string;
   leads: number;
   calls: number;
+  emails: number;
+  whatsapp: number;
+  meetings: number;
+  contactActivities: number;
   followUps: number;
   interested: number;
   applications: number;
@@ -300,11 +304,11 @@ export default function ReportsPage() {
             (task.task_type || "").toLowerCase() === "call"
         ).length;
 
-        const followUps = staffTasks.filter((task) =>
-          ["call", "whatsapp", "email"].includes(
-            (task.task_type || "").toLowerCase()
-          )
-        ).length;
+        const emails = staffTasks.filter((task) => (task.task_type || "").toLowerCase() === "email").length;
+        const whatsapp = staffTasks.filter((task) => (task.task_type || "").toLowerCase() === "whatsapp").length;
+        const meetings = staffTasks.filter((task) => (task.task_type || "").toLowerCase() === "meeting").length;
+        const followUps = calls + emails + whatsapp;
+        const contactActivities = calls + emails + whatsapp + meetings;
 
         const interested = staffLeads.filter(
           (lead) =>
@@ -364,6 +368,10 @@ export default function ReportsPage() {
           module_permissions: profile.module_permissions || null,
           leads: staffLeads.length,
           calls,
+          emails,
+          whatsapp,
+          meetings,
+          contactActivities,
           followUps,
           interested,
           applications,
@@ -593,6 +601,10 @@ export default function ReportsPage() {
                 Download CSV
               </button>
 
+              <button type="button" onClick={() => window.print()} className="report-print">
+                Print
+              </button>
+
               <button
                 type="button"
                 onClick={async () => {
@@ -634,82 +646,12 @@ export default function ReportsPage() {
           </div>
         </section>
 
-        <section className="report-kpis" aria-label="Alumni and partnerships summary" style={{ marginBottom: 18 }}>
-          <div className="report-kpi"><span className="kpi-label">Total Alumni</span><strong>{relationshipMetrics.alumniTotal.toLocaleString()}</strong><small>Registered alumni records</small></div>
-          <div className="report-kpi"><span className="kpi-label">Verified Alumni</span><strong>{relationshipMetrics.alumniVerified.toLocaleString()}</strong><small>Verified alumni profiles</small></div>
-          <div className="report-kpi"><span className="kpi-label">Employed Alumni</span><strong>{relationshipMetrics.alumniEmployed.toLocaleString()}</strong><small>Marked as employed</small></div>
-          <div className="report-kpi"><span className="kpi-label">All Partnerships</span><strong>{relationshipMetrics.partnershipsTotal.toLocaleString()}</strong><small>Registered relationships</small></div>
-          <div className="report-kpi"><span className="kpi-label">Active Partnerships</span><strong>{relationshipMetrics.partnershipsActive.toLocaleString()}</strong><small>Currently active</small></div>
-          <div className="report-kpi"><span className="kpi-label">Partnership Pipeline</span><strong>{relationshipMetrics.partnershipsPipeline.toLocaleString()}</strong><small>Prospects and negotiations</small></div>
-          <div className="report-kpi"><span className="kpi-label">Renewal Watch</span><strong>{relationshipMetrics.partnershipsRenewalWatch.toLocaleString()}</strong><small>Ending in the next 90 days</small></div>
+        <section className="report-kpis report-overview-kpis" aria-label="CRM performance overview">
+          <div className="report-kpi report-kpi-primary"><span className="kpi-label">Alumni</span><strong>{relationshipMetrics.alumniTotal.toLocaleString()}</strong><small>{relationshipMetrics.alumniVerified.toLocaleString()} verified profiles</small></div>
+          <div className="report-kpi report-kpi-partnerships"><span className="kpi-label">Partnerships</span><strong>{relationshipMetrics.partnershipsTotal.toLocaleString()}</strong><small>{relationshipMetrics.partnershipsActive.toLocaleString()} active relationships</small></div>
+          <div className="report-kpi report-kpi-conversion"><span className="kpi-label">Sales · Enrolments</span><strong>{salesRows.reduce((sum, row) => sum + row.enrolled, 0).toLocaleString()}</strong><small>Enrolments recorded for this period</small></div>
+          <div className="report-kpi report-kpi-contacts"><span className="kpi-label">Contact Activities</span><strong>{report.rows.reduce((sum, row) => sum + row.contactActivities, 0).toLocaleString()}</strong><small>Calls, emails, WhatsApp and meetings</small></div>
         </section>
-
-        <section className="report-kpis">
-          <div className="report-kpi">
-            <span className="kpi-label">Leads</span>
-            <strong>{report.totalLeads}</strong>
-            <small>New leads in period</small>
-          </div>
-
-          <div className="report-kpi">
-            <span className="kpi-label">Calls</span>
-            <strong>{report.totalCalls}</strong>
-            <small>Call activities</small>
-          </div>
-
-          <div className="report-kpi">
-            <span className="kpi-label">Follow-ups</span>
-            <strong>{report.totalFollowUps}</strong>
-            <small>Call, WhatsApp & email</small>
-          </div>
-
-          <div className="report-kpi">
-            <span className="kpi-label">Interested</span>
-            <strong>{report.totalInterested}</strong>
-            <small>Qualified prospects</small>
-          </div>
-
-          <div className="report-kpi">
-            <span className="kpi-label">Applications</span>
-            <strong>{report.totalApplications}</strong>
-            <small>Application activity</small>
-          </div>
-
-          <div className="report-kpi">
-            <span className="kpi-label">Admitted</span>
-            <strong>{report.totalAdmitted}</strong>
-            <small>Admissions reached</small>
-          </div>
-
-          <div className="report-kpi">
-            <span className="kpi-label">Acceptance Paid</span>
-            <strong>
-              {report.totalAcceptancePaid}
-            </strong>
-            <small>Acceptance confirmed</small>
-          </div>
-
-          <div className="report-kpi report-kpi-primary">
-            <span className="kpi-label">Enrolled</span>
-            <strong>{report.totalEnrolled}</strong>
-            <small>Successful enrolments</small>
-          </div>
-
-          <div className="report-kpi">
-            <span className="kpi-label">Tasks Done</span>
-            <strong>
-              {report.totalCompletedTasks}
-            </strong>
-            <small>Completed tasks</small>
-          </div>
-
-          <div className="report-kpi report-kpi-conversion">
-            <span className="kpi-label">Conversion</span>
-            <strong>{report.totalConversion}%</strong>
-            <small>Lead to enrolment</small>
-          </div>
-        </section>
-
         <section className="report-main-grid">
           <div className="ciu-card">
             <div className="ciu-card-head report-card-head">
