@@ -219,11 +219,12 @@ export default function ReportsPage() {
 
       const eligibleProfiles = ((p.data || []) as Profile[]).filter((profile) => {
         const profileRole = String(profile.role || "").trim().toLowerCase().replace(/[ -]/g, "_");
+        if (["admin", "super_admin", "manager"].includes(profileRole)) return false;
         const modules = Array.isArray(profile.module_permissions) ? profile.module_permissions : null;
         const isSalesperson = profileRole === "salesperson";
         const isAlumniRelations = [
           "alumni_relations", "alumni_coordinator", "alumni_officer",
-        ].includes(profileRole) || profileRole === "marketing" && (modules === null || modules.includes("alumni")) || modules?.includes("alumni") === true;
+        ].includes(profileRole) || (profileRole === "marketing" && (modules === null || modules.includes("alumni"))) || modules?.includes("alumni") === true;
         return isSalesperson || isAlumniRelations;
       });
 
