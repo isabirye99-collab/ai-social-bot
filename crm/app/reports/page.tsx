@@ -10,6 +10,7 @@ type Profile = {
   id: string;
   full_name: string | null;
   role?: string | null;
+  module_permissions?: string[] | null;
 };
 
 type Lead = {
@@ -166,7 +167,7 @@ export default function ReportsPage() {
 
       const profilesQuery = supabase
         .from("profiles")
-        .select("id,full_name,role")
+        .select("id,full_name,role,module_permissions")
         .eq("is_active", true)
         .order("full_name");
 
@@ -210,7 +211,7 @@ export default function ReportsPage() {
       }
 
       const role = String(currentProfile.data?.role || "").trim().toLowerCase().replace(/[ -]/g, "_");
-      if (!["super_admin", "admin", "manager", "salesperson"].includes(role)) {
+      if (!["super_admin", "admin", "manager", "salesperson", "marketing", "alumni_relations", "alumni_coordinator", "alumni_officer"].includes(role)) {
         router.replace("/dashboard");
         return;
       }
@@ -218,7 +219,12 @@ export default function ReportsPage() {
 
       const eligibleProfiles = ((p.data || []) as Profile[]).filter((profile) => {
         const profileRole = String(profile.role || "").trim().toLowerCase().replace(/[ -]/g, "_");
-        return !["admin", "super_admin"].includes(profileRole);
+        const modules = Array.isArray(profile.module_permissions) ? profile.module_permissions : null;
+        const isSalesperson = profileRole === "salesperson";
+        const isAlumniRelations = [
+          "alumni_relations", "alumni_coordinator", "alumni_officer",
+        ].includes(profileRole) || profileRole === "marketing" && (modules === null || modules.includes("alumni")) || modules?.includes("alumni") === true;
+        return isSalesperson || isAlumniRelations;
       });
 
       const canViewTeam = ["manager", "admin", "super_admin"].includes(role);
@@ -493,11 +499,11 @@ export default function ReportsPage() {
               </div>
 
               <h1>
-                {"Staff Performance Report"}
+                {"Sales & Alumni Relations Report"}
               </h1>
 
               <p>
-                {["manager", "admin", "super_admin"].includes(viewerRole) ? "Review team lead generation, follow-ups, tasks and admissions performance." : "Review your personal lead generation, follow-ups, tasks and admissions performance."}
+                {["manager", "admin", "super_admin"].includes(viewerRole) ? "Review sales team activity alongside alumni and partnership relationship metrics." : "Review your activity alongside alumni and partnership relationship metrics."}
               </p>
             </div>
 
@@ -562,7 +568,7 @@ export default function ReportsPage() {
           </div>
 
           <div className="period-meta">
-            {["manager", "admin", "super_admin"].includes(viewerRole) ? `${report.rows.length} active staff (excluding Admin and Super Admin)` : "Your individual performance report"}
+            {["manager", "admin", "super_admin"].includes(viewerRole) ? `${report.rows.length} sales and alumni relations staff` : "Your individual performance report"}
           </div>
         </section>
 
