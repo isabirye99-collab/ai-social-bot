@@ -15,6 +15,7 @@ export type CrmModule =
   | "pipeline"
   | "tasks"
   | "marketing"
+  | "partnerships"
   | "reports"
   | "staff"
   | "advanced"
@@ -27,6 +28,7 @@ export const ALL_CRM_MODULES: CrmModule[] = [
   "pipeline",
   "tasks",
   "marketing",
+  "partnerships",
   "reports",
   "staff",
   "advanced",
@@ -40,6 +42,7 @@ export const MODULE_LABELS: Record<CrmModule, string> = {
   pipeline: "Pipeline",
   tasks: "Tasks",
   marketing: "Marketing",
+  partnerships: "Partnerships",
   reports: "Reports",
   staff: "Staff",
   advanced: "Advanced",
@@ -55,6 +58,7 @@ export const ROLE_MODULES: Record<CrmRole, CrmModule[]> = {
     "pipeline",
     "tasks",
     "marketing",
+    "partnerships",
     "reports",
     "staff",
     "advanced",
@@ -77,7 +81,7 @@ export const ROLE_MODULES: Record<CrmRole, CrmModule[]> = {
     "reports",
     "advanced",
   ],
-  marketing: ["dashboard", "leads", "marketing", "reports", "advanced"],
+  marketing: ["dashboard", "leads", "marketing", "partnerships", "reports", "advanced"],
   finance: ["dashboard", "customers", "pipeline", "reports", "advanced"],
   viewer: ["dashboard", "leads", "customers", "pipeline", "reports"],
 };
