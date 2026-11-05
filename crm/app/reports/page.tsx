@@ -565,11 +565,11 @@ export default function ReportsPage() {
               </div>
 
               <h1>
-                {"Sales & Alumni Relations Report"}
+                {"CRM Performance Reports"}
               </h1>
 
               <p>
-                {["manager", "admin", "super_admin"].includes(viewerRole) ? "Review sales team activity alongside alumni and partnership relationship metrics." : "Review your activity alongside alumni and partnership relationship metrics."}
+                {["manager", "admin", "super_admin"].includes(viewerRole) ? "Track sales performance, alumni engagement and partnership relationships in one place." : "Review your activity alongside alumni and partnership relationship metrics."}
               </p>
             </div>
 
@@ -598,7 +598,7 @@ export default function ReportsPage() {
               />
 
               <button type="button" onClick={downloadReport} className="report-refresh">
-                Download CSV
+                Download Report
               </button>
 
               <button type="button" onClick={() => window.print()} className="report-print">
@@ -1024,67 +1024,67 @@ export default function ReportsPage() {
 
                   <td>
                     <strong>
-                      {report.totalLeads}
+                      {salesRows.reduce((sum, row) => sum + row.leads, 0)}
                     </strong>
                   </td>
 
                   <td>
                     <strong>
-                      {report.totalCalls}
+                      {salesRows.reduce((sum, row) => sum + row.calls, 0)}
                     </strong>
                   </td>
 
                   <td>
                     <strong>
-                      {report.totalFollowUps}
+                      {salesRows.reduce((sum, row) => sum + row.followUps, 0)}
                     </strong>
                   </td>
 
                   <td>
                     <strong>
-                      {report.totalInterested}
+                      {salesRows.reduce((sum, row) => sum + row.interested, 0)}
                     </strong>
                   </td>
 
                   <td>
                     <strong>
-                      {report.totalApplications}
+                      {salesRows.reduce((sum, row) => sum + row.applications, 0)}
                     </strong>
                   </td>
 
                   <td>
                     <strong>
-                      {report.totalSubmitted}
+                      {salesRows.reduce((sum, row) => sum + row.submitted, 0)}
                     </strong>
                   </td>
 
                   <td>
                     <strong>
-                      {report.totalAdmitted}
+                      {salesRows.reduce((sum, row) => sum + row.admitted, 0)}
                     </strong>
                   </td>
 
                   <td>
                     <strong>
-                      {report.totalAcceptancePaid}
+                      {salesRows.reduce((sum, row) => sum + row.acceptancePaid, 0)}
                     </strong>
                   </td>
 
                   <td>
                     <strong>
-                      {report.totalEnrolled}
+                      {salesRows.reduce((sum, row) => sum + row.enrolled, 0)}
                     </strong>
                   </td>
 
                   <td>
                     <strong>
-                      {report.totalCompletedTasks}
+                      {salesRows.reduce((sum, row) => sum + row.completedTasks, 0)}
                     </strong>
                   </td>
 
                   <td>
                     <strong>
-                      {report.totalConversion}%
+                      {(salesRows.reduce((sum, row) => sum + row.leads, 0) ? Math.round(salesRows.reduce((sum, row) => sum + row.enrolled, 0) / salesRows.reduce((sum, row) => sum + row.leads, 0) * 1000) / 10 : 0)}%
                     </strong>
                   </td>
                 </tr>
@@ -1284,6 +1284,9 @@ export default function ReportsPage() {
           font-size: 12px;
         }
 
+        .report-overview-kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+        .report-kpi-partnerships { border-left-color: #a3c84b; }
+        .report-kpi-contacts { border-left-color: #e8b83e; }
         .report-kpis {
           display: grid;
           grid-template-columns: repeat(
@@ -1702,6 +1705,7 @@ export default function ReportsPage() {
         }
 
         @media (max-width: 1200px) {
+          .report-overview-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
           .report-kpis {
             grid-template-columns: repeat(
               4,
