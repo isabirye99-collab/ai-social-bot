@@ -572,7 +572,7 @@ if (mounted) {
 
       data-navigation-orientation={layoutOrientation}
 
-      style={{ background: "#f5f8f7", "--ciu-primary": primaryColor } as React.CSSProperties}
+      style={{ background: "#ffffff", color: "#172033", fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif", "--ciu-primary": primaryColor } as React.CSSProperties}
 
     >
 
@@ -604,9 +604,9 @@ if (mounted) {
 
         style={{
 
-          background: `linear-gradient(90deg,${primaryColor} 0%,${primaryColor}e8 72%,${primaryColor}cc 100%)`,
+          background: "#ffffff",
 
-          ...(layoutOrientation === "vertical" ? { background: `linear-gradient(180deg,${primaryColor} 0%,${primaryColor}e8 72%,${primaryColor}cc 100%)` } : {}),
+          borderRight: "1px solid #e5e7eb", color: "#172033",
 
         }}
 
@@ -616,7 +616,7 @@ if (mounted) {
 
           className={layoutOrientation === "horizontal" ? "flex shrink-0 items-center border-r pr-4" : "flex h-24 items-center border-b px-5"}
 
-          style={{ borderColor: "rgba(255,255,255,.12)" }}
+          style={{ borderColor: "#e5e7eb" }}
 
         >
 
@@ -718,7 +718,7 @@ if (mounted) {
 
                 className="text-sm font-bold"
 
-                style={{ color: "#fff" }}
+                style={{ color: "#123f35" }}
 
               >
 
@@ -732,7 +732,7 @@ if (mounted) {
 
                 className="text-xs font-medium"
 
-                style={{ color: "#cce8a8" }}
+                style={{ color: "#64748b" }}
 
               >
 
@@ -756,7 +756,7 @@ if (mounted) {
 
             style={{
 
-              color: "rgba(255,255,255,.5)",
+              color: "#64748b",
 
             }}
 
@@ -816,17 +816,8 @@ if (mounted) {
 
                     style={{
 
-                      background: active
-
-                        ? "rgba(139,198,63,.22)"
-
-                        : "transparent",
-
-                      color: active
-
-                        ? "#fff"
-
-                        : "rgba(255,255,255,.72)",
+                      background: active ? primaryColor : "transparent",
+                      color: active ? "#ffffff" : "#334155",
 
                     }}
 
@@ -838,17 +829,8 @@ if (mounted) {
 
                       style={{
 
-                        background: active
-
-                          ? "rgba(139,198,63,.24)"
-
-                          : "rgba(255,255,255,.08)",
-
-                        color: active
-
-                          ? "#cce8a8"
-
-                          : "rgba(255,255,255,.7)",
+                        background: active ? "rgba(255,255,255,.16)" : "#f1f5f9",
+                        color: active ? "#ffffff" : primaryColor,
 
                       }}
 
@@ -892,7 +874,7 @@ if (mounted) {
 
               background:
 
-                "rgba(255,255,255,.08)",
+                "#f8fafc",
 
             }}
 
@@ -908,7 +890,7 @@ if (mounted) {
 
                   background:
 
-                    "rgba(139,198,63,.25)",
+                    "#dcefe6",
 
                 }}
 
@@ -944,7 +926,7 @@ if (mounted) {
 
                     color:
 
-                      "rgba(255,255,255,.58)",
+                      "#64748b",
 
                   }}
 
@@ -984,7 +966,7 @@ if (mounted) {
 
                   color:
 
-                    "rgba(255,255,255,.48)",
+                    "#64748b",
 
                 }}
 
@@ -1194,7 +1176,7 @@ if (mounted) {
 
                 borderColor:
 
-                  "rgba(255,255,255,.18)",
+                  primaryColor,
 
                 background: "#fff",
 
