@@ -908,8 +908,8 @@ export default function ReportsPage() {
         <section className="ciu-card report-table-card">
           <div className="ciu-card-head report-card-head"><div><h2>Alumni Relations Activity</h2><span>Contact and follow-up activity for Alumni Relations staff in the selected period.</span></div></div>
           <div className="report-table-scroll"><table className="report-table">
-            <thead><tr><th>Staff Member</th><th>Contact activities</th><th>Calls</th><th>Follow-ups</th><th>Tasks done</th></tr></thead>
-            <tbody>{alumniRows.length ? alumniRows.map((row) => <tr key={row.id}><td><div className="staff-cell"><div className="staff-avatar">{row.name.split(" ").map((part) => part.charAt(0)).join("").slice(0, 2).toUpperCase()}</div><strong>{row.name}</strong></div></td><td><strong>{row.followUps}</strong></td><td>{row.calls}</td><td>{row.followUps}</td><td>{row.completedTasks}</td></tr>) : <tr><td colSpan={5}>No Alumni Relations activity recorded for this period.</td></tr>}</tbody>
+            <thead><tr><th>Staff Member</th><th>Contact activities</th><th>Calls</th><th>Emails</th><th>WhatsApp</th><th>Meetings</th><th>Tasks done</th></tr></thead>
+            <tbody>{alumniRows.length ? alumniRows.map((row) => <tr key={row.id}><td><div className="staff-cell"><div className="staff-avatar">{row.name.split(" ").map((part) => part.charAt(0)).join("").slice(0, 2).toUpperCase()}</div><strong>{row.name}</strong></div></td><td><strong>{row.contactActivities}</strong></td><td>{row.calls}</td><td>{row.emails}</td><td>{row.whatsapp}</td><td>{row.meetings}</td><td>{row.completedTasks}</td></tr>) : <tr><td colSpan={7}>No Alumni Relations activity recorded for this period.</td></tr>}</tbody>
           </table></div>
           <p style={{ padding: "0 18px 14px", color: "#64748b", fontSize: 12 }}>Contact activities are counted from call, WhatsApp and email tasks. They are logged activities, not a deduplicated count of unique people.</p>
         </section>
@@ -917,7 +917,7 @@ export default function ReportsPage() {
           <div className="ciu-card-head report-card-head"><div><h2>Partnerships Activity</h2><span>Contact and follow-up activity for staff responsible for partnerships in the selected period.</span></div></div>
           <div className="report-table-scroll"><table className="report-table">
             <thead><tr><th>Staff Member</th><th>Contact activities</th><th>Calls</th><th>Follow-ups</th><th>Tasks done</th></tr></thead>
-            <tbody>{partnershipRows.length ? partnershipRows.map((row) => <tr key={row.id}><td><div className="staff-cell"><div className="staff-avatar">{row.name.split(" ").map((part) => part.charAt(0)).join("").slice(0, 2).toUpperCase()}</div><strong>{row.name}</strong></div></td><td><strong>{row.followUps}</strong></td><td>{row.calls}</td><td>{row.followUps}</td><td>{row.completedTasks}</td></tr>) : <tr><td colSpan={5}>No Partnerships activity recorded for this period.</td></tr>}</tbody>
+            <tbody>{partnershipRows.length ? partnershipRows.map((row) => <tr key={row.id}><td><div className="staff-cell"><div className="staff-avatar">{row.name.split(" ").map((part) => part.charAt(0)).join("").slice(0, 2).toUpperCase()}</div><strong>{row.name}</strong></div></td><td><strong>{row.followUps}</strong></td><td>{row.calls}</td><td>{row.followUps}</td><td>{row.completedTasks}</td></tr>) : <tr><td colSpan={7}>No Partnerships activity recorded for this period.</td></tr>}</tbody>
           </table></div>
           <p style={{ padding: "0 18px 14px", color: "#64748b", fontSize: 12 }}>Contact activities are counted from call, WhatsApp and email tasks. They are logged activities, not a deduplicated count of unique people.</p>
         </section>
