@@ -140,6 +140,7 @@ export default function PartnershipsPage() {
   const [search, setSearch] = useState("");
   const [showImport, setShowImport] = useState(false);
   const [showAddContact, setShowAddContact] = useState(false);
+  const [editingRecord, setEditingRecord] = useState<Partnership | null>(null);
   const [savingContact, setSavingContact] = useState(false);
   const [contactForm, setContactForm] = useState({ name: "", primary_contact_name: "", primary_contact_email: "", primary_contact_phone: "", category: "", status: "prospect", notes: "" });
   const [fileName, setFileName] = useState("");
@@ -279,13 +280,19 @@ export default function PartnershipsPage() {
     }
   };
 
+  const openRecord = (record: Partnership) => {
+    setFileError(""); setImportResult(""); setEditingRecord(record);
+    setContactForm({ name: record.name || "", primary_contact_name: record.primary_contact_name || "", primary_contact_email: record.primary_contact_email || "", primary_contact_phone: record.primary_contact_phone || "", category: record.category || "", status: normalizeStatus(record.status || "prospect"), notes: record.notes || "" });
+    setShowAddContact(true);
+  };
+
   const saveContact = async () => {
     if (!contactForm.name.trim()) { setFileError("Organization name is required."); return; }
     setSavingContact(true); setFileError(""); setImportResult("");
     try {
       const { data: authData, error: authError } = await supabase.auth.getUser();
       if (authError) throw authError;
-      const { error } = await supabase.from("partnerships").insert({
+      const payload = {
         name: contactForm.name.trim(),
         primary_contact_name: contactForm.primary_contact_name.trim() || null,
         primary_contact_email: contactForm.primary_contact_email.trim() || null,
@@ -293,10 +300,13 @@ export default function PartnershipsPage() {
         category: contactForm.category.trim() || null,
         status: normalizeStatus(contactForm.status),
         notes: contactForm.notes.trim() || null,
-        created_by: authData.user?.id || null,
-      });
-      if (error) throw error;
+      };
+      const result = editingRecord
+        ? await supabase.from("partnerships").update({ ...payload, updated_at: new Date().toISOString() }).eq("id", editingRecord.id)
+        : await supabase.from("partnerships").insert({ ...payload, created_by: authData.user?.id || null });
+      if (result.error) throw result.error;
       setShowAddContact(false);
+      setEditingRecord(null);
       setContactForm({ name: "", primary_contact_name: "", primary_contact_email: "", primary_contact_phone: "", category: "", status: "prospect", notes: "" });
       await loadRecords();
     } catch (error) {
@@ -318,7 +328,7 @@ export default function PartnershipsPage() {
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={() => { setFileError(""); setContactForm({ name: "", primary_contact_name: "", primary_contact_email: "", primary_contact_phone: "", category: "", status: "prospect", notes: "" }); setShowAddContact(true); }} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-[#00695c] bg-white px-4 text-sm font-semibold text-[#00695c] hover:bg-emerald-50"><Users size={16} /> Add Contact</button>
+            <button type="button" onClick={() => { setFileError(""); setEditingRecord(null); setContactForm({ name: "", primary_contact_name: "", primary_contact_email: "", primary_contact_phone: "", category: "", status: "prospect", notes: "" }); setShowAddContact(true); }} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-[#00695c] bg-white px-4 text-sm font-semibold text-[#00695c] hover:bg-emerald-50"><Users size={16} /> Add Contact</button>
             <button type="button" onClick={downloadTemplate} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
               <Download size={16} /> CSV template
             </button>
@@ -379,7 +389,7 @@ export default function PartnershipsPage() {
               <table className="w-full min-w-[850px] border-collapse text-left">
                 <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
                   <tr>
-                    <th className="px-5 py-3.5">Organization</th><th className="px-5 py-3.5">Contact person</th><th className="px-5 py-3.5">Contact details</th><th className="px-5 py-3.5">Partnership type</th><th className="px-5 py-3.5">Status</th><th className="px-5 py-3.5">Added</th>
+                    <th className="px-5 py-3.5">Organization</th><th className="px-5 py-3.5">Contact person</th><th className="px-5 py-3.5">Contact details</th><th className="px-5 py-3.5">Partnership type</th><th className="px-5 py-3.5">Status</th><th className="px-5 py-3.5">Added</th><th className="px-5 py-3.5">Profile</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-sm">
@@ -390,7 +400,7 @@ export default function PartnershipsPage() {
                       <td className="px-5 py-4"><div className="text-slate-700">{record.primary_contact_email || "—"}</div><div className="mt-1 text-xs text-slate-500">{record.primary_contact_phone || ""}</div></td>
                       <td className="px-5 py-4 text-slate-600">{record.category || "—"}</td>
                       <td className="px-5 py-4"><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${(record.status || "").toLowerCase() === "active" ? "bg-emerald-50 text-emerald-800" : "bg-slate-100 text-slate-600"}`}>{record.status || "Unspecified"}</span></td>
-                      <td className="px-5 py-4 text-slate-500">{displayDate(record.created_at)}</td>
+                      <td className="px-5 py-4 text-slate-500">{displayDate(record.created_at)}</td><td className="px-5 py-4"><button type="button" onClick={() => openRecord(record)} className="rounded-lg border border-emerald-700 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-50">View / Edit</button></td>
                     </tr>
                   ))}
                 </tbody>
@@ -403,7 +413,7 @@ export default function PartnershipsPage() {
       {showAddContact && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/40 p-3 sm:p-6" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !savingContact) setShowAddContact(false); }}>
           <section role="dialog" aria-modal="true" aria-labelledby="add-partnership-title" className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4"><div><h2 id="add-partnership-title" className="font-semibold text-slate-900">Add Contact</h2><p className="mt-1 text-sm text-slate-500">Add a partner organisation and its primary contact.</p></div><button type="button" aria-label="Close form" onClick={() => setShowAddContact(false)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X size={18} /></button></div>
+            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4"><div><h2 id="add-partnership-title" className="font-semibold text-slate-900">{editingRecord ? "Partnership Profile" : "Add Contact"}</h2><p className="mt-1 text-sm text-slate-500">{editingRecord ? "Review or update this organisation and save your changes." : "Add a partner organisation and its primary contact."}</p></div><button type="button" aria-label="Close form" onClick={() => setShowAddContact(false)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X size={18} /></button></div>
             <div className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-2">
               <label className="text-sm font-medium text-slate-700 sm:col-span-2">Organization name *<input value={contactForm.name} onChange={(e) => setContactForm({ ...contactForm, name: e.target.value })} required className="mt-1.5 h-10 w-full rounded-lg border border-slate-300 px-3 font-normal outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-100" placeholder="Partner organization" /></label>
               <label className="text-sm font-medium text-slate-700">Contact person<input value={contactForm.primary_contact_name} onChange={(e) => setContactForm({ ...contactForm, primary_contact_name: e.target.value })} className="mt-1.5 h-10 w-full rounded-lg border border-slate-300 px-3 font-normal outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-100" placeholder="Full name" /></label>
@@ -414,7 +424,7 @@ export default function PartnershipsPage() {
               <label className="text-sm font-medium text-slate-700 sm:col-span-2">Notes<textarea value={contactForm.notes} onChange={(e) => setContactForm({ ...contactForm, notes: e.target.value })} rows={3} className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-100" placeholder="Relationship details or follow-up notes" /></label>
               {fileError && <p className="text-sm text-red-700 sm:col-span-2">{fileError}</p>}
             </div>
-            <div className="flex justify-end gap-2 border-t border-slate-200 bg-slate-50 px-5 py-4"><button type="button" disabled={savingContact} onClick={() => setShowAddContact(false)} className="rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700">Cancel</button><button type="button" disabled={savingContact || !contactForm.name.trim()} onClick={() => void saveContact()} className="rounded-lg bg-[#00695c] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">{savingContact ? "Saving…" : "Save Contact"}</button></div>
+            <div className="flex justify-end gap-2 border-t border-slate-200 bg-slate-50 px-5 py-4"><button type="button" disabled={savingContact} onClick={() => { setShowAddContact(false); setEditingRecord(null); }} className="rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700">Cancel</button><button type="button" disabled={savingContact || !contactForm.name.trim()} onClick={() => void saveContact()} className="rounded-lg bg-[#00695c] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">{savingContact ? "Saving…" : editingRecord ? "Save Changes" : "Save Contact"}</button></div>
           </section>
         </div>
       )}
