@@ -265,6 +265,10 @@ export default function DashboardPage() {
   const [admissions, setAdmissions] = useState<
     { id: string; assigned_to: string | null; stage: string | null; enrolled_at: string | null }[]
   >([]);
+  const [alumniCounts, setAlumniCounts] = useState({ total: 0, verified: 0 });
+  const [partnershipRecords, setPartnershipRecords] = useState<{ id: string; status: string | null; category: string | null }[]>([]);
+  const [alumniReportAvailable, setAlumniReportAvailable] = useState(true);
+  const [partnershipReportAvailable, setPartnershipReportAvailable] = useState(true);
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -348,18 +352,31 @@ export default function DashboardPage() {
           .select("id,assigned_to,stage,enrolled_at"),
       );
 
+      // Optional dashboard summaries: these must not block core admissions metrics.
+      // Use exact server-side counts: PostgREST limits returned rows by default,
+      // so selecting every alumni row would make the dashboard stop at 1,000.
+      const alumniTotalQuery = supabase.from("alumni").select("id", { count: "exact", head: true });
+      const alumniVerifiedQuery = supabase.from("alumni").select("id", { count: "exact", head: true }).ilike("verification_status", "verified");
+      const partnershipsQuery = supabase.from("partnerships").select("id,status,category");
+
       const [
         leadsResult,
         opportunitiesResult,
         pipelineStagesResult,
         tasksResult,
         admissionsResult,
+        alumniTotalResult,
+        alumniVerifiedResult,
+        partnershipsResult,
       ] = await Promise.all([
         leadsQuery,
         opportunitiesQuery,
         pipelineStagesQuery,
         tasksQuery,
         admissionsQuery,
+        alumniTotalQuery,
+        alumniVerifiedQuery,
+        partnershipsQuery,
       ]);
 
       if (leadsResult.error) {
@@ -394,6 +411,13 @@ export default function DashboardPage() {
 
       setTasks((tasksResult.data || []) as Task[]);
       setAdmissions(admissionsResult.data || []);
+      setAlumniReportAvailable(!alumniTotalResult.error && !alumniVerifiedResult.error);
+      setPartnershipReportAvailable(!partnershipsResult.error);
+      setAlumniCounts({
+        total: alumniTotalResult.error ? 0 : (alumniTotalResult.count ?? 0),
+        verified: alumniVerifiedResult.error ? 0 : (alumniVerifiedResult.count ?? 0),
+      });
+      setPartnershipRecords(partnershipsResult.error ? [] : (partnershipsResult.data || []) as { id: string; status: string | null; category: string | null }[]);
     } catch (err: any) {
       console.error("Dashboard loading error:", err);
 
@@ -1562,6 +1586,73 @@ export default function DashboardPage() {
               </div>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* =====================================================
+          ALUMNI & PARTNERSHIPS REPORT
+      ===================================================== */}
+      <section className="mt-4 grid gap-4 lg:grid-cols-2" aria-label="Alumni and partnerships reports">
+        <div className="rounded-2xl border border-[#e2e9e5] bg-white p-5 shadow-[0_4px_18px_rgba(20,50,40,.035)]">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[.12em] text-[#718078]">Community report</p>
+              <h2 className="mt-1 text-lg font-bold text-[#173b2b]">Alumni Overview</h2>
+              <p className="mt-1 text-sm text-[#718078]">Alumni records and verification progress</p>
+              {!alumniReportAvailable && <p className="mt-1 text-xs text-amber-700">Summary unavailable for this account</p>}
+            </div>
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#e8f4f0] text-[#00695c]">
+              <Icon name="users" size={19} />
+            </span>
+          </div>
+          <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <div className="rounded-xl bg-[#f7faf8] p-3">
+              <p className="text-xs font-medium text-[#718078]">Total alumni</p>
+              <p className="mt-1 text-2xl font-black text-[#173b2b]">{alumniReportAvailable ? alumniCounts.total.toLocaleString() : "—"}</p>
+            </div>
+            <div className="rounded-xl bg-[#f7faf8] p-3">
+              <p className="text-xs font-medium text-[#718078]">Verified</p>
+              <p className="mt-1 text-2xl font-black text-[#00695c]">{alumniReportAvailable ? alumniCounts.verified.toLocaleString() : "—"}</p>
+            </div>
+            <div className="rounded-xl bg-[#f7faf8] p-3">
+              <p className="text-xs font-medium text-[#718078]">Pending review</p>
+              <p className="mt-1 text-2xl font-black text-[#8a6420]">{alumniReportAvailable ? Math.max(0, alumniCounts.total - alumniCounts.verified).toLocaleString() : "—"}</p>
+            </div>
+          </div>
+          <Link href="/alumni" className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-[#00695c] hover:underline">
+            Open Alumni register <Icon name="chevron" size={14} />
+          </Link>
+        </div>
+
+        <div className="rounded-2xl border border-[#e2e9e5] bg-white p-5 shadow-[0_4px_18px_rgba(20,50,40,.035)]">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[.12em] text-[#718078]">Relationship report</p>
+              <h2 className="mt-1 text-lg font-bold text-[#173b2b]">Partnerships Overview</h2>
+              <p className="mt-1 text-sm text-[#718078]">Partner pipeline and active relationships</p>
+              {!partnershipReportAvailable && <p className="mt-1 text-xs text-amber-700">Summary unavailable for this account</p>}
+            </div>
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#f0f7e7] text-[#5f8e2b]">
+              <Icon name="layers" size={19} />
+            </span>
+          </div>
+          <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <div className="rounded-xl bg-[#f7faf8] p-3">
+              <p className="text-xs font-medium text-[#718078]">Total partners</p>
+              <p className="mt-1 text-2xl font-black text-[#173b2b]">{partnershipReportAvailable ? partnershipRecords.length.toLocaleString() : "—"}</p>
+            </div>
+            <div className="rounded-xl bg-[#f7faf8] p-3">
+              <p className="text-xs font-medium text-[#718078]">Active</p>
+              <p className="mt-1 text-2xl font-black text-[#00695c]">{partnershipReportAvailable ? partnershipRecords.filter((item) => (item.status || "").toLowerCase() === "active").length.toLocaleString() : "—"}</p>
+            </div>
+            <div className="rounded-xl bg-[#f7faf8] p-3">
+              <p className="text-xs font-medium text-[#718078]">In negotiation</p>
+              <p className="mt-1 text-2xl font-black text-[#8a6420]">{partnershipReportAvailable ? partnershipRecords.filter((item) => ["negotiation", "engaging"].includes((item.status || "").toLowerCase())).length.toLocaleString() : "—"}</p>
+            </div>
+          </div>
+          <Link href="/partnerships" className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-[#00695c] hover:underline">
+            Open Partnerships register <Icon name="chevron" size={14} />
+          </Link>
         </div>
       </section>
 

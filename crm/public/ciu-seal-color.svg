@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" role="img" aria-labelledby="title desc">
+<title id="title">Clarke International University seal</title><desc id="desc">CIU university seal in deep green, pale sage and lime green, with shield and leaf emblem.</desc>
+<defs>
+ <path id="topArc" d="M 105,415 A 295,295 0 0,1 695,415"/>
+ <path id="bottomArc" d="M 105,415 A 295,295 0 0,0 695,415"/>
+ <clipPath id="seal"><circle cx="400" cy="400" r="350"/></clipPath>
+</defs>
+<circle cx="400" cy="400" r="350" fill="#075f52"/>
+<text fill="#fff" font-family="Arial,Helvetica,sans-serif" font-size="43" font-weight="800" letter-spacing="1.2"><textPath href="#topArc" startOffset="50%" text-anchor="middle">CLARKE INTERNATIONAL UNIVERSITY</textPath></text>
+<circle cx="400" cy="400" r="245" fill="#b8d0c8" stroke="#fff" stroke-width="16"/>
+<path d="M400 237 L535 280 Q555 295 537 312 Q516 328 537 354 L525 401 Q498 510 400 583 Q302 510 275 401 L263 354 Q284 328 263 312 Q245 295 265 280 Z" fill="#075f52" stroke="#fff" stroke-width="10" stroke-linejoin="round"/>
+<path d="M400 237 L535 280 Q555 295 537 312 Q516 328 537 354 L525 401 Q498 510 400 583 Q302 510 275 401 L263 354 Q284 328 263 312 Q245 295 265 280 Z" fill="none" stroke="#075f52" stroke-width="6" transform="translate(0 -3)"/>
+<text x="400" y="360" fill="#fff" font-family="Arial,Helvetica,sans-serif" font-size="91" font-weight="800" text-anchor="middle">CIU</text>
+<path d="M398 462 C382 506 336 539 357 576 C371 600 392 612 400 621 C389 589 419 557 420 527 C421 500 410 478 398 462Z" fill="#8dc63f"/>
+<path d="M425 515 C448 547 429 575 410 596 C404 577 416 557 425 515Z" fill="#8dc63f"/>
+<path d="M424 523 C428 555 408 576 399 597 C394 572 414 550 424 523Z" fill="#fff"/>
+<g clip-path="url(#seal)"><path d="M40 568 L140 514 Q400 665 660 514 L760 568 L760 800 L40 800Z" fill="#8dc63f"/></g>
+<text fill="#fff" font-family="Arial,Helvetica,sans-serif" font-size="36" font-weight="800" letter-spacing="1.1"><textPath href="#bottomArc" startOffset="50%" text-anchor="middle">LEAD · INNOVATE · TRANSFORM</textPath></text>
+<text x="400" y="746" fill="#075f52" font-family="Arial,Helvetica,sans-serif" font-size="34" font-weight="900" text-anchor="middle">· EST 2008 ·</text>
+</svg>

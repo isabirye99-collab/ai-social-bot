@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
 
 type Period = "day" | "week" | "month";
 
@@ -9,6 +10,7 @@ type Profile = {
   id: string;
   full_name: string | null;
   role?: string | null;
+  module_permissions?: string[] | null;
 };
 
 type Lead = {
@@ -23,7 +25,6 @@ type Admission = {
   assigned_to: string | null;
   stage: string | null;
   created_at: string | null;
-  enrolled_at: string | null;
 };
 
 type Task = {
@@ -40,6 +41,10 @@ type ReportRow = {
   name: string;
   leads: number;
   calls: number;
+  emails: number;
+  whatsapp: number;
+  meetings: number;
+  contactActivities: number;
   followUps: number;
   interested: number;
   applications: number;
@@ -49,6 +54,8 @@ type ReportRow = {
   enrolled: number;
   completedTasks: number;
   conversion: number;
+  role: string;
+  module_permissions?: string[] | null;
 };
 
 const supabase = createClient();
@@ -119,19 +126,23 @@ function formatDate(value: Date) {
 }
 
 export default function ReportsPage() {
+  const router = useRouter();
   const [period, setPeriod] = useState<Period>("month");
 
-  const [selectedDate, setSelectedDate] = useState(
-    new Date().toISOString().slice(0, 10)
-  );
-
-  const [currentUserId, setCurrentUserId] = useState("");
-  const [currentRole, setCurrentRole] = useState("");
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+    const day = String(today.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  });
 
   const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [viewerRole, setViewerRole] = useState("");
   const [leads, setLeads] = useState<Lead[]>([]);
   const [admissions, setAdmissions] = useState<Admission[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [relationshipMetrics, setRelationshipMetrics] = useState({ alumniTotal: 0, alumniVerified: 0, alumniEmployed: 0, partnershipsTotal: 0, partnershipsActive: 0, partnershipsPipeline: 0, partnershipsRenewalWatch: 0 });
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -154,28 +165,15 @@ export default function ReportsPage() {
         throw new Error("You are not signed in.");
       }
 
-      setCurrentUserId(user.id);
-
-      const { data: currentProfile, error: profileError } =
-        await supabase
-          .from("profiles")
-          .select("id,full_name,role")
-          .eq("id", user.id)
-          .maybeSingle();
-
-      if (profileError) {
-        throw new Error(profileError.message);
-      }
-
-      const role = currentProfile?.role || "";
-
-      setCurrentRole(role);
-
-      const isSalesperson = role === "salesperson";
+      const currentProfileQuery = supabase
+        .from("profiles")
+        .select("id,role")
+        .eq("id", user.id)
+        .maybeSingle();
 
       const profilesQuery = supabase
         .from("profiles")
-        .select("id,full_name,role")
+        .select("id,full_name,role,module_permissions")
         .eq("is_active", true)
         .order("full_name");
 
@@ -185,7 +183,7 @@ export default function ReportsPage() {
 
       const admissionsQuery = supabase
         .from("admissions")
-        .select("id,assigned_to,stage,created_at,enrolled_at");
+        .select("id,assigned_to,stage,created_at");
 
       const tasksQuery = supabase
         .from("tasks")
@@ -193,44 +191,62 @@ export default function ReportsPage() {
           "id,assigned_to,task_type,status,completed_at,created_at"
         );
 
-      if (isSalesperson) {
-        leadsQuery.eq("assigned_to", user.id);
-        admissionsQuery.eq("assigned_to", user.id);
-        tasksQuery.eq("assigned_to", user.id);
-      }
+      const relationshipQueries = Promise.all([
+        supabase.from("alumni").select("id", { count: "exact", head: true }),
+        supabase.from("alumni").select("id", { count: "exact", head: true }).eq("verification_status", "verified"),
+        supabase.from("alumni").select("id", { count: "exact", head: true }).eq("employment_status", "employed"),
+        supabase.from("partnerships").select("id", { count: "exact", head: true }),
+        supabase.from("partnerships").select("id", { count: "exact", head: true }).eq("status", "active"),
+        supabase.from("partnerships").select("id", { count: "exact", head: true }).in("status", ["prospect", "engaging", "negotiation"]),
+        supabase.from("partnerships").select("id", { count: "exact", head: true }).gte("end_date", new Date().toISOString().slice(0, 10)).lte("end_date", (() => { const d = new Date(); d.setDate(d.getDate() + 90); return d.toISOString().slice(0, 10); })()),
+      ]);
 
-      const [p, l, a, t] = await Promise.all([
+      const [currentProfile, p, l, a, t, relationshipResults] = await Promise.all([
+        currentProfileQuery,
         profilesQuery,
         leadsQuery,
         admissionsQuery,
         tasksQuery,
+        relationshipQueries,
       ]);
 
-      const failed = [p, l, a, t].find((result) => result.error);
+      const failed = [currentProfile, p, l, a, t, ...relationshipResults].find((result) => result.error);
 
       if (failed?.error) {
         throw new Error(failed.error.message);
       }
 
-      if (isSalesperson) {
-        setProfiles(
-          currentProfile
-            ? [
-                {
-                  id: currentProfile.id,
-                  full_name: currentProfile.full_name,
-                  role: currentProfile.role,
-                },
-              ]
-            : []
-        );
-      } else {
-        setProfiles((p.data || []) as Profile[]);
+      const role = String(currentProfile.data?.role || "").trim().toLowerCase().replace(/[ -]/g, "_");
+      if (!["super_admin", "admin", "manager", "salesperson", "marketing", "alumni_relations", "alumni_coordinator", "alumni_officer"].includes(role)) {
+        router.replace("/dashboard");
+        return;
       }
+      setViewerRole(role);
+
+      const eligibleProfiles = ((p.data || []) as Profile[]).filter((profile) => {
+        const profileRole = String(profile.role || "").trim().toLowerCase().replace(/[ -]/g, "_");
+        if (["admin", "super_admin", "manager"].includes(profileRole)) return false;
+        const modules = Array.isArray(profile.module_permissions) ? profile.module_permissions : null;
+        const isSalesperson = profileRole === "salesperson";
+        const isAlumniRelations = [
+          "alumni_relations", "alumni_coordinator", "alumni_officer",
+        ].includes(profileRole) || modules?.includes("alumni") === true;
+        const isPartnerships = modules?.includes("partnerships") === true ||
+          (profileRole === "marketing" && modules === null);
+        return isSalesperson || isAlumniRelations || isPartnerships;
+      });
+
+      const canViewTeam = ["manager", "admin", "super_admin"].includes(role);
+      setProfiles(
+        canViewTeam
+          ? eligibleProfiles
+          : eligibleProfiles.filter((profile) => profile.id === user.id)
+      );
 
       setLeads((l.data || []) as Lead[]);
       setAdmissions((a.data || []) as Admission[]);
       setTasks((t.data || []) as Task[]);
+      setRelationshipMetrics({ alumniTotal: relationshipResults[0].count || 0, alumniVerified: relationshipResults[1].count || 0, alumniEmployed: relationshipResults[2].count || 0, partnershipsTotal: relationshipResults[3].count || 0, partnershipsActive: relationshipResults[4].count || 0, partnershipsPipeline: relationshipResults[5].count || 0, partnershipsRenewalWatch: relationshipResults[6].count || 0 });
     } catch (err) {
       setError(
         err instanceof Error
@@ -252,13 +268,7 @@ export default function ReportsPage() {
     const end = getEnd(period, selectedDate);
 
     const rows: ReportRow[] = profiles
-      .filter((profile) => {
-        if (currentRole === "salesperson") {
-          return profile.id === currentUserId;
-        }
-
-        return true;
-      })
+      .filter((profile) => !["admin", "super_admin"].includes((profile.role || "").toLowerCase()))
       .map((profile) => {
         const staffLeads = leads.filter(
           (lead) =>
@@ -267,17 +277,10 @@ export default function ReportsPage() {
         );
 
         const staffAdmissions = admissions.filter(
-  (admission) =>
-    admission.assigned_to === profile.id &&
-    inPeriod(admission.created_at, start, end)
-);
-
-const staffEnrolments = admissions.filter(
-  (admission) =>
-    admission.assigned_to === profile.id &&
-    (admission.stage || "").toLowerCase() === "enrolled" &&
-    inPeriod(admission.enrolled_at, start, end)
-);
+          (admission) =>
+            admission.assigned_to === profile.id &&
+            inPeriod(admission.created_at, start, end)
+        );
 
         const staffTasks = tasks.filter(
           (task) =>
@@ -301,11 +304,11 @@ const staffEnrolments = admissions.filter(
             (task.task_type || "").toLowerCase() === "call"
         ).length;
 
-        const followUps = staffTasks.filter((task) =>
-          ["call", "whatsapp", "email"].includes(
-            (task.task_type || "").toLowerCase()
-          )
-        ).length;
+        const emails = staffTasks.filter((task) => (task.task_type || "").toLowerCase() === "email").length;
+        const whatsapp = staffTasks.filter((task) => (task.task_type || "").toLowerCase() === "whatsapp").length;
+        const meetings = staffTasks.filter((task) => (task.task_type || "").toLowerCase() === "meeting").length;
+        const followUps = calls + emails + whatsapp;
+        const contactActivities = calls + emails + whatsapp + meetings;
 
         const interested = staffLeads.filter(
           (lead) =>
@@ -352,13 +355,23 @@ const staffEnrolments = admissions.filter(
             )
         ).length;
 
-       const enrolled = staffEnrolments.length;
+        const enrolled = staffAdmissions.filter(
+          (admission) =>
+            (admission.stage || "").toLowerCase() ===
+            "enrolled"
+        ).length;
 
         return {
           id: profile.id,
           name: profile.full_name || "Unnamed Staff",
+          role: String(profile.role || "").toLowerCase().replace(/[ -]/g, "_"),
+          module_permissions: profile.module_permissions || null,
           leads: staffLeads.length,
           calls,
+          emails,
+          whatsapp,
+          meetings,
+          contactActivities,
           followUps,
           interested,
           applications,
@@ -454,22 +467,76 @@ const staffEnrolments = admissions.filter(
     leads,
     admissions,
     tasks,
-    currentRole,
-    currentUserId,
   ]);
 
-  const isSalesperson = currentRole === "salesperson";
+    const topPerformer = useMemo(() => {
+    const salesStaff = report.rows.filter((row) => row.role === "salesperson");
+    if (!salesStaff.length) return null;
 
-  const topPerformer = useMemo(() => {
-    if (!report.rows.length) return null;
-
-    return [...report.rows].sort(
+    return [...salesStaff].sort(
       (a, b) =>
         b.enrolled - a.enrolled ||
         b.conversion - a.conversion ||
         b.leads - a.leads
     )[0];
   }, [report.rows]);
+
+  const chartRows = useMemo(
+    () => [...report.rows.filter((row) => row.role === "salesperson")].sort((a, b) => b.leads - a.leads).slice(0, 6),
+    [report.rows]
+  );
+  const chartMaxLeads = Math.max(1, ...chartRows.map((row) => row.leads));
+
+
+  const salesRows = report.rows.filter((row) => row.role === "salesperson");
+  const alumniRows = report.rows.filter((row) =>
+    ["alumni_relations", "alumni_coordinator", "alumni_officer"].includes(row.role) ||
+    (row.module_permissions?.includes("alumni") && !row.module_permissions?.includes("partnerships"))
+  );
+  const partnershipRows = report.rows.filter((row) =>
+    !salesRows.some((item) => item.id === row.id) &&
+    !alumniRows.some((item) => item.id === row.id)
+  );
+
+  function downloadReport() {
+    const quote = (value: unknown) => {
+      const textValue = String(value ?? "");
+      return '"' + textValue.replace(/"/g, '""') + '"';
+    };
+    const lines: unknown[][] = [
+      ["CIU CRM Performance Report", periodLabel(period), formatDate(report.start) + " - " + formatDate(report.end)],
+      [],
+      ["SALES TEAM"],
+      ["Staff Member", "Leads", "Calls", "Follow-ups", "Interested", "Applications", "Submitted", "Admitted", "Acceptance Paid", "Enrolled", "Tasks Done", "Conversion %"],
+      ...salesRows.map((r) => [r.name, r.leads, r.calls, r.followUps, r.interested, r.applications, r.submitted, r.admitted, r.acceptancePaid, r.enrolled, r.completedTasks, r.conversion]),
+      [],
+      ["ALUMNI RELATIONS"],
+      ["Staff Member", "Contact activities", "Calls", "Emails", "WhatsApp", "Meetings", "Tasks done"],
+      ...alumniRows.map((r) => [r.name, r.contactActivities, r.calls, r.emails, r.whatsapp, r.meetings, r.completedTasks]),
+      [],
+      ["PARTNERSHIPS"],
+      ["Staff Member", "Contact activities", "Calls", "Follow-ups", "Completed tasks"],
+      ...partnershipRows.map((r) => [r.name, r.contactActivities, r.calls, r.emails, r.whatsapp, r.meetings, r.completedTasks]),
+      [],
+      ["RELATIONSHIP SUMMARY", "Value"],
+      ["Total alumni", relationshipMetrics.alumniTotal],
+      ["Verified alumni", relationshipMetrics.alumniVerified],
+      ["Employed alumni", relationshipMetrics.alumniEmployed],
+      ["Total partnerships", relationshipMetrics.partnershipsTotal],
+      ["Active partnerships", relationshipMetrics.partnershipsActive],
+      ["Partnership pipeline", relationshipMetrics.partnershipsPipeline],
+      ["Renewals in next 90 days", relationshipMetrics.partnershipsRenewalWatch],
+    ];
+    const csv = "\uFEFF" + lines.map((line) => line.map(quote).join(",")).join("\r\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "ciu-crm-performance-report-" + selectedDate + ".csv";
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  }
 
   if (loading) {
     return (
@@ -499,15 +566,11 @@ const staffEnrolments = admissions.filter(
               </div>
 
               <h1>
-                {isSalesperson
-                  ? "My Performance Report"
-                  : "Staff Performance Reports"}
+                {"CRM Performance Reports"}
               </h1>
 
               <p>
-                {isSalesperson
-                  ? "Monitor your lead generation, follow-ups and admissions performance."
-                  : "Monitor lead generation, staff activity and admissions performance across the team."}
+                {["manager", "admin", "super_admin"].includes(viewerRole) ? "Track sales performance, alumni engagement and partnership relationships in one place." : "Review your activity alongside alumni and partnership relationship metrics."}
               </p>
             </div>
 
@@ -535,6 +598,14 @@ const staffEnrolments = admissions.filter(
                 className="report-select"
               />
 
+              <button type="button" onClick={downloadReport} className="report-refresh">
+                Download Report
+              </button>
+
+              <button type="button" onClick={() => window.print()} className="report-print">
+                Print
+              </button>
+
               <button
                 type="button"
                 onClick={async () => {
@@ -561,9 +632,7 @@ const staffEnrolments = admissions.filter(
           <div>
             <span className="period-label">
               {periodLabel(period)}{" "}
-              {isSalesperson
-                ? "Personal Performance"
-                : "Team Performance"}
+              {["manager", "admin", "super_admin"].includes(viewerRole) ? "Team Performance" : "My Performance"}
             </span>
 
             <strong>
@@ -574,78 +643,16 @@ const staffEnrolments = admissions.filter(
           </div>
 
           <div className="period-meta">
-            {isSalesperson
-              ? "Your performance"
-              : `${report.rows.length} active staff`}
+            {["manager", "admin", "super_admin"].includes(viewerRole) ? `${report.rows.length} sales and alumni relations staff` : "Your individual performance report"}
           </div>
         </section>
 
-        <section className="report-kpis">
-          <div className="report-kpi">
-            <span className="kpi-label">Leads</span>
-            <strong>{report.totalLeads}</strong>
-            <small>New leads in period</small>
-          </div>
-
-          <div className="report-kpi">
-            <span className="kpi-label">Calls</span>
-            <strong>{report.totalCalls}</strong>
-            <small>Call activities</small>
-          </div>
-
-          <div className="report-kpi">
-            <span className="kpi-label">Follow-ups</span>
-            <strong>{report.totalFollowUps}</strong>
-            <small>Call, WhatsApp & email</small>
-          </div>
-
-          <div className="report-kpi">
-            <span className="kpi-label">Interested</span>
-            <strong>{report.totalInterested}</strong>
-            <small>Qualified prospects</small>
-          </div>
-
-          <div className="report-kpi">
-            <span className="kpi-label">Applications</span>
-            <strong>{report.totalApplications}</strong>
-            <small>Application activity</small>
-          </div>
-
-          <div className="report-kpi">
-            <span className="kpi-label">Admitted</span>
-            <strong>{report.totalAdmitted}</strong>
-            <small>Admissions reached</small>
-          </div>
-
-          <div className="report-kpi">
-            <span className="kpi-label">Acceptance Paid</span>
-            <strong>
-              {report.totalAcceptancePaid}
-            </strong>
-            <small>Acceptance confirmed</small>
-          </div>
-
-          <div className="report-kpi report-kpi-primary">
-            <span className="kpi-label">Enrolled</span>
-            <strong>{report.totalEnrolled}</strong>
-            <small>Successful enrolments</small>
-          </div>
-
-          <div className="report-kpi">
-            <span className="kpi-label">Tasks Done</span>
-            <strong>
-              {report.totalCompletedTasks}
-            </strong>
-            <small>Completed tasks</small>
-          </div>
-
-          <div className="report-kpi report-kpi-conversion">
-            <span className="kpi-label">Conversion</span>
-            <strong>{report.totalConversion}%</strong>
-            <small>Lead to enrolment</small>
-          </div>
+        <section className="report-kpis report-overview-kpis" aria-label="CRM performance overview">
+          <div className="report-kpi report-kpi-primary"><span className="kpi-label">Alumni</span><strong>{relationshipMetrics.alumniTotal.toLocaleString()}</strong><small>{relationshipMetrics.alumniVerified.toLocaleString()} verified profiles</small></div>
+          <div className="report-kpi report-kpi-partnerships"><span className="kpi-label">Partnerships</span><strong>{relationshipMetrics.partnershipsTotal.toLocaleString()}</strong><small>{relationshipMetrics.partnershipsActive.toLocaleString()} active relationships</small></div>
+          <div className="report-kpi report-kpi-conversion"><span className="kpi-label">Sales · Enrolments</span><strong>{salesRows.reduce((sum, row) => sum + row.enrolled, 0).toLocaleString()}</strong><small>Enrolments recorded for this period</small></div>
+          <div className="report-kpi report-kpi-contacts"><span className="kpi-label">Contact Activities</span><strong>{report.rows.reduce((sum, row) => sum + row.contactActivities, 0).toLocaleString()}</strong><small>Calls, emails, WhatsApp and meetings</small></div>
         </section>
-
         <section className="report-main-grid">
           <div className="ciu-card">
             <div className="ciu-card-head report-card-head">
@@ -822,9 +829,7 @@ const staffEnrolments = admissions.filter(
                   <strong>{topPerformer.name}</strong>
 
                   <span>
-                    {isSalesperson
-                      ? "Your current performance"
-                      : "Top enrolment performance"}
+                    {"Top enrolment performance"}
                   </span>
                 </div>
 
@@ -881,19 +886,52 @@ const staffEnrolments = admissions.filter(
           </div>
         </section>
 
+        <section className="report-visual-grid">
+          <div className="ciu-card report-chart-card">
+            <div className="ciu-card-head report-card-head"><div><h2>Activity by Team</h2><span>Logged contact activities during the selected period.</span></div></div>
+            <div className="team-activity-chart">
+              <div className="team-activity-row"><div className="team-activity-label"><strong>Alumni Relations</strong><span>{alumniRows.reduce((sum, row) => sum + row.contactActivities, 0).toLocaleString()} activities</span></div><div className="team-activity-track"><span className="team-activity-fill team-alumni" style={{ width: String(Math.min(100, alumniRows.reduce((sum, row) => sum + row.contactActivities, 0) / Math.max(1, report.rows.reduce((sum, row) => sum + row.contactActivities, 0)) * 100)) + "%" }} /></div><div className="team-activity-detail">Calls {alumniRows.reduce((sum, row) => sum + row.calls, 0)} · Emails {alumniRows.reduce((sum, row) => sum + row.emails, 0)} · WhatsApp {alumniRows.reduce((sum, row) => sum + row.whatsapp, 0)} · Meetings {alumniRows.reduce((sum, row) => sum + row.meetings, 0)}</div></div>
+              <div className="team-activity-row"><div className="team-activity-label"><strong>Partnerships</strong><span>{partnershipRows.reduce((sum, row) => sum + row.contactActivities, 0).toLocaleString()} activities</span></div><div className="team-activity-track"><span className="team-activity-fill team-partnerships" style={{ width: String(Math.min(100, partnershipRows.reduce((sum, row) => sum + row.contactActivities, 0) / Math.max(1, report.rows.reduce((sum, row) => sum + row.contactActivities, 0)) * 100)) + "%" }} /></div><div className="team-activity-detail">Calls {partnershipRows.reduce((sum, row) => sum + row.calls, 0)} · Emails {partnershipRows.reduce((sum, row) => sum + row.emails, 0)} · WhatsApp {partnershipRows.reduce((sum, row) => sum + row.whatsapp, 0)} · Meetings {partnershipRows.reduce((sum, row) => sum + row.meetings, 0)}</div></div>
+              <div className="team-activity-row"><div className="team-activity-label"><strong>Sales</strong><span>{salesRows.reduce((sum, row) => sum + row.contactActivities, 0).toLocaleString()} activities</span></div><div className="team-activity-track"><span className="team-activity-fill team-sales" style={{ width: String(Math.min(100, salesRows.reduce((sum, row) => sum + row.contactActivities, 0) / Math.max(1, report.rows.reduce((sum, row) => sum + row.contactActivities, 0)) * 100)) + "%" }} /></div><div className="team-activity-detail">Calls {salesRows.reduce((sum, row) => sum + row.calls, 0)} · Emails {salesRows.reduce((sum, row) => sum + row.emails, 0)} · WhatsApp {salesRows.reduce((sum, row) => sum + row.whatsapp, 0)} · Meetings {salesRows.reduce((sum, row) => sum + row.meetings, 0)}</div></div>
+            </div>
+          </div>
+          <div className="ciu-card report-chart-card">
+            <div className="ciu-card-head report-card-head"><div><h2>Key Highlights</h2><span>Quick overview for the selected period.</span></div></div>
+            <div className="team-share-list">
+              <div className="report-highlight-line"><span>Total contact activities</span><strong>{report.rows.reduce((sum, row) => sum + row.contactActivities, 0).toLocaleString()}</strong></div>
+              <div className="report-highlight-line"><span>Sales enrolments</span><strong>{salesRows.reduce((sum, row) => sum + row.enrolled, 0).toLocaleString()}</strong></div>
+              <div className="report-highlight-line"><span>Active partnerships</span><strong>{relationshipMetrics.partnershipsActive.toLocaleString()}</strong></div>
+              <div className="report-highlight-line"><span>Verified alumni</span><strong>{relationshipMetrics.alumniVerified.toLocaleString()}</strong></div>
+              <div className="report-chart-note">Contact activities are logged calls, emails, WhatsApp messages and meetings. They do not represent unique individuals contacted.</div>
+            </div>
+          </div>
+        </section>
+        <section className="ciu-card report-table-card">
+          <div className="ciu-card-head report-card-head"><div><h2>Alumni Relations Activity</h2><span>Contact and follow-up activity for Alumni Relations staff in the selected period.</span></div></div>
+          <div className="report-table-scroll"><table className="report-table">
+            <thead><tr><th>Staff Member</th><th>Contact activities</th><th>Calls</th><th>Emails</th><th>WhatsApp</th><th>Meetings</th><th>Tasks done</th></tr></thead>
+            <tbody>{alumniRows.length ? alumniRows.map((row) => <tr key={row.id}><td><div className="staff-cell"><div className="staff-avatar">{row.name.split(" ").map((part) => part.charAt(0)).join("").slice(0, 2).toUpperCase()}</div><strong>{row.name}</strong></div></td><td><strong>{row.contactActivities}</strong></td><td>{row.calls}</td><td>{row.emails}</td><td>{row.whatsapp}</td><td>{row.meetings}</td><td>{row.completedTasks}</td></tr>) : <tr><td colSpan={7}>No Alumni Relations activity recorded for this period.</td></tr>}</tbody>
+          </table></div>
+          <p style={{ padding: "0 18px 14px", color: "#64748b", fontSize: 12 }}>Contact activities are counted from call, WhatsApp and email tasks. They are logged activities, not a deduplicated count of unique people.</p>
+        </section>
+        <section className="ciu-card report-table-card">
+          <div className="ciu-card-head report-card-head"><div><h2>Partnerships Activity</h2><span>Contact and follow-up activity for staff responsible for partnerships in the selected period.</span></div></div>
+          <div className="report-table-scroll"><table className="report-table">
+            <thead><tr><th>Staff Member</th><th>Contact activities</th><th>Calls</th><th>Emails</th><th>WhatsApp</th><th>Meetings</th><th>Tasks done</th></tr></thead>
+            <tbody>{partnershipRows.length ? partnershipRows.map((row) => <tr key={row.id}><td><div className="staff-cell"><div className="staff-avatar">{row.name.split(" ").map((part) => part.charAt(0)).join("").slice(0, 2).toUpperCase()}</div><strong>{row.name}</strong></div></td><td><strong>{row.contactActivities}</strong></td><td>{row.calls}</td><td>{row.emails}</td><td>{row.whatsapp}</td><td>{row.meetings}</td><td>{row.completedTasks}</td></tr>) : <tr><td colSpan={7}>No Partnerships activity recorded for this period.</td></tr>}</tbody>
+          </table></div>
+          <p style={{ padding: "0 18px 14px", color: "#64748b", fontSize: 12 }}>Contact activities are counted from call, WhatsApp and email tasks. They are logged activities, not a deduplicated count of unique people.</p>
+        </section>
+
         <section className="ciu-card report-table-card">
           <div className="ciu-card-head report-card-head">
             <div>
               <h2>
-                {isSalesperson
-                  ? "My Performance"
-                  : "Staff Performance"}
+                {"Sales Team Performance"}
               </h2>
 
               <span>
-                {isSalesperson
-                  ? "Detailed summary of your activity and admissions results."
-                  : "Detailed performance summary for every active staff member."}
+                {"Detailed admissions and conversion performance for salespeople."}
               </span>
             </div>
           </div>
@@ -903,9 +941,7 @@ const staffEnrolments = admissions.filter(
               <thead>
                 <tr>
                   <th>
-                    {isSalesperson
-                      ? "Performance"
-                      : "Staff Member"}
+                    {"Staff Member"}
                   </th>
                   <th>Leads</th>
                   <th>Calls</th>
@@ -922,8 +958,8 @@ const staffEnrolments = admissions.filter(
               </thead>
 
               <tbody>
-                {report.rows.length ? (
-                  report.rows.map((row) => (
+                {salesRows.length ? (
+                  salesRows.map((row) => (
                     <tr key={row.id}>
                       <td>
                         <div className="staff-cell">
@@ -983,75 +1019,73 @@ const staffEnrolments = admissions.filter(
                 <tr>
                   <td>
                     <strong>
-                      {isSalesperson
-                        ? "MY TOTAL"
-                        : "TOTAL"}
+                      {"TEAM TOTAL"}
                     </strong>
                   </td>
 
                   <td>
                     <strong>
-                      {report.totalLeads}
+                      {salesRows.reduce((sum, row) => sum + row.leads, 0)}
                     </strong>
                   </td>
 
                   <td>
                     <strong>
-                      {report.totalCalls}
+                      {salesRows.reduce((sum, row) => sum + row.calls, 0)}
                     </strong>
                   </td>
 
                   <td>
                     <strong>
-                      {report.totalFollowUps}
+                      {salesRows.reduce((sum, row) => sum + row.followUps, 0)}
                     </strong>
                   </td>
 
                   <td>
                     <strong>
-                      {report.totalInterested}
+                      {salesRows.reduce((sum, row) => sum + row.interested, 0)}
                     </strong>
                   </td>
 
                   <td>
                     <strong>
-                      {report.totalApplications}
+                      {salesRows.reduce((sum, row) => sum + row.applications, 0)}
                     </strong>
                   </td>
 
                   <td>
                     <strong>
-                      {report.totalSubmitted}
+                      {salesRows.reduce((sum, row) => sum + row.submitted, 0)}
                     </strong>
                   </td>
 
                   <td>
                     <strong>
-                      {report.totalAdmitted}
+                      {salesRows.reduce((sum, row) => sum + row.admitted, 0)}
                     </strong>
                   </td>
 
                   <td>
                     <strong>
-                      {report.totalAcceptancePaid}
+                      {salesRows.reduce((sum, row) => sum + row.acceptancePaid, 0)}
                     </strong>
                   </td>
 
                   <td>
                     <strong>
-                      {report.totalEnrolled}
+                      {salesRows.reduce((sum, row) => sum + row.enrolled, 0)}
                     </strong>
                   </td>
 
                   <td>
                     <strong>
-                      {report.totalCompletedTasks}
+                      {salesRows.reduce((sum, row) => sum + row.completedTasks, 0)}
                     </strong>
                   </td>
 
                   <td>
                     <strong>
-                      {report.totalConversion}%
+                      {(salesRows.reduce((sum, row) => sum + row.leads, 0) ? Math.round(salesRows.reduce((sum, row) => sum + row.enrolled, 0) / salesRows.reduce((sum, row) => sum + row.leads, 0) * 1000) / 10 : 0)}%
                     </strong>
                   </td>
                 </tr>
@@ -1084,18 +1118,26 @@ const staffEnrolments = admissions.filter(
         .report-hero {
           position: relative;
           overflow: hidden;
-          border: 1px solid #e5e7eb;
-          border-left: 5px solid #00695c;
-          border-radius: 12px;
-          padding: 26px;
+          border: 1px solid #e0e9e3;
+          border-left: 5px solid #075442;
+          border-radius: 16px;
+          padding: 25px 27px;
           margin-bottom: 18px;
           background: #ffffff;
-          color: #111827;
-          box-shadow: 0 4px 14px rgba(23, 50, 44, 0.04);
+          color: #17211b;
+          box-shadow: 0 8px 26px rgba(20, 50, 40, .045);
         }
 
         .report-hero::after {
-          content: none;
+          content: "";
+          position: absolute;
+          width: 210px;
+          height: 210px;
+          right: -90px;
+          top: -115px;
+          border-radius: 50%;
+          background: #f0f7e7;
+          pointer-events: none;
         }
 
         .report-hero-content {
@@ -1113,22 +1155,23 @@ const staffEnrolments = admissions.filter(
           font-size: 10px;
           font-weight: 800;
           letter-spacing: 1.4px;
-          color: #00695c;
+          color: #66806e;
         }
 
         .report-hero h1 {
           margin: 0;
-          color: #111827;
+          color: #17211b;
           font-size: 28px;
           line-height: 1.2;
-          font-weight: 800;
+          font-weight: 850;
+          letter-spacing: -.035em;
         }
 
         .report-hero p {
           margin: 8px 0 0;
           max-width: 650px;
-          color: #64748b;
-          font-size: 13px;
+          color: #78877f;
+          font-size: 12px;
         }
 
         .report-controls {
@@ -1140,13 +1183,14 @@ const staffEnrolments = admissions.filter(
 
         .report-select {
           min-height: 40px;
-          border: 1px solid #d1d5db;
-          border-radius: 8px;
+          border: 1px solid #dfe8e2;
+          border-radius: 9px;
           padding: 0 12px;
-          background: #ffffff;
-          color: #374151;
+          background: #f8faf8;
+          color: #263b31;
           outline: none;
-          font-size: 13px;
+          font-size: 12px;
+          font-weight: 650;
         }
 
         .report-select option {
@@ -1156,15 +1200,35 @@ const staffEnrolments = admissions.filter(
 
         .report-refresh {
           min-height: 40px;
-          border: 1px solid #00695c;
-          border-radius: 8px;
-          padding: 0 15px;
-          background: #00695c;
-          color: #ffffff;
-          font-weight: 700;
+          border: 0;
+          border-radius: 9px;
+          padding: 0 16px;
+          background: #075442;
+          color: white;
+          font-size: 12px;
+          font-weight: 800;
           cursor: pointer;
+          transition: background .2s ease, transform .2s ease;
+        }
+        .report-refresh:hover:not(:disabled) {
+          background: #0b6b53;
+          transform: translateY(-1px);
         }
 
+        .report-print { min-height: 40px; border: 1px solid #c8ded4; border-radius: 9px; padding: 0 16px; background: #fff; color: #075442; font-size: 12px; font-weight: 800; cursor: pointer; }
+        .report-print:hover { background: #f1f8f4; }
+        .report-visual-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr); gap: 18px; margin-bottom: 18px; }
+        .team-activity-chart { padding: 22px; display: grid; gap: 22px; }
+        .team-activity-row { display: grid; gap: 8px; }
+        .team-activity-label { display: flex; justify-content: space-between; align-items: center; gap: 10px; color: #233b32; font-size: 12px; }
+        .team-activity-label span { color: #647b70; font-variant-numeric: tabular-nums; }
+        .team-activity-track { height: 11px; border-radius: 20px; overflow: hidden; background: #edf2ee; }
+        .team-activity-fill { display: block; height: 100%; border-radius: inherit; }
+        .team-alumni { background: #159b69; } .team-partnerships { background: #a3c84b; } .team-sales { background: #2587d8; }
+        .team-activity-detail { color: #7b8b85; font-size: 10px; }
+        .report-highlight-line { display: flex; justify-content: space-between; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid #edf2f0; color: #647b70; font-size: 12px; }
+        .report-highlight-line strong { color: #075442; font-size: 15px; }
+        .report-chart-note { padding: 10px 12px; border-radius: 8px; background: #f7faf8; color: #687c72; font-size: 10px; line-height: 1.5; }
         .report-refresh:disabled {
           cursor: not-allowed;
           opacity: 0.65;
@@ -1189,12 +1253,12 @@ const staffEnrolments = admissions.filter(
           justify-content: space-between;
           gap: 18px;
           margin-bottom: 18px;
-          padding: 16px 18px;
-          border: 1px solid #e5e7eb;
-          border-left: 4px solid #00695c;
+          padding: 16px 19px;
+          border: 1px solid #e0e9e3;
+          border-left: 4px solid #65a82f;
           border-radius: 12px;
           background: white;
-          box-shadow: 0 4px 14px rgba(23, 50, 44, 0.04);
+          box-shadow: 0 5px 18px rgba(20, 50, 40, .035);
         }
 
         .period-banner > div:first-child {
@@ -1221,6 +1285,9 @@ const staffEnrolments = admissions.filter(
           font-size: 12px;
         }
 
+        .report-overview-kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+        .report-kpi-partnerships { border-left-color: #a3c84b; }
+        .report-kpi-contacts { border-left-color: #e8b83e; }
         .report-kpis {
           display: grid;
           grid-template-columns: repeat(
@@ -1232,25 +1299,31 @@ const staffEnrolments = admissions.filter(
         }
 
         .report-kpi {
+          position: relative;
           min-width: 0;
-          padding: 17px;
-          border: 1px solid #e5e7eb;
-          border-left: 4px solid #00695c;
-          border-radius: 10px;
+          padding: 17px 17px 16px;
+          border: 1px solid #e0e9e3;
+          border-left: 3px solid #d6e5dc;
+          border-radius: 12px;
           background: white;
-          box-shadow: 0 4px 14px rgba(23, 50, 44, 0.04);
+          box-shadow: 0 5px 18px rgba(20, 50, 40, .035);
+          transition: transform .2s ease, box-shadow .2s ease;
+        }
+        .report-kpi:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 10px 24px rgba(20, 50, 40, .07);
         }
 
         .report-kpi-primary {
-          border-color: #e5e7eb;
-          border-left-color: #00695c;
-          background: #ffffff;
+          border-color: #cfe3d7;
+          border-left-color: #075442;
+          background: #f3f8f4;
         }
 
         .report-kpi-conversion {
-          border-color: #e5e7eb;
-          border-left-color: #00695c;
-          background: #ffffff;
+          border-color: #dce9c9;
+          border-left-color: #65a82f;
+          background: #f7faef;
         }
 
         .kpi-label {
@@ -1263,10 +1336,12 @@ const staffEnrolments = admissions.filter(
 
         .report-kpi strong {
           display: block;
-          color: #17322c;
-          font-size: 25px;
+          color: #17211b;
+          font-size: 27px;
           line-height: 1;
-          font-weight: 800;
+          font-weight: 850;
+          letter-spacing: -.04em;
+          font-variant-numeric: tabular-nums;
         }
 
         .report-kpi-primary strong {
@@ -1297,17 +1372,16 @@ const staffEnrolments = admissions.filter(
 
         .ciu-card {
           overflow: hidden;
-          border: 1px solid #e5e7eb;
-          border-left: 4px solid #00695c;
-          border-radius: 12px;
+          border: 1px solid #e0e9e3;
+          border-radius: 15px;
           background: white;
-          box-shadow: 0 5px 16px rgba(23, 50, 44, 0.04);
+          box-shadow: 0 8px 26px rgba(20, 50, 40, .045);
         }
 
         .report-card-head {
-          padding: 18px 20px;
-          border-bottom: 1px solid #edf2f0;
-          background: #ffffff;
+          padding: 19px 21px;
+          border-bottom: 1px solid #edf1ef;
+          background: #fff;
         }
 
         .report-card-head h2 {
@@ -1359,21 +1433,23 @@ const staffEnrolments = admissions.filter(
         }
 
         .funnel-bar {
-          height: 9px;
+          height: 11px;
           overflow: hidden;
           border-radius: 20px;
-          background: #edf3f0;
+          background: #edf2ee;
+          box-shadow: inset 0 1px 2px rgba(23, 50, 44, .04);
         }
 
         .funnel-bar span {
           display: block;
           height: 100%;
           border-radius: inherit;
-          background: #00695c;
+          background: linear-gradient(90deg, #075442, #2f8b69);
+          transition: width .45s ease;
         }
 
         .funnel-row-final .funnel-bar span {
-          background: #8bc63f;
+          background: linear-gradient(90deg, #65a82f, #9ad447);
         }
 
         .highlight {
@@ -1480,6 +1556,35 @@ const staffEnrolments = admissions.filter(
           margin-bottom: 12px;
         }
 
+        .report-chart-card { margin-bottom: 18px; }
+        .chart-legend { display: flex; align-items: center; gap: 14px; color: #64748b; font-size: 11px; font-weight: 700; }
+        .chart-legend span { display: inline-flex; align-items: center; gap: 6px; }
+        .chart-legend i { width: 9px; height: 9px; border-radius: 3px; display: inline-block; }
+        .legend-leads { background: #0f766e; }
+        .legend-enrolled { background: #84cc16; }
+        .staff-chart { padding: 20px 21px 23px; display: grid; gap: 17px; }
+        .staff-chart-row {
+          display: grid;
+          grid-template-columns: minmax(130px, 190px) minmax(0, 1fr) 58px;
+          align-items: center;
+          gap: 14px;
+          padding: 10px 11px;
+          border: 1px solid #edf1ef;
+          border-radius: 10px;
+          background: #fcfdfc;
+        }
+        .staff-chart-name { overflow: hidden; color: #34433b; font-size: 11px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+        .staff-chart-bars { display: grid; gap: 6px; }
+        .staff-chart-track { height: 11px; overflow: hidden; border-radius: 20px; background: #edf2ee; }
+        .staff-chart-track-small { height: 8px; }
+        .staff-chart-track span { display: block; height: 100%; min-width: 0; border-radius: inherit; transition: width .4s ease; }
+        .staff-chart-leads { background: linear-gradient(90deg, #075442, #3c9475); }
+        .staff-chart-enrolled { background: linear-gradient(90deg, #65a82f, #a1d65c); }
+        .staff-chart-values { display: flex; justify-content: flex-end; gap: 10px; font-size: 11px; font-variant-numeric: tabular-nums; }
+        .staff-chart-values strong { color: #075442; }
+        .staff-chart-values span { color: #65a82f; font-weight: 850; }
+
+
         .report-table-scroll {
           overflow-x: auto;
         }
@@ -1515,8 +1620,8 @@ const staffEnrolments = admissions.filter(
 
         .report-table tfoot td {
           border-bottom: 0;
-          background: #f0f7f4;
-          color: #005447;
+          background: #eef7df;
+          color: #365c16;
         }
 
         .staff-cell {
@@ -1593,6 +1698,7 @@ const staffEnrolments = admissions.filter(
           animation: spin 0.8s linear infinite;
         }
 
+        @media print { .report-controls, .report-refresh, .report-print { display: none !important; } .ciu-page { padding: 0; background: #fff; } .ciu-card, .report-kpi, .report-hero, .period-banner { box-shadow: none; break-inside: avoid; } .report-table-scroll { overflow: visible; } .report-table { min-width: 0; } }
         @keyframes spin {
           to {
             transform: rotate(360deg);
@@ -1600,6 +1706,7 @@ const staffEnrolments = admissions.filter(
         }
 
         @media (max-width: 1200px) {
+          .report-overview-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
           .report-kpis {
             grid-template-columns: repeat(
               4,
@@ -1609,6 +1716,7 @@ const staffEnrolments = admissions.filter(
         }
 
         @media (max-width: 1000px) {
+          .report-visual-grid { grid-template-columns: 1fr; }
           .report-main-grid {
             grid-template-columns: 1fr;
           }
@@ -1649,6 +1757,10 @@ const staffEnrolments = admissions.filter(
             flex-direction: column;
           }
 
+          .staff-chart-row { grid-template-columns: minmax(85px, 110px) minmax(0, 1fr) 48px; gap: 8px; }
+          .staff-chart-name { font-size: 10px; }
+          .chart-legend { gap: 8px; font-size: 10px; }
+          .staff-chart { padding: 14px; }
           .highlight {
             grid-template-columns: auto minmax(0, 1fr);
           }

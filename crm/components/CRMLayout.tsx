@@ -30,7 +30,9 @@ const nav: NavItem[] = [
   { label: "Pipeline", href: "/pipeline", module: "pipeline" },
   { label: "Tasks", href: "/tasks", module: "tasks" },
   { label: "Marketing", href: "/marketing", module: "marketing" },
+  { label: "Partnerships", href: "/partnerships", module: "partnerships" },
   { label: "Reports", href: "/reports", module: "reports" },
+  { label: "Alumni", href: "/alumni", module: "alumni" },
   { label: "Settings", href: "/settings", module: "settings" },
 ];
 
@@ -59,7 +61,7 @@ export default function CRMLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const [logo, setLogo] = useState("");
+  const [logo, setLogo] = useState("/ciu-seal-color.svg");
   const [branding, setBranding] = useState<Required<BrandingPreferences>>(DEFAULT_BRANDING);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userEmail, setUserEmail] = useState("");
@@ -95,8 +97,6 @@ export default function CRMLayout({
 
     const loadSettings = async () => {
       try {
-        const localLogo = window.localStorage.getItem(LOGO_KEY) || "";
-        if (active && localLogo) setLogo(localLogo);
 
         const localPreferences = window.localStorage.getItem(PREFERENCES_KEY);
         if (localPreferences) {
@@ -114,13 +114,6 @@ export default function CRMLayout({
           .maybeSingle();
 
         if (!active || error || !data) return;
-
-        if (typeof data.logo_data_url === "string" && data.logo_data_url) {
-          setLogo(data.logo_data_url);
-          try {
-            window.localStorage.setItem(LOGO_KEY, data.logo_data_url);
-          } catch {}
-        }
 
         applyPreferences(data.preferences);
       } catch (error) {
@@ -197,11 +190,22 @@ export default function CRMLayout({
 
     void loadSettings();
     void loadUser();
+
+    // Refresh navigation permissions whenever Supabase authentication changes.
+    // The callback schedules the profile read outside Supabase's auth callback
+    // to avoid holding its internal auth lock while querying the database.
+    const { data: authListener } = supabase.auth.onAuthStateChange(() => {
+      window.setTimeout(() => {
+        if (active) void loadUser();
+      }, 0);
+    });
+
     window.addEventListener("ciu-crm-logo-updated", handleBrandingUpdated);
     window.addEventListener("storage", handleStorage);
 
     return () => {
       active = false;
+      authListener.subscription.unsubscribe();
       window.removeEventListener("ciu-crm-logo-updated", handleBrandingUpdated);
       window.removeEventListener("storage", handleStorage);
     };
@@ -225,7 +229,7 @@ export default function CRMLayout({
     <Link href="/dashboard" className="flex min-w-0 items-center gap-3 no-underline">
       <div
         className="flex h-14 w-20 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white p-2"
-        style={{ border: "1px solid rgba(255,255,255,.28)" }}
+        style={{ border: "1px solid #e2e8f0" }}
       >
         {logo ? (
           <img
@@ -240,8 +244,8 @@ export default function CRMLayout({
         )}
       </div>
       <div className="min-w-0">
-        <div className="truncate text-base font-bold text-white">{branding.crmName}</div>
-        <div className="truncate text-xs font-medium" style={{ color: "#d9edc4" }}>
+        <div className="truncate text-base font-bold" style={{ color: "#173b2b" }}>{branding.crmName}</div>
+        <div className="truncate text-xs font-medium" style={{ color: "#718078" }}>
           {branding.tagline}
         </div>
       </div>
@@ -261,10 +265,11 @@ export default function CRMLayout({
           href={item.href}
           onClick={() => setMobileOpen(false)}
           className={`${horizontal
-            ? "shrink-0 whitespace-nowrap rounded-lg px-4 py-3 text-base font-semibold transition-colors"
-            : "flex items-center rounded-lg px-4 py-3 text-base font-semibold transition-colors"} ${isActive(item.href) ? "text-white" : "text-white/75 hover:text-white"}`}
+            ? "shrink-0 whitespace-nowrap rounded-xl px-4 py-3 text-sm font-semibold transition-all"
+            : "flex items-center rounded-xl px-4 py-3 text-sm font-semibold transition-all"} ${isActive(item.href) ? "text-emerald-900" : "text-slate-600 hover:text-emerald-900 hover:bg-emerald-50"}`}
           style={{
-            background: isActive(item.href) ? "rgba(139,198,63,.24)" : "transparent",
+            background: isActive(item.href) ? "#e8f4f0" : "transparent",
+            boxShadow: isActive(item.href) && !horizontal ? "inset 3px 0 0 #00695c" : "none",
           }}
         >
           {item.label}
@@ -278,7 +283,7 @@ export default function CRMLayout({
       className={horizontal ? "flex min-h-screen flex-col" : "min-h-screen"}
       data-navigation-orientation={branding.navigationOrientation}
       style={{
-        background: "#f5f8f7",
+        background: "#ffffff",
         ["--ciu-primary" as string]: branding.primaryColor,
         ["--ciu-secondary" as string]: branding.secondaryColor,
       } as React.CSSProperties}
@@ -294,22 +299,18 @@ export default function CRMLayout({
 
       <aside
         className={horizontal
-          ? "relative z-30 flex w-full items-center gap-x-4 px-4 py-3 shadow-md"
-          : `fixed inset-y-0 left-0 z-50 flex w-72 flex-col shadow-lg transition-transform duration-200 lg:translate-x-0 ${mobileOpen ? "translate-x-0" : "-translate-x-full"}`}
-        style={{
-          background: horizontal
-            ? `linear-gradient(90deg, ${branding.primaryColor} 0%, ${branding.primaryColor}e8 72%, ${branding.primaryColor}cc 100%)`
-            : `linear-gradient(180deg, ${branding.primaryColor} 0%, ${branding.primaryColor}e8 72%, ${branding.primaryColor}cc 100%)`,
-        }}
+          ? "relative z-30 flex w-full items-center gap-x-4 border-b border-slate-200 bg-white px-5 py-3 shadow-sm"
+          : `fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-slate-200 bg-white shadow-[8px_0_30px_rgba(15,23,42,0.04)] transition-transform duration-200 lg:translate-x-0 ${mobileOpen ? "translate-x-0" : "-translate-x-full"}`}
+        style={{ background: "#ffffff" }}
       >
-        <div className={horizontal ? "flex shrink-0 items-center" : "flex min-h-24 items-center border-b px-5 py-4"}
-          style={{ borderColor: "rgba(255,255,255,.12)" }}>
+        <div className={horizontal ? "flex shrink-0 items-center" : "flex min-h-24 items-center border-b border-slate-100 px-5 py-5"}
+          style={{ borderColor: "#edf2ef" }}>
           {headerBrand}
         </div>
         {navLinks}
         {horizontal && (
           <div className="ml-auto flex shrink-0 items-center justify-end gap-3">
-            <span className="max-w-48 truncate text-sm text-white/80">{userEmail || "Authenticated user"}</span>
+            <span className="max-w-48 truncate text-sm text-slate-600">{userEmail || "Authenticated user"}</span>
             <button
               type="button"
               onClick={async () => {
@@ -321,8 +322,7 @@ export default function CRMLayout({
                 }
                 window.location.replace("/login");
               }}
-              className="rounded-lg bg-white px-4 py-2 text-sm font-semibold"
-              style={{ color: branding.primaryColor }}
+              className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-800"
             >
               Sign out
             </button>
@@ -330,14 +330,14 @@ export default function CRMLayout({
         )}
 
         {!horizontal && (
-          <div className="border-t p-4" style={{ borderColor: "rgba(255,255,255,.12)" }}>
-            <div className="mb-3 flex items-center gap-3 rounded-xl p-3" style={{ background: "rgba(255,255,255,.08)" }}>
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white" style={{ background: "rgba(139,198,63,.25)" }}>
+          <div className="border-t border-slate-100 p-4">
+            <div className="mb-3 flex items-center gap-3 rounded-xl bg-slate-50 p-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-lime-100 text-xs font-bold text-emerald-900">
                 {initials}
               </div>
               <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-white">{userEmail || "Authenticated user"}</p>
-                <p className="text-xs text-white/60">{branding.organizationName}</p>
+                <p className="truncate text-sm font-semibold text-slate-800">{userEmail || "Authenticated user"}</p>
+                <p className="text-xs text-slate-500">{branding.organizationName}</p>
               </div>
             </div>
             <button type="button" onClick={async () => {
@@ -348,7 +348,7 @@ export default function CRMLayout({
                 return;
               }
               window.location.replace("/login");
-            }} className="w-full rounded-lg bg-white px-3 py-2.5 text-sm font-semibold" style={{ color: branding.primaryColor }}>
+            }} className="w-full rounded-lg bg-emerald-700 px-3 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-800">
               Sign out
             </button>
           </div>

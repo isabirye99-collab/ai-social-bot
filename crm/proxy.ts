@@ -45,6 +45,20 @@ function redirectTo(
 
 export async function updateSession(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
+  // Allow Next.js assets and public static files to load
+  // without authentication redirects.
+  const isStaticAsset =
+    pathname.startsWith("/_next/") ||
+    pathname === "/favicon.ico" ||
+    pathname === "/robots.txt" ||
+    pathname === "/sitemap.xml" ||
+    /\.(?:css|js|map|svg|png|jpe?g|gif|webp|ico|woff2?|ttf|otf)$/i.test(
+      pathname,
+    );
+
+  if (isStaticAsset) {
+    return NextResponse.next();
+  }
 
   const isLoginPage = pathname === "/login";
   const isVerifyCodePage = pathname === "/verify-code";
