@@ -32,6 +32,7 @@ const nav: NavItem[] = [
   { label: "Marketing", href: "/marketing", module: "marketing" },
   { label: "Partnerships", href: "/partnerships", module: "partnerships" },
   { label: "Reports", href: "/reports", module: "reports" },
+  { label: "Alumni", href: "/alumni", module: "alumni" },
   { label: "Settings", href: "/settings", module: "settings" },
 ];
 
