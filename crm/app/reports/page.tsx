@@ -478,6 +478,57 @@ export default function ReportsPage() {
   );
   const chartMaxLeads = Math.max(1, ...chartRows.map((row) => row.leads));
 
+
+  const salesRows = report.rows.filter((row) => row.role === "salesperson");
+  const alumniRows = report.rows.filter((row) =>
+    ["alumni_relations", "alumni_coordinator", "alumni_officer"].includes(row.role) ||
+    (row.module_permissions?.includes("alumni") && !row.module_permissions?.includes("partnerships"))
+  );
+  const partnershipRows = report.rows.filter((row) =>
+    !salesRows.some((item) => item.id === row.id) &&
+    !alumniRows.some((item) => item.id === row.id)
+  );
+
+  function downloadReport() {
+    const quote = (value: unknown) => {
+      const textValue = String(value ?? "");
+      return '"' + textValue.replace(/"/g, '""') + '"';
+    };
+    const lines: unknown[][] = [
+      ["CIU CRM Performance Report", periodLabel(period), formatDate(report.start) + " - " + formatDate(report.end)],
+      [],
+      ["SALES TEAM"],
+      ["Staff Member", "Leads", "Calls", "Follow-ups", "Interested", "Applications", "Submitted", "Admitted", "Acceptance Paid", "Enrolled", "Tasks Done", "Conversion %"],
+      ...salesRows.map((r) => [r.name, r.leads, r.calls, r.followUps, r.interested, r.applications, r.submitted, r.admitted, r.acceptancePaid, r.enrolled, r.completedTasks, r.conversion]),
+      [],
+      ["ALUMNI RELATIONS"],
+      ["Staff Member", "Contact activities", "Calls", "Follow-ups", "Completed tasks"],
+      ...alumniRows.map((r) => [r.name, r.followUps, r.calls, r.followUps, r.completedTasks]),
+      [],
+      ["PARTNERSHIPS"],
+      ["Staff Member", "Contact activities", "Calls", "Follow-ups", "Completed tasks"],
+      ...partnershipRows.map((r) => [r.name, r.followUps, r.calls, r.followUps, r.completedTasks]),
+      [],
+      ["RELATIONSHIP SUMMARY", "Value"],
+      ["Total alumni", relationshipMetrics.alumniTotal],
+      ["Verified alumni", relationshipMetrics.alumniVerified],
+      ["Employed alumni", relationshipMetrics.alumniEmployed],
+      ["Total partnerships", relationshipMetrics.partnershipsTotal],
+      ["Active partnerships", relationshipMetrics.partnershipsActive],
+      ["Partnership pipeline", relationshipMetrics.partnershipsPipeline],
+      ["Renewals in next 90 days", relationshipMetrics.partnershipsRenewalWatch],
+    ];
+    const csv = "\uFEFF" + lines.map((line) => line.map(quote).join(",")).join("\r\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "ciu-crm-performance-report-" + selectedDate + ".csv";
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  }
+
   if (loading) {
     return (
       <main className="ciu-page">
@@ -537,6 +588,10 @@ export default function ReportsPage() {
                 }
                 className="report-select"
               />
+
+              <button type="button" onClick={downloadReport} className="report-refresh">
+                Download CSV
+              </button>
 
               <button
                 type="button"
