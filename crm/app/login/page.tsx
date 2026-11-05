@@ -25,7 +25,9 @@ export default function Login() {
     async function loadBranding() {
       try {
         const localName = window.localStorage.getItem("ciu_crm_name");
+        const localLogo = window.localStorage.getItem("ciu_crm_logo");
         if (active && localName?.trim()) setCrmName(localName.trim());
+        if (active && localLogo?.trim()) setLogo(localLogo);
         const { data, error } = await supabase
           .from("crm_settings")
           .select("logo_data_url, preferences")
@@ -33,6 +35,12 @@ export default function Login() {
           .maybeSingle();
         if (error || !data || !active) return;
         const settings = data as SavedSettings;
+        // Use the centrally configured CIU logo from Settings first, then the
+        // locally cached copy, and only then the bundled fallback seal.
+        if (settings.logo_data_url?.trim()) {
+          setLogo(settings.logo_data_url);
+          window.localStorage.setItem("ciu_crm_logo", settings.logo_data_url);
+        }
         if (settings.preferences?.crmName?.trim()) {
           const name = settings.preferences.crmName.trim();
           setCrmName(name);
