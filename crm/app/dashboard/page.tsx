@@ -853,8 +853,8 @@ export default function DashboardPage() {
           DASHBOARD HEADER
       ===================================================== */}
 
-      <header className="mb-4 flex flex-col justify-between gap-4 md:flex-row md:items-center">
-        <div>
+      <header className="relative mb-4 flex flex-col justify-between gap-4 overflow-hidden rounded-2xl border border-[#dcebd9] bg-gradient-to-r from-[#edf7e7] via-white to-[#f5faef] px-5 py-5 shadow-[0_5px_22px_rgba(20,70,40,.055)] md:flex-row md:items-center sm:px-6">
+        <div className="relative z-10">
           <div className="flex items-center gap-2">
             <span className="h-2 w-2 rounded-full bg-[#8bc53f]" />
 
@@ -863,18 +863,18 @@ export default function DashboardPage() {
             </span>
           </div>
 
-          <h1 className="mt-1 text-2xl font-black tracking-[-0.035em] text-[#17211b] sm:text-[28px]">
+          <h1 className="mt-1 text-2xl font-black tracking-[-0.035em] text-[#064b35] sm:text-[30px]">
             {greeting}, {firstName}
           </h1>
 
-          <p className="mt-1 text-xs text-[#7d8b84]">
+          <p className="mt-1 max-w-xl text-sm text-[#61776a]">
             Admissions, recruitment and business
             performance at a glance.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <div className="hidden items-center gap-2 rounded-xl border border-[#e3e9e5] bg-white px-3 py-2.5 sm:flex">
+        <div className="relative z-10 flex items-center gap-2">
+          <div className="hidden items-center gap-2 rounded-xl border border-[#dce8dc] bg-white/90 px-3 py-2.5 shadow-sm sm:flex">
             <Icon
               name="calendar"
               size={15}
@@ -940,19 +940,19 @@ export default function DashboardPage() {
           KPI STRIP
       ===================================================== */}
 
-      <section className="mb-4 grid gap-px overflow-hidden rounded-2xl border border-[#e2e9e5] bg-[#e2e9e5] shadow-[0_4px_18px_rgba(20,50,40,.035)] sm:grid-cols-2 xl:grid-cols-5">
+      <section className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         {/* Total Leads */}
 
         <Link
           href="/leads"
-          className="group bg-white p-4 transition hover:bg-[#fbfdfb]"
+          className="group rounded-2xl border border-[#e2e9e5] bg-white p-4 shadow-[0_4px_16px_rgba(20,50,40,.035)] transition duration-200 hover:-translate-y-0.5 hover:border-[#b8d9a7] hover:shadow-[0_8px_22px_rgba(20,70,40,.08)]"
         >
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold uppercase tracking-[0.11em] text-[#819087]">
               Total leads
             </span>
 
-            <span className="text-[#075442]">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#e8f4e0] text-[#075442]">
               <Icon
                 name="users"
                 size={17}
@@ -975,14 +975,14 @@ export default function DashboardPage() {
 
         <Link
           href="/pipeline"
-          className="group bg-white p-4 transition hover:bg-[#fbfdfb]"
+          className="group rounded-2xl border border-[#e2e9e5] bg-white p-4 shadow-[0_4px_16px_rgba(20,50,40,.035)] transition duration-200 hover:-translate-y-0.5 hover:border-[#b8d9a7] hover:shadow-[0_8px_22px_rgba(20,70,40,.08)]"
         >
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold uppercase tracking-[0.11em] text-[#819087]">
               Applied / Admitted
             </span>
 
-            <span className="text-[#28765f]">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#e8f4f0] text-[#28765f]">
               <Icon
                 name="briefcase"
                 size={17}
@@ -1005,14 +1005,14 @@ export default function DashboardPage() {
 
         <Link
           href="/pipeline"
-          className="group bg-white p-4 transition hover:bg-[#fbfdfb]"
+          className="group rounded-2xl border border-[#e2e9e5] bg-white p-4 shadow-[0_4px_16px_rgba(20,50,40,.035)] transition duration-200 hover:-translate-y-0.5 hover:border-[#b8d9a7] hover:shadow-[0_8px_22px_rgba(20,70,40,.08)]"
         >
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold uppercase tracking-[0.11em] text-[#819087]">
               Application Fee Paid
             </span>
 
-            <span className="text-[#65a82f]">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#f0f8df] text-[#65a82f]">
               <Icon
                 name="check"
                 size={17}
@@ -1035,14 +1035,14 @@ export default function DashboardPage() {
 
         <Link
           href="/pipeline"
-          className="group bg-white p-4 transition hover:bg-[#fbfdfb]"
+          className="group rounded-2xl border border-[#e2e9e5] bg-white p-4 shadow-[0_4px_16px_rgba(20,50,40,.035)] transition duration-200 hover:-translate-y-0.5 hover:border-[#b8d9a7] hover:shadow-[0_8px_22px_rgba(20,70,40,.08)]"
         >
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold uppercase tracking-[0.11em] text-[#819087]">
               Acceptance Fee Paid
             </span>
 
-            <span className="text-[#83bd42]">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#eaf6d9] text-[#5f8e2b]">
               <Icon
                 name="check"
                 size={17}
@@ -1065,14 +1065,14 @@ export default function DashboardPage() {
 
         <Link
           href="/customers"
-          className="bg-[#075442] p-4 transition hover:bg-[#064b3b]"
+          className="group rounded-2xl border border-[#075442] bg-[#075442] p-4 shadow-[0_5px_18px_rgba(7,84,66,.16)] transition duration-200 hover:-translate-y-0.5 hover:bg-[#064b3b] hover:shadow-[0_9px_24px_rgba(7,84,66,.2)]"
         >
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold uppercase tracking-[0.11em] text-[#b9d4c8]">
               Enrolled
             </span>
 
-            <span className="text-[#a9d66b]">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-[#b8e878]">
               <Icon
                 name="student"
                 size={17}
