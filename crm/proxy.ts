@@ -93,12 +93,6 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
-  // Allow public student lead capture without requiring a CRM login.
-  // Keep all other CRM routes protected by the normal authentication flow.
-  if (pathname === "/lead-capture" || pathname.startsWith("/lead-capture/")) {
-    return supabaseResponse;
-  }
-
   // Let authentication handlers complete their own callback flow.
   if (isAuthCallback) {
     return supabaseResponse;
