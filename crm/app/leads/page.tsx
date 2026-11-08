@@ -146,11 +146,16 @@ export default function LeadsPage() {
   const [selectedLead, setSelectedLead] =
     useState<Lead | null>(null);
 
+  const [showHistoryModal, setShowHistoryModal] =
+    useState(false);
+  const [historyLead, setHistoryLead] =
+    useState<Lead | null>(null);
+
   const [activities, setActivities] =
     useState<Activity[]>([]);
+
   const [loadingHistory, setLoadingHistory] =
     useState(false);
-  const [kpiFilter, setKpiFilter] = useState<"all" | "active" | "interested" | "closed">("all");
 
   const [qualifyingLeadId, setQualifyingLeadId] =
     useState<string | null>(null);
@@ -317,17 +322,11 @@ export default function LeadsPage() {
         programFilter === "All" ||
         (lead.product_service || "") ===
           programFilter;
-      const matchesKpi =
-        kpiFilter === "all" ||
-        (kpiFilter === "active" && !statusIsClosed(lead.status)) ||
-        (kpiFilter === "interested" && statusIsQualified(lead.status)) ||
-        (kpiFilter === "closed" && statusIsClosed(lead.status));
 
       return (
         matchesSearch &&
         matchesStatus &&
-        matchesProgram &&
-        matchesKpi
+        matchesProgram
       );
     });
   }, [
@@ -335,7 +334,6 @@ export default function LeadsPage() {
     search,
     statusFilter,
     programFilter,
-    kpiFilter,
   ]);
 
   const activeLeads = leads.filter(
@@ -588,32 +586,77 @@ export default function LeadsPage() {
     }
   }
 
-  async function handleView(lead: Lead) {
+  function handleView(
+    lead: Lead
+  ) {
+    setSelectedLead(lead);
+    setShowViewModal(true);
+  }
+
+  async function openHistory(
+    lead: Lead
+  ) {
     if (
-      currentRole === "salesperson" &&
-      lead.assigned_to !== currentUserId
+      currentRole ===
+        "salesperson" &&
+      lead.assigned_to !==
+        currentUserId
     ) {
-      alert("You can only view leads assigned to you.");
+      alert(
+        "You can only view history for leads assigned to you."
+      );
       return;
     }
 
-    setSelectedLead(lead);
+    setHistoryLead(lead);
     setActivities([]);
+    setShowHistoryModal(true);
     setLoadingHistory(true);
-    setShowViewModal(true);
 
     try {
-      const { data, error } = await supabase
+      const {
+        data,
+        error,
+      } = await supabase
         .from("activities")
-        .select("id, lead_id, type, subject, description, activity_at, created_by")
-        .eq("lead_id", lead.id)
-        .order("activity_at", { ascending: false });
+        .select(`
+          id,
+          lead_id,
+          type,
+          subject,
+          description,
+          activity_at,
+          created_by
+        `)
+        .eq(
+          "lead_id",
+          lead.id
+        )
+        .order(
+          "activity_at",
+          {
+            ascending: false,
+          }
+        );
 
-      if (error) throw error;
-      setActivities((data || []) as Activity[]);
+      if (error) {
+        throw error;
+      }
+
+      setActivities(
+        (data || []) as Activity[]
+      );
     } catch (err) {
-      console.error("Lead activity history error:", err);
-      setError(err instanceof Error ? err.message : "Unable to load lead history.");
+      console.error(
+        "History error:",
+        err
+      );
+
+      alert(
+        err instanceof Error
+          ? err.message
+          : "Failed to load communication history."
+      );
     } finally {
       setLoadingHistory(false);
     }
@@ -939,39 +982,36 @@ export default function LeadsPage() {
           }}
         >
           <KpiCard
-            label={currentRole === "salesperson" ? "My Leads" : "Total Leads"}
+            label={
+              currentRole ===
+              "salesperson"
+                ? "My Leads"
+                : "Total Leads"
+            }
             value={leads.length}
-            description="Show all lead records"
+            description="Current CRM records"
             type="total"
-            active={kpiFilter === "all"}
-            onClick={() => setKpiFilter("all")}
           />
 
           <KpiCard
             label="Active Prospects"
             value={activeLeads}
-            description="Filter active prospects"
+            description="Current CRM records"
             type="active"
-            active={kpiFilter === "active"}
-            onClick={() => setKpiFilter("active")}
           />
 
           <KpiCard
             label="Interested"
             value={interestedLeads}
-            description="Filter interested leads"
+            description="Current CRM records"
             type="interested"
-            active={kpiFilter === "interested"}
-            onClick={() => setKpiFilter("interested")}
           />
 
           <KpiCard
             label="Closed / Unqualified"
             value={closedLeads}
-            description="Filter closed or unqualified leads"
+            description="Current CRM records"
             type="closed"
-            active={kpiFilter === "closed"}
-            onClick={() => setKpiFilter("closed")}
           />
         </div>
 
@@ -1088,29 +1128,16 @@ export default function LeadsPage() {
               </span>
             </div>
 
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <button
-                type="button"
-                onClick={() => {
-                  setSearch("");
-                  setStatusFilter("All");
-                  setProgramFilter("All");
-                  setKpiFilter("all");
-                }}
-                className="ciu-btn-light"
-                disabled={!search && statusFilter === "All" && programFilter === "All" && kpiFilter === "all"}
-              >
-                Clear filters
-              </button>
-              <button
-                type="button"
-                onClick={loadLeads}
-                className="ciu-btn-light"
-                disabled={loading}
-              >
-                {loading ? "Refreshing..." : "Refresh"}
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={loadLeads}
+              className="ciu-btn-light"
+              disabled={loading}
+            >
+              {loading
+                ? "Refreshing..."
+                : "Refresh"}
+            </button>
           </div>
 
           <div
@@ -1500,6 +1527,27 @@ export default function LeadsPage() {
                         "wrap",
                     }}
                   >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowViewModal(
+                          false
+                        );
+
+                        openHistory(
+                          selectedLead
+                        );
+                      }}
+                      className="ciu-btn-light"
+                      style={{
+                        minHeight: 42,
+                        padding:
+                          "10px 16px",
+                      }}
+                    >
+                      View History
+                    </button>
+
                     {statusIsQualified(
                       selectedLead.status
                     ) &&
@@ -1606,41 +1654,185 @@ export default function LeadsPage() {
                   />
                 </div>
 
-                <div style={{ marginTop: 24, borderTop: "1px solid #e5eeea", paddingTop: 20 }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12 }}>
-                    <div>
-                      <h3 style={{ margin: 0, color: "#17322c", fontSize: 16, fontWeight: 800 }}>Contact & Communication History</h3>
-                      <p style={{ margin: "5px 0 0", color: "#6b7f78", fontSize: 12 }}>Recorded calls, messages, emails and contact dates.</p>
-                    </div>
-                    <span style={{ fontSize: 12, color: "#6b7f78" }}>{activities.length} record(s)</span>
+                <div
+                  style={{
+                    marginTop: 22,
+                    padding: 13,
+                    borderRadius: 9,
+                    background:
+                      "#eaf5f2",
+                    color: "#00695c",
+                    fontSize: 13,
+                  }}
+                >
+                  <strong>
+                    CRM workflow:
+                  </strong>{" "}
+                  Lead prospecting is
+                  handled here. Actual
+                  calls, WhatsApp,
+                  email follow-ups and
+                  scheduled work are
+                  managed from Tasks.
+                </div>
+              </div>
+            </ModalOverlay>
+          )}
+
+        {/* HISTORY MODAL */}
+        {showHistoryModal &&
+          historyLead && (
+            <ModalOverlay
+              onClose={() =>
+                setShowHistoryModal(
+                  false
+                )
+              }
+            >
+              <div
+                style={{
+                  width: "100%",
+                  maxWidth: 800,
+                  maxHeight: "90vh",
+                  overflowY: "auto",
+                  background: "#ffffff",
+                  borderRadius: 16,
+                  padding: 24,
+                  boxShadow:
+                    "0 25px 60px rgba(15, 23, 42, 0.25)",
+                }}
+              >
+                <ModalHeader
+                  title="Communication History"
+                  subtitle={
+                    historyLead.name ||
+                    "Lead"
+                  }
+                  onClose={() =>
+                    setShowHistoryModal(
+                      false
+                    )
+                  }
+                />
+
+                {loadingHistory ? (
+                  <div
+                    style={{
+                      padding: 45,
+                      textAlign:
+                        "center",
+                      color:
+                        "#6b7f78",
+                    }}
+                  >
+                    Loading
+                    communication
+                    history...
                   </div>
+                ) : activities.length ===
+                  0 ? (
+                  <div
+                    style={{
+                      marginTop: 20,
+                      padding: 40,
+                      textAlign:
+                        "center",
+                      background:
+                        "#f5f8f7",
+                      borderRadius: 10,
+                      color:
+                        "#6b7f78",
+                    }}
+                  >
+                    No communication
+                    history has been
+                    recorded for this
+                    lead yet.
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      display:
+                        "grid",
+                      gap: 12,
+                      marginTop: 20,
+                    }}
+                  >
+                    {activities.map(
+                      (activity) => (
+                        <div
+                          key={
+                            activity.id
+                          }
+                          style={{
+                            border:
+                              "1px solid #dfe9e5",
+                            borderRadius:
+                              12,
+                            padding: 15,
+                          }}
+                        >
+                          <div
+                            style={{
+                              display:
+                                "flex",
+                              justifyContent:
+                                "space-between",
+                              gap: 15,
+                              flexWrap:
+                                "wrap",
+                              marginBottom:
+                                8,
+                            }}
+                          >
+                            <strong
+                              style={{
+                                color:
+                                  "#17322c",
+                              }}
+                            >
+                              {
+                                activity.subject
+                              }
+                            </strong>
 
-                  {loadingHistory ? (
-                    <div style={{ padding: 24, textAlign: "center", color: "#6b7f78" }}>Loading contact history…</div>
-                  ) : activities.length === 0 ? (
-                    <div style={{ padding: 18, borderRadius: 10, background: "#f5f8f7", color: "#6b7f78", fontSize: 13 }}>
-                      No contact history has been recorded for this lead yet.
-                    </div>
-                  ) : (
-                    <div style={{ display: "grid", gap: 10 }}>
-                      {activities.map((activity) => (
-                        <div key={activity.id} style={{ padding: 14, border: "1px solid #dfe9e5", borderRadius: 10, background: "#ffffff" }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
-                            <strong style={{ color: "#17322c", fontSize: 13 }}>{activity.subject || activity.type || "Contact activity"}</strong>
-                            <span style={{ color: "#6b7f78", fontSize: 12 }}>{formatDateTime(activity.activity_at)}</span>
+                            <span
+                              style={{
+                                color:
+                                  "#6b7f78",
+                                fontSize:
+                                  12,
+                              }}
+                            >
+                              {formatDateTime(
+                                activity.activity_at
+                              )}
+                            </span>
                           </div>
-                          {activity.type && <div style={{ marginTop: 5, color: "#00695c", fontSize: 12, fontWeight: 700 }}>{activity.type}</div>}
-                          {activity.description && <p style={{ margin: "8px 0 0", color: "#53665f", fontSize: 13, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{activity.description}</p>}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
 
-                <div style={{ marginTop: 18, padding: 13, borderRadius: 9, background: "#eaf5f2", color: "#00695c", fontSize: 13 }}>
-                  <strong>CRM workflow:</strong>{" "}
-                  Lead prospecting is handled here. Actual calls, WhatsApp, email follow-ups and scheduled work are managed from Tasks.
-                </div>
+                          {activity.description && (
+                            <div
+                              style={{
+                                whiteSpace:
+                                  "pre-wrap",
+                                color:
+                                  "#53665f",
+                                fontSize:
+                                  13,
+                                lineHeight:
+                                  1.6,
+                              }}
+                            >
+                              {
+                                activity.description
+                              }
+                            </div>
+                          )}
+                        </div>
+                      )
+                    )}
+                  </div>
+                )}
               </div>
             </ModalOverlay>
           )}
@@ -1934,15 +2126,15 @@ function KpiCard({
   value,
   description,
   type,
-  active,
-  onClick,
 }: {
   label: string;
   value: number;
   description: string;
-  type: "total" | "active" | "interested" | "closed";
-  active: boolean;
-  onClick: () => void;
+  type:
+    | "total"
+    | "active"
+    | "interested"
+    | "closed";
 }) {
   const styles = {
     total: {
@@ -1974,16 +2166,8 @@ function KpiCard({
     styles[type];
 
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
+    <div
       style={{
-        textAlign: "left",
-        width: "100%",
-        cursor: "pointer",
-        outline: active ? `2px solid ${selected.accent}` : "none",
-        outlineOffset: 2,
         position: "relative",
         minWidth: 0,
         minHeight: 132,
@@ -2046,7 +2230,7 @@ function KpiCard({
       >
         {description}
       </div>
-    </button>
+    </div>
   );
 }
 
