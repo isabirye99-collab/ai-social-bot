@@ -164,7 +164,7 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (isLoginPage || isVerifyCodePage) {
-    return redirectTo(request, "/dashboard");
+    return redirectTo(request, "/dashboard", supabaseResponse);
   }
 
   if (isPasswordChangeApi) {
