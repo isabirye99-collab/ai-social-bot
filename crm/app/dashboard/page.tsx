@@ -1100,7 +1100,7 @@ export default function DashboardPage() {
         {/* Admissions funnel */}
 
         <div className="rounded-2xl border border-[#e2e9e5] bg-white shadow-[0_4px_18px_rgba(20,50,40,.035)]">
-          <div className="flex items-center justify-between border-b border-[#edf1ef] px-5 py-4">
+          <div className="flex items-center justify-between rounded-t-2xl border-b border-[#dfeadd] bg-[#f4f9ef] px-5 py-4">
             <div>
               <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-[#819087]">
                 Student journey
@@ -1223,7 +1223,7 @@ export default function DashboardPage() {
         {/* Today's focus */}
 
         <div className="rounded-2xl border border-[#e2e9e5] bg-white shadow-[0_4px_18px_rgba(20,50,40,.035)]">
-          <div className="flex items-center justify-between border-b border-[#edf1ef] px-5 py-4">
+          <div className="flex items-center justify-between rounded-t-2xl border-b border-[#dfeadd] bg-[#f4f9ef] px-5 py-4">
             <div>
               <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-[#819087]">
                 Daily operations
@@ -1326,7 +1326,7 @@ export default function DashboardPage() {
         {/* Pipeline overview */}
 
         <div className="rounded-2xl border border-[#e2e9e5] bg-white shadow-[0_4px_18px_rgba(20,50,40,.035)]">
-          <div className="flex items-center justify-between border-b border-[#edf1ef] px-5 py-4">
+          <div className="flex items-center justify-between rounded-t-2xl border-b border-[#dfeadd] bg-[#f4f9ef] px-5 py-4">
             <div>
               <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-[#819087]">
                 Revenue & admissions
@@ -1442,7 +1442,7 @@ export default function DashboardPage() {
         {/* Performance */}
 
         <div className="rounded-2xl border border-[#e2e9e5] bg-white shadow-[0_4px_18px_rgba(20,50,40,.035)]">
-          <div className="flex items-center justify-between border-b border-[#edf1ef] px-5 py-4">
+          <div className="flex items-center justify-between rounded-t-2xl border-b border-[#dfeadd] bg-[#f4f9ef] px-5 py-4">
             <div>
               <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-[#819087]">
                 Current month
