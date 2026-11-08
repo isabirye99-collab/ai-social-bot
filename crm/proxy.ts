@@ -30,6 +30,7 @@ function getRequiredModule(pathname: string): CrmModule | null {
 function redirectTo(
   request: NextRequest,
   pathname: string,
+  supabaseResponse: NextResponse,
   error?: string,
 ) {
   const url = request.nextUrl.clone();
@@ -40,7 +41,20 @@ function redirectTo(
     url.searchParams.set("error", error);
   }
 
-  return NextResponse.redirect(url);
+  const response = NextResponse.redirect(url);
+
+  // Supabase may refresh the session during getClaims(). A new redirect
+  // response must carry those refreshed cookies and cache headers forward.
+  for (const cookie of supabaseResponse.cookies.getAll()) {
+    response.cookies.set(cookie);
+  }
+
+  for (const header of ["cache-control", "expires", "pragma"]) {
+    const value = supabaseResponse.headers.get(header);
+    if (value) response.headers.set(header, value);
+  }
+
+  return response;
 }
 
 export async function updateSession(request: NextRequest) {
@@ -108,7 +122,7 @@ export async function updateSession(request: NextRequest) {
     typeof user?.sub === "string" ? user.sub : null;
 
   if (claimsError && userId) {
-    return redirectTo(request, "/login", "session_invalid");
+    return redirectTo(request, "/login", supabaseResponse, "session_invalid");
   }
 
   if (!userId) {
@@ -116,7 +130,7 @@ export async function updateSession(request: NextRequest) {
       return supabaseResponse;
     }
 
-    return redirectTo(request, "/login");
+    return redirectTo(request, "/login", supabaseResponse);
   }
 
   const {
@@ -134,7 +148,7 @@ export async function updateSession(request: NextRequest) {
     !profile.role ||
     profile.is_active !== true
   ) {
-    return redirectTo(request, "/login", "account_unavailable");
+    return redirectTo(request, "/login", supabaseResponse, "account_unavailable");
   }
 
   if (profile.must_change_password === true) {
@@ -142,11 +156,11 @@ export async function updateSession(request: NextRequest) {
       return supabaseResponse;
     }
 
-    return redirectTo(request, "/set-password");
+    return redirectTo(request, "/set-password", supabaseResponse);
   }
 
   if (isSetPasswordPage) {
-    return redirectTo(request, "/dashboard");
+    return redirectTo(request, "/dashboard", supabaseResponse);
   }
 
   if (isLoginPage || isVerifyCodePage) {
@@ -176,6 +190,7 @@ export async function updateSession(request: NextRequest) {
       return redirectTo(
         request,
         "/dashboard",
+        supabaseResponse,
         "module_access_denied",
       );
     }
