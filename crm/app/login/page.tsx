@@ -55,17 +55,44 @@ export default function Login() {
 
   async function handleLogin(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (loading) return;
+
     setLoading(true);
     setErrorMessage("");
-    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-    if (error) {
-      setErrorMessage(error.message);
+
+    let timeoutId: number | undefined;
+
+    try {
+      // Do not leave the form stuck indefinitely if the network/auth request hangs.
+      const result = await Promise.race([
+        supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        }),
+        new Promise<never>((_, reject) => {
+          timeoutId = window.setTimeout(() => {
+            reject(new Error("Sign-in is taking too long. Check your connection and try again."));
+          }, 20000);
+        }),
+      ]);
+
+      if (result.error) {
+        setErrorMessage(result.error.message);
+        return;
+      }
+
+      // Force a fresh document request so the new session is checked server-side.
+      window.location.replace("/dashboard");
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Unable to sign in. Please check your connection and try again.",
+      );
+    } finally {
+      if (timeoutId !== undefined) window.clearTimeout(timeoutId);
       setLoading(false);
-      return;
     }
-    // Force a fresh document request so the newly stored Supabase session cookies
-    // are sent to the server-side proxy before protected routes are evaluated.
-    window.location.assign("/dashboard");
   }
 
   return (
