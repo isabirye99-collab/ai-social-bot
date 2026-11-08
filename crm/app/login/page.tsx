@@ -63,8 +63,9 @@ export default function Login() {
       setLoading(false);
       return;
     }
-    router.replace("/set-password");
-    router.refresh();
+    // Force a fresh document request so the newly stored Supabase session cookies
+    // are sent to the server-side proxy before protected routes are evaluated.
+    window.location.assign("/dashboard");
   }
 
   return (
