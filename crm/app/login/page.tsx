@@ -1,8 +1,8 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { CIU_LOGO_DATA_URL } from "@/lib/ciu-logo";
 
 type SavedSettings = {
   logo_data_url?: string | null;
@@ -10,13 +10,12 @@ type SavedSettings = {
 };
 
 export default function Login() {
-  const router = useRouter();
   const supabase = createClient();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [loading, setLoading] = useState(false);
-  const [logo, setLogo] = useState("");
+  const [logo, setLogo] = useState(CIU_LOGO_DATA_URL);
   const [crmName, setCrmName] = useState("CIU Business CRM");
   const [primaryColor, setPrimaryColor] = useState("#00695c");
 
@@ -102,7 +101,7 @@ export default function Login() {
         <div className="crm-card-body" style={{ padding: 35 }}>
           <div style={{ textAlign: "center" }}>
             <div style={{ margin: "0 auto 16px", width: 76, height: 76, display: "grid", placeItems: "center", overflow: "hidden", borderRadius: 18, border: "1px solid #e4ebe6", background: "#fff", color: primaryColor, fontWeight: 900, fontSize: 22 }}>
-              {logo ? <img src={logo} alt="CRM logo" style={{ width: "100%", height: "100%", objectFit: "contain", padding: 5 }} /> : "CIU"}
+              <img src={logo || CIU_LOGO_DATA_URL} alt="Clarke International University logo" style={{ width: "100%", height: "100%", objectFit: "contain", padding: 5 }} />
             </div>
             <h1 style={{ margin: "0 0 7px", fontSize: 24, fontWeight: 800, color: "#17211b" }}>Welcome back</h1>
             <p style={{ margin: 0, fontSize: 13, color: "#6b7b72" }}>Sign in to {crmName}</p>
