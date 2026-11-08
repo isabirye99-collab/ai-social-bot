@@ -45,6 +45,14 @@ function redirectTo(
 
 export async function updateSession(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
+
+  // Prospective students must be able to open campaign lead-capture links
+  // without having a CRM staff account. The form submits through the
+  // public-lead-capture Edge Function, which performs server-side validation.
+  if (pathname === "/lead-capture" || pathname.startsWith("/lead-capture/")) {
+    return NextResponse.next({ request });
+  }
+
   // Allow Next.js assets and public static files to load
   // without authentication redirects.
   const isStaticAsset =
