@@ -1599,3 +1599,261 @@ input:focus, select:focus, textarea:focus, button:focus-visible, a:focus-visible
   .crm-card-body { padding: 14px; }
   .ciu-card-head, .crm-card-header { padding: 14px; }
 }
+
+
+/* =========================================================
+   CIU CRM — unified editorial polish
+   Design-only overrides: do not change records, figures,
+   workflows, data queries, permissions or business logic.
+========================================================= */
+:root {
+  --brand: #006b59;
+  --brand-dark: #005344;
+  --brand-light: #edf5f1;
+  --ink: #202b26;
+  --muted: #68756e;
+  --bg: #f6f8f7;
+  --card: #ffffff;
+  --border: #e0e7e3;
+  --shadow: 0 1px 3px rgba(20, 40, 32, .035);
+  --ciu-green: #006b59;
+  --ciu-green-dark: #005344;
+  --ciu-green-deep: #17483b;
+  --ciu-lime: #8bc34a;
+  --ciu-lime-soft: #f1f7e9;
+  --ciu-mint: #f3f7f5;
+  --ciu-ink: #202b26;
+  --ciu-muted: #68756e;
+  --ciu-bg: #f6f8f7;
+  --ciu-border: #e0e7e3;
+}
+
+html, body {
+  font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+body, button, input, select, textarea {
+  font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif !important;
+}
+button, input, select, textarea { font-size: 13px; }
+::selection { background: #dcece5; color: #173d32; }
+
+/* Fixed application shell and navigation */
+body > div.min-h-screen > aside,
+body > div > aside {
+  background: #fff !important;
+  color: var(--ink) !important;
+  border-right: 1px solid var(--border) !important;
+  box-shadow: none !important;
+}
+body > div > aside > div:first-child {
+  min-height: 82px !important;
+  padding: 16px 18px !important;
+  border-bottom-color: var(--border) !important;
+}
+body > div > aside nav a {
+  min-height: 40px;
+  margin: 2px 0;
+  padding: 10px 12px !important;
+  border-radius: 7px !important;
+  font-size: 13px !important;
+  font-weight: 550 !important;
+  line-height: 1.35;
+  transition: background-color .15s ease, color .15s ease;
+}
+body > div > aside nav a:hover {
+  background: #f4f7f5 !important;
+  color: #17483b !important;
+}
+body > div > aside nav a[style*="background: rgb(232, 246, 216)"],
+body > div > aside nav a[style*="background: rgb(232, 246, 216)"] {
+  background: #eaf3e2 !important;
+  color: #17483b !important;
+}
+body > div > aside > div:last-child {
+  border-top-color: var(--border) !important;
+}
+body > div > aside button {
+  border-radius: 7px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+}
+
+/* Header: quiet, compact and aligned */
+body > div > div > header {
+  min-height: 64px;
+  height: 64px !important;
+  padding-left: 26px !important;
+  padding-right: 26px !important;
+  background: rgba(255,255,255,.98) !important;
+  border-color: var(--border) !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+body > div > div > header p:first-child {
+  letter-spacing: .09em !important;
+  font-size: 10px !important;
+  font-weight: 650 !important;
+}
+body > div > div > header p:nth-child(2) {
+  font-size: 13px !important;
+  font-weight: 650 !important;
+}
+
+/* Shared page canvas and headings */
+.crm-content, .ciu-page-inner {
+  width: 100%;
+  max-width: 1600px;
+  padding: 24px 28px 36px !important;
+}
+.crm-page-heading { gap: 16px; margin-bottom: 20px; }
+.crm-page-heading h1, .ciu-hero h1 {
+  font-size: 25px !important;
+  line-height: 1.28 !important;
+  letter-spacing: -.35px !important;
+  font-weight: 700 !important;
+}
+.crm-page-heading p, .ciu-hero p {
+  font-size: 13px !important;
+  line-height: 1.55 !important;
+  margin-top: 6px !important;
+}
+.ciu-hero {
+  background: #fff !important;
+  color: var(--ink) !important;
+  border: 1px solid var(--border) !important;
+  border-left: 3px solid var(--brand) !important;
+  border-radius: 9px !important;
+  box-shadow: none !important;
+  padding: 23px 25px !important;
+  margin-bottom: 18px !important;
+}
+.ciu-hero::before, .ciu-hero::after { display: none !important; }
+.ciu-hero h1 { color: var(--ink) !important; }
+.ciu-hero p { color: var(--muted) !important; }
+
+/* De-emphasize decorative cards and standardize rhythm */
+.crm-kpis, .ciu-kpis { gap: 14px !important; margin-bottom: 18px !important; }
+.crm-grid { gap: 16px !important; }
+.crm-kpi, .ciu-kpi, .crm-card, .ciu-card, .ciu-staff-card {
+  border: 1px solid var(--border) !important;
+  border-radius: 9px !important;
+  box-shadow: var(--shadow) !important;
+}
+.crm-kpi, .ciu-kpi { padding: 18px !important; }
+.crm-kpi:hover, .ciu-kpi:hover {
+  transform: none !important;
+  box-shadow: var(--shadow) !important;
+}
+.crm-kpi-label, .ciu-kpi-label {
+  font-size: 12px !important;
+  line-height: 1.4;
+  font-weight: 600 !important;
+  color: var(--muted) !important;
+}
+.crm-kpi-value, .ciu-kpi-value {
+  font-size: 25px !important;
+  line-height: 1.25 !important;
+  letter-spacing: -.3px;
+  font-weight: 700 !important;
+  margin: 10px 0 5px !important;
+}
+.crm-card-header, .ciu-card-head {
+  padding: 15px 18px !important;
+  gap: 12px;
+  border-bottom: 1px solid #edf1ee !important;
+}
+.crm-card-header h2, .crm-card-header h3, .ciu-card-head h2 {
+  font-size: 14px !important;
+  line-height: 1.4;
+  font-weight: 650 !important;
+}
+.crm-card-body { padding: 18px !important; }
+.crm-list-item { padding: 12px 18px !important; }
+.ciu-strip, .ciu-period-card {
+  border-radius: 8px !important;
+  box-shadow: none !important;
+}
+
+/* Tables: more readable, calmer headers, consistent row spacing */
+.crm-table, .ciu-report-table { border-collapse: separate; border-spacing: 0; }
+.crm-table th, .ciu-report-table thead th {
+  background: #f4f7f5 !important;
+  color: #5d6b64 !important;
+  padding: 11px 14px !important;
+  font-size: 10px !important;
+  font-weight: 650 !important;
+  letter-spacing: .035em !important;
+  line-height: 1.4;
+}
+.crm-table td, .ciu-report-table td {
+  padding: 12px 14px !important;
+  color: #34423b;
+  font-size: 12px !important;
+  line-height: 1.45;
+  border-top-color: #e8eeea !important;
+}
+.crm-table td strong { font-size: 12px !important; font-weight: 650; }
+.crm-table tbody tr:hover, .ciu-report-table tbody tr:hover { background: #f8faf9; }
+.crm-table-wrap, .ciu-table-scroll, .ciu-report-table-wrap { max-width: 100%; }
+
+/* Forms and actions: businesslike, not oversized */
+input, select, textarea,
+.crm-filterbar input, .crm-filterbar select {
+  min-height: 38px;
+  border: 1px solid #d6e0da !important;
+  border-radius: 6px !important;
+  background: #fff !important;
+  color: #26362e;
+  font-size: 13px !important;
+  line-height: 1.4;
+  box-shadow: none !important;
+}
+textarea { min-height: 90px; }
+input::placeholder, textarea::placeholder { color: #8a958f !important; }
+.crm-btn, .ciu-btn {
+  min-height: 37px !important;
+  padding: 9px 14px !important;
+  border-radius: 6px !important;
+  font-size: 12px !important;
+  line-height: 1.35;
+  font-weight: 650 !important;
+  box-shadow: none !important;
+}
+.crm-btn.accent, .ciu-btn:not(.ciu-btn-light) { background: var(--brand); color: #fff; }
+.crm-btn.secondary, .ciu-btn-light {
+  background: #fff !important;
+  color: var(--brand-dark) !important;
+  border: 1px solid #cfdcd5 !important;
+}
+.crm-badge { font-size: 10px !important; padding: 4px 7px !important; }
+.crm-stat-box { border-radius: 8px !important; box-shadow: none !important; }
+
+/* Keep focus states visible without adding heavy visual effects */
+input:focus, select:focus, textarea:focus, button:focus-visible, a:focus-visible {
+  outline: 2px solid rgba(0, 107, 89, .2) !important;
+  outline-offset: 2px;
+}
+
+/* Responsive spacing */
+@media (min-width: 1280px) {
+  .crm-content, .ciu-page-inner { padding-left: 28px !important; padding-right: 28px !important; }
+}
+@media (max-width: 1024px) {
+  .crm-content, .ciu-page-inner { padding: 20px 18px 84px !important; }
+  body > div > div > header { padding-left: 18px !important; padding-right: 18px !important; }
+}
+@media (max-width: 640px) {
+  .crm-content, .ciu-page-inner { padding: 16px 12px 88px !important; }
+  .crm-page-heading h1, .ciu-hero h1 { font-size: 22px !important; }
+  .ciu-hero { padding: 18px 16px !important; margin-bottom: 14px !important; }
+  .ciu-kpi, .crm-kpi { padding: 14px !important; }
+  .crm-card-body { padding: 14px !important; }
+  .ciu-card-head, .crm-card-header { padding: 13px 14px !important; }
+  .crm-table td, .ciu-report-table td { padding: 10px 11px !important; }
+}
