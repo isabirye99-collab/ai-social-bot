@@ -1976,3 +1976,136 @@ main > .ciu-page-inner {
   main table thead th { padding: 10px 11px; }
   main table tbody td { padding: 10px 11px; }
 }
+
+
+/* CIU CRM shared visual refinement — presentation only.
+   Keep page data, workflow behaviour and existing feature styling intact. */
+:root {
+  --ciu-surface: #ffffff;
+  --ciu-page: #f7f9f7;
+  --ciu-line: #e2e8e4;
+  --ciu-ink: #1d2b26;
+  --ciu-muted: #687871;
+}
+
+html, body {
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+main {
+  color: var(--ciu-ink);
+  line-height: 1.5;
+}
+
+main h1 {
+  font-size: clamp(1.55rem, 1.8vw, 1.9rem) !important;
+  line-height: 1.2 !important;
+  letter-spacing: -0.035em !important;
+  font-weight: 700 !important;
+}
+
+main h2 {
+  font-size: 1.1rem !important;
+  line-height: 1.35 !important;
+  letter-spacing: -0.018em;
+  font-weight: 650 !important;
+}
+
+main h3 {
+  font-size: 0.98rem !important;
+  line-height: 1.4 !important;
+  font-weight: 650 !important;
+}
+
+main p {
+  line-height: 1.55;
+}
+
+main label {
+  font-size: 0.82rem;
+  line-height: 1.4;
+  font-weight: 600;
+  color: #34463e;
+}
+
+main input,
+main select,
+main textarea {
+  font: inherit;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  border-color: #d7e1db;
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+main input:focus,
+main select:focus,
+main textarea:focus {
+  outline: 2px solid rgba(0, 105, 92, 0.14);
+  outline-offset: 1px;
+  border-color: #6d9f91;
+}
+
+main button {
+  font-family: inherit;
+  letter-spacing: 0;
+  line-height: 1.35;
+  box-shadow: none;
+}
+
+main table {
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+main table th {
+  font-size: 0.72rem;
+  line-height: 1.4;
+  letter-spacing: 0.035em;
+  font-weight: 650;
+  color: #53665d;
+}
+
+main table td {
+  line-height: 1.5;
+  vertical-align: middle;
+}
+
+main table tbody tr {
+  transition: background-color 120ms ease;
+}
+
+main table tbody tr:hover {
+  background-color: #f8fbf8;
+}
+
+main small {
+  line-height: 1.45;
+}
+
+main :where(input, select, textarea, button, a):focus-visible {
+  outline: 2px solid #5a9a87;
+  outline-offset: 2px;
+}
+
+@media (max-width: 760px) {
+  main h1 {
+    font-size: 1.5rem !important;
+  }
+
+  main h2 {
+    font-size: 1.03rem !important;
+  }
+
+  main table {
+    font-size: 0.8rem;
+  }
+}
