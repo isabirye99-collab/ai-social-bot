@@ -357,6 +357,23 @@ export default function CRMLayout({
 
       <div className={horizontal ? "min-w-0 flex-1" : "lg:pl-72"}>
         {!horizontal && (
+          <header className="sticky top-0 z-30 hidden h-[68px] items-center justify-between border-b border-[#e4ebe6] bg-white/95 px-7 shadow-[0_2px_12px_rgba(23,50,44,.025)] backdrop-blur lg:flex">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#789087]">Clarke International University</p>
+              <p className="mt-0.5 text-sm font-bold text-[#173b2b]">Recruitment &amp; Admissions Workspace</p>
+            </div>
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#d7e8dc] bg-[#edf6ef] text-xs font-extrabold text-[#075442]">
+                {initials}
+              </div>
+              <div className="min-w-0">
+                <p className="max-w-[260px] truncate text-sm font-bold text-[#203b2f]">{userEmail || "Authenticated user"}</p>
+                <p className="text-xs text-[#718078]">{role ? role.replace(/_/g, " ") : "CIU CRM user"}</p>
+              </div>
+            </div>
+          </header>
+        )}
+        {!horizontal && (
           <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-slate-200 bg-white px-4 lg:hidden">
             <button type="button" onClick={() => setMobileOpen(true)} className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700">
               Menu
