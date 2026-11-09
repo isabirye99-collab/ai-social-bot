@@ -18,7 +18,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [logo, setLogo] = useState("/ciu-seal-color.svg");
   const [crmName, setCrmName] = useState("CIU Business CRM");
-  const [primaryColor, setPrimaryColor] = useState("#65a30d");
+  const [primaryColor, setPrimaryColor] = useState("#00695c");
 
   useEffect(() => {
     let active = true;
@@ -47,7 +47,7 @@ export default function Login() {
           window.localStorage.setItem("ciu_crm_name", name);
         }
         if (settings.preferences?.primaryColor) {
-          setPrimaryColor(settings.preferences.primaryColor.toLowerCase() === "#00695c" ? "#65a30d" : settings.preferences.primaryColor);
+          setPrimaryColor(settings.preferences.primaryColor);
         }
       } catch {
         // Branding is optional; keep login available if settings cannot be loaded.
@@ -90,8 +90,8 @@ export default function Login() {
           flex-direction: column;
           justify-content: space-between;
           padding: clamp(34px, 5vw, 72px);
-          color: white;
-          background: linear-gradient(145deg, #183d27 0%, #315d1b 52%, #4d7c0f 100%);
+          color: #173b2b;
+          background: linear-gradient(145deg, #f7fbf8 0%, #edf6f0 58%, #e5f2e9 100%);
         }
         .ciu-login-brand-panel:before,
         .ciu-login-brand-panel:after {
@@ -102,12 +102,12 @@ export default function Login() {
         }
         .ciu-login-brand-panel:before {
           width: 430px; height: 430px; right: -180px; top: 12%;
-          border: 1px solid rgba(255,255,255,.13);
-          box-shadow: 0 0 0 42px rgba(255,255,255,.035), 0 0 0 88px rgba(255,255,255,.025);
+          border: 1px solid rgba(0,105,92,.10);
+          box-shadow: 0 0 0 42px rgba(0,105,92,.025), 0 0 0 88px rgba(0,105,92,.018);
         }
         .ciu-login-brand-panel:after {
           width: 260px; height: 260px; left: -140px; bottom: -100px;
-          background: rgba(190,242,100,.10);
+          background: rgba(139,198,63,.12);
         }
         .ciu-login-brand-content, .ciu-login-brand-footer, .ciu-login-brand-top {
           position: relative; z-index: 1;
@@ -119,38 +119,38 @@ export default function Login() {
           width: 58px; height: 58px; flex: 0 0 58px;
           display: grid; place-items: center; overflow: hidden;
           border-radius: 16px; background: white; color: #365314;
-          border: 1px solid rgba(255,255,255,.6);
+          border: 1px solid #dce9e0;
           font-size: 19px; font-weight: 900; letter-spacing: -.06em;
         }
         .ciu-login-logo img { width: 100%; height: 100%; object-fit: contain; padding: 5px; }
         .ciu-login-university { font-size: 15px; font-weight: 800; line-height: 1.35; }
-        .ciu-login-university span { display: block; margin-top: 3px; font-size: 11px; font-weight: 500; color: rgba(255,255,255,.7); }
+        .ciu-login-university span { display: block; margin-top: 3px; font-size: 11px; font-weight: 500; color: #687d72; }
         .ciu-login-brand-content { max-width: 540px; margin: auto 0; padding: 65px 0; }
         .ciu-login-eyebrow {
           display: inline-flex; align-items: center; gap: 9px;
           padding: 8px 12px; border-radius: 999px;
-          border: 1px solid rgba(217,249,157,.25);
-          background: rgba(255,255,255,.07); color: #e4f8c0;
+          border: 1px solid #d3e7d9;
+          background: #ffffff; color: #35684e;
           font-size: 11px; font-weight: 800; letter-spacing: .11em; text-transform: uppercase;
         }
-        .ciu-login-eyebrow:before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #bef264; }
+        .ciu-login-eyebrow:before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #65a30d; }
         .ciu-login-brand-content h1 {
           max-width: 500px; margin: 25px 0 18px;
           font-size: clamp(34px, 4vw, 54px); line-height: 1.08;
           letter-spacing: -.045em; font-weight: 800;
         }
-        .ciu-login-brand-content h1 em { color: #bef264; font-style: normal; }
-        .ciu-login-brand-content p { max-width: 420px; margin: 0; color: rgba(255,255,255,.76); font-size: 15px; line-height: 1.8; }
+        .ciu-login-brand-content h1 em { color: #4d7c0f; font-style: normal; }
+        .ciu-login-brand-content p { max-width: 420px; margin: 0; color: #61766b; font-size: 15px; line-height: 1.8; }
         .ciu-login-points { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 32px; }
         .ciu-login-points span {
-          padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,.08);
-          border: 1px solid rgba(255,255,255,.10); color: rgba(255,255,255,.9); font-size: 12px;
+          padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,.88);
+          border: 1px solid #dce9e0; color: #355a49; font-size: 12px;
         }
-        .ciu-login-brand-footer { color: rgba(255,255,255,.58); font-size: 11px; }
+        .ciu-login-brand-footer { color: #71857a; font-size: 11px; }
         .ciu-login-form-side {
           display: flex; align-items: center; justify-content: center;
           padding: clamp(26px, 5vw, 76px); background:
-            radial-gradient(circle at 100% 0%, #f3f9e9 0, transparent 34%), #fff;
+            #ffffff;
         }
         .ciu-login-form-wrap { width: 100%; max-width: 450px; }
         .ciu-login-mobile-brand { display: none; }
@@ -190,7 +190,7 @@ export default function Login() {
           .ciu-login-mobile-brand { display: flex; align-items: center; gap: 12px; margin-bottom: 42px; }
           .ciu-login-mobile-brand .ciu-login-logo { border-color: #e4ebe6; box-shadow: 0 4px 15px rgba(23,50,44,.06); }
           .ciu-login-mobile-brand .ciu-login-university { color: #173b2b; }
-          .ciu-login-mobile-brand .ciu-login-university span { color: #77857d; }
+          .ciu-login-mobile-brand .ciu-login-university span { color: #687d72; }
         }
         @media (max-width: 420px) {
           .ciu-login-form-side { padding: 24px 18px; }
