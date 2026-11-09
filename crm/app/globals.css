@@ -2189,3 +2189,130 @@ main table td {
   padding-top: 13px;
   padding-bottom: 13px;
 }
+
+
+/* Tasks page: targeted visual refinement for legacy inline-styled markup. */
+.ciu-tasks-page {
+  font-family: Inter, "Segoe UI", Arial, sans-serif !important;
+  color: #202b26 !important;
+  background: #f7f9f8 !important;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.ciu-tasks-page > div {
+  max-width: 1500px;
+}
+
+.ciu-tasks-page .ciu-tasks-hero {
+  border: 1px solid #e0e7e3 !important;
+  border-left: 3px solid #006b59 !important;
+  border-radius: 10px !important;
+  padding: 22px 24px !important;
+  box-shadow: 0 1px 3px rgba(20, 40, 32, 0.035) !important;
+  margin-bottom: 20px !important;
+  background: #fff !important;
+}
+
+.ciu-tasks-page .ciu-tasks-hero > div:first-child > div:first-child {
+  font-size: 11px !important;
+  font-weight: 650 !important;
+  letter-spacing: .07em !important;
+  margin-bottom: 7px !important;
+  color: #006b59 !important;
+}
+
+.ciu-tasks-page .ciu-tasks-hero h1 {
+  font-family: inherit !important;
+  font-size: 26px !important;
+  font-weight: 700 !important;
+  line-height: 1.25 !important;
+  letter-spacing: -.03em !important;
+  color: #202b26 !important;
+}
+
+.ciu-tasks-page .ciu-tasks-hero p {
+  font-family: inherit !important;
+  font-size: 13px !important;
+  line-height: 1.55 !important;
+  margin-top: 7px !important;
+  color: #68756e !important;
+}
+
+.ciu-tasks-page .ciu-tasks-hero button {
+  border-radius: 7px !important;
+  min-height: 38px !important;
+  padding: 9px 14px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  box-shadow: none !important;
+  background: #006b59 !important;
+  border: 1px solid #006b59 !important;
+}
+
+.ciu-tasks-page .ciu-tasks-kpis {
+  gap: 14px !important;
+  margin-bottom: 18px !important;
+}
+
+.ciu-tasks-page .ciu-tasks-kpis > div {
+  border: 1px solid #e0e7e3 !important;
+  border-left: 3px solid #8bc34a !important;
+  border-radius: 10px !important;
+  padding: 17px 18px !important;
+  box-shadow: 0 1px 3px rgba(20, 40, 32, 0.035) !important;
+}
+
+.ciu-tasks-page .ciu-tasks-kpis > div > div:first-of-type > div:first-child {
+  color: #68756e !important;
+  font-size: 11px !important;
+  font-weight: 650 !important;
+  letter-spacing: .035em !important;
+}
+
+.ciu-tasks-page .ciu-tasks-kpis > div > div[style*="fontSize: 29px"],
+.ciu-tasks-page .ciu-tasks-kpis > div > div[style*="font-size: 29px"] {
+  font-size: 26px !important;
+  line-height: 1.25 !important;
+  font-weight: 700 !important;
+  color: #17483b !important;
+}
+
+.ciu-tasks-page button {
+  font-family: inherit !important;
+  letter-spacing: 0 !important;
+}
+
+.ciu-tasks-page input,
+.ciu-tasks-page select,
+.ciu-tasks-page textarea {
+  font-family: inherit !important;
+  font-size: 13px !important;
+  border-radius: 7px !important;
+  box-shadow: none !important;
+}
+
+.ciu-tasks-page table th {
+  font-size: 11px !important;
+  font-weight: 650 !important;
+  letter-spacing: .025em !important;
+  padding: 11px 13px !important;
+}
+
+.ciu-tasks-page table td {
+  font-size: 12px !important;
+  line-height: 1.45 !important;
+  padding: 11px 13px !important;
+}
+
+@media (max-width: 1024px) {
+  .ciu-tasks-page { padding: 20px !important; }
+  .ciu-tasks-page .ciu-tasks-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+}
+
+@media (max-width: 640px) {
+  .ciu-tasks-page { padding: 14px !important; }
+  .ciu-tasks-page .ciu-tasks-hero { padding: 18px !important; }
+  .ciu-tasks-page .ciu-tasks-hero h1 { font-size: 22px !important; }
+  .ciu-tasks-page .ciu-tasks-kpis { grid-template-columns: minmax(0, 1fr) !important; }
+}
