@@ -1620,30 +1620,6 @@ const isSalesperson =
   }}
 >
   <div style={{ position: "relative", zIndex: 1 }}>
-    <div
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: "7px",
-        marginBottom: "9px",
-        color: "#087443",
-        fontSize: "11px",
-        fontWeight: 800,
-        textTransform: "uppercase",
-        letterSpacing: "0.1em",
-      }}
-    >
-      <span
-        style={{
-          width: "7px",
-          height: "7px",
-          borderRadius: "50%",
-          background: "#087443",
-        }}
-      />
-      CIU CRM · WORK CENTRE
-    </div>
-
     <h1
       style={{
         margin: 0,
