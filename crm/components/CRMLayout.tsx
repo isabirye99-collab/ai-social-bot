@@ -244,8 +244,8 @@ export default function CRMLayout({
         )}
       </div>
       <div className="min-w-0">
-        <div className="truncate text-base font-bold" style={{ color: horizontal ? "#173b2b" : "#ffffff" }}>{branding.crmName}</div>
-        <div className="truncate text-xs font-medium" style={{ color: horizontal ? "#718078" : "#d7f3df" }}>
+        <div className="truncate text-base font-bold" style={{ color: "#173b2b" }}>{branding.crmName}</div>
+        <div className="truncate text-xs font-medium" style={{ color: "#6b7f74" }}>
           {branding.tagline}
         </div>
       </div>
@@ -266,10 +266,10 @@ export default function CRMLayout({
           onClick={() => setMobileOpen(false)}
           className={`${horizontal
             ? "shrink-0 whitespace-nowrap rounded-xl px-4 py-3 text-sm font-semibold transition-all"
-            : "flex items-center rounded-xl px-4 py-3 text-sm font-semibold transition-all"} ${isActive(item.href) ? "text-[#123f35]" : horizontal ? "text-slate-600 hover:text-emerald-900 hover:bg-emerald-50" : "text-white/90 hover:text-white hover:bg-white/10"}`}
+            : "flex items-center rounded-xl px-4 py-3 text-sm font-semibold transition-all"} ${isActive(item.href) ? "text-[#123f35]" : horizontal ? "text-slate-600 hover:text-emerald-900 hover:bg-emerald-50"  : "text-[#29483a] hover:text-[#075442] hover:bg-[#edf6ef]"}`}
           style={{
-            background: isActive(item.href) ? "#a3e635" : "transparent",
-            boxShadow: isActive(item.href) && !horizontal ? "inset 4px 0 0 #d9f99d" : "none",
+            background: isActive(item.href) ? "#e8f6d8" : "transparent",
+            boxShadow: isActive(item.href) && !horizontal ? "inset 4px 0 0 #65a30d" : "none",
           }}
         >
           {item.label}
@@ -301,10 +301,10 @@ export default function CRMLayout({
         className={horizontal
           ? "relative z-30 flex w-full items-center gap-x-4 border-b border-slate-200 bg-white px-5 py-3 shadow-sm"
           : `fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-slate-200 bg-white shadow-[8px_0_30px_rgba(15,23,42,0.04)] transition-transform duration-200 lg:translate-x-0 ${mobileOpen ? "translate-x-0" : "-translate-x-full"}`}
-        style={{ background: horizontal ? "#ffffff" : "#064b2f", borderColor: horizontal ? "#e2e8f0" : "rgba(255,255,255,.16)" }}
+        style={{ background: "#ffffff", borderColor: "#e2e8f0" }}
       >
         <div className={horizontal ? "flex shrink-0 items-center" : "flex min-h-24 items-center border-b border-slate-100 px-5 py-5"}
-          style={{ borderColor: horizontal ? "#edf2ef" : "rgba(255,255,255,.16)", background: horizontal ? "#ffffff" : "#064b2f" }}>
+          style={{ borderColor: "#edf2ef", background: "#ffffff" }}>
           {headerBrand}
         </div>
         {navLinks}
@@ -330,14 +330,14 @@ export default function CRMLayout({
         )}
 
         {!horizontal && (
-          <div className="border-t border-white/15 p-4">
-            <div className="mb-3 flex items-center gap-3 rounded-xl bg-white/10 p-3">
+          <div className="border-t border-[#e7eee9] p-4">
+            <div className="mb-3 flex items-center gap-3 rounded-xl border border-[#e2ece5] bg-[#f7faf8] p-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-lime-100 text-xs font-bold text-emerald-900">
                 {initials}
               </div>
               <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-white">{userEmail || "Authenticated user"}</p>
-                <p className="text-xs text-green-100">{branding.organizationName}</p>
+                <p className="truncate text-sm font-semibold text-[#203b2f]">{userEmail || "Authenticated user"}</p>
+                <p className="text-xs text-[#718078]">{branding.organizationName}</p>
               </div>
             </div>
             <button type="button" onClick={async () => {
@@ -348,7 +348,7 @@ export default function CRMLayout({
                 return;
               }
               window.location.replace("/login");
-            }} className="w-full rounded-lg bg-lime-400 px-3 py-2.5 text-sm font-bold text-emerald-950 transition-colors hover:bg-lime-300">
+            }} className="w-full rounded-lg border border-[#d4e5d9] bg-white px-3 py-2.5 text-sm font-bold text-[#075442] transition-colors hover:bg-[#edf6ef]">
               Sign out
             </button>
           </div>
