@@ -1857,3 +1857,122 @@ input:focus, select:focus, textarea:focus, button:focus-visible, a:focus-visible
   .ciu-card-head, .crm-card-header { padding: 13px 14px !important; }
   .crm-table td, .ciu-report-table td { padding: 10px 11px !important; }
 }
+
+/* =========================================================
+   CIU CRM — cross-page design consistency pass
+   Presentation only. No data, business logic or workflows.
+   Targets pages built with Tailwind as well as shared classes.
+========================================================= */
+main {
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.5;
+}
+main h1 {
+  font-size: clamp(23px, 1.8vw, 28px);
+  line-height: 1.25;
+  font-weight: 700;
+  letter-spacing: -0.45px;
+  color: #202b26;
+}
+main h2 {
+  font-size: 17px;
+  line-height: 1.35;
+  font-weight: 650;
+  letter-spacing: -0.2px;
+  color: #24342d;
+}
+main h3, main h4 {
+  font-size: 14px;
+  line-height: 1.4;
+  font-weight: 650;
+  color: #2a3a32;
+}
+main p {
+  line-height: 1.55;
+}
+main label {
+  font-size: 12px;
+  line-height: 1.4;
+  font-weight: 600;
+  color: #47574e;
+}
+main button {
+  min-height: 35px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.35;
+  font-weight: 600;
+  box-shadow: none;
+  transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+}
+main input, main select, main textarea {
+  font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif !important;
+  font-size: 13px !important;
+  line-height: 1.45;
+  border-radius: 6px;
+}
+main input, main select {
+  min-height: 38px;
+}
+main textarea {
+  min-height: 88px;
+}
+main table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+main table thead th {
+  background: #f4f7f5;
+  color: #5b6a62;
+  font-size: 10px;
+  line-height: 1.4;
+  font-weight: 700;
+  letter-spacing: .035em;
+  text-transform: uppercase;
+  padding: 11px 14px;
+  border-bottom: 1px solid #e3eae5;
+}
+main table tbody td {
+  padding: 12px 14px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #34433b;
+  border-bottom: 1px solid #e8eeea;
+  vertical-align: middle;
+}
+main table tbody tr:last-child td {
+  border-bottom: 0;
+}
+main table tbody tr:hover {
+  background-color: #f8faf9;
+}
+/* Normalize card surfaces without changing their layout or contents. */
+main [class*="rounded-xl"][class*="border"],
+main [class*="rounded-2xl"][class*="border"] {
+  border-color: #e0e7e3;
+  box-shadow: 0 1px 3px rgba(20, 40, 32, .035);
+}
+main [class*="shadow-"] {
+  box-shadow: 0 1px 3px rgba(20, 40, 32, .035);
+}
+/* Keep page content aligned to one practical spacing scale. */
+main > .ciu-page,
+main > .crm-content,
+main > .ciu-page-inner {
+  width: 100%;
+}
+@media (min-width: 1280px) {
+  main > .ciu-page > .ciu-page-inner,
+  main > .ciu-page-inner {
+    padding-left: 28px;
+    padding-right: 28px;
+  }
+}
+@media (max-width: 760px) {
+  main h1 { font-size: 22px; }
+  main h2 { font-size: 16px; }
+  main table thead th { padding: 10px 11px; }
+  main table tbody td { padding: 10px 11px; }
+}
