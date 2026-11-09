@@ -780,7 +780,7 @@ export default function DashboardPage() {
 
   const upcomingFollowUps = useMemo(
     () => leads
-      .filter((lead) => lead.next_follow_up_at)
+      .filter((lead) => lead.next_follow_up_at && new Date(lead.next_follow_up_at).getTime() >= Date.now())
       .sort((a, b) => new Date(a.next_follow_up_at as string).getTime() - new Date(b.next_follow_up_at as string).getTime())
       .slice(0, 5),
     [leads],
