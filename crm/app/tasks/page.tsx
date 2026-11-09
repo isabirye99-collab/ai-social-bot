@@ -1586,9 +1586,10 @@ const isSalesperson =
 
   return (
     <div
+      className="ciu-tasks-page"
       style={{
         minHeight: "100vh",
-        background: "#f8fafc",
+        background: "#f7f9f8",
         padding: "24px",
       }}
     >
@@ -1600,19 +1601,20 @@ const isSalesperson =
       >
         {/* HEADER */}
 <div
+  className="ciu-tasks-hero"
   style={{
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
     gap: "20px",
     flexWrap: "wrap",
-    marginBottom: "22px",
-    padding: "26px 28px",
+    marginBottom: "20px",
+    padding: "22px 24px",
     background: "#ffffff",
-    border: "1px solid #dfe8e3",
-    borderLeft: "5px solid #087443",
-    borderRadius: "16px",
-    boxShadow: "0 3px 12px rgba(15, 23, 42, 0.035)",
+    border: "1px solid #e0e7e3",
+    borderLeft: "3px solid #006b59",
+    borderRadius: "10px",
+    boxShadow: "0 1px 3px rgba(20, 40, 32, 0.035)",
     position: "relative",
     overflow: "hidden",
   }}
@@ -1645,11 +1647,11 @@ const isSalesperson =
     <h1
       style={{
         margin: 0,
-        fontSize: "30px",
-        lineHeight: 1.2,
-        fontWeight: 800,
-        color: "#172b22",
-        letterSpacing: "-0.025em",
+        fontSize: "26px",
+        lineHeight: 1.25,
+        fontWeight: 700,
+        color: "#202b26",
+        letterSpacing: "-0.03em",
       }}
     >
       {isSalesperson ? "My Tasks" : "Tasks & Follow-ups"}
@@ -1687,7 +1689,7 @@ const isSalesperson =
       fontWeight: 700,
       cursor: "pointer",
       fontSize: "13px",
-      boxShadow: "0 3px 7px rgba(8, 116, 67, 0.16)",
+      boxShadow: "none",
       whiteSpace: "nowrap",
     }}
   >
@@ -1745,11 +1747,12 @@ const isSalesperson =
 
         {/* KPI CARDS */}
 <div
+          className="ciu-tasks-kpis"
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-            gap: "16px",
-            marginBottom: "20px",
+            gap: "14px",
+            marginBottom: "18px",
           }}
         >
           {[
@@ -1785,10 +1788,10 @@ const isSalesperson =
                 overflow: "hidden",
                 background: "#ffffff",
                 border: "1px solid #dce9e0",
-                borderLeft: "4px solid #087443",
-                borderRadius: "14px",
-                padding: "19px 18px",
-                boxShadow: "0 4px 15px rgba(8, 116, 67, 0.06)",
+                borderLeft: "3px solid #8bc34a",
+                borderRadius: "10px",
+                padding: "17px 18px",
+                boxShadow: "0 1px 3px rgba(20, 40, 32, 0.035)",
               }}
             >
               <div
@@ -1846,10 +1849,10 @@ const isSalesperson =
               <div
                 style={{
                   marginTop: "9px",
-                  fontSize: "29px",
-                  lineHeight: 1.2,
-                  fontWeight: 800,
-                  color: "#087443",
+                  fontSize: "26px",
+                  lineHeight: 1.25,
+                  fontWeight: 700,
+                  color: "#17483b",
                   position: "relative",
                 }}
               >
