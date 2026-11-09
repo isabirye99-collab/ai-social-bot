@@ -2109,3 +2109,55 @@ main :where(input, select, textarea, button, a):focus-visible {
     font-size: 0.8rem;
   }
 }
+
+
+/* Shared page rhythm: align the content canvas without changing page data. */
+main > div:not(.ciu-page) {
+  padding-top: 24px !important;
+  padding-bottom: 36px !important;
+}
+
+@media (min-width: 1280px) {
+  main > div:not(.ciu-page) {
+    padding-left: 30px !important;
+    padding-right: 30px !important;
+  }
+}
+
+@media (max-width: 1279px) {
+  main > div:not(.ciu-page) {
+    padding-left: 22px !important;
+    padding-right: 22px !important;
+  }
+}
+
+@media (max-width: 760px) {
+  main > div:not(.ciu-page) {
+    padding: 18px 14px 28px !important;
+  }
+}
+
+/* Reports uses its own stylesheet; align its typography with the shared UI. */
+.ciu-page {
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  color: var(--ciu-ink);
+}
+
+.ciu-page .report-hero h1 {
+  font-size: clamp(1.55rem, 1.8vw, 1.9rem);
+  line-height: 1.2;
+  letter-spacing: -0.035em;
+  font-weight: 700;
+}
+
+.ciu-page .report-hero p {
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.ciu-page .report-hero,
+.ciu-page .report-panel,
+.ciu-page .report-card {
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(23, 50, 44, 0.025);
+}
