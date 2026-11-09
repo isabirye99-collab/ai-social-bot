@@ -7,6 +7,9 @@ import type { CrmRole } from "@/lib/permissions";
 
 type Lead = {
   id: string;
+  ciu_number: string | null;
+  name: string | null;
+  product_service: string | null;
   assigned_to: string | null;
   status: string | null;
   next_follow_up_at: string | null;
@@ -319,7 +322,7 @@ export default function DashboardPage() {
         supabase
           .from("leads")
           .select(
-            "id,assigned_to,status,next_follow_up_at,created_at",
+            "id,ciu_number,name,product_service,assigned_to,status,next_follow_up_at,created_at",
           ),
       );
 
@@ -753,6 +756,35 @@ export default function DashboardPage() {
     opportunities,
     pipelineStages,
   ]);
+
+  const leadTrend = useMemo(() => {
+    const now = new Date();
+    return Array.from({ length: 6 }, (_, index) => {
+      const monthDate = new Date(now.getFullYear(), now.getMonth() - (5 - index), 1);
+      const nextMonth = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 1);
+      const count = leads.filter((lead) => {
+        const created = new Date(lead.created_at);
+        return created >= monthDate && created < nextMonth;
+      }).length;
+      return {
+        label: monthDate.toLocaleDateString("en-GB", { month: "short" }),
+        count,
+      };
+    });
+  }, [leads]);
+
+  const recentLeads = useMemo(
+    () => [...leads].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 5),
+    [leads],
+  );
+
+  const upcomingFollowUps = useMemo(
+    () => leads
+      .filter((lead) => lead.next_follow_up_at)
+      .sort((a, b) => new Date(a.next_follow_up_at as string).getTime() - new Date(b.next_follow_up_at as string).getTime())
+      .slice(0, 5),
+    [leads],
+  );
 
   const focusItems = [
     {
@@ -1585,6 +1617,79 @@ export default function DashboardPage() {
                 </p>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* =====================================================
+          RECRUITMENT ACTIVITY
+      ===================================================== */}
+      <section className="mt-4 grid gap-4 xl:grid-cols-[1.15fr_1fr_.85fr]" aria-label="Recruitment activity">
+        <div className="overflow-hidden rounded-2xl border border-[#e2e9e5] bg-white shadow-[0_4px_18px_rgba(20,50,40,.035)]">
+          <div className="border-b border-[#e4ebe6] bg-[#f7faf8] px-5 py-4">
+            <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-[#718078]">Six-month view</p>
+            <h2 className="mt-1 text-base font-black text-[#173b2b]">Lead Trends</h2>
+          </div>
+          <div className="p-5">
+            <div className="flex h-36 items-end gap-3 border-b border-l border-[#e8eeea] px-3 pb-0">
+              {leadTrend.map((month) => {
+                const max = Math.max(...leadTrend.map((item) => item.count), 1);
+                const height = month.count > 0 ? Math.max(8, (month.count / max) * 100) : 3;
+                return (
+                  <div key={month.label} className="flex h-full min-w-0 flex-1 flex-col justify-end">
+                    <span className="mb-1 text-center text-[10px] font-bold text-[#50675b]">{month.count}</span>
+                    <div className="mx-auto w-full max-w-[44px] rounded-t-md bg-[#8bc63f]" style={{ height: String(height) + "%" }} />
+                    <span className="mt-2 text-center text-[10px] font-semibold text-[#718078]">{month.label}</span>
+                  </div>
+                );
+              })}
+            </div>
+            <p className="mt-4 text-xs text-[#718078]">New lead records by month, based on CRM creation dates.</p>
+          </div>
+        </div>
+
+        <div className="overflow-hidden rounded-2xl border border-[#e2e9e5] bg-white shadow-[0_4px_18px_rgba(20,50,40,.035)]">
+          <div className="flex items-center justify-between border-b border-[#e4ebe6] bg-[#f7faf8] px-5 py-4">
+            <div>
+              <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-[#718078]">Recently added</p>
+              <h2 className="mt-1 text-base font-black text-[#173b2b]">Recent Leads</h2>
+            </div>
+            <Link href="/leads" className="text-xs font-bold text-[#00695c] hover:underline">View all →</Link>
+          </div>
+          <div className="divide-y divide-[#edf1ef]">
+            {recentLeads.length ? recentLeads.map((lead) => (
+              <Link key={lead.id} href="/leads" className="flex items-center justify-between gap-3 px-5 py-3 transition hover:bg-[#f8fbf9]">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold text-[#263d31]">{lead.name || lead.ciu_number || "Unnamed lead"}</p>
+                  <p className="mt-0.5 truncate text-xs text-[#718078]">{lead.product_service || "Programme not specified"}</p>
+                </div>
+                <span className="shrink-0 rounded-full bg-[#edf6ef] px-2.5 py-1 text-[10px] font-bold capitalize text-[#35684e]">{(lead.status || "new").replace(/_/g, " ")}</span>
+              </Link>
+            )) : <p className="px-5 py-8 text-sm text-[#718078]">No lead records available yet.</p>}
+          </div>
+        </div>
+
+        <div className="overflow-hidden rounded-2xl border border-[#e2e9e5] bg-white shadow-[0_4px_18px_rgba(20,50,40,.035)]">
+          <div className="flex items-center justify-between border-b border-[#e4ebe6] bg-[#f7faf8] px-5 py-4">
+            <div>
+              <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-[#718078]">Next actions</p>
+              <h2 className="mt-1 text-base font-black text-[#173b2b]">Upcoming Follow-ups</h2>
+            </div>
+            <Link href="/leads" className="text-xs font-bold text-[#00695c] hover:underline">View all →</Link>
+          </div>
+          <div className="divide-y divide-[#edf1ef]">
+            {upcomingFollowUps.length ? upcomingFollowUps.map((lead) => (
+              <Link key={lead.id} href="/leads" className="flex items-start gap-3 px-4 py-3 transition hover:bg-[#f8fbf9]">
+                <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#edf6ef] text-sm text-[#00695c]">↗</span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-bold text-[#263d31]">{lead.name || lead.ciu_number || "Unnamed lead"}</p>
+                  <p className="mt-1 text-[10px] text-[#718078]">{new Date(lead.next_follow_up_at as string).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</p>
+                </div>
+              </Link>
+            )) : <p className="px-4 py-8 text-sm text-[#718078]">No follow-ups have been scheduled.</p>}
+          </div>
+          <div className="border-t border-[#edf1ef] bg-[#fbfdfb] px-4 py-3">
+            <Link href="/marketing" className="text-xs font-bold text-[#00695c] hover:underline">Open Marketing &amp; Campaigns →</Link>
           </div>
         </div>
       </section>
