@@ -853,21 +853,21 @@ export default function DashboardPage() {
           DASHBOARD HEADER
       ===================================================== */}
 
-      <header className="relative mb-4 flex flex-col justify-between gap-4 overflow-hidden rounded-2xl border border-[#dcebd9] bg-gradient-to-r from-[#edf7e7] via-white to-[#f5faef] px-5 py-5 shadow-[0_5px_22px_rgba(20,70,40,.055)] md:flex-row md:items-center sm:px-6">
+      <header className="relative mb-5 flex flex-col justify-between gap-4 overflow-hidden rounded-2xl border border-[#dce8df] border-l-[5px] border-l-[#8bc63f] bg-white px-5 py-5 shadow-[0_5px_22px_rgba(20,70,40,.045)] md:flex-row md:items-center sm:px-6">
         <div className="relative z-10">
           <div className="flex items-center gap-2">
             <span className="h-2 w-2 rounded-full bg-[#8bc53f]" />
 
-            <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#718179]">
+            <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#557267]">
               CIU Admissions Dashboard
             </span>
           </div>
 
-          <h1 className="mt-1 text-2xl font-black tracking-[-0.035em] text-[#064b35] sm:text-[30px]">
+          <h1 className="mt-1 text-2xl font-black tracking-[-0.035em] text-[#075442] sm:text-[30px]">
             {greeting}, {firstName}
           </h1>
 
-          <p className="mt-1 max-w-xl text-sm text-[#61776a]">
+          <p className="mt-1 max-w-xl text-sm leading-6 text-[#5f7068]">
             Admissions, recruitment and business
             performance at a glance.
           </p>
