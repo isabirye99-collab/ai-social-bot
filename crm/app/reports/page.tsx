@@ -1802,6 +1802,135 @@ export default function ReportsPage() {
             gap: 12px;
           }
         }
+
+        /* Reports refinement: calmer hierarchy, compact spacing and clearer data tables */
+        .ciu-page { background: #f5f8f6; }
+        .ciu-page-inner { max-width: 1480px; padding: 24px 28px 40px; }
+        .report-hero {
+          padding: 22px 24px;
+          margin-bottom: 16px;
+          border: 1px solid #e0e9e3;
+          border-radius: 15px;
+          background: linear-gradient(120deg, #ffffff 0%, #f4faf5 100%);
+          box-shadow: 0 5px 18px rgba(20,50,40,.035);
+        }
+        .report-hero:before {
+          content: "";
+          display: block;
+          position: absolute;
+          left: 0;
+          top: 0;
+          bottom: 0;
+          width: 4px;
+          background: linear-gradient(180deg,#075442,#a3c84b);
+        }
+        .report-hero-content { gap: 18px; }
+        .report-eyebrow {
+          display: inline-flex;
+          align-items: center;
+          margin-bottom: 9px;
+          padding: 5px 8px;
+          border-radius: 6px;
+          background: #edf6ef;
+          color: #39704f;
+          font-size: 9px;
+          letter-spacing: 1px;
+        }
+        .report-hero h1 { font-size: 26px; letter-spacing: -.7px; }
+        .report-hero p { margin-top: 6px; font-size: 12px; line-height: 1.55; }
+        .report-controls { gap: 7px; }
+        .report-select { min-height: 38px; background: #fff; }
+        .report-refresh,.report-print { min-height: 38px; border-radius: 8px; }
+        .period-banner {
+          margin-bottom: 14px;
+          padding: 13px 16px;
+          box-shadow: none;
+          background: #fff;
+        }
+        .period-label { font-size: 10px; letter-spacing: .7px; }
+        .period-banner strong { font-size: 14px; }
+        .period-meta { font-size: 11px; }
+        .report-kpis { gap: 10px; margin-bottom: 15px; }
+        .report-kpi {
+          padding: 15px 16px;
+          border-left-width: 3px;
+          border-radius: 11px;
+          box-shadow: 0 3px 12px rgba(20,50,40,.025);
+        }
+        .report-kpi:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(20,50,40,.055); }
+        .kpi-label { margin-bottom: 7px; font-size: 10px; letter-spacing: .1px; }
+        .report-kpi strong { font-size: 25px; }
+        .report-kpi small { margin-top: 6px; font-size: 10px; }
+        .report-main-grid,.report-visual-grid { gap: 14px; margin-bottom: 14px; }
+        .ciu-card { border-radius: 12px; box-shadow: 0 4px 16px rgba(20,50,40,.03); }
+        .report-card-head { padding: 15px 18px; background: #fff; }
+        .report-card-head h2 { font-size: 14px; letter-spacing: -.1px; }
+        .report-card-head span { margin-top: 4px; font-size: 10px; line-height: 1.45; }
+        .funnel { padding: 16px 18px 18px; }
+        .funnel-row { grid-template-columns: 150px minmax(0,1fr); gap: 12px; margin-bottom: 13px; }
+        .funnel-row span { font-size: 10px; }
+        .funnel-row strong { font-size: 13px; font-variant-numeric: tabular-nums; }
+        .funnel-bar { height: 9px; }
+        .funnel-row:nth-child(2) .funnel-bar span { background: linear-gradient(90deg,#7da944,#b4d778); }
+        .funnel-row:nth-child(3) .funnel-bar span { background: linear-gradient(90deg,#2c8066,#76b99a); }
+        .funnel-row:nth-child(4) .funnel-bar span { background: linear-gradient(90deg,#8dbf53,#c5df9c); }
+        .funnel-row:nth-child(5) .funnel-bar span { background: linear-gradient(90deg,#1f7058,#62a88a); }
+        .funnel-row-final .funnel-bar span { background: linear-gradient(90deg,#4d7c18,#a3c84b); }
+        .highlight { gap: 10px; padding: 17px 18px; }
+        .highlight-avatar { width: 40px; height: 40px; font-size: 12px; }
+        .highlight-name strong { font-size: 12px; }
+        .highlight-stat { min-width: 48px; }
+        .highlight-stat strong { font-size: 16px; }
+        .mini-summary div { padding: 11px 8px; }
+        .mini-summary strong { font-size: 15px; }
+        .team-activity-chart { padding: 18px; gap: 18px; }
+        .team-activity-label { font-size: 11px; }
+        .team-activity-track { height: 9px; }
+        .team-activity-detail { font-size: 10px; line-height: 1.5; }
+        .team-share-list { display: grid; gap: 0; padding: 16px 18px 18px; }
+        .team-share-list .report-highlight-line { padding: 11px 0; }
+        .team-share-list .report-chart-note { margin-top: 10px; }
+        .report-table-card { margin-bottom: 14px; }
+        .report-table-card .report-card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+        .report-table-scroll { max-height: 520px; }
+        .report-table { min-width: 980px; }
+        .report-table th {
+          position: sticky;
+          top: 0;
+          z-index: 1;
+          padding: 11px 13px;
+          background: #f3f8f4;
+          color: #587066;
+          font-size: 9px;
+          letter-spacing: .45px;
+        }
+        .report-table td { padding: 11px 13px; font-size: 11px; }
+        .report-table tbody tr:nth-child(even) { background: #fbfdfb; }
+        .report-table tbody tr:hover { background: #f0f8f2; }
+        .report-table tfoot td { background: #eaf4e9; }
+        .staff-avatar { width: 30px; height: 30px; background: #edf6ef; color: #28684d; }
+        .report-note { margin-top: 10px; }
+        @media (max-width: 1000px) {
+          .ciu-page-inner { padding: 20px 18px 34px; }
+          .report-kpis.report-overview-kpis { grid-template-columns: repeat(2,minmax(0,1fr)); }
+          .report-hero-content { align-items: flex-start; }
+        }
+        @media (max-width: 760px) {
+          .ciu-page-inner { padding: 14px 12px 28px; }
+          .report-hero { padding: 18px 16px; }
+          .report-hero h1 { font-size: 22px; }
+          .report-controls { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); width: 100%; }
+          .report-select,.report-refresh,.report-print { width: 100%; min-width: 0; }
+          .report-kpis.report-overview-kpis { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
+          .report-kpi { padding: 13px 12px; }
+          .report-kpi strong { font-size: 21px; }
+          .funnel-row { grid-template-columns: 1fr; gap: 6px; }
+          .funnel-row > div:first-child { justify-content: space-between; }
+          .highlight { grid-template-columns: auto minmax(0,1fr); }
+          .highlight-stat { text-align: left; }
+          .report-table-scroll { max-height: none; }
+        }
+
       `}</style>
     </main>
   );
