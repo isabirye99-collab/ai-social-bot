@@ -1034,11 +1034,6 @@ export default function DashboardPage() {
                           opacity: 0.96,
                         }}
                       />
-                      <div className="absolute inset-x-0 top-2 flex justify-center">
-                        <span className="rounded-full border border-white/80 bg-white/85 px-2 py-1 text-[9px] font-bold text-[#607268] shadow-sm">
-                          {stage.ratio}%
-                        </span>
-                      </div>
                     </div>
 
                     {index <
