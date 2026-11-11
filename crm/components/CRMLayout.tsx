@@ -386,9 +386,19 @@ export default function CRMLayout({
       </div>
 
       {!horizontal && (
-        <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-slate-200 bg-white shadow-lg lg:hidden" aria-label="Mobile navigation">
-          {visibleNav.slice(0, 5).map((item) => (
-            <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)} className={`flex flex-col items-center justify-center gap-1 px-1 py-3 text-xs font-semibold ${isActive(item.href) ? "text-emerald-800" : "text-slate-500"}`}>
+        <nav
+          className="fixed inset-x-0 bottom-0 z-30 flex gap-1 overflow-x-auto border-t border-slate-200 bg-white px-2 shadow-lg lg:hidden"
+          aria-label="Mobile navigation"
+          style={{ paddingBottom: "max(env(safe-area-inset-bottom), 4px)", scrollbarWidth: "thin" }}
+        >
+          {visibleNav.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={() => setMobileOpen(false)}
+              aria-current={isActive(item.href) ? "page" : undefined}
+              className={`flex min-h-14 shrink-0 items-center justify-center whitespace-nowrap rounded-lg px-3 py-3 text-xs font-semibold transition-colors ${isActive(item.href) ? "bg-[#e8f6d8] text-[#075442]" : "text-slate-500 hover:bg-emerald-50 hover:text-emerald-800"}`}
+            >
               <span>{item.label}</span>
             </Link>
           ))}
