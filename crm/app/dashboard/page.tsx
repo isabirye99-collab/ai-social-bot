@@ -964,162 +964,6 @@ export default function DashboardPage() {
       )}
 
       {/* =====================================================
-          KPI STRIP
-      ===================================================== */}
-
-      <section className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        {/* Total Leads */}
-
-        <Link
-          href="/leads"
-          className="group rounded-2xl border border-[#e2e9e5] bg-white p-4 shadow-[0_4px_16px_rgba(20,50,40,.035)] transition duration-200 hover:-translate-y-0.5 hover:border-[#b8d9a7] hover:shadow-[0_8px_22px_rgba(20,70,40,.08)]"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-[0.11em] text-[#819087]">
-              Total leads
-            </span>
-
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#e8f4e0] text-[#075442]">
-              <Icon
-                name="users"
-                size={17}
-              />
-            </span>
-          </div>
-
-          <div className="mt-3 flex items-end justify-between">
-            <span className="text-[27px] font-black tracking-[-0.04em] text-[#17211b]">
-              {leads.length}
-            </span>
-
-            <span className="text-[10px] font-semibold text-[#7b8982]">
-              View lead register
-            </span>
-          </div>
-        </Link>
-
-        {/* Applied / Admitted */}
-
-        <Link
-          href="/pipeline"
-          className="group rounded-2xl border border-[#e2e9e5] bg-white p-4 shadow-[0_4px_16px_rgba(20,50,40,.035)] transition duration-200 hover:-translate-y-0.5 hover:border-[#b8d9a7] hover:shadow-[0_8px_22px_rgba(20,70,40,.08)]"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-[0.11em] text-[#819087]">
-              Applied / Admitted
-            </span>
-
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#e8f4f0] text-[#28765f]">
-              <Icon
-                name="briefcase"
-                size={17}
-              />
-            </span>
-          </div>
-
-          <div className="mt-3 flex items-end justify-between">
-            <span className="text-[27px] font-black tracking-[-0.04em] text-[#17211b]">
-              {stats.applied}
-            </span>
-
-            <span className="text-[10px] font-semibold text-[#7b8982]">
-              Applications
-            </span>
-          </div>
-        </Link>
-
-        {/* Application Fee Paid */}
-
-        <Link
-          href="/pipeline"
-          className="group rounded-2xl border border-[#e2e9e5] bg-white p-4 shadow-[0_4px_16px_rgba(20,50,40,.035)] transition duration-200 hover:-translate-y-0.5 hover:border-[#b8d9a7] hover:shadow-[0_8px_22px_rgba(20,70,40,.08)]"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-[0.11em] text-[#819087]">
-              Application Fee Paid
-            </span>
-
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#f0f8df] text-[#65a82f]">
-              <Icon
-                name="check"
-                size={17}
-              />
-            </span>
-          </div>
-
-          <div className="mt-3 flex items-end justify-between">
-            <span className="text-[27px] font-black tracking-[-0.04em] text-[#17211b]">
-              {stats.applicationFeePaid}
-            </span>
-
-            <span className="text-[10px] font-bold text-[#5f8e2b]">
-              Fee paid
-            </span>
-          </div>
-        </Link>
-
-        {/* Acceptance Fee Paid */}
-
-        <Link
-          href="/pipeline"
-          className="group rounded-2xl border border-[#e2e9e5] bg-white p-4 shadow-[0_4px_16px_rgba(20,50,40,.035)] transition duration-200 hover:-translate-y-0.5 hover:border-[#b8d9a7] hover:shadow-[0_8px_22px_rgba(20,70,40,.08)]"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-[0.11em] text-[#819087]">
-              Acceptance Fee Paid
-            </span>
-
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#eaf6d9] text-[#5f8e2b]">
-              <Icon
-                name="check"
-                size={17}
-              />
-            </span>
-          </div>
-
-          <div className="mt-3 flex items-end justify-between">
-            <span className="text-[27px] font-black tracking-[-0.04em] text-[#17211b]">
-              {stats.acceptanceFeePaid}
-            </span>
-
-            <span className="text-[10px] font-bold text-[#5f8e2b]">
-              Fee paid
-            </span>
-          </div>
-        </Link>
-
-        {/* Enrolled */}
-
-        <Link
-          href="/customers"
-          className="group rounded-2xl border border-[#075442] bg-[#075442] p-4 shadow-[0_5px_18px_rgba(7,84,66,.16)] transition duration-200 hover:-translate-y-0.5 hover:bg-[#064b3b] hover:shadow-[0_9px_24px_rgba(7,84,66,.2)]"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-[0.11em] text-[#b9d4c8]">
-              Enrolled
-            </span>
-
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-[#b8e878]">
-              <Icon
-                name="student"
-                size={17}
-              />
-            </span>
-          </div>
-
-          <div className="mt-3 flex items-end justify-between">
-            <span className="text-[27px] font-black tracking-[-0.04em] text-white">
-              {stats.enrolled}
-            </span>
-
-            <span className="text-[10px] font-semibold text-[#b9d4c8]">
-              View enrolled students
-            </span>
-          </div>
-        </Link>
-      </section>
-
-      {/* =====================================================
           MAIN WORKSPACE
       ===================================================== */}
 
@@ -1159,33 +1003,42 @@ export default function DashboardPage() {
                     key={stage.label}
                     className="relative"
                   >
-                    <div className="mb-2 flex items-center justify-between gap-2">
-                      <span className="text-[10px] font-bold leading-tight text-[#68776f]">
-                        {stage.label}
-                      </span>
-
-                      <span className="shrink-0 text-[9px] font-semibold text-[#9aa59f]">
-                        {stage.conversion}%
-                      </span>
+                    <div className="mb-3 min-h-[54px]">
+                      <div className="flex items-start justify-between gap-1">
+                        <span className="text-[11px] font-bold leading-snug text-[#53675b]">
+                          {stage.label}
+                        </span>
+                        <span className="shrink-0 rounded-full bg-[#edf5e9] px-1.5 py-0.5 text-[9px] font-bold text-[#47723c]">
+                          {stage.conversion}%
+                        </span>
+                      </div>
+                      <div className="mt-1.5 text-[21px] font-extrabold leading-none tracking-tight text-[#183c30]">
+                        {stage.value.toLocaleString()}
+                      </div>
+                      <div className="mt-1 text-[9px] font-medium text-[#8a9990]">
+                        records at this stage
+                      </div>
                     </div>
 
-                    <div className="relative h-[185px] overflow-hidden rounded-xl bg-[#f4f7f5]">
+                    <div className="relative h-[150px] overflow-hidden rounded-xl border border-[#e3ece5] bg-gradient-to-b from-[#f8fbf8] to-[#edf4ee]">
                       <div
-                        className="absolute bottom-0 left-0 right-0 transition-all duration-500"
+                        className="absolute bottom-0 left-0 right-0 rounded-t-lg transition-all duration-500"
                         style={{
                           height: `${Math.max(
                             stage.ratio,
                             stage.value > 0
-                              ? 18
-                              : 5,
+                              ? 12
+                              : 3,
                           )}%`,
-                          background:
-                            stage.color,
-                          opacity: 0.92,
+                          background: `linear-gradient(180deg, ${stage.color} 0%, ${stage.color}dd 100%)`,
+                          opacity: 0.96,
                         }}
                       />
-
-
+                      <div className="absolute inset-x-0 top-2 flex justify-center">
+                        <span className="rounded-full border border-white/80 bg-white/85 px-2 py-1 text-[9px] font-bold text-[#607268] shadow-sm">
+                          {stage.ratio}%
+                        </span>
+                      </div>
                     </div>
 
                     {index <
