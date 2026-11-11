@@ -315,9 +315,9 @@ export default function PartnershipsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-7xl space-y-6">
-        <header className="flex flex-col justify-between gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-center">
+    <div className="ciu-page ciu-partnerships-page min-h-screen bg-white px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
+      <div className="ciu-page-inner mx-auto max-w-7xl space-y-6">
+        <header className="ciu-hero flex flex-col justify-between gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-center">
           <div className="flex items-start gap-3">
             <div className="mt-1 flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50 text-emerald-800">
               <Handshake size={22} />
