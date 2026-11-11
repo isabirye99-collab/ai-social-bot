@@ -398,14 +398,14 @@ export default function SocialMediaPage() {
 
   return (
     <main
-      className="min-h-screen p-4 text-slate-900 sm:p-6 lg:p-8"
+      className="ciu-social-hub-page min-h-screen p-4 text-slate-900 sm:p-6 lg:p-8"
       style={{ background: "transparent", "--ciu-primary": "var(--ciu-primary, #00695c)", "--ciu-lime": "var(--ciu-secondary, #8bc63f)" } as React.CSSProperties}
     >
       <div className="mx-auto max-w-7xl space-y-6">
         <MarketingSectionTabs />
         <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight" style={{ color: "var(--ciu-primary, #00695c)" }}>Social Media Hub</h1>
+            <h1 className="ciu-social-hub-title text-3xl font-bold tracking-tight" style={{ color: "var(--ciu-primary, #00695c)" }}>Social Media Hub</h1>
             <p className="mt-2 max-w-2xl text-sm text-slate-600">
               Prepare content for your channels, attach media, schedule a preferred publishing time,
               and submit posts for manager approval.
