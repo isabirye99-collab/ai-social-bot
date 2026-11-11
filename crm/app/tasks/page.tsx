@@ -2502,78 +2502,57 @@ const isSalesperson =
                           {/* STUDENT */}
                           <td
                             style={{
-                              padding:
-                                "15px 16px",
-                              verticalAlign:
-                                "top",
+                              padding: "15px 16px",
+                              verticalAlign: "top",
                             }}
                           >
                             {lead ? (
                               <div
                                 style={{
-                                  display:
-                                    "flex",
-                                  alignItems:
-                                    "center",
+                                  display: "flex",
+                                  alignItems: "center",
                                   gap: "9px",
                                 }}
                               >
                                 <div
                                   style={{
-                                    width:
-                                      "34px",
-                                    height:
-                                      "34px",
-                                    borderRadius:
-                                      "50%",
-                                    background:
-                                      "#eef2ff",
-                                    color:
-                                      "#4338ca",
-                                    display:
-                                      "flex",
-                                    alignItems:
-                                      "center",
-                                    justifyContent:
-                                      "center",
-                                    fontSize:
-                                      "11px",
-                                    fontWeight:
-                                      800,
+                                    width: "34px",
+                                    height: "34px",
+                                    flexShrink: 0,
+                                    borderRadius: "50%",
+                                    background: "#eef2ff",
+                                    color: "#4338ca",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    fontSize: "11px",
+                                    fontWeight: 800,
                                   }}
                                 >
-                                  {getInitials(
-                                    lead.name
-                                  )}
+                                  {getInitials(lead.name)}
                                 </div>
 
-                                <div>
+                                <div style={{ minWidth: 0 }}>
                                   <div
                                     style={{
-                                      fontWeight:
-                                        650,
-                                      color:
-                                        "#111827",
-                                      fontSize:
-                                        "13px",
+                                      fontWeight: 650,
+                                      color: "#111827",
+                                      fontSize: "13px",
                                     }}
                                   >
-                                    {lead.name ||
-                                      "Unnamed Student"}
+                                    {lead.name || "Unnamed Student"}
                                   </div>
 
                                   <div
                                     style={{
-                                      marginTop:
-                                        "2px",
-                                      color:
-                                        "#64748b",
-                                      fontSize:
-                                        "11px",
+                                      marginTop: "2px",
+                                      color: "#64748b",
+                                      fontSize: "11px",
                                     }}
                                   >
                                     {lead.ciu_number || "No CIU number"}
                                   </div>
+
                                   {lead.phone ? (
                                     <a
                                       href={`tel:${lead.phone}`}
@@ -2591,19 +2570,23 @@ const isSalesperson =
                                       ☎ {lead.phone}
                                     </a>
                                   ) : (
-                                    <div style={{ marginTop: "4px", color: "#b45309", fontSize: "11px" }}>
+                                    <div
+                                      style={{
+                                        marginTop: "4px",
+                                        color: "#b45309",
+                                        fontSize: "11px",
+                                      }}
+                                    >
                                       Telephone number not provided
                                     </div>
                                   )}
-                                  </div>
                                 </div>
+                              </div>
                             ) : (
                               <span
                                 style={{
-                                  color:
-                                    "#9ca3af",
-                                  fontSize:
-                                    "12px",
+                                  color: "#9ca3af",
+                                  fontSize: "12px",
                                 }}
                               >
                                 No student
