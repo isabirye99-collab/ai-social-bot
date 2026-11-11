@@ -4167,28 +4167,29 @@ const isSalesperson =
           style={{
             position: "fixed",
             inset: 0,
-            background:
-              "rgba(15,23,42,0.45)",
+            background: "rgba(15,23,42,0.32)",
             zIndex: 1050,
             display: "flex",
-            alignItems: "center",
-            justifyContent:
-              "center",
-            padding: "20px",
+            alignItems: "stretch",
+            justifyContent: "flex-end",
+            padding: 0,
+            backdropFilter: "blur(2px)",
           }}
         >
           <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Task details"
             style={{
-              width: "min(680px, 100%)",
-              maxHeight:
-                "calc(100vh - 40px)",
+              width: "min(560px, 100%)",
+              height: "100dvh",
+              maxHeight: "100dvh",
               overflowY: "auto",
-              background:
-                "#ffffff",
-              borderRadius:
-                "16px",
-              boxShadow:
-                "0 25px 70px rgba(0,0,0,0.20)",
+              background: "#ffffff",
+              borderRadius: "18px 0 0 18px",
+              borderLeft: "1px solid #dce7e0",
+              boxShadow: "-20px 0 60px rgba(15,23,42,0.16)",
+              animation: "ciuTaskDrawerIn 180ms ease-out",
             }}
           >
             <div
