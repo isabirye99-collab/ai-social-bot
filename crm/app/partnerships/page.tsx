@@ -141,6 +141,7 @@ export default function PartnershipsPage() {
   const [showImport, setShowImport] = useState(false);
   const [showAddContact, setShowAddContact] = useState(false);
   const [editingRecord, setEditingRecord] = useState<Partnership | null>(null);
+  const [selectedRecord, setSelectedRecord] = useState<Partnership | null>(null);
   const [savingContact, setSavingContact] = useState(false);
   const [contactForm, setContactForm] = useState({ name: "", primary_contact_name: "", primary_contact_email: "", primary_contact_phone: "", category: "", status: "prospect", notes: "" });
   const [fileName, setFileName] = useState("");
@@ -394,13 +395,13 @@ export default function PartnershipsPage() {
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-sm">
                   {filtered.map((record) => (
-                    <tr key={record.id} className="hover:bg-slate-50/70">
-                      <td className="px-5 py-4 font-medium text-slate-900">{record.name}</td>
+                    <tr key={record.id} onClick={() => setSelectedRecord(record)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedRecord(record); } }} tabIndex={0} role="button" aria-label={"Open " + record.name + " partnership details"} className="cursor-pointer hover:bg-emerald-50/70 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-emerald-700">
+                      <td className="px-5 py-4 font-medium text-slate-900">{record.name}<div className="mt-1 text-[11px] font-normal text-emerald-800">Open details →</div></td>
                       <td className="px-5 py-4 text-slate-700">{record.primary_contact_name || "—"}</td>
                       <td className="px-5 py-4"><div className="text-slate-700">{record.primary_contact_email || "—"}</div><div className="mt-1 text-xs text-slate-500">{record.primary_contact_phone || ""}</div></td>
                       <td className="px-5 py-4 text-slate-600">{record.category || "—"}</td>
                       <td className="px-5 py-4"><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${(record.status || "").toLowerCase() === "active" ? "bg-emerald-50 text-emerald-800" : "bg-slate-100 text-slate-600"}`}>{record.status || "Unspecified"}</span></td>
-                      <td className="px-5 py-4 text-slate-500">{displayDate(record.created_at)}</td><td className="px-5 py-4"><button type="button" onClick={() => openRecord(record)} className="rounded-lg border border-emerald-700 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-50">View / Edit</button></td>
+                      <td className="px-5 py-4 text-slate-500">{displayDate(record.created_at)}</td><td className="px-5 py-4"><button type="button" onClick={(event) => { event.stopPropagation(); setSelectedRecord(record); }} className="rounded-lg border border-emerald-700 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-50">View details</button></td>
                     </tr>
                   ))}
                 </tbody>
@@ -410,6 +411,23 @@ export default function PartnershipsPage() {
         </section>
       </div>
 
+
+      {selectedRecord && (
+        <div className="fixed inset-0 z-[110] bg-slate-950/35 backdrop-blur-[2px]" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedRecord(null); }}>
+          <aside role="dialog" aria-modal="true" aria-labelledby="partnership-details-title" className="ciu-partnership-drawer ml-auto flex h-[100dvh] w-full max-w-[560px] flex-col overflow-y-auto border-l border-slate-200 bg-white shadow-2xl">
+            <header className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-slate-200 bg-white/95 px-6 py-5 backdrop-blur">
+              <div><p className="text-[11px] font-bold uppercase tracking-[.16em] text-emerald-800">Partnership profile</p><h2 id="partnership-details-title" className="mt-1 text-xl font-bold tracking-tight text-slate-900">{selectedRecord.name}</h2><p className="mt-1 text-sm text-slate-500">Institutional relationship and contact information</p></div>
+              <button type="button" aria-label="Close partnership details" onClick={() => setSelectedRecord(null)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X size={19}/></button>
+            </header>
+            <div className="flex-1 space-y-5 p-6">
+              <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-4"><div className="text-xs font-semibold uppercase tracking-wide text-emerald-800">Current status</div><div className="mt-2"><span className="inline-flex rounded-full bg-white px-3 py-1.5 text-sm font-semibold capitalize text-emerald-900 ring-1 ring-emerald-200">{(selectedRecord.status || "unspecified").replaceAll("_", " ")}</span></div><p className="mt-3 text-xs text-slate-600">Added {displayDate(selectedRecord.created_at)}</p></div>
+              <section className="rounded-xl border border-slate-200 p-4"><h3 className="text-sm font-bold text-slate-900">Primary contact</h3><dl className="mt-3 space-y-3 text-sm"><div><dt className="text-xs text-slate-500">Contact person</dt><dd className="mt-1 font-medium text-slate-800">{selectedRecord.primary_contact_name || "Not provided"}</dd></div><div><dt className="text-xs text-slate-500">Email address</dt><dd className="mt-1 break-all font-medium text-slate-800">{selectedRecord.primary_contact_email ? <a className="text-emerald-800 underline" href={"mailto:" + selectedRecord.primary_contact_email}>{selectedRecord.primary_contact_email}</a> : "Not provided"}</dd></div><div><dt className="text-xs text-slate-500">Telephone</dt><dd className="mt-1 font-medium text-slate-800">{selectedRecord.primary_contact_phone ? <a className="text-emerald-800 underline" href={"tel:" + selectedRecord.primary_contact_phone}>{selectedRecord.primary_contact_phone}</a> : "Not provided"}</dd></div></dl></section>
+              <section className="rounded-xl border border-slate-200 p-4"><h3 className="text-sm font-bold text-slate-900">Partnership information</h3><dl className="mt-3 space-y-3 text-sm"><div><dt className="text-xs text-slate-500">Category / collaboration area</dt><dd className="mt-1 font-medium text-slate-800">{selectedRecord.category || "Not specified"}</dd></div><div><dt className="text-xs text-slate-500">Relationship notes</dt><dd className="mt-1 whitespace-pre-wrap leading-6 text-slate-700">{selectedRecord.notes || "No notes have been recorded yet."}</dd></div></dl></section>
+            </div>
+            <footer className="sticky bottom-0 flex gap-2 border-t border-slate-200 bg-white p-5"><button type="button" onClick={() => { openRecord(selectedRecord); setSelectedRecord(null); }} className="inline-flex flex-1 items-center justify-center rounded-lg bg-[#00695c] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#00574f]">Edit partnership</button><button type="button" onClick={() => setSelectedRecord(null)} className="rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700">Close</button></footer>
+          </aside>
+        </div>
+      )}
       {showAddContact && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/40 p-3 sm:p-6" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !savingContact) setShowAddContact(false); }}>
           <section role="dialog" aria-modal="true" aria-labelledby="add-partnership-title" className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
