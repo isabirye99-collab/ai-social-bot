@@ -3012,3 +3012,45 @@ button, input, select, textarea {
   .ciu-page .report-print { justify-content: center; }
   .ciu-page .report-card-head { align-items: flex-start; }
 }
+
+
+/* Public lead capture — welcoming, branded form without changing submission logic. */
+.ciu-public-lead-capture,
+.ciu-public-lead-success {
+  color: var(--ciu-ink, #172b27) !important;
+  background: #f5f8f6 !important;
+  font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif !important;
+}
+.ciu-public-lead-capture > div > div,
+.ciu-public-lead-success > div {
+  border-color: var(--ciu-border, #dfe8e2) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 8px 28px rgba(23, 50, 44, .055) !important;
+}
+.ciu-public-lead-capture h1,
+.ciu-public-lead-success h1 {
+  color: var(--ciu-green, #106053) !important;
+  letter-spacing: -.035em;
+}
+.ciu-public-lead-capture input:not([type="checkbox"]),
+.ciu-public-lead-capture select,
+.ciu-public-lead-capture textarea {
+  border-color: #d6e1da !important;
+  border-radius: 8px !important;
+  color: #172b27 !important;
+  outline-color: var(--ciu-green, #106053);
+}
+.ciu-public-lead-capture input:focus,
+.ciu-public-lead-capture select:focus,
+.ciu-public-lead-capture textarea:focus {
+  border-color: var(--ciu-green, #106053) !important;
+  box-shadow: 0 0 0 3px rgba(16, 96, 83, .1);
+}
+.ciu-public-lead-capture button {
+  border-radius: 8px !important;
+}
+@media (max-width: 640px) {
+  .ciu-public-lead-capture { padding: 22px 14px !important; }
+  .ciu-public-lead-capture > div > div { padding: 22px 17px !important; }
+  .ciu-public-lead-success > div { padding: 26px 20px !important; }
+}
