@@ -992,7 +992,7 @@ export default function Settings() {
 
   if (loading) {
     return (
-      <div className="ciu-page">
+      <div className="ciu-page ciu-settings-page">
         <div
           className="ciu-page-inner"
           style={{
@@ -1039,7 +1039,7 @@ export default function Settings() {
 
   if (error && !role) {
     return (
-      <div className="ciu-page">
+      <div className="ciu-page ciu-settings-page">
         <div className="ciu-page-inner">
           <div
             style={{
@@ -1061,7 +1061,7 @@ export default function Settings() {
 
   if (!isSuperAdmin) {
     return (
-      <div className="ciu-page">
+      <div className="ciu-page ciu-settings-page">
         <div className="ciu-page-inner">
           <div
             className="crm-card"
@@ -1145,7 +1145,7 @@ export default function Settings() {
 
   return (
     <>
-      <div className="ciu-page">
+      <div className="ciu-page ciu-settings-page">
         <div className="ciu-page-inner">
           <div
             className="ciu-hero"
