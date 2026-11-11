@@ -1233,6 +1233,7 @@ export default function MarketingPage() {
 
   return (
     <main
+      className="ciu-marketing-page"
       style={{
         minHeight: "100vh",
         background: "transparent",
@@ -1255,6 +1256,7 @@ export default function MarketingPage() {
 
         {/* HEADER */}
         <div
+          className="ciu-marketing-hero"
           style={{
             display: "flex",
             alignItems: "center",
