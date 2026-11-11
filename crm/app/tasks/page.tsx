@@ -532,10 +532,11 @@ const isSalesperson =
 
       let loadedTasks = (tasksResult.data || []) as Task[];
 
-      // Backfill missing follow-up tasks for campaign-linked leads.
-      // Run from admin views only, so salesperson-scoped task visibility cannot
-      // cause duplicates for tasks assigned to another member of staff.
-      if (role !== "salesperson") {
+      // Backfill missing follow-up tasks for campaign-linked leads visible to
+      // this user. Salespeople only load leads assigned to themselves above,
+      // so this also creates follow-ups for their campaign leads without
+      // exposing or reassigning another salesperson's leads.
+      {
         try {
           const campaignLeadResult = await supabase
             .from("campaign_leads")
