@@ -631,26 +631,31 @@ export default function DashboardPage() {
         label: "Leads",
         value: leads.length,
         color: "#075442",
+        tint: "#eaf4ef",
       },
       {
         label: "Applied / Admitted",
         value: stats.applied,
-        color: "#28765f",
+        color: "#8abf52",
+        tint: "#f3f8e9",
       },
       {
         label: "Application Fee Paid",
         value: stats.applicationFeePaid,
-        color: "#65a82f",
+        color: "#28765f",
+        tint: "#e7f3ee",
       },
       {
         label: "Acceptance Fee Paid",
         value: stats.acceptanceFeePaid,
-        color: "#83bd42",
+        color: "#a4d66d",
+        tint: "#f5f9ed",
       },
       {
         label: "Enrolled",
         value: stats.enrolled,
-        color: "#9ad447",
+        color: "#075442",
+        tint: "#eaf4ef",
       },
     ];
 
@@ -1001,37 +1006,33 @@ export default function DashboardPage() {
                 (stage, index) => (
                   <div
                     key={stage.label}
-                    className="relative"
+                    className="relative min-w-0 overflow-hidden rounded-xl border border-[#e0e9e2] p-3"
+                    style={{ background: stage.tint }}
                   >
-                    <div className="mb-3 min-h-[54px]">
+                    <div className="mb-3 min-h-[88px]">
                       <div className="flex items-start justify-between gap-1">
-                        <span className="text-[11px] font-bold leading-snug text-[#53675b]">
+                        <span className="text-[11px] font-bold leading-snug text-[#354b3e]">
                           {stage.label}
                         </span>
-                        <span className="shrink-0 rounded-full bg-[#edf5e9] px-1.5 py-0.5 text-[9px] font-bold text-[#47723c]">
+                        <span className="shrink-0 rounded-full border border-white/80 bg-white/85 px-1.5 py-0.5 text-[9px] font-extrabold text-[#365f3c]">
                           {stage.conversion}%
                         </span>
                       </div>
-                      <div className="mt-1.5 text-[21px] font-extrabold leading-none tracking-tight text-[#183c30]">
+                      <div className="mt-2 text-[24px] font-extrabold leading-none tracking-tight text-[#183c30]">
                         {stage.value.toLocaleString()}
                       </div>
-                      <div className="mt-1 text-[9px] font-medium text-[#8a9990]">
+                      <div className="mt-1.5 text-[10px] font-medium text-[#728177]">
                         records at this stage
                       </div>
                     </div>
 
-                    <div className="relative h-[150px] overflow-hidden rounded-xl border border-[#e3ece5] bg-gradient-to-b from-[#f8fbf8] to-[#edf4ee]">
+                    <div className="relative h-[118px] overflow-hidden rounded-lg border border-white/80 bg-white/75">
+                      <div className="absolute inset-x-0 bottom-0 h-full opacity-40" style={{ backgroundImage: "linear-gradient(to top, rgba(255,255,255,.2) 1px, transparent 1px)", backgroundSize: "100% 25%" }} />
                       <div
-                        className="absolute bottom-0 left-0 right-0 rounded-t-lg transition-all duration-500"
+                        className="absolute bottom-0 left-0 right-0 rounded-t-md transition-all duration-500"
                         style={{
-                          height: `${Math.max(
-                            stage.ratio,
-                            stage.value > 0
-                              ? 12
-                              : 3,
-                          )}%`,
-                          background: `linear-gradient(180deg, ${stage.color} 0%, ${stage.color}dd 100%)`,
-                          opacity: 0.96,
+                          height: `${Math.max(stage.ratio, stage.value > 0 ? 8 : 2)}%`,
+                          background: `linear-gradient(180deg, ${stage.color} 0%, ${stage.color}ee 100%)`,
                         }}
                       />
                     </div>
