@@ -701,29 +701,49 @@ export default function MarketingPage() {
             failed++;
           }
 
+        }
+
+        if (!leadId) continue;
+
+        // Existing leads were previously linked to the campaign without a task.
+        // Create one follow-up only when the lead has no active task, so re-imports
+        // do not flood the Tasks register with duplicates.
+        const { data: activeTask, error: activeTaskError } = await supabase
+          .from("tasks")
+          .select("id")
+          .eq("lead_id", leadId)
+          .in("status", ["pending", "in_progress"])
+          .limit(1)
+          .maybeSingle();
+
+        if (activeTaskError) {
+          console.error("Could not check existing follow-up tasks:", activeTaskError);
+          failed++;
+        } else if (!activeTask) {
           const dueAt = new Date();
           dueAt.setDate(dueAt.getDate() + 1);
+          const taskAssignee = assignedTo || salespeople[0]?.id || null;
+          const campaignName = campaigns.find((c) => c.id === importCampaignId)?.name || "marketing";
           const taskResult = await supabase.from("tasks").insert({
             title: `Follow up with ${row.name}`,
-            description: `Initial follow-up for a lead imported from the ${campaigns.find((c) => c.id === importCampaignId)?.name || "marketing"} campaign.`,
+            description: `Initial follow-up for a lead linked to the ${campaignName} campaign.`,
             task_type: "call",
             lead_id: leadId,
             opportunity_id: null,
-            assigned_to: assignedTo,
+            assigned_to: taskAssignee,
             due_at: dueAt.toISOString(),
             status: "pending",
             created_by: user.id,
           });
 
           if (taskResult.error) {
-            console.error("Follow-up task creation failed for imported lead:", taskResult.error);
+            console.error("Follow-up task creation failed for campaign lead:", taskResult.error);
             failed++;
           } else {
             tasksCreated++;
           }
         }
 
-        if (!leadId) continue;
         const campaignLink = await supabase.from("campaign_leads").upsert(
           { campaign_id: importCampaignId, lead_id: leadId },
           { onConflict: "campaign_id,lead_id" }
