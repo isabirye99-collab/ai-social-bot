@@ -530,9 +530,71 @@ const isSalesperson =
       if (stagesResult.error)
         throw stagesResult.error;
 
-      setTasks(
-        (tasksResult.data || []) as Task[]
-      );
+      let loadedTasks = (tasksResult.data || []) as Task[];
+
+      // Backfill missing follow-up tasks for campaign-linked leads.
+      // Run from admin views only, so salesperson-scoped task visibility cannot
+      // cause duplicates for tasks assigned to another member of staff.
+      if (role === "admin" || role === "super_admin") {
+        try {
+          const campaignLeadResult = await supabase
+            .from("campaign_leads")
+            .select("lead_id");
+          if (campaignLeadResult.error) throw campaignLeadResult.error;
+
+          const campaignLeadIds = new Set(
+            (campaignLeadResult.data || [])
+              .map((item) => item.lead_id)
+              .filter((id): id is string => Boolean(id))
+          );
+          const campaignLeads = ((leadsResult.data || []) as Lead[])
+            .filter((lead) => campaignLeadIds.has(lead.id));
+
+          if (campaignLeads.length) {
+            const existingTaskResult = await supabase
+              .from("tasks")
+              .select("lead_id,status")
+              .in("lead_id", campaignLeads.map((lead) => lead.id))
+              .in("status", ["pending", "in_progress"]);
+            if (existingTaskResult.error) throw existingTaskResult.error;
+
+            const leadsWithActiveTasks = new Set(
+              (existingTaskResult.data || [])
+                .map((task) => task.lead_id)
+                .filter((id): id is string => Boolean(id))
+            );
+            const dueAt = new Date();
+            dueAt.setDate(dueAt.getDate() + 1);
+            const missingTasks = campaignLeads
+              .filter((lead) => !leadsWithActiveTasks.has(lead.id))
+              .map((lead) => ({
+                title: `Follow up with ${lead.name || "Student"}`,
+                description: "Initial follow-up for a lead linked to a marketing campaign. Please call the student and record the outcome.",
+                task_type: "call",
+                lead_id: lead.id,
+                opportunity_id: null,
+                assigned_to: lead.assigned_to || user.id,
+                due_at: dueAt.toISOString(),
+                status: "pending",
+                created_by: user.id,
+              }));
+
+            if (missingTasks.length) {
+              const created = await supabase
+                .from("tasks")
+                .insert(missingTasks)
+                .select("id,title,description,task_type,lead_id,opportunity_id,assigned_to,due_at,status,completed_at,created_at,updated_at");
+              if (created.error) throw created.error;
+              loadedTasks = [...loadedTasks, ...((created.data || []) as Task[])];
+            }
+          }
+        } catch (backfillError) {
+          // Keep the Tasks page usable even if campaign backfill is blocked by policy.
+          console.error("Campaign task reconciliation could not complete:", backfillError);
+        }
+      }
+
+      setTasks(loadedTasks);
 
       setProfiles(
         (profilesResult.data ||
@@ -2510,9 +2572,29 @@ const isSalesperson =
                                         "11px",
                                     }}
                                   >
-                                    {lead.ciu_number ||
-                                      lead.phone ||
-                                      "No contact"}
+                                    {lead.ciu_number || "No CIU number"}
+                                  </div>
+                                  {lead.phone ? (
+                                    <a
+                                      href={`tel:${lead.phone.replace(/[^+\d]/g, "")}`}
+                                      title={`Call ${lead.name || "student"}`}
+                                      style={{
+                                        display: "inline-block",
+                                        marginTop: "4px",
+                                        color: "#106053",
+                                        fontSize: "12px",
+                                        fontWeight: 700,
+                                        textDecoration: "none",
+                                        whiteSpace: "nowrap",
+                                      }}
+                                    >
+                                      ☎ {lead.phone}
+                                    </a>
+                                  ) : (
+                                    <div style={{ marginTop: "4px", color: "#b45309", fontSize: "11px" }}>
+                                      Telephone number not provided
+                                    </div>
+                                  )}
                                   </div>
                                 </div>
                               </div>
