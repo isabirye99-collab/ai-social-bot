@@ -710,7 +710,7 @@ export default function MarketingPage() {
         // do not flood the Tasks register with duplicates.
         const { data: activeTask, error: activeTaskError } = await supabase
           .from("tasks")
-          .select("id")
+          .select("id,description")
           .eq("lead_id", leadId)
           .in("status", ["pending", "in_progress"])
           .limit(1)
@@ -719,28 +719,41 @@ export default function MarketingPage() {
         if (activeTaskError) {
           console.error("Could not check existing follow-up tasks:", activeTaskError);
           failed++;
-        } else if (!activeTask) {
-          const dueAt = new Date();
-          dueAt.setDate(dueAt.getDate() + 1);
-          const taskAssignee = assignedTo || salespeople[0]?.id || null;
+        } else {
           const campaignName = campaigns.find((c) => c.id === importCampaignId)?.name || "marketing";
-          const taskResult = await supabase.from("tasks").insert({
-            title: `Follow up with ${row.name}`,
-            description: `Initial follow-up for a lead linked to the ${campaignName} campaign.`,
-            task_type: "call",
-            lead_id: leadId,
-            opportunity_id: null,
-            assigned_to: taskAssignee,
-            due_at: dueAt.toISOString(),
-            status: "pending",
-            created_by: user.id,
-          });
+          const campaignNote = `Linked campaign: ${campaignName}`;
+          if (activeTask && !(activeTask.description || "").includes(campaignNote)) {
+            const updatedDescription = [activeTask.description?.trim(), campaignNote].filter(Boolean).join("\\n");
+            const taskUpdate = await supabase
+              .from("tasks")
+              .update({ description: updatedDescription, updated_at: new Date().toISOString() })
+              .eq("id", activeTask.id);
+            if (taskUpdate.error) {
+              console.error("Could not add campaign details to existing task:", taskUpdate.error);
+              failed++;
+            }
+          } else if (!activeTask) {
+            const dueAt = new Date();
+            dueAt.setDate(dueAt.getDate() + 1);
+            const taskAssignee = assignedTo || salespeople[0]?.id || null;
+            const taskResult = await supabase.from("tasks").insert({
+              title: `Follow up with ${row.name}`,
+              description: `Initial follow-up for a lead linked to the ${campaignName} campaign.`,
+              task_type: "call",
+              lead_id: leadId,
+              opportunity_id: null,
+              assigned_to: taskAssignee,
+              due_at: dueAt.toISOString(),
+              status: "pending",
+              created_by: user.id,
+            });
 
-          if (taskResult.error) {
-            console.error("Follow-up task creation failed for campaign lead:", taskResult.error);
-            failed++;
-          } else {
-            tasksCreated++;
+            if (taskResult.error) {
+              console.error("Follow-up task creation failed for campaign lead:", taskResult.error);
+              failed++;
+            } else {
+              tasksCreated++;
+            }
           }
         }
 
