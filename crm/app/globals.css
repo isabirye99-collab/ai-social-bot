@@ -3896,3 +3896,101 @@ button, input, select, textarea {
   .ciu-settings-page .crm-grid-2 { grid-template-columns: 1fr; }
   .ciu-settings-page .crm-card-body { padding: 14px !important; }
 }
+
+
+/* Tasks & follow-ups — compact, consistent register styling */
+.ciu-tasks-page {
+  padding: 20px 22px 34px !important;
+  background: #f5f8f6 !important;
+  color: #172b27;
+}
+.ciu-tasks-page > div {
+  max-width: 1480px !important;
+}
+.ciu-tasks-page .ciu-tasks-hero {
+  padding: 18px 22px !important;
+  gap: 14px !important;
+  margin-bottom: 15px !important;
+  border: 1px solid #e0e9e3 !important;
+  border-left: 4px solid #075442 !important;
+  border-radius: 14px !important;
+  background: linear-gradient(115deg,#fff 0%,#f4faf5 100%) !important;
+  box-shadow: 0 4px 16px rgba(20,60,40,.035) !important;
+}
+.ciu-tasks-page .ciu-tasks-hero h1 {
+  font-size: 26px !important;
+  letter-spacing: -.035em !important;
+  color: #172b27 !important;
+}
+.ciu-tasks-page .ciu-tasks-hero p {
+  margin-top: 6px !important;
+  font-size: 12px !important;
+  line-height: 1.55 !important;
+  color: #64756f !important;
+}
+.ciu-tasks-page .ciu-tasks-hero button,
+.ciu-tasks-page button {
+  transition: background-color .15s ease,border-color .15s ease,box-shadow .15s ease;
+}
+.ciu-tasks-page .ciu-tasks-kpis {
+  gap: 10px !important;
+  margin-bottom: 15px !important;
+}
+.ciu-tasks-page .ciu-tasks-kpis > div {
+  min-width: 0;
+  border-color: #e1e9e3 !important;
+  border-radius: 12px !important;
+  box-shadow: 0 4px 16px rgba(20,60,40,.03) !important;
+}
+.ciu-tasks-page input,
+.ciu-tasks-page select,
+.ciu-tasks-page textarea {
+  max-width: 100%;
+  border-color: #d9e5de !important;
+  border-radius: 8px !important;
+  font-size: 12px !important;
+}
+.ciu-tasks-page input:focus,
+.ciu-tasks-page select:focus,
+.ciu-tasks-page textarea:focus {
+  outline: none;
+  border-color: #78ad91 !important;
+  box-shadow: 0 0 0 3px rgba(7,84,66,.08);
+}
+.ciu-tasks-page table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.ciu-tasks-page table thead th {
+  background: #f2f7f3 !important;
+  color: #587066 !important;
+  font-size: 9.5px !important;
+  letter-spacing: .045em;
+  text-transform: uppercase;
+}
+.ciu-tasks-page table tbody td {
+  font-size: 11.5px !important;
+  line-height: 1.5;
+  border-bottom-color: #edf2ee !important;
+}
+.ciu-tasks-page table tbody tr:nth-child(even) { background: #fbfdfb; }
+.ciu-tasks-page table tbody tr:hover { background: #f0f8f2; }
+.ciu-tasks-page .ciu-task-drawer-header {
+  padding: 17px 20px !important;
+  border-bottom-color: #e5eee8 !important;
+  background: linear-gradient(115deg,#fff 0%,#f7fbf8 100%);
+}
+.ciu-tasks-page .ciu-task-drawer-header h2 {
+  font-size: 17px !important;
+  color: #173b2b !important;
+}
+@media (max-width: 760px) {
+  .ciu-tasks-page { padding: 14px 12px 28px !important; }
+  .ciu-tasks-page .ciu-tasks-hero { align-items: flex-start !important; padding: 16px !important; }
+  .ciu-tasks-page .ciu-tasks-hero h1 { font-size: 23px !important; }
+  .ciu-tasks-page .ciu-tasks-kpis { grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
+  .ciu-tasks-page table { min-width: 720px; }
+}
+@media (max-width: 420px) {
+  .ciu-tasks-page .ciu-tasks-kpis { grid-template-columns: 1fr !important; }
+}
