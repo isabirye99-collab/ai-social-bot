@@ -3307,3 +3307,140 @@ button, input, select, textarea {
     font-size: 16px !important;
   }
 }
+
+
+/* Right-side task details drawer */
+@keyframes ciuTaskDrawerIn {
+  from { transform: translateX(24px); opacity: .7; }
+  to { transform: translateX(0); opacity: 1; }
+}
+.ciu-task-drawer {
+  display: flex;
+  flex-direction: column;
+}
+.ciu-task-drawer-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #fff;
+}
+@media (max-width: 560px) {
+  .ciu-task-drawer {
+    width: 100% !important;
+    border-radius: 0 !important;
+  }
+}
+
+/* Alumni: compact, confident directory and profile-management layout */
+.ciu-alumni-page {
+  max-width: 1600px;
+  margin: 0 auto;
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+}
+.ciu-alumni-page .ciu-alumni-hero {
+  padding: 22px 24px;
+  border: 1px solid #dce8df;
+  border-left: 4px solid #8bc63f;
+  border-radius: 16px;
+  background: linear-gradient(115deg, #fff 0%, #f7fbf7 100%);
+  box-shadow: 0 4px 18px rgba(20, 60, 40, .04);
+}
+.ciu-alumni-page h1 { font-size: 26px !important; line-height: 1.25 !important; letter-spacing: -.025em !important; }
+.ciu-alumni-page h2 { font-size: 16px !important; line-height: 1.4 !important; }
+.ciu-alumni-page table { font-size: 12.5px !important; }
+.ciu-alumni-page th { font-size: 10.5px !important; text-transform: uppercase; letter-spacing: .035em; }
+.ciu-alumni-page td { line-height: 1.5; }
+.ciu-alumni-page input,
+.ciu-alumni-page select { min-height: 40px; font-size: 13px; }
+.ciu-alumni-page button,
+.ciu-alumni-page a { transition: background-color .15s ease, border-color .15s ease, box-shadow .15s ease; }
+.ciu-alumni-page table tbody tr:hover { background: #f7fbf8; }
+
+/* Partnerships: modern register, restrained metrics and better table readability */
+.ciu-partnerships-page {
+  max-width: 1600px;
+  margin: 0 auto;
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+}
+.ciu-partnerships-page .ciu-hero {
+  padding: 22px 24px;
+  border: 1px solid #dce8df;
+  border-left: 4px solid #8bc63f;
+  border-radius: 16px;
+  background: linear-gradient(115deg, #fff 0%, #f7fbf7 100%);
+  box-shadow: 0 4px 18px rgba(20, 60, 40, .04);
+}
+.ciu-partnerships-page h1 { font-size: 26px !important; line-height: 1.25 !important; letter-spacing: -.025em !important; }
+.ciu-partnerships-page h2 { font-size: 16px !important; line-height: 1.4 !important; }
+.ciu-partnerships-page .text-3xl { font-size: 25px !important; line-height: 1.25 !important; }
+.ciu-partnerships-page .rounded-xl { border-radius: 12px; }
+.ciu-partnerships-page section.overflow-hidden {
+  border-color: #e0e9e3;
+  border-radius: 14px;
+  box-shadow: 0 4px 18px rgba(20, 60, 40, .035);
+}
+.ciu-partnerships-page table { font-size: 12.5px; }
+.ciu-partnerships-page thead th { font-size: 10.5px; text-transform: uppercase; letter-spacing: .035em; }
+.ciu-partnerships-page tbody tr:hover { background-color: #f7fbf8; }
+.ciu-partnerships-page input,
+.ciu-partnerships-page select,
+.ciu-partnerships-page textarea { min-height: 40px; font-size: 13px; }
+.ciu-partnerships-page button { font-size: 13px; }
+
+/* Apply the same visual hierarchy to every existing CRM module. */
+.ciu-page,
+.ciu-marketing-page,
+.crm-page-heading {
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+}
+.ciu-page .ciu-hero,
+.ciu-marketing-page .ciu-marketing-hero,
+.crm-page-heading.ciu-staff-hero {
+  border-radius: 14px;
+}
+.ciu-page .ciu-card,
+.ciu-page .ciu-card-head,
+.ciu-page .ciu-kpi-grid > *,
+.ciu-page .ciu-customer-kpis > * {
+  min-width: 0;
+}
+.ciu-page .ciu-report-table th,
+.ciu-page .pipeline-table th {
+  font-size: 10.5px;
+  line-height: 1.4;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+}
+.ciu-page .ciu-report-table td,
+.ciu-page .pipeline-table td {
+  line-height: 1.5;
+}
+.ciu-page .ciu-card,
+.ciu-page .report-chart-card {
+  border-color: #e1e9e3;
+  box-shadow: 0 4px 16px rgba(20, 60, 40, .035);
+}
+.ciu-page .ciu-card-head h2,
+.ciu-page .report-card-head h2 {
+  font-size: 16px !important;
+  line-height: 1.4 !important;
+}
+.ciu-marketing-page h1 { font-size: 26px !important; line-height: 1.25 !important; }
+.ciu-marketing-page h2 { font-size: 17px !important; line-height: 1.35 !important; }
+.ciu-marketing-page input,
+.ciu-marketing-page select,
+.ciu-marketing-page textarea { font-size: 13px; }
+.crm-page-heading h1 { font-size: 26px !important; line-height: 1.25 !important; }
+.crm-kpi-value { font-size: 25px !important; }
+.crm-card-header { font-size: 15px; }
+.crm-table th { font-size: 10.5px; text-transform: uppercase; letter-spacing: .03em; }
+.crm-table td { font-size: 12.5px; line-height: 1.5; }
+@media (max-width: 720px) {
+  .ciu-alumni-page .ciu-alumni-hero,
+  .ciu-partnerships-page .ciu-hero { padding: 17px; }
+  .ciu-alumni-page h1,
+  .ciu-partnerships-page h1,
+  .ciu-marketing-page h1,
+  .crm-page-heading h1 { font-size: 23px !important; }
+  .ciu-partnerships-page .text-3xl { font-size: 22px !important; }
+}
