@@ -3444,3 +3444,50 @@ button, input, select, textarea {
   .crm-page-heading h1 { font-size: 23px !important; }
   .ciu-partnerships-page .text-3xl { font-size: 22px !important; }
 }
+
+
+/* Dashboard layout: consistent page rhythm, readable charts and calmer cards. */
+.ciu-dashboard {
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+}
+.ciu-dashboard > header {
+  border-radius: 16px;
+  padding: 22px 24px;
+}
+.ciu-dashboard > header h1 {
+  font-size: 27px !important;
+  line-height: 1.25 !important;
+  font-weight: 750 !important;
+}
+.ciu-dashboard > section {
+  margin-top: 16px;
+}
+.ciu-dashboard > section > div,
+.ciu-dashboard > section > a {
+  min-width: 0;
+}
+.ciu-dashboard .rounded-2xl.border {
+  border-radius: 14px;
+  border-color: #e1e9e3;
+  box-shadow: 0 3px 14px rgba(20, 60, 40, .035);
+}
+.ciu-dashboard .text-\[27px\] {
+  font-size: 25px;
+}
+.ciu-dashboard .text-2xl {
+  line-height: 1.3;
+}
+.ciu-dashboard .text-base.font-black,
+.ciu-dashboard .text-base.font-bold {
+  font-size: 16px;
+}
+.ciu-dashboard .text-\[9px\],
+.ciu-dashboard .text-\[10px\] {
+  letter-spacing: 0;
+}
+@media (max-width: 640px) {
+  .ciu-dashboard { padding-top: 14px !important; }
+  .ciu-dashboard > header { padding: 17px !important; }
+  .ciu-dashboard > header h1 { font-size: 23px !important; }
+  .ciu-dashboard > section { gap: 12px; }
+}
