@@ -47,6 +47,7 @@ const yes = (value: unknown) => ["yes", "y", "true", "1"].includes(clean(value).
 export default function AlumniPage() {
   const supabase = createClient();
   const [rows, setRows] = useState<AlumniRow[]>([]);
+  const [selectedAlumnus, setSelectedAlumnus] = useState<AlumniRow | null>(null);
   const [total, setTotal] = useState(0);
   const [matchCount, setMatchCount] = useState(0);
   const [page, setPage] = useState(0);
@@ -222,12 +223,12 @@ export default function AlumniPage() {
       <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse", minWidth: 780, fontSize: 12 }}>
         <thead><tr style={{ background: "#f4f8f5", textAlign: "left", color: "#61736a" }}>{["Alumni","Programme","Graduation","Contact","Employment","Profile status","Action"].map((h) => <th key={h} style={{ padding: 12, fontWeight: 800 }}>{h === "Action" ? "Profile" : h}</th>)}</tr></thead>
         <tbody>{loading ? <tr><td colSpan={7} style={{ padding: 24, textAlign: "center", color: "#819087" }}>Loading alumni records…</td></tr> : rows.length === 0 ? <tr><td colSpan={7} style={{ padding: 24, textAlign: "center", color: "#819087" }}>No matching alumni records found.</td></tr> : rows.map((a) => <tr key={a.id} style={{ borderTop: "1px solid #edf1ee" }}>
-          <td style={{ padding: 12 }}><Link href={`/alumni/${a.id}`} style={{ fontWeight: 800, color: "#106053", textDecoration: "none" }}>{a.full_name}</Link><div style={{ color: "#87958d", marginTop: 3 }}>{a.alumni_id}</div></td>
+          <td style={{ padding: 12 }}><button type="button" onClick={() => setSelectedAlumnus(a)} style={{ border: 0, padding: 0, background: "transparent", color: "#106053", fontWeight: 800, textAlign: "left", cursor: "pointer" }}>{a.full_name}</button><div style={{ color: "#87958d", marginTop: 3 }}>{a.alumni_id}</div><div style={{ color: "#106053", fontSize: 10, marginTop: 3 }}>Open details →</div></td>
           <td style={{ padding: 12 }}>{a.program || "—"}</td><td style={{ padding: 12 }}>{a.graduation_year || "—"}</td>
           <td style={{ padding: 12 }}><div>{a.phone || "No phone"}</div><div style={{ color: "#87958d", marginTop: 3 }}>{a.work_email || "No email"}</div></td>
           <td style={{ padding: 12 }}>{a.employment_status || "Not updated"}</td>
           <td style={{ padding: 12 }}><span style={{ display: "inline-block", padding: "5px 8px", borderRadius: 20, fontWeight: 700, fontSize: 10, color: a.verification_status === "verified" ? "#17643f" : "#855b0a", background: a.verification_status === "verified" ? "#e7f5ec" : "#fff4d9" }}>{a.verification_status.replaceAll("_", " ")}</span>{a.missing_fields?.length ? <div style={{ color: "#9b6b1a", fontSize: 10, marginTop: 4 }}>{a.missing_fields.length} missing fields</div> : null}</td>
-          <td style={{ padding: 12 }}><Link href={`/alumni/${a.id}`} style={{ display: "inline-flex", alignItems: "center", border: "1px solid #106053", borderRadius: 7, padding: "7px 10px", background: "#106053", color: "#fff", fontSize: 11, fontWeight: 750, textDecoration: "none", whiteSpace: "nowrap" }}>View profile</Link></td>
+          <td style={{ padding: 12 }}><button type="button" onClick={() => setSelectedAlumnus(a)} style={{ display: "inline-flex", alignItems: "center", border: "1px solid #106053", borderRadius: 7, padding: "7px 10px", background: "#106053", color: "#fff", fontSize: 11, fontWeight: 750, cursor: "pointer", whiteSpace: "nowrap" }}>View details</button></td>
         </tr>)}</tbody>
       </table></div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginTop: 14 }}>
@@ -238,6 +239,22 @@ export default function AlumniPage() {
         </div>
       </div>
     </section>
+
+    {selectedAlumnus && <div onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedAlumnus(null); }} style={{ position: "fixed", inset: 0, zIndex: 110, background: "rgba(10,25,20,.38)", backdropFilter: "blur(2px)" }}>
+      <aside role="dialog" aria-modal="true" aria-labelledby="alumni-details-title" className="ciu-alumni-drawer" style={{ marginLeft: "auto", width: "min(560px, 100%)", height: "100dvh", overflowY: "auto", background: "#fff", boxShadow: "-18px 0 50px rgba(15,23,42,.18)", borderLeft: "1px solid #e2e8f0", display: "flex", flexDirection: "column" }}>
+        <header style={{ position: "sticky", top: 0, zIndex: 2, background: "rgba(255,255,255,.96)", backdropFilter: "blur(10px)", padding: "20px 24px", borderBottom: "1px solid #e5ece7", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
+          <div><div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 1.5, color: brand }}>ALUMNI PROFILE</div><h2 id="alumni-details-title" style={{ margin: "5px 0 3px", fontSize: 21, fontWeight: 800, color: "#173d34" }}>{selectedAlumnus.full_name}</h2><p style={{ margin: 0, fontSize: 12, color: "#718078" }}>{selectedAlumnus.alumni_id}</p></div>
+          <button type="button" aria-label="Close alumni details" onClick={() => setSelectedAlumnus(null)} style={{ border: "1px solid #e2e8f0", borderRadius: 8, padding: "7px 10px", background: "#fff", color: "#52645a", cursor: "pointer" }}>✕</button>
+        </header>
+        <div style={{ padding: 22, display: "grid", gap: 14, flex: 1, alignContent: "start" }}>
+          <section style={{ ...card, background: "#f4faf6", borderColor: "#dcefe2" }}><div style={{ fontSize: 10, color: "#66766e", fontWeight: 800, letterSpacing: 1 }}>PROFILE STATUS</div><div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginTop: 9 }}><span style={{ display: "inline-flex", borderRadius: 20, padding: "6px 10px", background: selectedAlumnus.verification_status === "verified" ? "#e0f4e7" : "#fff0cf", color: selectedAlumnus.verification_status === "verified" ? "#17643f" : "#855b0a", fontSize: 11, fontWeight: 800 }}>{selectedAlumnus.verification_status.replaceAll("_", " ")}</span><span style={{ fontSize: 11, color: "#718078" }}>{selectedAlumnus.missing_fields?.length || 0} missing field(s)</span></div></section>
+          <section style={card}><h3 style={{ margin: 0, fontSize: 14, fontWeight: 800 }}>Contact information</h3><dl style={{ display: "grid", gap: 13, margin: "15px 0 0", fontSize: 13 }}><div><dt style={{ color: "#819087", fontSize: 11 }}>Telephone</dt><dd style={{ margin: "4px 0 0", color: "#173d34", fontWeight: 650 }}>{selectedAlumnus.phone ? <a href={"tel:" + selectedAlumnus.phone} style={{ color: brand }}>{selectedAlumnus.phone}</a> : "Not provided"}</dd></div><div><dt style={{ color: "#819087", fontSize: 11 }}>Email</dt><dd style={{ margin: "4px 0 0", overflowWrap: "anywhere", color: "#173d34", fontWeight: 650 }}>{selectedAlumnus.work_email ? <a href={"mailto:" + selectedAlumnus.work_email} style={{ color: brand }}>{selectedAlumnus.work_email}</a> : "Not provided"}</dd></div></dl></section>
+          <section style={card}><h3 style={{ margin: 0, fontSize: 14, fontWeight: 800 }}>Academic information</h3><dl style={{ display: "grid", gap: 13, margin: "15px 0 0", fontSize: 13 }}><div><dt style={{ color: "#819087", fontSize: 11 }}>Programme</dt><dd style={{ margin: "4px 0 0", color: "#173d34", fontWeight: 650 }}>{selectedAlumnus.program || "Not recorded"}</dd></div><div><dt style={{ color: "#819087", fontSize: 11 }}>Graduation year</dt><dd style={{ margin: "4px 0 0", color: "#173d34", fontWeight: 650 }}>{selectedAlumnus.graduation_year || "Not recorded"}</dd></div><div><dt style={{ color: "#819087", fontSize: 11 }}>Employment status</dt><dd style={{ margin: "4px 0 0", color: "#173d34", fontWeight: 650 }}>{selectedAlumnus.employment_status || "Not updated"}</dd></div></dl></section>
+          {!!selectedAlumnus.missing_fields?.length && <section style={{ ...card, borderColor: "#f1d9a4", background: "#fffbef" }}><h3 style={{ margin: 0, fontSize: 13, fontWeight: 800, color: "#855b0a" }}>Information to complete</h3><p style={{ margin: "8px 0 0", fontSize: 12, lineHeight: 1.6, color: "#785a22" }}>{selectedAlumnus.missing_fields.join(", ").replaceAll("_", " ")}</p></section>}
+        </div>
+        <footer style={{ position: "sticky", bottom: 0, padding: 18, display: "flex", gap: 8, background: "#fff", borderTop: "1px solid #e5ece7" }}><button type="button" onClick={() => { window.location.href = "/alumni/" + selectedAlumnus.id; }} style={{ flex: 1, padding: "10px 14px", border: 0, borderRadius: 8, background: brand, color: "#fff", fontSize: 12, fontWeight: 800, cursor: "pointer" }}>Open full profile</button><button type="button" onClick={() => setSelectedAlumnus(null)} style={{ padding: "10px 14px", border: "1px solid #d9e4dd", borderRadius: 8, background: "#fff", color: brand, fontSize: 12, fontWeight: 750, cursor: "pointer" }}>Close</button></footer>
+      </aside>
+    </div>}
     <div style={{ marginTop: 14, color: "#7c8982", fontSize: 11 }}>Import tip: export the “Master Alumni Database” worksheet from your workbook as CSV (UTF-8), then upload it here. The import keeps all records and skips duplicate Alumni IDs.</div>
   </div>;
 }
