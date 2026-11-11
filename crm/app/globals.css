@@ -2858,3 +2858,58 @@ button, input, select, textarea {
   .ciu-staff-hero { align-items: flex-start; padding: 17px 16px; }
   .ciu-staff-hero h1 { font-size: 22px; }
 }
+
+
+/* Tasks & Admissions Pipeline — match the overview's clean spacing and hierarchy. */
+.ciu-tasks-page {
+  padding: 26px 30px 42px !important;
+  color: var(--ciu-ink, #172b27) !important;
+  font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif !important;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.ciu-tasks-page > div {
+  max-width: 1560px !important;
+}
+.ciu-tasks-page .ciu-tasks-hero {
+  gap: 18px !important;
+  margin-bottom: 20px !important;
+  padding: 20px 24px !important;
+  border: 1px solid var(--ciu-border, #e1e8e4) !important;
+  border-left: 3px solid var(--ciu-green, #106053) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 1px 3px rgba(23, 43, 39, .035) !important;
+}
+.ciu-tasks-page .ciu-tasks-hero h1 {
+  font-size: clamp(23px, 1.8vw, 28px) !important;
+  line-height: 1.25 !important;
+  font-weight: 700 !important;
+  letter-spacing: -.035em !important;
+  color: var(--ciu-ink, #172b27) !important;
+}
+.ciu-tasks-page .ciu-tasks-hero p {
+  max-width: 760px;
+  color: var(--ciu-muted, #64756f) !important;
+  font-size: 13px !important;
+  line-height: 1.55 !important;
+}
+.ciu-tasks-page .ciu-tasks-hero button {
+  min-height: 38px !important;
+  border-radius: 7px !important;
+  font-size: 12px !important;
+  font-weight: 650 !important;
+}
+.ciu-page .ciu-page-inner {
+  max-width: 1560px;
+}
+.ciu-page .ciu-hero {
+  margin-bottom: 20px;
+}
+.ciu-page .ciu-hero h1 {
+  letter-spacing: -.035em;
+}
+@media (max-width: 760px) {
+  .ciu-tasks-page { padding: 18px 14px 30px !important; }
+  .ciu-tasks-page .ciu-tasks-hero { align-items: flex-start !important; padding: 17px 16px !important; }
+  .ciu-tasks-page .ciu-tasks-hero h1 { font-size: 22px !important; }
+}
