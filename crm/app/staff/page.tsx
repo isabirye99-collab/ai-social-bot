@@ -225,7 +225,7 @@ export default function Staff() {
 
   return (
     <>
-      <div className="crm-page-heading">
+      <div className="crm-page-heading ciu-staff-hero">
         <div>
           <h1>Staff &amp; Team</h1>
           <p>Manage staff profiles, roles and individual CRM access.</p>
