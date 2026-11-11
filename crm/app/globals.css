@@ -3701,3 +3701,99 @@ button, input, select, textarea {
 @media (max-width: 420px) {
   .crm-kpis { grid-template-columns: 1fr !important; }
 }
+
+
+/* Alumni and Partnerships: unify page headers, registers and record drawers */
+.ciu-alumni-page,
+.ciu-partnerships-page {
+  background: #f5f8f6 !important;
+  color: #172b27;
+}
+.ciu-alumni-page .ciu-page-inner,
+.ciu-partnerships-page .ciu-page-inner {
+  max-width: 1480px !important;
+  padding-top: 4px;
+  padding-bottom: 28px;
+}
+.ciu-alumni-page .ciu-alumni-hero,
+.ciu-partnerships-page .ciu-hero {
+  align-items: center;
+  gap: 16px !important;
+  padding: 18px 22px !important;
+  margin-bottom: 15px !important;
+  border: 1px solid #e0e9e3 !important;
+  border-left: 4px solid #075442 !important;
+  border-radius: 14px !important;
+  background: linear-gradient(115deg,#fff 0%,#f4faf5 100%) !important;
+  box-shadow: 0 4px 16px rgba(20,60,40,.035);
+}
+.ciu-alumni-page .ciu-alumni-hero h1,
+.ciu-partnerships-page .ciu-hero h1 {
+  color: #172b27 !important;
+  font-size: 26px !important;
+  line-height: 1.25 !important;
+  letter-spacing: -.035em !important;
+}
+.ciu-alumni-page .ciu-alumni-hero p,
+.ciu-partnerships-page .ciu-hero p {
+  color: #64756f !important;
+  font-size: 12px !important;
+  line-height: 1.55;
+}
+.ciu-alumni-page .rounded-xl.border,
+.ciu-partnerships-page .rounded-xl.border,
+.ciu-partnerships-page .overflow-hidden.rounded-xl {
+  border-color: #e1e9e3 !important;
+  box-shadow: 0 4px 16px rgba(20,60,40,.025);
+}
+.ciu-alumni-page table thead,
+.ciu-partnerships-page table thead {
+  background: #f2f7f3 !important;
+}
+.ciu-alumni-page table th,
+.ciu-partnerships-page table th {
+  color: #587066 !important;
+  font-size: 9.5px !important;
+  letter-spacing: .045em;
+  text-transform: uppercase;
+}
+.ciu-alumni-page table td,
+.ciu-partnerships-page table td {
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+.ciu-alumni-page tbody tr:nth-child(even),
+.ciu-partnerships-page tbody tr:nth-child(even) {
+  background: #fbfdfb;
+}
+.ciu-alumni-page tbody tr:hover,
+.ciu-partnerships-page tbody tr:hover {
+  background: #f0f8f2;
+}
+.ciu-alumni-page .ciu-alumni-drawer,
+.ciu-partnerships-page .ciu-partnership-drawer {
+  border-color: #dfe9e3 !important;
+  box-shadow: -16px 0 50px rgba(12,35,28,.12) !important;
+}
+.ciu-alumni-page button,
+.ciu-partnerships-page button {
+  transition: background-color .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+.ciu-alumni-page input,
+.ciu-alumni-page select,
+.ciu-alumni-page textarea,
+.ciu-partnerships-page input,
+.ciu-partnerships-page select,
+.ciu-partnerships-page textarea {
+  font-size: 12px;
+}
+@media (max-width: 760px) {
+  .ciu-alumni-page .ciu-page-inner,
+  .ciu-partnerships-page .ciu-page-inner { padding-top: 0; }
+  .ciu-alumni-page .ciu-alumni-hero,
+  .ciu-partnerships-page .ciu-hero { padding: 16px !important; }
+  .ciu-alumni-page .ciu-alumni-hero h1,
+  .ciu-partnerships-page .ciu-hero h1 { font-size: 23px !important; }
+  .ciu-alumni-page table,
+  .ciu-partnerships-page table { min-width: 760px; }
+}
