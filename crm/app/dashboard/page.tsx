@@ -1649,23 +1649,26 @@ export default function DashboardPage() {
         </div>
 
         <div className="overflow-hidden rounded-2xl border border-[#e2e9e5] bg-white shadow-[0_4px_18px_rgba(20,50,40,.035)]">
-          <div className="flex items-center justify-between border-b border-[#e4ebe6] bg-[#f7faf8] px-5 py-4">
-            <div>
-              <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-[#718078]">Recently added</p>
-              <h2 className="mt-1 text-base font-black text-[#173b2b]">Recent Leads</h2>
-            </div>
-            <Link href="/leads" className="text-xs font-bold text-[#00695c] hover:underline">View all →</Link>
+          <div className="border-b border-[#e4ebe6] bg-[#f7faf8] px-5 py-4">
+            <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-[#718078]">Quick access</p>
+            <h2 className="mt-1 text-base font-black text-[#173b2b]">Reports & Insights</h2>
           </div>
-          <div className="divide-y divide-[#edf1ef]">
-            {recentLeads.length ? recentLeads.map((lead) => (
-              <Link key={lead.id} href="/leads" className="flex items-center justify-between gap-3 px-5 py-3 transition hover:bg-[#f8fbf9]">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-bold text-[#263d31]">{lead.name || lead.ciu_number || "Unnamed lead"}</p>
-                  <p className="mt-0.5 truncate text-xs text-[#718078]">{lead.product_service || "Programme not specified"}</p>
-                </div>
-                <span className="shrink-0 rounded-full bg-[#edf6ef] px-2.5 py-1 text-[10px] font-bold capitalize text-[#35684e]">{(lead.status || "new").replace(/_/g, " ")}</span>
-              </Link>
-            )) : <p className="px-5 py-8 text-sm text-[#718078]">No lead records available yet.</p>}
+          <div className="space-y-3 p-4">
+            <Link href="/reports" className="group flex items-center gap-3 rounded-xl border border-[#e5ece7] p-3 transition hover:border-[#b8d9a7] hover:bg-[#f7fbf8]">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#e8f4e0] text-[#075442]"><Icon name="chart" size={17} /></span>
+              <span className="min-w-0 flex-1"><span className="block text-sm font-bold text-[#263d31]">CRM Performance Reports</span><span className="mt-0.5 block text-xs text-[#718078]">Review recruitment and team activity</span></span>
+              <span className="text-sm font-bold text-[#00695c]">→</span>
+            </Link>
+            <Link href="/pipeline" className="group flex items-center gap-3 rounded-xl border border-[#e5ece7] p-3 transition hover:border-[#b8d9a7] hover:bg-[#f7fbf8]">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#e8f4e0] text-[#075442]"><Icon name="layers" size={17} /></span>
+              <span className="min-w-0 flex-1"><span className="block text-sm font-bold text-[#263d31]">Admissions Pipeline</span><span className="mt-0.5 block text-xs text-[#718078]">Track students by admission stage</span></span>
+              <span className="text-sm font-bold text-[#00695c]">→</span>
+            </Link>
+            <Link href="/marketing" className="group flex items-center gap-3 rounded-xl border border-[#e5ece7] p-3 transition hover:border-[#b8d9a7] hover:bg-[#f7fbf8]">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#e8f4e0] text-[#075442]"><Icon name="megaphone" size={17} /></span>
+              <span className="min-w-0 flex-1"><span className="block text-sm font-bold text-[#263d31]">Campaign Activity</span><span className="mt-0.5 block text-xs text-[#718078]">Open campaigns and lead generation</span></span>
+              <span className="text-sm font-bold text-[#00695c]">→</span>
+            </Link>
           </div>
         </div>
 
