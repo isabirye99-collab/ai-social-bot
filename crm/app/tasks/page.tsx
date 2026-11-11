@@ -535,7 +535,7 @@ const isSalesperson =
       // Backfill missing follow-up tasks for campaign-linked leads.
       // Run from admin views only, so salesperson-scoped task visibility cannot
       // cause duplicates for tasks assigned to another member of staff.
-      if (role === "admin" || role === "super_admin") {
+      if (role !== "salesperson") {
         try {
           const campaignLeadResult = await supabase
             .from("campaign_leads")
