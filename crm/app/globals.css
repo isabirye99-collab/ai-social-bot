@@ -3181,3 +3181,52 @@ button, input, select, textarea {
     max-width: 100%;
   }
 }
+
+
+/* Admissions pipeline — keep stage navigation usable on smaller screens. */
+.ciu-page .pipeline-stage-tabs-wrap {
+  min-width: 0;
+  max-width: 100%;
+}
+.ciu-page .pipeline-stage-tabs {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+.ciu-page .pipeline-table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+}
+.ciu-page .pipeline-table {
+  min-width: 920px;
+}
+.ciu-page .student-cell,
+.ciu-page .student-name-wrap,
+.ciu-page .programme-cell,
+.ciu-page .assigned-cell {
+  min-width: 0;
+}
+.ciu-page .student-name-wrap a {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 760px) {
+  .ciu-page .pipeline-stage-tabs-wrap {
+    margin-left: -2px;
+    margin-right: -2px;
+  }
+  .ciu-page .pipeline-stage-tabs {
+    padding-bottom: 5px;
+  }
+  .ciu-page .pipeline-search {
+    width: 100%;
+    max-width: 100%;
+  }
+  .ciu-page .pipeline-table-footer {
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+}
