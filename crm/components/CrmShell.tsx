@@ -92,7 +92,7 @@ export default function CrmShell({
 
   const [crmName, setCrmName] = useState("CIU Business CRM");
 
-  const [primaryColor, setPrimaryColor] = useState("#00695c");
+  const [primaryColor, setPrimaryColor] = useState("#106053");
 
   const [layoutOrientation, setLayoutOrientation] = useState<"vertical" | "horizontal">("vertical");
 
