@@ -2691,3 +2691,61 @@ button, input, select, textarea {
   }
 }
 
+
+
+/* Marketing module — align its header and page rhythm with the CRM overview.
+   Scoped to Marketing so existing campaign tools and workflows remain untouched. */
+.ciu-marketing-page {
+  color: var(--ciu-ink, #172b27) !important;
+  font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif !important;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.ciu-marketing-page > div {
+  max-width: 1560px !important;
+}
+.ciu-marketing-page .ciu-marketing-hero {
+  align-items: center !important;
+  gap: 20px !important;
+  margin: 0 0 22px !important;
+  padding: 20px 24px !important;
+  background: #fff !important;
+  border: 1px solid var(--ciu-border, #e1e8e4) !important;
+  border-left: 3px solid var(--ciu-green, #106053) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 1px 3px rgba(23, 43, 39, .035) !important;
+}
+.ciu-marketing-page .ciu-marketing-hero h1 {
+  margin: 0 !important;
+  color: var(--ciu-ink, #172b27) !important;
+  font-size: clamp(23px, 1.8vw, 28px) !important;
+  line-height: 1.25 !important;
+  font-weight: 700 !important;
+  letter-spacing: -.035em !important;
+}
+.ciu-marketing-page .ciu-marketing-hero p {
+  margin: 7px 0 0 !important;
+  max-width: 760px;
+  color: var(--ciu-muted, #64756f) !important;
+  font-size: 13px !important;
+  line-height: 1.55 !important;
+}
+.ciu-marketing-page .ciu-marketing-hero button {
+  min-height: 38px !important;
+  border-radius: 7px !important;
+  font-size: 12px !important;
+  font-weight: 650 !important;
+  box-shadow: none !important;
+}
+@media (min-width: 1280px) {
+  .ciu-marketing-page { padding: 26px 30px 42px !important; }
+}
+@media (max-width: 760px) {
+  .ciu-marketing-page { padding: 18px 14px 30px !important; }
+  .ciu-marketing-page .ciu-marketing-hero {
+    align-items: flex-start !important;
+    padding: 17px 16px !important;
+    margin-bottom: 16px !important;
+  }
+  .ciu-marketing-page .ciu-marketing-hero h1 { font-size: 22px !important; }
+}
