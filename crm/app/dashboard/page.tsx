@@ -1185,11 +1185,7 @@ export default function DashboardPage() {
                         }}
                       />
 
-                      <div className="absolute inset-x-0 bottom-0 p-3">
-                        <p className="text-xs font-bold tracking-wide text-white drop-shadow-sm">
-                          {stage.conversion}% conversion
-                        </p>
-                      </div>
+
                     </div>
 
                     {index <
