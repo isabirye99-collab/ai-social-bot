@@ -2170,9 +2170,9 @@ function KpiCard({
       style={{
         position: "relative",
         minWidth: 0,
-        minHeight: 132,
+        minHeight: 116,
         padding:
-          "20px 20px 18px",
+          "16px 17px 15px",
         border:
           `1px solid ${selected.border}`,
         borderRadius: 14,
@@ -2197,7 +2197,7 @@ function KpiCard({
 
       <div
         style={{
-          fontSize: 12,
+          fontSize: 10.5,
           fontWeight: 800,
           color: "#6b7f78",
           textTransform:
@@ -2211,9 +2211,9 @@ function KpiCard({
 
       <div
         style={{
-          marginTop: 9,
-          fontSize: 34,
-          lineHeight: 1,
+          marginTop: 8,
+          fontSize: 29,
+          lineHeight: 1.05,
           fontWeight: 900,
           color: "#17322c",
         }}
@@ -2223,8 +2223,9 @@ function KpiCard({
 
       <div
         style={{
-          marginTop: 9,
-          fontSize: 12,
+          marginTop: 8,
+          fontSize: 11,
+          lineHeight: 1.45,
           color: "#6b7f78",
         }}
       >
