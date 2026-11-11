@@ -992,8 +992,8 @@ export default function DashboardPage() {
               {leads.length}
             </span>
 
-            <span className="text-[10px] font-bold text-[#6d887a]">
-              +{stats.newLeads} this month
+            <span className="text-[10px] font-semibold text-[#7b8982]">
+              View lead register
             </span>
           </div>
         </Link>
@@ -1112,8 +1112,8 @@ export default function DashboardPage() {
               {stats.enrolled}
             </span>
 
-            <span className="text-[10px] font-bold text-[#b9d4c8]">
-              {stats.monthlyEnrolled} this month
+            <span className="text-[10px] font-semibold text-[#b9d4c8]">
+              View enrolled students
             </span>
           </div>
         </Link>
@@ -1186,12 +1186,8 @@ export default function DashboardPage() {
                       />
 
                       <div className="absolute inset-x-0 bottom-0 p-3">
-                        <p className="text-2xl font-black tracking-[-0.04em] text-white drop-shadow-sm">
-                          {stage.value}
-                        </p>
-
-                        <p className="text-[9px] font-semibold text-white/80">
-                          students / records
+                        <p className="text-xs font-bold tracking-wide text-white drop-shadow-sm">
+                          {stage.conversion}% conversion
                         </p>
                       </div>
                     </div>
@@ -1211,39 +1207,7 @@ export default function DashboardPage() {
               )}
             </div>
 
-            <div className="mt-5 grid grid-cols-3 border-t border-[#edf1ef] pt-4">
-              <div>
-                <p className="text-[9px] font-bold uppercase tracking-wide text-[#8b9892]">
-                  New this month
-                </p>
 
-                <p className="mt-1 text-lg font-black text-[#17211b]">
-                  {stats.newLeads}
-                </p>
-              </div>
-
-              <div className="border-l border-[#edf1ef] pl-4">
-                <p className="text-[9px] font-bold uppercase tracking-wide text-[#8b9892]">
-                  Monthly enrolled
-                </p>
-
-                <p className="mt-1 text-lg font-black text-[#17211b]">
-                  {stats.monthlyEnrolled}
-                </p>
-              </div>
-
-              <div className="border-l border-[#edf1ef] pl-4">
-                <p className="text-[9px] font-bold uppercase tracking-wide text-[#8b9892]">
-                  Conversion
-                </p>
-
-                <p className="mt-1 text-lg font-black text-[#075442]">
-                  {percentage(
-                    stats.conversionRate,
-                  )}
-                </p>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -1326,22 +1290,7 @@ export default function DashboardPage() {
             )}
           </div>
 
-          <div className="m-4 rounded-xl bg-[#075442] px-4 py-3">
-            <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-[#b8d4c8]">
-              Immediate workload
-            </p>
 
-            <div className="mt-1 flex items-end justify-between">
-              <p className="text-xl font-black text-white">
-                {stats.followUpsDue +
-                  stats.tasksToday}
-              </p>
-
-              <span className="text-[9px] font-semibold text-[#b8d4c8]">
-                actions requiring attention
-              </span>
-            </div>
-          </div>
         </div>
       </section>
 
