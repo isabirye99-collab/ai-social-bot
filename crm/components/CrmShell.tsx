@@ -7,6 +7,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { useEffect, useState } from "react";
+import { LayoutDashboard, UsersRound, ContactRound, GitBranch, CheckSquare, Megaphone, BarChart3, Wrench, Settings, type LucideIcon } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/client";
 
@@ -30,7 +31,7 @@ type NavItem = {
 
   module: CrmModule;
 
-  icon: string;
+  icon: LucideIcon;
 
 };
 
@@ -38,22 +39,22 @@ type NavItem = {
 
 const navItems: NavItem[] = [
 
-  { label: "Dashboard", href: "/dashboard", module: "dashboard", icon: "Ã¢Å’â€š" },
+  { label: "Dashboard", href: "/dashboard", module: "dashboard", icon: LayoutDashboard },
 
-  { label: "Leads", href: "/leads", module: "leads", icon: "Ã¢â€”Å½" },
+  { label: "Leads", href: "/leads", module: "leads", icon: UsersRound },
 
-  { label: "Customers", href: "/customers", module: "customers", icon: "Ã¢â„¢â„¢" },
+  { label: "Customers", href: "/customers", module: "customers", icon: ContactRound },
 
-  { label: "Pipeline", href: "/pipeline", module: "pipeline", icon: "Ã¢â€“Â°" },
+  { label: "Pipeline", href: "/pipeline", module: "pipeline", icon: GitBranch },
 
-  { label: "Tasks", href: "/tasks", module: "tasks", icon: "Ã¢Å“â€œ" },
+  { label: "Tasks", href: "/tasks", module: "tasks", icon: CheckSquare },
 
-  { label: "Marketing", href: "/marketing", module: "marketing", icon: "Ã¢Å“Â¦" },
+  { label: "Marketing", href: "/marketing", module: "marketing", icon: Megaphone },
 
-  { label: "Reports", href: "/reports", module: "reports", icon: "Ã¢â€“Â¤" },
-{ label: "Advanced", href: "/advanced", module: "advanced", icon: "Ã¢Å“Â§" },
+  { label: "Reports", href: "/reports", module: "reports", icon: BarChart3 },
+{ label: "Advanced", href: "/advanced", module: "advanced", icon: Wrench },
 
-  { label: "Settings", href: "/settings", module: "settings", icon: "Ã¢Å¡â„¢" },
+  { label: "Settings", href: "/settings", module: "settings", icon: Settings },
 
 ];
 
@@ -736,7 +737,7 @@ if (mounted) {
 
               >
 
-                Lead Â· Innovate Â· Transform
+                Lead · Innovate · Transform
 
               </div>
 
@@ -854,7 +855,7 @@ if (mounted) {
 
                     >
 
-                      {item.icon}
+                      <item.icon size={17} strokeWidth={1.8} aria-hidden="true" />
 
                     </span>
 
