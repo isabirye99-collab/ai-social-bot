@@ -2979,6 +2979,7 @@ const isSalesperson =
             }}
           >
             <div
+              className="ciu-task-drawer-header"
               style={{
                 padding:
                   "20px 22px",
@@ -4180,6 +4181,7 @@ const isSalesperson =
             role="dialog"
             aria-modal="true"
             aria-label="Task details"
+            className="ciu-task-drawer"
             style={{
               width: "min(560px, 100%)",
               height: "100dvh",
