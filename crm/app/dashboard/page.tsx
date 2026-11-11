@@ -1291,11 +1291,11 @@ export default function DashboardPage() {
                   Lead to enrolment
                 </p>
 
-                <p className="mt-1 text-3xl font-black tracking-[-0.05em] text-[#075442]">
+                <Link href="/reports" className="ciu-dashboard-link mt-1 inline-block rounded-md text-3xl font-black tracking-[-0.05em] text-[#075442]">
                   {percentage(
                     stats.conversionRate,
                   )}
-                </p>
+                </Link>
               </div>
 
               <div className="text-right">
@@ -1507,18 +1507,18 @@ export default function DashboardPage() {
             </span>
           </div>
           <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
-            <div className="rounded-xl bg-[#f7faf8] p-3">
+            <Link href="/alumni" className="ciu-dashboard-link block rounded-xl bg-[#f7faf8] p-3">
               <p className="text-xs font-medium text-[#718078]">Total alumni</p>
               <p className="mt-1 text-2xl font-black text-[#173b2b]">{alumniReportAvailable ? alumniCounts.total.toLocaleString() : "—"}</p>
-            </div>
-            <div className="rounded-xl bg-[#f7faf8] p-3">
+            </Link>
+            <Link href="/alumni" className="ciu-dashboard-link block rounded-xl bg-[#f7faf8] p-3">
               <p className="text-xs font-medium text-[#718078]">Verified</p>
               <p className="mt-1 text-2xl font-black text-[#00695c]">{alumniReportAvailable ? alumniCounts.verified.toLocaleString() : "—"}</p>
-            </div>
-            <div className="rounded-xl bg-[#f7faf8] p-3">
+            </Link>
+            <Link href="/alumni" className="ciu-dashboard-link block rounded-xl bg-[#f7faf8] p-3">
               <p className="text-xs font-medium text-[#718078]">Pending review</p>
               <p className="mt-1 text-2xl font-black text-[#8a6420]">{alumniReportAvailable ? Math.max(0, alumniCounts.total - alumniCounts.verified).toLocaleString() : "—"}</p>
-            </div>
+            </Link>
           </div>
           <Link href="/alumni" className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-[#00695c] hover:underline">
             Open Alumni register <Icon name="chevron" size={14} />
@@ -1538,18 +1538,18 @@ export default function DashboardPage() {
             </span>
           </div>
           <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
-            <div className="rounded-xl bg-[#f7faf8] p-3">
+            <Link href="/partnerships" className="ciu-dashboard-link block rounded-xl bg-[#f7faf8] p-3">
               <p className="text-xs font-medium text-[#718078]">Total partners</p>
               <p className="mt-1 text-2xl font-black text-[#173b2b]">{partnershipReportAvailable ? partnershipRecords.length.toLocaleString() : "—"}</p>
-            </div>
-            <div className="rounded-xl bg-[#f7faf8] p-3">
+            </Link>
+            <Link href="/partnerships" className="ciu-dashboard-link block rounded-xl bg-[#f7faf8] p-3">
               <p className="text-xs font-medium text-[#718078]">Active</p>
               <p className="mt-1 text-2xl font-black text-[#00695c]">{partnershipReportAvailable ? partnershipRecords.filter((item) => (item.status || "").toLowerCase() === "active").length.toLocaleString() : "—"}</p>
-            </div>
-            <div className="rounded-xl bg-[#f7faf8] p-3">
+            </Link>
+            <Link href="/partnerships" className="ciu-dashboard-link block rounded-xl bg-[#f7faf8] p-3">
               <p className="text-xs font-medium text-[#718078]">In negotiation</p>
               <p className="mt-1 text-2xl font-black text-[#8a6420]">{partnershipReportAvailable ? partnershipRecords.filter((item) => ["negotiation", "engaging"].includes((item.status || "").toLowerCase())).length.toLocaleString() : "—"}</p>
-            </div>
+            </Link>
           </div>
           <Link href="/partnerships" className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-[#00695c] hover:underline">
             Open Partnerships register <Icon name="chevron" size={14} />
