@@ -419,6 +419,7 @@ function LeadCaptureForm() {
   if (submitted) {
     return (
       <main
+        className="ciu-public-lead-success"
         style={{
           minHeight: "100vh",
           background: "#f8fafc",
@@ -527,6 +528,7 @@ function LeadCaptureForm() {
 
   return (
     <main
+      className="ciu-public-lead-capture"
       style={{
         minHeight: "100vh",
         background: "#f8fafc",
