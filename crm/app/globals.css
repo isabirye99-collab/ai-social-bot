@@ -2940,3 +2940,75 @@ button, input, select, textarea {
   .ciu-social-hub-page { padding: 18px 14px 30px !important; }
   .ciu-social-hub-page .ciu-social-hub-title { font-size: 22px !important; }
 }
+
+
+/* Reports — reduce visual density and keep filter actions usable at every width. */
+.ciu-page .report-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 20px 24px;
+  margin-bottom: 20px;
+  background: #fff;
+  border: 1px solid var(--ciu-border, #e1e8e4);
+  border-left: 3px solid var(--ciu-green, #106053);
+}
+.ciu-page .report-hero-content { min-width: 0; flex: 1 1 320px; }
+.ciu-page .report-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.ciu-page .report-select {
+  min-height: 38px;
+  max-width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--ciu-border, #dce5df);
+  background: #fff;
+  color: var(--ciu-ink, #172b27);
+}
+.ciu-page .report-refresh,
+.ciu-page .report-print {
+  min-height: 38px;
+  padding: 8px 13px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 650;
+}
+.ciu-page .report-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 15px 18px;
+  background: #f8faf9;
+  border-bottom: 1px solid var(--ciu-border, #e1e8e4);
+}
+.ciu-page .report-card-head h2 {
+  margin: 0;
+  color: var(--ciu-ink, #172b27);
+  font-size: 14px;
+  line-height: 1.4;
+  font-weight: 700;
+}
+.ciu-page .report-card-head span {
+  display: block;
+  margin-top: 3px;
+  color: var(--ciu-muted, #64756f);
+  font-size: 12px;
+  line-height: 1.45;
+}
+@media (max-width: 900px) {
+  .ciu-page .report-hero { align-items: flex-start; flex-direction: column; padding: 18px; }
+  .ciu-page .report-controls { width: 100%; justify-content: flex-start; }
+}
+@media (max-width: 600px) {
+  .ciu-page .report-controls > * { flex: 1 1 130px; }
+  .ciu-page .report-select { width: 100%; }
+  .ciu-page .report-refresh,
+  .ciu-page .report-print { justify-content: center; }
+  .ciu-page .report-card-head { align-items: flex-start; }
+}
