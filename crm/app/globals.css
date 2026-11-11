@@ -3491,3 +3491,213 @@ button, input, select, textarea {
   .ciu-dashboard > header h1 { font-size: 23px !important; }
   .ciu-dashboard > section { gap: 12px; }
 }
+
+
+/* Cross-module polish pass: Marketing, Staff and Customers */
+.ciu-marketing-page {
+  padding: 22px 26px 36px !important;
+  color: #172b27 !important;
+  background: #f5f8f6 !important;
+}
+.ciu-marketing-page > div { max-width: 1480px !important; }
+.ciu-marketing-page .ciu-marketing-hero {
+  position: relative;
+  align-items: center;
+  gap: 16px !important;
+  margin-bottom: 16px !important;
+  padding: 19px 22px !important;
+  border: 1px solid #e0e9e3 !important;
+  border-left: 4px solid #075442 !important;
+  border-radius: 14px;
+  background: linear-gradient(115deg,#fff 0%,#f4faf5 100%);
+  box-shadow: 0 4px 16px rgba(20,60,40,.035);
+}
+.ciu-marketing-page .ciu-marketing-hero h1 {
+  font-size: 26px !important;
+  line-height: 1.25 !important;
+  letter-spacing: -.04em;
+  color: #172b27 !important;
+}
+.ciu-marketing-page .ciu-marketing-hero p {
+  max-width: 620px;
+  font-size: 12px !important;
+  line-height: 1.55;
+  color: #64756f !important;
+}
+.ciu-marketing-page .ciu-marketing-hero button,
+.ciu-marketing-page .ciu-btn,
+.ciu-marketing-page .ciu-btn-light {
+  min-height: 37px !important;
+  padding: 9px 13px !important;
+  border-radius: 8px !important;
+  font-size: 12px !important;
+  font-weight: 650 !important;
+}
+.ciu-marketing-page input,
+.ciu-marketing-page select,
+.ciu-marketing-page textarea {
+  min-height: 38px;
+  border-radius: 8px !important;
+  border-color: #d9e5de !important;
+  font-size: 12px !important;
+}
+.ciu-marketing-page input:focus,
+.ciu-marketing-page select:focus,
+.ciu-marketing-page textarea:focus {
+  outline: none;
+  border-color: #78ad91 !important;
+  box-shadow: 0 0 0 3px rgba(7,84,66,.08);
+}
+.ciu-marketing-page table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.ciu-marketing-page thead th {
+  padding: 11px 12px !important;
+  background: #f1f7f2;
+  color: #587066;
+  font-size: 9.5px !important;
+  text-transform: uppercase;
+  letter-spacing: .045em;
+}
+.ciu-marketing-page tbody td {
+  padding: 11px 12px !important;
+  font-size: 11.5px !important;
+  border-bottom-color: #edf2ee !important;
+}
+.ciu-marketing-page tbody tr:nth-child(even) { background: #fbfdfb; }
+.ciu-marketing-page tbody tr:hover { background: #f0f8f2; }
+.ciu-marketing-page [style*="border-radius: 16px"],
+.ciu-marketing-page [style*="borderRadius: 16"] {
+  box-shadow: 0 4px 16px rgba(20,60,40,.035);
+}
+.crm-page-heading.ciu-staff-hero {
+  padding: 18px 22px !important;
+  margin-bottom: 15px !important;
+  background: linear-gradient(115deg,#fff 0%,#f5faf6 100%) !important;
+}
+.crm-kpis {
+  gap: 10px !important;
+  margin-bottom: 15px !important;
+}
+.crm-kpi {
+  min-width: 0;
+  padding: 15px 16px !important;
+  border: 1px solid #e1e9e3 !important;
+  border-radius: 12px !important;
+  box-shadow: 0 3px 12px rgba(20,60,40,.03) !important;
+}
+.crm-kpi-label {
+  font-size: 10px !important;
+  letter-spacing: .025em;
+}
+.crm-kpi-value {
+  margin-top: 6px;
+  font-size: 24px !important;
+  line-height: 1.15 !important;
+  font-variant-numeric: tabular-nums;
+}
+.crm-kpi-change {
+  margin-top: 5px;
+  font-size: 10px !important;
+}
+.crm-card {
+  border: 1px solid #e1e9e3 !important;
+  border-radius: 12px !important;
+  box-shadow: 0 4px 16px rgba(20,60,40,.03) !important;
+}
+.crm-card-header {
+  padding: 14px 17px !important;
+  background: #fff;
+  border-bottom: 1px solid #edf2ee;
+}
+.crm-table-wrap {
+  overflow-x: auto;
+  border-radius: 0 0 12px 12px;
+}
+.crm-table {
+  min-width: 760px;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.crm-table th {
+  padding: 11px 13px !important;
+  background: #f2f7f3;
+  color: #587066;
+  font-size: 9.5px !important;
+  letter-spacing: .045em;
+}
+.crm-table td {
+  padding: 11px 13px !important;
+  border-bottom: 1px solid #edf2ee;
+  font-size: 11.5px !important;
+}
+.crm-table tbody tr:nth-child(even) { background: #fbfdfb; }
+.crm-table tbody tr:hover { background: #f0f8f2; }
+.crm-btn {
+  min-height: 37px;
+  border-radius: 8px !important;
+  font-size: 12px !important;
+}
+.ciu-page .ciu-hero {
+  margin-bottom: 15px !important;
+  padding: 19px 22px !important;
+  border-radius: 14px !important;
+  background: linear-gradient(115deg,#fff 0%,#f5faf6 100%);
+}
+.ciu-page .ciu-customer-kpis {
+  gap: 10px !important;
+  margin-bottom: 15px !important;
+}
+.ciu-page .ciu-customer-summary,
+.ciu-page .ciu-card {
+  border-radius: 12px !important;
+  border-color: #e1e9e3 !important;
+  box-shadow: 0 4px 16px rgba(20,60,40,.03) !important;
+}
+.ciu-page .ciu-card-head {
+  padding: 14px 17px !important;
+  background: #fff;
+}
+.ciu-page .ciu-customer-filters {
+  gap: 10px !important;
+}
+.ciu-page .ciu-table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+.ciu-page .ciu-report-table th {
+  padding: 11px 12px !important;
+  background: #f2f7f3;
+  color: #587066;
+  font-size: 9.5px !important;
+  letter-spacing: .045em;
+}
+.ciu-page .ciu-report-table td {
+  padding: 11px 12px !important;
+  font-size: 11.5px !important;
+}
+.ciu-page .ciu-report-table tbody tr:nth-child(even) { background: #fbfdfb; }
+.ciu-page .ciu-report-table tbody tr:hover { background: #f0f8f2; }
+@media (max-width: 760px) {
+  .ciu-marketing-page { padding: 14px 12px 26px !important; }
+  .ciu-marketing-page .ciu-marketing-hero {
+    align-items: flex-start;
+    padding: 16px !important;
+  }
+  .ciu-marketing-page .ciu-marketing-hero h1 { font-size: 23px !important; }
+  .ciu-marketing-page .ciu-marketing-hero > div:last-child {
+    width: 100%;
+    gap: 8px !important;
+  }
+  .ciu-marketing-page .ciu-marketing-hero button { flex: 1 1 auto; }
+  .crm-page-heading.ciu-staff-hero { padding: 16px !important; }
+  .crm-kpis { grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
+  .crm-kpi { padding: 12px !important; }
+  .crm-kpi-value { font-size: 21px !important; }
+  .ciu-page .ciu-hero { padding: 16px !important; }
+}
+@media (max-width: 420px) {
+  .crm-kpis { grid-template-columns: 1fr !important; }
+}
