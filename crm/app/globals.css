@@ -2316,3 +2316,236 @@ main table td {
   .ciu-tasks-page .ciu-tasks-hero h1 { font-size: 22px !important; }
   .ciu-tasks-page .ciu-tasks-kpis { grid-template-columns: minmax(0, 1fr) !important; }
 }
+
+
+/* ---------------------------------------------------------------
+   CIU CRM design foundation — shared typography, spacing and states
+   Kept as a final layer so existing module layouts remain intact.
+---------------------------------------------------------------- */
+:root {
+  --brand: #106053;
+  --brand-dark: #0b4c42;
+  --brand-light: #eaf4f0;
+  --accent: #8dc642;
+  --ink: #172b27;
+  --muted: #64756f;
+  --bg: #f6f8f7;
+  --card: #ffffff;
+  --border: #e1e8e4;
+  --shadow: 0 4px 18px rgba(23, 50, 44, 0.055);
+  --ciu-green: #106053;
+  --ciu-green-dark: #0b4c42;
+  --ciu-green-deep: #103f37;
+  --ciu-lime: #8dc642;
+  --ciu-lime-soft: #f3f9e9;
+  --ciu-mint: #eef6f2;
+  --ciu-ink: #172b27;
+  --ciu-muted: #64756f;
+  --ciu-bg: #f6f8f7;
+  --ciu-border: #e1e8e4;
+}
+
+html {
+  font-size: 14px;
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+
+html, body, button, input, select, textarea {
+  font-family: Inter, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-optical-sizing: auto;
+}
+
+body {
+  color: var(--ink);
+  background: var(--bg);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button, input, select, textarea {
+  font-size: 14px;
+}
+
+:where(input, select, textarea, button):focus-visible,
+:where(a, [role="button"]):focus-visible {
+  outline: 3px solid rgba(141, 198, 66, 0.55);
+  outline-offset: 2px;
+}
+
+.crm-content {
+  padding: 28px 32px 48px;
+}
+
+.crm-page-heading {
+  margin-bottom: 24px;
+}
+
+.crm-page-heading h1 {
+  font-size: clamp(24px, 2vw, 30px);
+  line-height: 1.2;
+  font-weight: 750;
+  letter-spacing: -0.6px;
+}
+
+.crm-page-heading p {
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.crm-nav a {
+  min-height: 44px;
+  font-size: 14px;
+  font-weight: 550;
+}
+
+.crm-btn {
+  min-height: 40px;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.crm-kpi {
+  padding: 20px;
+  border-radius: 16px;
+}
+
+.crm-kpi-label {
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.crm-kpi-value {
+  font-size: clamp(25px, 2vw, 32px);
+  line-height: 1.15;
+  letter-spacing: -0.5px;
+}
+
+.crm-kpi-change {
+  font-size: 12px;
+}
+
+.crm-card {
+  border-radius: 16px;
+}
+
+.crm-card-header {
+  min-height: 60px;
+  padding: 18px 22px;
+}
+
+.crm-card-header h2,
+.crm-card-header h3 {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.crm-card-header span {
+  font-size: 12px;
+}
+
+.crm-card-body {
+  padding: 22px;
+}
+
+.crm-table th {
+  padding: 13px 18px;
+  font-size: 11px;
+  letter-spacing: 0.45px;
+}
+
+.crm-table td {
+  padding: 15px 18px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.crm-table td strong {
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.crm-filterbar input,
+.crm-filterbar select {
+  min-height: 40px;
+  font-size: 13px;
+}
+
+.crm-badge {
+  font-size: 11px;
+  padding: 5px 9px;
+}
+
+.crm-list-main strong,
+.crm-task strong {
+  font-size: 13px;
+}
+
+.crm-list-main small,
+.crm-task small {
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.crm-stage-head strong {
+  font-size: 12px;
+}
+
+.crm-stage-head span,
+.crm-deal small {
+  font-size: 11px;
+}
+
+.crm-deal strong {
+  font-size: 13px;
+}
+
+.crm-deal-value {
+  font-size: 13px;
+}
+
+.crm-stat-box span {
+  font-size: 12px;
+}
+
+.crm-chart-labels span {
+  font-size: 11px;
+}
+
+@media (max-width: 1100px) {
+  .crm-content {
+    padding: 24px 22px 42px;
+  }
+}
+
+@media (max-width: 760px) {
+  .crm-content {
+    padding: 20px 15px 88px;
+  }
+
+  .crm-page-heading h1 {
+    font-size: 24px;
+  }
+
+  .crm-kpis {
+    gap: 12px;
+  }
+
+  .crm-kpi {
+    padding: 15px;
+  }
+
+  .crm-kpi-label {
+    font-size: 12px;
+  }
+
+  .crm-kpi-value {
+    font-size: 23px;
+  }
+
+  .crm-card-header,
+  .crm-card-body {
+    padding: 16px;
+  }
+}
