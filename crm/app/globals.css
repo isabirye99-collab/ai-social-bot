@@ -2549,3 +2549,145 @@ button, input, select, textarea {
     padding: 16px;
   }
 }
+
+/* Module consistency pass — shared rules for Leads, Customers and Reports.
+   These selectors normalize legacy page markup without changing behaviour. */
+.ciu-page {
+  font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif !important;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.ciu-page .ciu-page-inner {
+  max-width: 1560px;
+  padding-top: 24px !important;
+  padding-bottom: 36px !important;
+}
+
+.ciu-page .ciu-hero {
+  margin-bottom: 20px !important;
+  padding: 22px 24px !important;
+  border-radius: 12px !important;
+  border: 1px solid var(--border) !important;
+  border-left: 3px solid var(--brand) !important;
+  box-shadow: 0 1px 3px rgba(23, 43, 39, 0.035) !important;
+}
+
+.ciu-page .ciu-hero h1 {
+  font-size: clamp(23px, 1.8vw, 27px) !important;
+  line-height: 1.25 !important;
+  letter-spacing: -0.45px !important;
+  font-weight: 700 !important;
+}
+
+.ciu-page .ciu-hero p {
+  max-width: 760px;
+  font-size: 13px !important;
+  line-height: 1.55 !important;
+  margin-top: 7px !important;
+}
+
+.ciu-page .ciu-kpi-grid,
+.ciu-page .ciu-kpis,
+.ciu-page .ciu-customer-kpis {
+  gap: 14px !important;
+  margin-bottom: 18px !important;
+}
+
+.ciu-page .ciu-card,
+.ciu-page .ciu-customer-summary {
+  border: 1px solid var(--border) !important;
+  border-radius: 11px !important;
+  box-shadow: 0 1px 3px rgba(23, 43, 39, 0.035) !important;
+  overflow: hidden;
+}
+
+.ciu-page .ciu-card-head {
+  min-height: 54px;
+  padding: 15px 18px !important;
+  gap: 12px;
+  border-bottom: 1px solid #edf1ee !important;
+}
+
+.ciu-page .ciu-card-head h2,
+.ciu-page .ciu-card-head strong {
+  font-size: 14px !important;
+  line-height: 1.4 !important;
+  font-weight: 650 !important;
+  letter-spacing: -0.1px;
+}
+
+.ciu-page .ciu-card-head span {
+  font-size: 12px !important;
+  line-height: 1.45 !important;
+}
+
+.ciu-page .ciu-customer-filters,
+.ciu-page .ciu-toolbar {
+  gap: 10px !important;
+}
+
+.ciu-page .ciu-report-table th,
+.ciu-page table th {
+  padding: 11px 14px !important;
+  background: #f7f9f8;
+  color: #5e7068;
+  font-size: 11px !important;
+  font-weight: 650 !important;
+  letter-spacing: 0.025em;
+  white-space: nowrap;
+}
+
+.ciu-page .ciu-report-table td,
+.ciu-page table td {
+  padding: 12px 14px !important;
+  font-size: 12px !important;
+  line-height: 1.45 !important;
+  border-bottom-color: #edf1ee;
+}
+
+.ciu-page .ciu-report-table tbody tr:hover,
+.ciu-page table tbody tr:hover {
+  background: #f8fbf9;
+}
+
+.ciu-page .ciu-btn,
+.ciu-page .ciu-btn-light {
+  min-height: 38px;
+  border-radius: 7px !important;
+  font-size: 12px !important;
+  font-weight: 650 !important;
+  box-shadow: none !important;
+}
+
+@media (max-width: 1024px) {
+  .ciu-page .ciu-page-inner {
+    padding: 20px 18px 82px !important;
+  }
+  .ciu-page .ciu-hero {
+    padding: 19px 20px !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .ciu-page .ciu-page-inner {
+    padding: 16px 12px 88px !important;
+  }
+  .ciu-page .ciu-hero {
+    padding: 17px 16px !important;
+    margin-bottom: 15px !important;
+  }
+  .ciu-page .ciu-hero h1 {
+    font-size: 22px !important;
+  }
+  .ciu-page .ciu-card-head {
+    padding: 13px 14px !important;
+  }
+  .ciu-page .ciu-report-table th,
+  .ciu-page .ciu-report-table td,
+  .ciu-page table th,
+  .ciu-page table td {
+    padding: 10px 10px !important;
+  }
+}
+
