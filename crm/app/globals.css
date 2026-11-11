@@ -3797,3 +3797,102 @@ button, input, select, textarea {
   .ciu-alumni-page table,
   .ciu-partnerships-page table { min-width: 760px; }
 }
+
+
+/* Settings workspace — clear section hierarchy and compact controls */
+.ciu-settings-page {
+  background: #f5f8f6 !important;
+  color: #172b27;
+}
+.ciu-settings-page .ciu-page-inner {
+  max-width: 1480px !important;
+  padding-top: 22px;
+  padding-bottom: 36px;
+}
+.ciu-settings-page .ciu-hero {
+  align-items: center;
+  gap: 18px;
+  padding: 20px 23px !important;
+  margin-bottom: 16px !important;
+  border: 1px solid #e0e9e3 !important;
+  border-left: 4px solid #075442 !important;
+  border-radius: 14px !important;
+  background: linear-gradient(115deg,#fff 0%,#f4faf5 100%) !important;
+  box-shadow: 0 4px 16px rgba(20,60,40,.035);
+}
+.ciu-settings-page .ciu-hero h1 {
+  margin: 0;
+  color: #172b27 !important;
+  font-size: 26px !important;
+  line-height: 1.25 !important;
+  letter-spacing: -.035em;
+}
+.ciu-settings-page .ciu-hero p {
+  margin-top: 6px;
+  color: #64756f !important;
+  font-size: 12px !important;
+  line-height: 1.55;
+}
+.ciu-settings-page .crm-card {
+  overflow: hidden;
+  border: 1px solid #e1e9e3 !important;
+  border-radius: 12px !important;
+  background: #fff;
+  box-shadow: 0 4px 16px rgba(20,60,40,.03) !important;
+}
+.ciu-settings-page .crm-card-header {
+  padding: 14px 17px !important;
+  border-bottom: 1px solid #edf2ee;
+  background: #fff;
+  color: #24443a;
+  font-size: 14px;
+  font-weight: 700;
+}
+.ciu-settings-page .crm-card-body { padding: 18px !important; }
+.ciu-settings-page .crm-grid { gap: 14px !important; }
+.ciu-settings-page .crm-grid-2 {
+  grid-template-columns: repeat(2,minmax(0,1fr));
+}
+.ciu-settings-page .crm-stat-box {
+  border: 1px solid #e1e9e3 !important;
+  border-radius: 10px !important;
+  background: #f8fbf8 !important;
+}
+.ciu-settings-page input,
+.ciu-settings-page select,
+.ciu-settings-page textarea {
+  border-color: #d9e5de !important;
+  border-radius: 8px !important;
+  font-size: 12px !important;
+}
+.ciu-settings-page input:focus,
+.ciu-settings-page select:focus,
+.ciu-settings-page textarea:focus {
+  outline: none;
+  border-color: #78ad91 !important;
+  box-shadow: 0 0 0 3px rgba(7,84,66,.08);
+}
+.ciu-settings-page .crm-btn {
+  min-height: 37px;
+  border-radius: 8px !important;
+  font-size: 12px !important;
+}
+.ciu-settings-page .ciu-report-table th {
+  padding: 11px 12px !important;
+  background: #f2f7f3;
+  color: #587066;
+  font-size: 9.5px !important;
+  letter-spacing: .045em;
+  text-transform: uppercase;
+}
+.ciu-settings-page .ciu-report-table td {
+  padding: 11px 12px !important;
+  font-size: 11.5px !important;
+}
+@media (max-width: 760px) {
+  .ciu-settings-page .ciu-page-inner { padding: 14px 12px 28px; }
+  .ciu-settings-page .ciu-hero { align-items: flex-start; padding: 16px !important; }
+  .ciu-settings-page .ciu-hero h1 { font-size: 23px !important; }
+  .ciu-settings-page .crm-grid-2 { grid-template-columns: 1fr; }
+  .ciu-settings-page .crm-card-body { padding: 14px !important; }
+}
