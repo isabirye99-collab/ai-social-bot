@@ -2597,7 +2597,6 @@ const isSalesperson =
                                   )}
                                   </div>
                                 </div>
-                              </div>
                             ) : (
                               <span
                                 style={{
