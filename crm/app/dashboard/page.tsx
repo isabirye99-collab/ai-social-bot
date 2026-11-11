@@ -1252,11 +1252,11 @@ export default function DashboardPage() {
                   Average opportunity
                 </span>
 
-                <span className="text-[11px] font-black text-[#17211b]">
+                <Link href="/pipeline" className="ciu-dashboard-link rounded-md text-[11px] font-black text-[#17211b]">
                   {money(
                     stats.averageDeal,
                   )}
-                </span>
+                </Link>
               </div>
             </div>
           </div>
@@ -1378,7 +1378,7 @@ export default function DashboardPage() {
             </div>
 
             <div className="mt-5 grid grid-cols-2 gap-3">
-              <div className="rounded-xl border border-[#e8eeea] px-3 py-3">
+              <Link href="/leads" className="ciu-dashboard-link block rounded-xl border border-[#e8eeea] px-3 py-3">
                 <p className="text-[9px] font-bold uppercase tracking-wide text-[#8a9791]">
                   Interested rate
                 </p>
@@ -1392,9 +1392,9 @@ export default function DashboardPage() {
                       )
                     : "0%"}
                 </p>
-              </div>
+              </Link>
 
-              <div className="rounded-xl border border-[#e8eeea] px-3 py-3">
+              <Link href="/customers" className="ciu-dashboard-link block rounded-xl border border-[#e8eeea] px-3 py-3">
                 <p className="text-[9px] font-bold uppercase tracking-wide text-[#8a9791]">
                   Enrolment rate
                 </p>
@@ -1408,7 +1408,7 @@ export default function DashboardPage() {
                       )
                     : "0%"}
                 </p>
-              </div>
+              </Link>
             </div>
           </div>
         </div>
@@ -1674,10 +1674,10 @@ export default function DashboardPage() {
             â€¢
           </span>
 
-          <span className="text-[9px] text-[#89958f]">
+          <Link href="/tasks" className="ciu-dashboard-link rounded px-1 text-[9px] text-[#89958f]">
             {stats.completedTasks} tasks
             completed
-          </span>
+          </Link>
         </div>
       </footer>
     </div>
