@@ -2352,12 +2352,15 @@ const isSalesperson =
 
                       return (
                         <tr
-                          key={
-                            task.id
-                          }
+                          key={task.id}
+                          onClick={(event) => {
+                            const target = event.target as HTMLElement;
+                            if (target.closest("button, a, input, select, textarea, label")) return;
+                            setSelectedTask(task);
+                          }}
                           style={{
-                            borderBottom:
-                              "1px solid #f1f5f9",
+                            borderBottom: "1px solid #f1f5f9",
+                            cursor: "pointer",
                           }}
                         >
                           {/* TASK */}
