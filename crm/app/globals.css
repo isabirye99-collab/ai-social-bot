@@ -3230,3 +3230,80 @@ button, input, select, textarea {
     flex-wrap: wrap;
   }
 }
+
+
+/* Unified CRM visual standards: restrained type scale and consistent registers. */
+.crm-content,
+.ciu-page,
+.crm-page {
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.crm-content h1,
+.ciu-page h1,
+.crm-page h1 {
+  font-size: 26px !important;
+  line-height: 1.25 !important;
+  letter-spacing: -0.025em !important;
+  font-weight: 700 !important;
+}
+.crm-content h2,
+.ciu-page h2,
+.crm-page h2 {
+  font-size: 17px !important;
+  line-height: 1.35 !important;
+  letter-spacing: -0.01em !important;
+  font-weight: 700 !important;
+}
+.crm-content h3,
+.ciu-page h3,
+.crm-page h3 {
+  font-size: 15px !important;
+  line-height: 1.4 !important;
+  font-weight: 650 !important;
+}
+.crm-content table th,
+.ciu-page table th,
+.crm-page table th {
+  font-size: 11px;
+  line-height: 1.4;
+  letter-spacing: 0.025em;
+}
+.crm-content table td,
+.ciu-page table td,
+.crm-page table td {
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.crm-content input,
+.crm-content select,
+.crm-content textarea,
+.ciu-page input,
+.ciu-page select,
+.ciu-page textarea,
+.crm-page input,
+.crm-page select,
+.crm-page textarea {
+  box-sizing: border-box;
+  max-width: 100%;
+  font-family: inherit;
+  font-size: 13px;
+}
+.ciu-tasks-page tbody tr {
+  transition: background-color 140ms ease;
+}
+.ciu-tasks-page tbody tr:hover {
+  background-color: #f6faf7;
+}
+@media (max-width: 640px) {
+  .crm-content h1,
+  .ciu-page h1,
+  .crm-page h1 {
+    font-size: 23px !important;
+  }
+  .crm-content h2,
+  .ciu-page h2,
+  .crm-page h2 {
+    font-size: 16px !important;
+  }
+}
