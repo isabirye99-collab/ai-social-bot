@@ -1984,6 +1984,53 @@ export default function Pipeline() {
             max-height: calc(100vh - 390px);
           }
         }
+
+        /* Pipeline visual refinement */
+        .pipeline-stage-tabs { gap: 7px; }
+        .pipeline-stage-tab {
+          min-height: 48px;
+          padding: 7px 12px;
+          border-radius: 10px;
+          font-size: 11px;
+          box-shadow: none;
+        }
+        .pipeline-stage-tab-active {
+          box-shadow: 0 4px 12px rgba(0,105,92,.14);
+        }
+        .pipeline-stage-tab strong {
+          min-width: 25px;
+          height: 25px;
+          font-size: 10px;
+        }
+        .pipeline-table-scroll {
+          border-top: 1px solid #e6eee9;
+          max-height: calc(100vh - 330px);
+          min-height: 300px;
+        }
+        .pipeline-table {
+          min-width: 1320px;
+          font-size: 11.5px;
+        }
+        .pipeline-table th {
+          padding: 11px 12px;
+          background: #f2f7f3;
+          letter-spacing: .04em;
+          font-size: 9.5px;
+        }
+        .pipeline-table td { padding: 11px 12px; }
+        .pipeline-table tbody tr:nth-child(even) td { background: #fbfdfb; }
+        .pipeline-table tbody tr:hover td { background: #f0f8f2; }
+        .student-cell { min-width: 195px; gap: 9px; }
+        .student-avatar { width: 32px; height: 32px; flex-basis: 32px; }
+        .student-name-wrap strong { font-size: 11.5px; }
+        .student-name-wrap small { font-size: 9.5px; }
+        .pipeline-move-select { min-width: 150px; min-height: 33px; }
+        .pipeline-table-footer { padding: 11px 15px; background: #f7faf8; }
+        @media (max-width: 700px) {
+          .pipeline-table { min-width: 1220px; }
+          .pipeline-table-scroll { min-height: 260px; max-height: calc(100vh - 360px); }
+        }
+
       `}</style>
     </div>
   );
