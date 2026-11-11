@@ -3994,3 +3994,61 @@ button, input, select, textarea {
 @media (max-width: 420px) {
   .ciu-tasks-page .ciu-tasks-kpis { grid-template-columns: 1fr !important; }
 }
+
+
+/* Dashboard interactions: clear click targets, motion and accessible focus */
+.ciu-dashboard .ciu-dashboard-link {
+  text-decoration: none;
+  outline: none;
+  transition: background-color .18s ease, border-color .18s ease, box-shadow .18s ease, transform .18s ease, color .18s ease;
+}
+.ciu-dashboard .ciu-dashboard-link:hover {
+  color: inherit;
+  background-color: #f4faf5;
+}
+.ciu-dashboard .ciu-dashboard-link:focus-visible {
+  outline: 3px solid rgba(139,198,63,.75);
+  outline-offset: 3px;
+  border-radius: 10px;
+}
+.ciu-dashboard .ciu-funnel-stage:hover {
+  transform: translateY(-3px);
+  border-color: #a8ce8b;
+  box-shadow: 0 10px 24px rgba(7,84,66,.10);
+}
+.ciu-dashboard .ciu-animate-in {
+  animation: ciuDashboardEnter .55s cubic-bezier(.2,.7,.25,1) both;
+}
+.ciu-dashboard .ciu-animate-delay-1 { animation-delay: .07s; }
+.ciu-dashboard .ciu-animate-delay-2 { animation-delay: .13s; }
+.ciu-dashboard .ciu-animate-delay-3 { animation-delay: .19s; }
+.ciu-dashboard .ciu-animate-delay-4 { animation-delay: .25s; }
+.ciu-dashboard .ciu-animate-delay-5 { animation-delay: .31s; }
+.ciu-dashboard .ciu-funnel-stage > div:last-of-type > div:last-child,
+.ciu-dashboard .ciu-dashboard-link > .mx-auto[class*="rounded-t"] {
+  transform-origin: bottom;
+  animation: ciuDashboardBarRise .85s cubic-bezier(.2,.7,.25,1) both;
+}
+.ciu-dashboard .ciu-funnel-stage:nth-child(2) > div:last-of-type > div:last-child { animation-delay: .08s; }
+.ciu-dashboard .ciu-funnel-stage:nth-child(3) > div:last-of-type > div:last-child { animation-delay: .16s; }
+.ciu-dashboard .ciu-funnel-stage:nth-child(4) > div:last-of-type > div:last-child { animation-delay: .24s; }
+.ciu-dashboard .ciu-funnel-stage:nth-child(5) > div:last-of-type > div:last-child { animation-delay: .32s; }
+@keyframes ciuDashboardEnter {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes ciuDashboardBarRise {
+  from { transform: scaleY(.12); opacity: .55; }
+  to { transform: scaleY(1); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ciu-dashboard .ciu-animate-in,
+  .ciu-dashboard .ciu-funnel-stage > div:last-of-type > div:last-child,
+  .ciu-dashboard .ciu-dashboard-link > .mx-auto[class*="rounded-t"] {
+    animation: none !important;
+  }
+  .ciu-dashboard .ciu-dashboard-link,
+  .ciu-dashboard .ciu-funnel-stage {
+    transition: none !important;
+  }
+}
