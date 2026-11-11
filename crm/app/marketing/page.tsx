@@ -723,7 +723,7 @@ export default function MarketingPage() {
           const campaignName = campaigns.find((c) => c.id === importCampaignId)?.name || "marketing";
           const campaignNote = `Linked campaign: ${campaignName}`;
           if (activeTask && !(activeTask.description || "").includes(campaignNote)) {
-            const updatedDescription = [activeTask.description?.trim(), campaignNote].filter(Boolean).join("\\n");
+            const updatedDescription = [campaignNote, activeTask.description?.trim()].filter(Boolean).join("\n");
             const taskUpdate = await supabase
               .from("tasks")
               .update({ description: updatedDescription, updated_at: new Date().toISOString() })
