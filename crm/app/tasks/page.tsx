@@ -4342,17 +4342,32 @@ const isSalesperson =
                         {lead?.ciu_number && (
                           <div
                             style={{
-                              marginTop:
-                                "3px",
-                              color:
-                                "#64748b",
-                              fontSize:
-                                "11px",
+                              marginTop: "3px",
+                              color: "#64748b",
+                              fontSize: "11px",
                             }}
                           >
-                            {
-                              lead.ciu_number
-                            }
+                            {lead.ciu_number}
+                          </div>
+                        )}
+
+                        {lead?.phone ? (
+                          <a
+                            href={`tel:${lead.phone}`}
+                            style={{
+                              display: "inline-block",
+                              marginTop: "6px",
+                              color: "#106053",
+                              fontSize: "12px",
+                              fontWeight: 700,
+                              textDecoration: "none",
+                            }}
+                          >
+                            ☎ {lead.phone}
+                          </a>
+                        ) : (
+                          <div style={{ marginTop: "5px", color: "#b45309", fontSize: "11px" }}>
+                            No telephone number
                           </div>
                         )}
                       </div>
