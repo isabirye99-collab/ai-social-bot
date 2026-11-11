@@ -183,8 +183,8 @@ export default function AlumniPage() {
     <div style={{ ...card, position: "relative" }}><div style={{ color: "#66766e", fontSize: 12, fontWeight: 700 }}>{label}</div><div style={{ color: "#173d34", fontSize: 30, fontWeight: 800, marginTop: 7 }}>{value.toLocaleString()}</div><div style={{ color: "#84928b", fontSize: 11, marginTop: 4 }}>{hint}</div>{href && <Link href={href} style={{ display: "inline-flex", marginTop: 10, color: brand, fontSize: 12, fontWeight: 800, textDecoration: "none" }}>View profiles →</Link>}</div>
   );
 
-  return <div style={{ padding: "28px clamp(16px,3vw,34px) 44px", color: "#173d34" }}>
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, flexWrap: "wrap", marginBottom: 22 }}>
+  return <div className="ciu-page ciu-alumni-page" style={{ padding: "28px clamp(16px,3vw,34px) 44px", color: "#173d34" }}>
+    <div className="ciu-hero ciu-alumni-hero" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, flexWrap: "wrap", marginBottom: 22 }}>
       <div><div style={{ color: brand, fontSize: 11, fontWeight: 800, letterSpacing: 1.5 }}>RELATIONSHIP MANAGEMENT</div><h1 style={{ margin: "7px 0 5px", fontSize: 28, fontWeight: 800 }}>Alumni</h1><p style={{ margin: 0, color: "#718078", fontSize: 13 }}>Manage graduate records, verify profiles and strengthen lifelong connections with CIU.</p></div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
         <Link href="/alumni/events" style={{ display: "inline-flex", alignItems: "center", padding: "10px 12px", border: "1px solid #d9e4dd", borderRadius: 8, color: brand, background: "#fff", textDecoration: "none", fontSize: 12, fontWeight: 750 }}>Events & Attendance</Link>
