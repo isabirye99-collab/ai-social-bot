@@ -3054,3 +3054,83 @@ button, input, select, textarea {
   .ciu-public-lead-capture > div > div { padding: 22px 17px !important; }
   .ciu-public-lead-success > div { padding: 26px 20px !important; }
 }
+
+
+/* Leads and Customers — responsive working layouts, without changing data flows. */
+.ciu-page .ciu-kpi-grid,
+.ciu-page .ciu-customer-kpis {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 14px !important;
+}
+.ciu-page .ciu-lead-filters,
+.ciu-page .ciu-customer-filters {
+  min-width: 0;
+}
+.ciu-page .ciu-lead-filters > div,
+.ciu-page .ciu-customer-filters > * {
+  min-width: 0;
+}
+.ciu-page .ciu-lead-filters input,
+.ciu-page .ciu-lead-filters select,
+.ciu-page .ciu-customer-filters input,
+.ciu-page .ciu-customer-filters select {
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+}
+.ciu-page .ciu-report-table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.ciu-page .ciu-report-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+.ciu-page .ciu-table-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #c4d5cc #f5f8f6;
+}
+.ciu-page .ciu-card {
+  min-width: 0;
+}
+@media (max-width: 1100px) {
+  .ciu-page .ciu-kpi-grid,
+  .ciu-page .ciu-customer-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+  .ciu-page .ciu-customer-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+}
+@media (max-width: 760px) {
+  .ciu-page .ciu-kpi-grid,
+  .ciu-page .ciu-customer-kpis {
+    gap: 10px !important;
+    margin-top: 14px !important;
+  }
+  .ciu-page .ciu-lead-filters,
+  .ciu-page .ciu-customer-filters {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 10px !important;
+  }
+  .ciu-page .ciu-customer-summary {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 10px !important;
+  }
+  .ciu-page .ciu-card-head {
+    gap: 12px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .ciu-page .ciu-table-scroll {
+    max-height: none !important;
+    min-height: 220px !important;
+  }
+}
+@media (max-width: 420px) {
+  .ciu-page .ciu-kpi-grid,
+  .ciu-page .ciu-customer-kpis {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
