@@ -3134,3 +3134,50 @@ button, input, select, textarea {
     grid-template-columns: minmax(0, 1fr) !important;
   }
 }
+
+
+/* Settings workspace — clearer controls and responsive staff-management layout. */
+.ciu-settings-page .crm-card {
+  min-width: 0;
+}
+.ciu-settings-page .crm-card-header {
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.ciu-settings-page input,
+.ciu-settings-page select,
+.ciu-settings-page textarea {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.ciu-settings-page input:focus-visible,
+.ciu-settings-page select:focus-visible,
+.ciu-settings-page textarea:focus-visible,
+.ciu-settings-page button:focus-visible {
+  outline: 3px solid rgba(141, 198, 66, 0.35);
+  outline-offset: 2px;
+}
+@media (max-width: 900px) {
+  .ciu-settings-page .crm-grid.crm-grid-2 {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  .ciu-settings-page .ciu-hero {
+    align-items: flex-start;
+    gap: 14px;
+  }
+}
+@media (max-width: 640px) {
+  .ciu-settings-page .ciu-page-inner {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  .ciu-settings-page .crm-card-body {
+    padding: 16px !important;
+  }
+  .ciu-settings-page .crm-card-header {
+    align-items: flex-start;
+  }
+  .ciu-settings-page button {
+    max-width: 100%;
+  }
+}
