@@ -773,11 +773,6 @@ export default function DashboardPage() {
     });
   }, [leads]);
 
-  const recentLeads = useMemo(
-    () => [...leads].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 5),
-    [leads],
-  );
-
   const upcomingFollowUps = useMemo(
     () => leads
       .filter((lead) => lead.next_follow_up_at && new Date(lead.next_follow_up_at).getTime() >= Date.now())
@@ -1665,7 +1660,7 @@ export default function DashboardPage() {
               <span className="text-sm font-bold text-[#00695c]">→</span>
             </Link>
             <Link href="/marketing" className="group flex items-center gap-3 rounded-xl border border-[#e5ece7] p-3 transition hover:border-[#b8d9a7] hover:bg-[#f7fbf8]">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#e8f4e0] text-[#075442]"><Icon name="megaphone" size={17} /></span>
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#e8f4e0] text-[#075442]"><Icon name="bolt" size={17} /></span>
               <span className="min-w-0 flex-1"><span className="block text-sm font-bold text-[#263d31]">Campaign Activity</span><span className="mt-0.5 block text-xs text-[#718078]">Open campaigns and lead generation</span></span>
               <span className="text-sm font-bold text-[#00695c]">→</span>
             </Link>
