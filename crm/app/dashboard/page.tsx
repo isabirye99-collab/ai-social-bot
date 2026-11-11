@@ -845,7 +845,7 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-[1540px] px-4 py-5 sm:px-6 lg:px-8">
+      <div className="ciu-dashboard mx-auto max-w-[1540px] px-4 py-5 sm:px-6 lg:px-8">
         <div className="animate-pulse space-y-4">
           <div className="h-20 rounded-2xl bg-white" />
 
@@ -875,7 +875,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="mx-auto max-w-[1540px] px-4 py-5 sm:px-6 lg:px-8">
+    <div className="ciu-dashboard mx-auto max-w-[1540px] px-4 py-5 sm:px-6 lg:px-8">
       {/* =====================================================
           DASHBOARD HEADER
       ===================================================== */}
