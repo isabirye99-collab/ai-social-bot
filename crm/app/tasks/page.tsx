@@ -2576,7 +2576,7 @@ const isSalesperson =
                                   </div>
                                   {lead.phone ? (
                                     <a
-                                      href={`tel:${lead.phone.replace(/[^+\d]/g, "")}`}
+                                      href={`tel:${lead.phone}`}
                                       title={`Call ${lead.name || "student"}`}
                                       style={{
                                         display: "inline-block",
