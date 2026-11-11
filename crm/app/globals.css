@@ -2913,3 +2913,30 @@ button, input, select, textarea {
   .ciu-tasks-page .ciu-tasks-hero { align-items: flex-start !important; padding: 17px 16px !important; }
   .ciu-tasks-page .ciu-tasks-hero h1 { font-size: 22px !important; }
 }
+
+
+/* Social Media Hub — restrained header, consistent page width and typography. */
+.ciu-social-hub-page {
+  max-width: 1560px !important;
+  padding: 26px 30px 42px !important;
+  color: var(--ciu-ink, #172b27);
+  font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.ciu-social-hub-page .ciu-social-hub-title {
+  margin: 0 !important;
+  color: var(--ciu-ink, #172b27) !important;
+  font-size: clamp(23px, 1.8vw, 28px) !important;
+  line-height: 1.25 !important;
+  font-weight: 700 !important;
+  letter-spacing: -.035em !important;
+}
+.ciu-social-hub-page button {
+  border-radius: 7px;
+  box-shadow: none;
+}
+@media (max-width: 760px) {
+  .ciu-social-hub-page { padding: 18px 14px 30px !important; }
+  .ciu-social-hub-page .ciu-social-hub-title { font-size: 22px !important; }
+}
