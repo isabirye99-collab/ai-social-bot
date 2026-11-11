@@ -885,7 +885,7 @@ export default function DashboardPage() {
           DASHBOARD HEADER
       ===================================================== */}
 
-      <header className="relative mb-5 flex flex-col justify-between gap-4 overflow-hidden rounded-2xl border border-[#dce8df] border-l-[5px] border-l-[#8bc63f] bg-white px-5 py-5 shadow-[0_5px_22px_rgba(20,70,40,.045)] md:flex-row md:items-center sm:px-6">
+      <header className="ciu-animate-in relative mb-5 flex flex-col justify-between gap-4 overflow-hidden rounded-2xl border border-[#dce8df] border-l-[5px] border-l-[#8bc63f] bg-white px-5 py-5 shadow-[0_5px_22px_rgba(20,70,40,.045)] md:flex-row md:items-center sm:px-6">
         <div className="relative z-10">
           <div className="flex items-center gap-2">
             <span className="h-2 w-2 rounded-full bg-[#8bc53f]" />
@@ -972,7 +972,7 @@ export default function DashboardPage() {
           MAIN WORKSPACE
       ===================================================== */}
 
-      <section className="grid gap-4 lg:grid-cols-[1.65fr_.85fr]">
+      <section className="ciu-animate-in ciu-animate-delay-1 grid gap-4 lg:grid-cols-[1.65fr_.85fr]">
         {/* Admissions funnel */}
 
         <div className="rounded-2xl border border-[#e2e9e5] bg-white shadow-[0_4px_18px_rgba(20,50,40,.035)]">
@@ -1004,9 +1004,11 @@ export default function DashboardPage() {
             <div className="grid gap-3 md:grid-cols-5">
               {funnel.map(
                 (stage, index) => (
-                  <div
+                  <Link
                     key={stage.label}
-                    className="relative min-w-0 overflow-hidden rounded-xl border border-[#e0e9e2] p-3"
+                    href={stage.label === "Leads" ? "/leads" : "/pipeline"}
+                    aria-label="Open admission stage records"
+                    className="ciu-dashboard-link ciu-funnel-stage relative block min-w-0 overflow-hidden rounded-xl border border-[#e0e9e2] p-3"
                     style={{ background: stage.tint }}
                   >
                     <div className="mb-3 min-h-[88px]">
@@ -1047,7 +1049,7 @@ export default function DashboardPage() {
                         />
                       </div>
                     )}
-                  </div>
+                  </Link>
                 ),
               )}
             </div>
@@ -1143,7 +1145,7 @@ export default function DashboardPage() {
           ANALYTICS ROW
       ===================================================== */}
 
-      <section className="mt-4 grid gap-4 lg:grid-cols-[1.1fr_.9fr]">
+      <section className="ciu-animate-in ciu-animate-delay-2 mt-4 grid gap-4 lg:grid-cols-[1.1fr_.9fr]">
         {/* Pipeline overview */}
 
         <div className="rounded-2xl border border-[#e2e9e5] bg-white shadow-[0_4px_18px_rgba(20,50,40,.035)]">
@@ -1168,7 +1170,7 @@ export default function DashboardPage() {
 
           <div className="p-5">
             <div className="mb-5 grid grid-cols-2 gap-3">
-              <div className="rounded-xl bg-[#f6f9f7] px-4 py-3">
+              <Link href="/pipeline" className="ciu-dashboard-link block rounded-xl bg-[#f6f9f7] px-4 py-3">
                 <p className="text-[9px] font-bold uppercase tracking-wide text-[#84938b]">
                   Open value
                 </p>
@@ -1178,9 +1180,9 @@ export default function DashboardPage() {
                     stats.pipelineValue,
                   )}
                 </p>
-              </div>
+              </Link>
 
-              <div className="rounded-xl bg-[#f6f9f7] px-4 py-3">
+              <Link href="/reports" className="ciu-dashboard-link block rounded-xl bg-[#f6f9f7] px-4 py-3">
                 <p className="text-[9px] font-bold uppercase tracking-wide text-[#84938b]">
                   Weighted forecast
                 </p>
@@ -1190,13 +1192,13 @@ export default function DashboardPage() {
                     stats.weightedForecast,
                   )}
                 </p>
-              </div>
+              </Link>
             </div>
 
             <div className="space-y-5">
               {pipelineOverview.map(
                 (stage, index) => (
-                  <div key={stage.label}>
+                  <Link key={stage.label} href={stage.label === "Enrolled" ? "/customers" : "/pipeline"} className="ciu-dashboard-link block rounded-lg px-2 py-1 -mx-2">
                     <div className="mb-2 flex items-center justify-between">
                       <div>
                         <p className="text-[11px] font-bold text-[#34433b]">
@@ -1239,7 +1241,7 @@ export default function DashboardPage() {
                         }}
                       />
                     </div>
-                  </div>
+                  </Link>
                 ),
               )}
             </div>
@@ -1348,9 +1350,11 @@ export default function DashboardPage() {
                     : 4;
 
                 return (
-                  <div
+                  <Link
                     key={bar.label}
-                    className="flex h-full flex-1 flex-col justify-end"
+                    href={bar.label === "Enrolled" ? "/customers" : "/leads"}
+                    aria-label="View chart records"
+                    className="ciu-dashboard-link flex h-full flex-1 flex-col justify-end rounded-t-lg"
                   >
                     <div className="mb-1 text-center text-[9px] font-black text-[#55645c]">
                       {bar.value}
@@ -1368,7 +1372,7 @@ export default function DashboardPage() {
                     <div className="mt-2 text-center text-[9px] font-bold text-[#7e8b85]">
                       {bar.label}
                     </div>
-                  </div>
+                  </Link>
                 );
               })}
             </div>
@@ -1413,7 +1417,7 @@ export default function DashboardPage() {
       {/* =====================================================
           RECRUITMENT ACTIVITY
       ===================================================== */}
-      <section className="mt-4 grid gap-4 xl:grid-cols-[1.15fr_1fr_.85fr]" aria-label="Recruitment activity">
+      <section className="ciu-animate-in ciu-animate-delay-3 mt-4 grid gap-4 xl:grid-cols-[1.15fr_1fr_.85fr]" aria-label="Recruitment activity">
         <div className="overflow-hidden rounded-2xl border border-[#e2e9e5] bg-white shadow-[0_4px_18px_rgba(20,50,40,.035)]">
           <div className="border-b border-[#e4ebe6] bg-[#f7faf8] px-5 py-4">
             <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-[#718078]">Six-month view</p>
@@ -1425,11 +1429,11 @@ export default function DashboardPage() {
                 const max = Math.max(...leadTrend.map((item) => item.count), 1);
                 const height = month.count > 0 ? Math.max(8, (month.count / max) * 100) : 3;
                 return (
-                  <div key={month.label} className="flex h-full min-w-0 flex-1 flex-col justify-end">
+                  <Link key={month.label} href="/leads" aria-label="View monthly lead records" className="ciu-dashboard-link flex h-full min-w-0 flex-1 flex-col justify-end rounded-t-md">
                     <span className="mb-1 text-center text-[10px] font-bold text-[#50675b]">{month.count}</span>
                     <div className="mx-auto w-full max-w-[44px] rounded-t-md bg-[#8bc63f]" style={{ height: String(height) + "%" }} />
                     <span className="mt-2 text-center text-[10px] font-semibold text-[#718078]">{month.label}</span>
-                  </div>
+                  </Link>
                 );
               })}
             </div>
@@ -1489,7 +1493,7 @@ export default function DashboardPage() {
       {/* =====================================================
           ALUMNI & PARTNERSHIPS REPORT
       ===================================================== */}
-      <section className="mt-4 grid gap-4 lg:grid-cols-2" aria-label="Alumni and partnerships reports">
+      <section className="ciu-animate-in ciu-animate-delay-4 mt-4 grid gap-4 lg:grid-cols-2" aria-label="Alumni and partnerships reports">
         <div className="rounded-2xl border border-[#e2e9e5] bg-white p-5 shadow-[0_4px_18px_rgba(20,50,40,.035)]">
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -1557,7 +1561,7 @@ export default function DashboardPage() {
           LOWER WORKSPACE
       ===================================================== */}
 
-      <section className="mt-4 grid gap-4 md:grid-cols-3">
+      <section className="ciu-animate-in ciu-animate-delay-5 mt-4 grid gap-4 md:grid-cols-3">
         <Link
           href="/leads"
           className="group flex items-center justify-between rounded-xl border border-[#e2e9e5] bg-white px-4 py-3.5 shadow-[0_3px_14px_rgba(20,50,40,.025)] transition hover:border-[#b9d9a1] hover:shadow-md"
