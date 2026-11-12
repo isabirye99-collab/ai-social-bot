@@ -31,8 +31,14 @@ begin
        and new.approved_by is not distinct from old.approved_by
        and new.approved_at is not distinct from old.approved_at
        and new.recipients is not distinct from old.recipients
-       and new.sent_by is not null
+       and new.sent_by = auth.uid()
        and new.sent_at is not null then
+      select pr.role into actor_role
+      from public.profiles pr
+      where pr.id = auth.uid() and pr.is_active = true;
+      if actor_role is null or actor_role not in ('super_admin', 'admin', 'manager') then
+        raise exception 'Only active management users may confirm report delivery';
+      end if;
       return new;
     end if;
     raise exception 'Approved management reports are immutable except for a controlled send confirmation';
