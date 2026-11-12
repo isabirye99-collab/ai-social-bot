@@ -16,8 +16,26 @@ begin
     raise exception 'Management report history is retained; deletion is not permitted';
   end if;
 
-  if old.status in ('approved', 'sent') then
-    raise exception 'Approved or sent management reports are immutable; create a new version';
+  if old.status = 'sent' then
+    raise exception 'Sent management reports are immutable; create a new version';
+  end if;
+
+  if old.status = 'approved' then
+    if new.status = 'sent'
+       and new.plan_id is not distinct from old.plan_id
+       and new.report_type is not distinct from old.report_type
+       and new.reporting_start is not distinct from old.reporting_start
+       and new.reporting_end is not distinct from old.reporting_end
+       and new.version is not distinct from old.version
+       and new.snapshot is not distinct from old.snapshot
+       and new.approved_by is not distinct from old.approved_by
+       and new.approved_at is not distinct from old.approved_at
+       and new.recipients is not distinct from old.recipients
+       and new.sent_by is not null
+       and new.sent_at is not null then
+      return new;
+    end if;
+    raise exception 'Approved management reports are immutable except for a controlled send confirmation';
   end if;
 
   if new.status is distinct from old.status then
