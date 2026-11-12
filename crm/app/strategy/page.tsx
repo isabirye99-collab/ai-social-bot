@@ -12,7 +12,6 @@ type Plan = {
   updated_at: string;
 };
 
-const supabase = createClient();
 
 const sections = [
   ["General Strategy", "Annual objectives, KPIs and accountable owners"],
@@ -40,6 +39,7 @@ export default function StrategyPlanningPage() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
+  const supabase = useMemo(() => createClient(), []);
   const currentYear = useMemo(() => new Date().getFullYear(), []);
 
   const load = useCallback(async () => {
@@ -75,7 +75,7 @@ export default function StrategyPlanningPage() {
       setIntakeCount(0);
     }
     setLoading(false);
-  }, []);
+  }, [supabase]);
 
   useEffect(() => { void load(); }, [load]);
 
