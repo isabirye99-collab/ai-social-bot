@@ -10,7 +10,8 @@ type WeeklyReport = { id: string; plan_id: string | null; reporting_start: strin
 type StrategyRisk = { id: string; plan_id: string; title: string; description: string | null; priority: string; status: string; corrective_action: string | null; due_date: string | null; programme: string | null };
 type IntakeTarget = { id: string; plan_id: string; intake_month: number; cycle: string; programme: string; target_applications: number; target_admissions: number; target_registrations: number };
 
-type ManagementReportHistory = { id: string; plan_id: string | null; report_type: string; reporting_start: string | null; reporting_end: string | null; version: number; status: string; snapshot: Record<string, unknown>; created_at: string; approved_by?: string | null; approved_at?: string | null; sent_by?: string | null; sent_at?: string | null; provider_status?: string | null; provider_message_id?: string | null; recipients?: unknown[]; };\ntype ApprovalDecisionHistory = { id: string; request_id: string; previous_status: string; decision: string; reviewer_id: string | null; reviewer_comment: string | null; decided_at: string; };
+type ManagementReportHistory = { id: string; plan_id: string | null; report_type: string; reporting_start: string | null; reporting_end: string | null; version: number; status: string; snapshot: Record<string, unknown>; created_at: string; approved_by?: string | null; approved_at?: string | null; sent_by?: string | null; sent_at?: string | null; provider_status?: string | null; provider_message_id?: string | null; recipients?: unknown[]; };
+type ApprovalDecisionHistory = { id: string; request_id: string; previous_status: string; decision: string; reviewer_id: string | null; reviewer_comment: string | null; decided_at: string; };
 type CycleAllocation = { id: string; plan_id: string; cycle: string; proposed_amount: number; approved_amount: number | null; status: string; notes: string | null; };
 type StrategyMeeting = { id: string; plan_id: string | null; meeting_at: string; title: string; minutes: string; decisions: unknown[]; };
 type MeetingAction = { id: string; meeting_id: string; action: string; owner_id: string | null; due_date: string | null; status: string; notes: string | null; };
@@ -52,7 +53,8 @@ export default function StrategyPlanningPage() {
   const [intakeTargets, setIntakeTargets] = useState<IntakeTarget[]>([]);
   const [budgets, setBudgets] = useState<BudgetRecord[]>([]);
   const [cycleAllocations, setCycleAllocations] = useState<CycleAllocation[]>([]);
-  const [reportHistory, setReportHistory] = useState<ManagementReportHistory[]>([]);\n  const [approvalHistory, setApprovalHistory] = useState<ApprovalDecisionHistory[]>([]);
+  const [reportHistory, setReportHistory] = useState<ManagementReportHistory[]>([]);
+  const [approvalHistory, setApprovalHistory] = useState<ApprovalDecisionHistory[]>([]);
   const [allocationCycle, setAllocationCycle] = useState("february");
   const [allocationAmount, setAllocationAmount] = useState("");
   const [allocationNotes, setAllocationNotes] = useState("");
@@ -153,7 +155,10 @@ export default function StrategyPlanningPage() {
       setActivities((activityRows.data ?? []) as StrategyActivity[]);
       setBudgets((budgetRows.data ?? []) as BudgetRecord[]);
       setCycleAllocations((allocationRows.data ?? []) as CycleAllocation[]);
-      setReportHistory((historyRows.data ?? []) as ManagementReportHistory[]);\n      const { data: decisions, error: decisionsError } = await supabase.from("strategy_approval_decision_history").select("id,request_id,previous_status,decision,reviewer_id,reviewer_comment,decided_at").order("decided_at", { ascending: false }).limit(200);\n      if (decisionsError) { setError("Could not load approval decision history: " + decisionsError.message); }\n      setApprovalHistory((decisions ?? []) as ApprovalDecisionHistory[]);
+      setReportHistory((historyRows.data ?? []) as ManagementReportHistory[]);
+      const { data: decisions, error: decisionsError } = await supabase.from("strategy_approval_decision_history").select("id,request_id,previous_status,decision,reviewer_id,reviewer_comment,decided_at").order("decided_at", { ascending: false }).limit(200);
+      if (decisionsError) { setError("Could not load approval decision history: " + decisionsError.message); }
+      setApprovalHistory((decisions ?? []) as ApprovalDecisionHistory[]);
       setRisks((riskRows.data ?? []) as StrategyRisk[]);
       setWeeklyReports((reportRows.data ?? []) as WeeklyReport[]);
       setApprovalRequests((approvalRows.data ?? []) as ApprovalRequest[]);
