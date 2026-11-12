@@ -58,6 +58,8 @@ export default function StrategyPlanningPage() {
   const [allocationNotes, setAllocationNotes] = useState("");
   const [risks, setRisks] = useState<StrategyRisk[]>([]);
   const [weeklyReports, setWeeklyReports] = useState<WeeklyReport[]>([]);
+  const [weeklyReviewComments, setWeeklyReviewComments] = useState<Record<string, string>>({});
+  const [weeklyReviewBusy, setWeeklyReviewBusy] = useState<string | null>(null);
   const [approvalRequests, setApprovalRequests] = useState<ApprovalRequest[]>([]);
   const [decisionComments, setDecisionComments] = useState<Record<string, string>>({});
   const [decisionBusy, setDecisionBusy] = useState<string | null>(null);
@@ -174,6 +176,44 @@ export default function StrategyPlanningPage() {
   }, [supabase]);
 
   useEffect(() => { void load(); }, [load]);
+
+  async function reviewWeeklyReport(report: WeeklyReport, decision: "approved" | "returned_for_revision") {
+    const comment = (weeklyReviewComments[report.id] || "").trim();
+    if (decision === "returned_for_revision" && !comment) {
+      setError("Add a review comment before returning a weekly report for revision.");
+      return;
+    }
+    const { data: auth } = await supabase.auth.getUser();
+    if (!auth.user) { setError("Please sign in again before reviewing a weekly report."); return; }
+    setWeeklyReviewBusy(report.id); setError(""); setNotice("");
+    const { data: updated, error: reviewError } = await supabase
+      .from("strategy_weekly_reports")
+      .update({
+        status: decision,
+        reviewed_by: auth.user.id,
+        reviewed_at: new Date().toISOString(),
+        reviewer_comments: comment || null,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", report.id)
+      .in("status", ["submitted", "reviewed", "returned_for_revision"])
+      .select("id")
+      .maybeSingle();
+    if (reviewError || !updated) {
+      setError(reviewError ? "Could not review weekly report: " + reviewError.message : "The report is no longer awaiting review, or your account is not authorised.");
+      setWeeklyReviewBusy(null);
+      return;
+    }
+    const { data, error: reloadError } = await supabase.from("strategy_weekly_reports")
+      .select("id,plan_id,reporting_start,reporting_end,staff_id,completed_work,recruitment_outcomes,challenges,next_week_plan,status,submitted_at,reviewer_comments")
+      .order("reporting_start", { ascending: false }).limit(100);
+    if (reloadError) setError("Review saved, but the report list could not refresh: " + reloadError.message);
+    else {
+      setWeeklyReports((data ?? []) as WeeklyReport[]);
+      setNotice(decision === "approved" ? "Weekly report approved." : "Weekly report returned for revision.");
+    }
+    setWeeklyReviewBusy(null);
+  }
 
   async function decideApproval(request: ApprovalRequest, decision: "approved" | "returned_for_revision" | "rejected") {
     const comment = (decisionComments[request.id] || "").trim();
@@ -550,7 +590,7 @@ export default function StrategyPlanningPage() {
           <label className="grid gap-1 text-xs font-medium text-slate-700">Plan for next week<textarea value={reportNextWeek} onChange={(e) => setReportNextWeek(e.target.value)} rows={3} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal" /></label>
           <div><button disabled={saving} className="rounded-lg bg-emerald-800 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{saving ? "Saving…" : "Submit weekly report"}</button></div>
         </form>
-        <div className="overflow-x-auto border-t border-slate-200"><table className="w-full min-w-[700px] text-left text-sm"><thead className="bg-slate-50 text-xs text-slate-500"><tr><th className="px-4 py-3 font-medium">Period</th><th className="px-4 py-3 font-medium">Work summary</th><th className="px-4 py-3 font-medium">Status</th><th className="px-4 py-3 font-medium">Submitted</th><th className="px-4 py-3 font-medium">Review notes</th></tr></thead><tbody className="divide-y divide-slate-100">{weeklyReports.map((r) => <tr key={r.id}><td className="px-4 py-3 whitespace-nowrap text-xs text-slate-600">{r.reporting_start} – {r.reporting_end}</td><td className="px-4 py-3"><p className="max-w-md whitespace-pre-wrap text-sm text-slate-800">{r.completed_work}</p></td><td className="px-4 py-3 text-xs">{statusLabel(r.status)}</td><td className="px-4 py-3 whitespace-nowrap text-xs text-slate-500">{r.submitted_at ? new Date(r.submitted_at).toLocaleString() : "—"}</td><td className="px-4 py-3 text-xs text-slate-600">{r.reviewer_comments || "—"}</td></tr>)}</tbody></table>{weeklyReports.length === 0 && <p className="px-4 py-5 text-xs text-slate-500">No weekly reports available to this account.</p>}</div>
+        <div className="overflow-x-auto border-t border-slate-200"><table className="w-full min-w-[700px] text-left text-sm"><thead className="bg-slate-50 text-xs text-slate-500"><tr><th className="px-4 py-3 font-medium">Period</th><th className="px-4 py-3 font-medium">Work summary</th><th className="px-4 py-3 font-medium">Status</th><th className="px-4 py-3 font-medium">Submitted</th><th className="px-4 py-3 font-medium">Review notes</th><th className="px-4 py-3 font-medium">Management review</th></tr></thead><tbody className="divide-y divide-slate-100">{weeklyReports.map((r) => <tr key={r.id}><td className="px-4 py-3 whitespace-nowrap text-xs text-slate-600">{r.reporting_start} – {r.reporting_end}</td><td className="px-4 py-3"><p className="max-w-md whitespace-pre-wrap text-sm text-slate-800">{r.completed_work}</p></td><td className="px-4 py-3 text-xs">{statusLabel(r.status)}</td><td className="px-4 py-3 whitespace-nowrap text-xs text-slate-500">{r.submitted_at ? new Date(r.submitted_at).toLocaleString() : "—"}</td><td className="px-4 py-3 text-xs text-slate-600">{r.reviewer_comments || "—"}</td><td className="min-w-64 px-4 py-3"><textarea value={weeklyReviewComments[r.id] ?? ""} onChange={(e) => setWeeklyReviewComments((prev) => ({...prev, [r.id]: e.target.value}))} placeholder="Review comment (required to return)" rows={2} className="mb-2 w-full rounded-md border border-slate-200 px-2 py-1.5 text-xs" disabled={weeklyReviewBusy === r.id || r.status === "approved"} /><div className="flex flex-wrap gap-2"><button type="button" disabled={weeklyReviewBusy === r.id || !["submitted","reviewed","returned_for_revision"].includes(r.status)} onClick={() => void reviewWeeklyReport(r, "approved")} className="rounded-md bg-emerald-700 px-2.5 py-1.5 text-xs font-semibold text-white disabled:opacity-40">{weeklyReviewBusy === r.id ? "Saving…" : "Approve"}</button><button type="button" disabled={weeklyReviewBusy === r.id || !["submitted","reviewed","returned_for_revision"].includes(r.status)} onClick={() => void reviewWeeklyReport(r, "returned_for_revision")} className="rounded-md border border-amber-300 px-2.5 py-1.5 text-xs font-semibold text-amber-800 disabled:opacity-40">Return for revision</button></div></td></tr>)}</tbody></table>{weeklyReports.length === 0 && <p className="px-4 py-5 text-xs text-slate-500">No weekly reports available to this account.</p>}</div>
       </section>
 
       <section className="rounded-xl border border-slate-200 bg-white">
