@@ -960,14 +960,8 @@ export default function MarketingPage() {
 
   const convertedCampaignLeads =
     useMemo(() => {
-      return campaignLeadsList.filter(
-        (lead) =>
-          isStatus(lead.status, [
-            "converted",
-            "paid",
-            "enrolled",
-            "acceptance",
-          ])
+      return campaignLeadsList.filter((lead) =>
+        getPipelineStage(lead.pipeline_stage || lead.status) !== "Leads"
       ).length;
     }, [campaignLeadsList]);
 
@@ -1754,7 +1748,7 @@ export default function MarketingPage() {
                 const converted =
                   campaignLeadsForCard.filter(
                     (lead) =>
-                      getPipelineStage(lead.pipeline_stage || lead.status) === "Paid Acceptance Fee"
+                      getPipelineStage(lead.pipeline_stage || lead.status) !== "Leads"
                   ).length;
 
                 const campaignConversion =
