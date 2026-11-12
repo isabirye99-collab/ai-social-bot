@@ -10,6 +10,9 @@ type WeeklyReport = { id: string; plan_id: string | null; reporting_start: strin
 type StrategyRisk = { id: string; plan_id: string; title: string; description: string | null; priority: string; status: string; corrective_action: string | null; due_date: string | null; programme: string | null };
 type IntakeTarget = { id: string; plan_id: string; intake_month: number; cycle: string; programme: string; target_applications: number; target_admissions: number; target_registrations: number };
 
+type StrategyMeeting = { id: string; plan_id: string | null; meeting_at: string; title: string; minutes: string; decisions: unknown[]; };
+type MeetingAction = { id: string; meeting_id: string; action: string; owner_id: string | null; due_date: string | null; status: string; notes: string | null; };
+
 type ApprovalRequest = { id: string; request_type: string; entity_type: string; entity_id: string | null; title: string; reason: string; status: string; submitted_at: string; submitted_by: string | null; decision_comment: string | null; };
 
 type Plan = {
@@ -51,6 +54,12 @@ export default function StrategyPlanningPage() {
   const [approvalRequests, setApprovalRequests] = useState<ApprovalRequest[]>([]);
   const [decisionComments, setDecisionComments] = useState<Record<string, string>>({});
   const [decisionBusy, setDecisionBusy] = useState<string | null>(null);
+  const [meetings, setMeetings] = useState<StrategyMeeting[]>([]);
+  const [meetingActions, setMeetingActions] = useState<MeetingAction[]>([]);
+  const [meetingTitle, setMeetingTitle] = useState("Monday Marketing Management Meeting");
+  const [meetingAt, setMeetingAt] = useState("");
+  const [meetingMinutes, setMeetingMinutes] = useState("");
+  const [actionDrafts, setActionDrafts] = useState<Record<string, { action: string; due_date: string }>>({});
   const [reportStart, setReportStart] = useState("");
   const [reportEnd, setReportEnd] = useState("");
   const [reportWork, setReportWork] = useState("");
@@ -116,7 +125,7 @@ export default function StrategyPlanningPage() {
       setObjectiveCount(objectives.count ?? 0);
       setActivityCount(activities.count ?? 0);
       setIntakeCount(intakes.count ?? 0);
-      const [objectiveRows, intakeRows, activityRows, budgetRows, riskRows, reportRows, approvalRows] = await Promise.all([
+      const [objectiveRows, intakeRows, activityRows, budgetRows, riskRows, reportRows, approvalRows, meetingRows] = await Promise.all([
         supabase.from("strategy_objectives").select("id,plan_id,title,description,target_value,actual_value,unit,status,due_date").in("plan_id", ids).order("sort_order"),
         supabase.from("strategy_intake_plans").select("id,plan_id,intake_month,cycle,programme,target_applications,target_admissions,target_registrations").in("plan_id", ids).order("intake_month"),
         supabase.from("strategy_activities").select("id,plan_id,title,description,activity_type,starts_on,ends_on,status,budget_amount").in("plan_id", ids).order("starts_on"),
@@ -124,8 +133,9 @@ export default function StrategyPlanningPage() {
         supabase.from("strategy_risks").select("id,plan_id,title,description,priority,status,corrective_action,due_date,programme").in("plan_id", ids).order("created_at", { ascending: false }),
         supabase.from("strategy_weekly_reports").select("id,plan_id,reporting_start,reporting_end,staff_id,completed_work,recruitment_outcomes,challenges,next_week_plan,status,submitted_at,reviewer_comments").order("reporting_start", { ascending: false }).limit(100),
         supabase.from("strategy_approval_requests").select("id,request_type,entity_type,entity_id,title,reason,status,submitted_at,submitted_by,decision_comment").order("submitted_at", { ascending: false }).limit(100),
+        supabase.from("strategy_meetings").select("id,plan_id,meeting_at,title,minutes,decisions").order("meeting_at", { ascending: false }).limit(50),
       ]);
-      const failed = objectiveRows.error || intakeRows.error || activityRows.error || budgetRows.error || riskRows.error || reportRows.error || approvalRows.error;
+      const failed = objectiveRows.error || intakeRows.error || activityRows.error || budgetRows.error || riskRows.error || reportRows.error || approvalRows.error || meetingRows.error;
       if (failed) { setError(`Unable to load all strategy registers: ${failed.message}`); setLoading(false); return; }
       setObjectives((objectiveRows.data ?? []) as Objective[]);
       setIntakeTargets((intakeRows.data ?? []) as IntakeTarget[]);
@@ -134,6 +144,9 @@ export default function StrategyPlanningPage() {
       setRisks((riskRows.data ?? []) as StrategyRisk[]);
       setWeeklyReports((reportRows.data ?? []) as WeeklyReport[]);
       setApprovalRequests((approvalRows.data ?? []) as ApprovalRequest[]);
+      setMeetings((meetingRows.data ?? []) as StrategyMeeting[]);
+      const { data: actions } = await supabase.from("strategy_meeting_actions").select("id,meeting_id,action,owner_id,due_date,status,notes").order("due_date", { ascending: true }).limit(200);
+      setMeetingActions((actions ?? []) as MeetingAction[]);
     } else {
       setObjectiveCount(0);
       setActivityCount(0);
@@ -168,6 +181,41 @@ export default function StrategyPlanningPage() {
     if (reloadError) setError("Decision saved, but queue refresh failed: " + reloadError.message);
     else { setApprovalRequests((data ?? []) as ApprovalRequest[]); setNotice("Decision recorded."); }
     setDecisionBusy(null);
+  }
+
+  async function createMeeting() {
+    if (!meetingAt || !meetingTitle.trim()) { setError("Enter a meeting title and date/time."); return; }
+    const { data: auth } = await supabase.auth.getUser();
+    if (!auth.user) { setError("Please sign in again before creating a meeting."); return; }
+    setSaving(true); setError(""); setNotice("");
+    const { error: saveError } = await supabase.from("strategy_meetings").insert({
+      plan_id: plans.find((p) => p.strategy_year === currentYear)?.id ?? null,
+      meeting_at: new Date(meetingAt).toISOString(), title: meetingTitle.trim(), minutes: meetingMinutes.trim(), created_by: auth.user.id
+    });
+    if (saveError) setError("Could not create meeting: " + saveError.message);
+    else { setMeetingTitle("Monday Marketing Management Meeting"); setMeetingMinutes(""); setNotice("Meeting created."); await load(); }
+    setSaving(false);
+  }
+
+  async function addMeetingAction(meetingId: string) {
+    const draft = actionDrafts[meetingId];
+    if (!draft?.action.trim()) { setError("Enter the action before saving it."); return; }
+    const { error: saveError } = await supabase.from("strategy_meeting_actions").insert({
+      meeting_id: meetingId, action: draft.action.trim(), due_date: draft.due_date || null, status: "pending"
+    });
+    if (saveError) { setError("Could not add meeting action: " + saveError.message); return; }
+    setActionDrafts((prev) => ({ ...prev, [meetingId]: { action: "", due_date: "" } }));
+    const { data } = await supabase.from("strategy_meeting_actions").select("id,meeting_id,action,owner_id,due_date,status,notes").order("due_date", { ascending: true }).limit(200);
+    setMeetingActions((data ?? []) as MeetingAction[]); setNotice("Meeting action added.");
+  }
+
+  async function updateMeetingAction(action: MeetingAction, status: "in_progress" | "completed") {
+    const { error: saveError } = await supabase.from("strategy_meeting_actions").update({
+      status, completed_at: status === "completed" ? new Date().toISOString() : null, updated_at: new Date().toISOString()
+    }).eq("id", action.id);
+    if (saveError) { setError("Could not update action: " + saveError.message); return; }
+    setMeetingActions((prev) => prev.map((item) => item.id === action.id ? { ...item, status } : item));
+    setNotice("Meeting action updated.");
   }
 
   async function submitWeeklyReport() {
