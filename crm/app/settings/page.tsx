@@ -1227,103 +1227,19 @@ export default function Settings() {
             </div>
           )}
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns:
-                "repeat(5,minmax(145px,1fr))",
-              gap: 10,
-              marginBottom: 20,
-              overflowX: "auto",
-            }}
-          >
-            {sectionItems.map(
-              (item) => {
-                const active =
-                  activeSection ===
-                  item.id;
-
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() =>
-                      setActiveSection(
-                        item.id,
-                      )
-                    }
-                    style={{
-                      textAlign:
-                        "left",
-                      border: active
-                        ? "1px solid #00695c"
-                        : "1px solid #dfe9e5",
-                      background: active
-                        ? "#eaf5f2"
-                        : "#ffffff",
-                      borderRadius: 12,
-                      padding:
-                        "13px 14px",
-                      cursor:
-                        "pointer",
-                      minWidth: 145,
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: 28,
-                        height: 28,
-                        borderRadius: 8,
-                        display:
-                          "grid",
-                        placeItems:
-                          "center",
-                        marginBottom: 7,
-                        background:
-                          active
-                            ? "#00695c"
-                            : "#eef7df",
-                        color: active
-                          ? "#ffffff"
-                          : "#00695c",
-                        fontSize: 12,
-                        fontWeight: 900,
-                      }}
-                    >
-                      {item.icon}
-                    </div>
-
-                    <strong
-                      style={{
-                        display:
-                          "block",
-                        color: active
-                          ? "#00695c"
-                          : "#17322c",
-                        fontSize: 13,
-                      }}
-                    >
-                      {item.label}
-                    </strong>
-
-                    <span
-                      style={{
-                        display:
-                          "block",
-                        marginTop: 3,
-                        color:
-                          "#6b7f78",
-                        fontSize: 10,
-                        lineHeight: 1.4,
-                      }}
-                    >
-                      {item.description}
-                    </span>
-                  </button>
-                );
-              },
-            )}
-          </div>
+          <nav className="ciu-status-tabs ciu-settings-tabs" aria-label="Settings sections" style={{ marginBottom: 14 }}>
+            {sectionItems.map((item) => {
+              const active = activeSection === item.id;
+              return (
+                <button key={item.id} type="button" onClick={() => setActiveSection(item.id)}
+                  className={active ? "ciu-status-tab is-active" : "ciu-status-tab"}
+                  aria-pressed={active}>
+                  <span className="ciu-settings-tab-icon" aria-hidden="true">{item.icon}</span>
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
+          </nav>
 
           {activeSection ===
             "general" && (
