@@ -10,7 +10,7 @@ type WeeklyReport = { id: string; plan_id: string | null; reporting_start: strin
 type StrategyRisk = { id: string; plan_id: string; title: string; description: string | null; priority: string; status: string; corrective_action: string | null; due_date: string | null; programme: string | null };
 type IntakeTarget = { id: string; plan_id: string; intake_month: number; cycle: string; programme: string; target_applications: number; target_admissions: number; target_registrations: number };
 
-type ManagementReportHistory = { id: string; plan_id: string | null; report_type: string; reporting_start: string | null; reporting_end: string | null; version: number; status: string; snapshot: Record<string, unknown>; created_at: string; };
+type ManagementReportHistory = { id: string; plan_id: string | null; report_type: string; reporting_start: string | null; reporting_end: string | null; version: number; status: string; snapshot: Record<string, unknown>; created_at: string; approved_by?: string | null; approved_at?: string | null; sent_by?: string | null; sent_at?: string | null; provider_status?: string | null; provider_message_id?: string | null; recipients?: unknown[]; };\ntype ApprovalDecisionHistory = { id: string; request_id: string; previous_status: string; decision: string; reviewer_id: string | null; reviewer_comment: string | null; decided_at: string; };
 type CycleAllocation = { id: string; plan_id: string; cycle: string; proposed_amount: number; approved_amount: number | null; status: string; notes: string | null; };
 type StrategyMeeting = { id: string; plan_id: string | null; meeting_at: string; title: string; minutes: string; decisions: unknown[]; };
 type MeetingAction = { id: string; meeting_id: string; action: string; owner_id: string | null; due_date: string | null; status: string; notes: string | null; };
@@ -52,7 +52,7 @@ export default function StrategyPlanningPage() {
   const [intakeTargets, setIntakeTargets] = useState<IntakeTarget[]>([]);
   const [budgets, setBudgets] = useState<BudgetRecord[]>([]);
   const [cycleAllocations, setCycleAllocations] = useState<CycleAllocation[]>([]);
-  const [reportHistory, setReportHistory] = useState<ManagementReportHistory[]>([]);
+  const [reportHistory, setReportHistory] = useState<ManagementReportHistory[]>([]);\n  const [approvalHistory, setApprovalHistory] = useState<ApprovalDecisionHistory[]>([]);
   const [allocationCycle, setAllocationCycle] = useState("february");
   const [allocationAmount, setAllocationAmount] = useState("");
   const [allocationNotes, setAllocationNotes] = useState("");
@@ -144,7 +144,7 @@ export default function StrategyPlanningPage() {
         supabase.from("strategy_approval_requests").select("id,request_type,entity_type,entity_id,title,reason,status,submitted_at,submitted_by,decision_comment").order("submitted_at", { ascending: false }).limit(100),
         supabase.from("strategy_meetings").select("id,plan_id,meeting_at,title,minutes,decisions").order("meeting_at", { ascending: false }).limit(50),
         supabase.from("strategy_cycle_allocations").select("id,plan_id,cycle,proposed_amount,approved_amount,status,notes").in("plan_id", ids).order("cycle"),
-        supabase.from("strategy_report_history").select("id,plan_id,report_type,reporting_start,reporting_end,version,status,snapshot,created_at").in("plan_id", ids).order("created_at", { ascending: false }).limit(50),
+        supabase.from("strategy_report_history").select("id,plan_id,report_type,reporting_start,reporting_end,version,status,snapshot,created_at,approved_by,approved_at,sent_by,sent_at,provider_status,provider_message_id,recipients").in("plan_id", ids).order("created_at", { ascending: false }).limit(50),
       ]);
       const failed = objectiveRows.error || intakeRows.error || activityRows.error || budgetRows.error || riskRows.error || reportRows.error || approvalRows.error || meetingRows.error || allocationRows.error || historyRows.error;
       if (failed) { setError(`Unable to load all strategy registers: ${failed.message}`); setLoading(false); return; }
@@ -153,7 +153,7 @@ export default function StrategyPlanningPage() {
       setActivities((activityRows.data ?? []) as StrategyActivity[]);
       setBudgets((budgetRows.data ?? []) as BudgetRecord[]);
       setCycleAllocations((allocationRows.data ?? []) as CycleAllocation[]);
-      setReportHistory((historyRows.data ?? []) as ManagementReportHistory[]);
+      setReportHistory((historyRows.data ?? []) as ManagementReportHistory[]);\n      const { data: decisions, error: decisionsError } = await supabase.from("strategy_approval_decision_history").select("id,request_id,previous_status,decision,reviewer_id,reviewer_comment,decided_at").order("decided_at", { ascending: false }).limit(200);\n      if (decisionsError) { setError("Could not load approval decision history: " + decisionsError.message); }\n      setApprovalHistory((decisions ?? []) as ApprovalDecisionHistory[]);
       setRisks((riskRows.data ?? []) as StrategyRisk[]);
       setWeeklyReports((reportRows.data ?? []) as WeeklyReport[]);
       setApprovalRequests((approvalRows.data ?? []) as ApprovalRequest[]);
@@ -260,6 +260,26 @@ export default function StrategyPlanningPage() {
     });
     if (saveError) setError("Could not save report snapshot: " + saveError.message);
     else { setNotice("Management report snapshot saved as a new version."); await load(); }
+    setSaving(false);
+  }
+
+  async function transitionManagementReport(report: ManagementReportHistory, nextStatus: "reviewed" | "approved" | "sent") {
+    const allowed: Record<string, string[]> = { draft: ["reviewed"], reviewed: ["approved"], approved: ["sent"] };
+    if (!allowed[report.status]?.includes(nextStatus)) { setError("This report cannot move to that status from its current state."); return; }
+    const { data: auth } = await supabase.auth.getUser();
+    if (!auth.user) { setError("Please sign in again before updating a report."); return; }
+    setSaving(true); setError(""); setNotice("");
+    const now = new Date().toISOString();
+    const patch: Record<string, unknown> = { status: nextStatus };
+    if (nextStatus === "approved") { patch.approved_by = auth.user.id; patch.approved_at = now; }
+    if (nextStatus === "sent") { patch.sent_by = auth.user.id; patch.sent_at = now; patch.provider_status = "manually_confirmed"; }
+    const { data: updated, error: updateError } = await supabase.from("strategy_report_history").update(patch).eq("id", report.id).eq("status", report.status).select("id").maybeSingle();
+    if (updateError || !updated) {
+      setError(updateError ? "Could not update report: " + updateError.message : "The report changed or your account is not authorised to make this transition.");
+    } else {
+      setNotice(nextStatus === "sent" ? "Delivery confirmation recorded. This is a manual confirmation, not an email-provider receipt." : "Report status updated to " + statusLabel(nextStatus) + ".");
+      await load();
+    }
     setSaving(false);
   }
 
@@ -636,7 +656,7 @@ export default function StrategyPlanningPage() {
           <article className="rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-500">Open meeting actions</p><p className="mt-1 text-xl font-semibold">{meetingActions.filter((a) => a.status !== "completed" && a.status !== "cancelled").length}</p></article>
         </div>
         <div className="border-t border-slate-100"><div className="px-4 py-3"><h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Saved report versions</h3></div>
-          {reportHistory.map((report) => <div key={report.id} className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 px-4 py-3"><div><p className="text-sm font-medium text-slate-800">{statusLabel(report.report_type)} · Version {report.version}</p><p className="mt-1 text-xs text-slate-500">Created {new Date(report.created_at).toLocaleString()} · {statusLabel(report.status)}</p></div><button type="button" onClick={() => { const snapshot = JSON.stringify(report.snapshot, null, 2); const blob = new Blob([snapshot], { type: "application/json" }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = "ciu-strategy-report-v" + report.version + ".json"; link.click(); URL.revokeObjectURL(url); }} className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold">Export snapshot</button></div>)}
+          {reportHistory.map((report) => <div key={report.id} className="border-t border-slate-100 px-4 py-3"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-sm font-medium text-slate-800">{statusLabel(report.report_type)} · Version {report.version}</p><p className="mt-1 text-xs text-slate-500">Created {new Date(report.created_at).toLocaleString()} · {statusLabel(report.status)}</p>{report.approved_at && <p className="mt-1 text-xs text-slate-500">Approved {new Date(report.approved_at).toLocaleString()} · Reviewer ID {report.approved_by || "unavailable"}</p>}{report.sent_at && <p className="mt-1 text-xs text-slate-500">Delivery confirmation {new Date(report.sent_at).toLocaleString()} · {report.provider_status || "recorded"}</p>}</div><div className="flex flex-wrap gap-2"><button type="button" onClick={() => { const snapshot = JSON.stringify(report.snapshot, null, 2); const blob = new Blob([snapshot], { type: "application/json" }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = "ciu-strategy-report-v" + report.version + ".json"; link.click(); URL.revokeObjectURL(url); }} className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold">Export snapshot</button>{report.status === "draft" && <button type="button" disabled={saving} onClick={() => void transitionManagementReport(report, "reviewed")} className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold disabled:opacity-50">Mark reviewed</button>}{report.status === "reviewed" && <button type="button" disabled={saving} onClick={() => void transitionManagementReport(report, "approved")} className="rounded-lg bg-emerald-800 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Approve report</button>}{report.status === "approved" && <button type="button" disabled={saving} onClick={() => void transitionManagementReport(report, "sent")} className="rounded-lg border border-blue-300 px-3 py-2 text-xs font-semibold text-blue-800 disabled:opacity-50">Confirm delivery</button>}</div></div></div>)}
           {reportHistory.length === 0 && <p className="px-4 pb-4 text-sm text-slate-500">No saved report snapshots yet.</p>}
         </div>
       </section>
@@ -660,6 +680,10 @@ export default function StrategyPlanningPage() {
               </div></div> : <p className="self-start text-xs text-slate-500">Decision recorded.</p>}
           </article>)}
           {approvalRequests.length === 0 && <p className="px-4 py-6 text-sm text-slate-500">No approval requests have been submitted yet.</p>}
+        </div>
+        <div className="border-t border-slate-200"><div className="px-4 py-3"><h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Decision history</h3><p className="mt-1 text-xs text-slate-500">Append-only record of decisions, reviewer identifiers and timestamps.</p></div>
+          {approvalHistory.map((item) => <article key={item.id} className="grid gap-1 border-t border-slate-100 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_minmax(220px,0.8fr)]"><div><p className="text-sm font-medium text-slate-800">{statusLabel(item.decision)} · {new Date(item.decided_at).toLocaleString()}</p><p className="mt-1 break-all text-xs text-slate-500">Request {item.request_id} · Reviewer {item.reviewer_id || "unavailable"}</p><p className="mt-1 text-xs text-slate-500">Previous status: {statusLabel(item.previous_status)}</p></div><p className="whitespace-pre-wrap text-sm text-slate-600">{item.reviewer_comment || "No decision comment recorded."}</p></article>)}
+          {approvalHistory.length === 0 && <p className="px-4 pb-4 text-sm text-slate-500">No decision history available yet.</p>}
         </div>
       </section>
 
