@@ -287,6 +287,23 @@ function isActiveTask(task: Task) {
   );
 }
 
+function isClosedLead(lead: Lead | null | undefined) {
+  if (!lead) return false;
+  const status = (lead.status || "").trim().toLowerCase().replace(/[ _-]+/g, " ");
+  const outcome = (lead.follow_up_status || "").trim().toLowerCase().replace(/[ _-]+/g, " ");
+  return (
+    ["unqualified", "lost", "dropped", "ineffective", "ineffective data", "closed"].includes(status) ||
+    ["not interested", "lost leads", "wrong number", "dropped", "enrolled"].includes(outcome)
+  );
+}
+
+function isInterestedLead(lead: Lead | null | undefined) {
+  if (!lead) return false;
+  const status = (lead.status || "").trim().toLowerCase();
+  const outcome = (lead.follow_up_status || "").trim().toLowerCase();
+  return status === "qualified" || status === "interested" || outcome === "interested";
+}
+
 function getPriority(task: Task) {
   if (isOverdue(task)) return 1;
   if (isToday(task.due_at)) return 2;
@@ -533,68 +550,7 @@ const isSalesperson =
 
       let loadedTasks = (tasksResult.data || []) as Task[];
 
-      // Backfill missing follow-up tasks for campaign-linked leads visible to
-      // this user. Salespeople only load leads assigned to themselves above,
-      // so this also creates follow-ups for their campaign leads without
-      // exposing or reassigning another salesperson's leads.
-      {
-        try {
-          const campaignLeadResult = await supabase
-            .from("campaign_leads")
-            .select("lead_id");
-          if (campaignLeadResult.error) throw campaignLeadResult.error;
-
-          const campaignLeadIds = new Set(
-            (campaignLeadResult.data || [])
-              .map((item) => item.lead_id)
-              .filter((id): id is string => Boolean(id))
-          );
-          const campaignLeads = ((leadsResult.data || []) as Lead[])
-            .filter((lead) => campaignLeadIds.has(lead.id));
-
-          if (campaignLeads.length) {
-            const existingTaskResult = await supabase
-              .from("tasks")
-              .select("lead_id,status")
-              .in("lead_id", campaignLeads.map((lead) => lead.id))
-              .in("status", ["pending", "in_progress"]);
-            if (existingTaskResult.error) throw existingTaskResult.error;
-
-            const leadsWithActiveTasks = new Set(
-              (existingTaskResult.data || [])
-                .map((task) => task.lead_id)
-                .filter((id): id is string => Boolean(id))
-            );
-            const dueAt = new Date();
-            dueAt.setDate(dueAt.getDate() + 1);
-            const missingTasks = campaignLeads
-              .filter((lead) => !leadsWithActiveTasks.has(lead.id))
-              .map((lead) => ({
-                title: `Follow up with ${lead.name || "Student"}`,
-                description: "Initial follow-up for a lead linked to a marketing campaign. Please call the student and record the outcome.",
-                task_type: "call",
-                lead_id: lead.id,
-                opportunity_id: null,
-                assigned_to: lead.assigned_to || user.id,
-                due_at: dueAt.toISOString(),
-                status: "pending",
-                created_by: user.id,
-              }));
-
-            if (missingTasks.length) {
-              const created = await supabase
-                .from("tasks")
-                .insert(missingTasks)
-                .select("id,title,description,task_type,lead_id,opportunity_id,assigned_to,due_at,status,completed_at,created_at,updated_at");
-              if (created.error) throw created.error;
-              loadedTasks = [...loadedTasks, ...((created.data || []) as Task[])];
-            }
-          }
-        } catch (backfillError) {
-          // Keep the Tasks page usable even if campaign backfill is blocked by policy.
-          console.error("Campaign task reconciliation could not complete:", backfillError);
-        }
-      }
+      const loadedTasks = (tasksResult.data || []) as Task[];
 
       setTasks(loadedTasks);
 
@@ -680,8 +636,8 @@ const isSalesperson =
   };
 
   const stats = useMemo(() => {
-    const active = tasks.filter(
-      isActiveTask
+    const active = tasks.filter((task) =>
+      isActiveTask(task) && !isClosedLead(getLead(task))
     );
 
     const overdue = active.filter(
@@ -696,14 +652,21 @@ const isSalesperson =
       (task) =>
         task.status === "completed"
     ).length;
+    const interestedLeadIds = new Set(
+      tasks
+        .filter((task) => isInterestedLead(getLead(task)))
+        .map((task) => task.lead_id)
+        .filter((id): id is string => Boolean(id))
+    );
 
     return {
       active: active.length,
       overdue,
       dueToday,
       completed,
+      interestedLeads: interestedLeadIds.size,
     };
-  }, [tasks]);
+  }, [tasks, leads]);
 
   const filteredTasks = useMemo(() => {
     const query = search
@@ -733,10 +696,11 @@ const isSalesperson =
           return false;
         }
 
-        if (quickTaskFilter === "open" && !isActiveTask(task)) return false;
-        if (quickTaskFilter === "today" && (!isActiveTask(task) || !isToday(task.due_at))) return false;
-        if (quickTaskFilter === "overdue" && !isOverdue(task)) return false;
+        if (quickTaskFilter === "open" && (!isActiveTask(task) || isClosedLead(lead))) return false;
+        if (quickTaskFilter === "today" && (!isActiveTask(task) || isClosedLead(lead) || !isToday(task.due_at))) return false;
+        if (quickTaskFilter === "overdue" && (!isOverdue(task) || isClosedLead(lead))) return false;
         if (quickTaskFilter === "completed" && task.status !== "completed") return false;
+        if (quickTaskFilter === "interested" && !isInterestedLead(lead)) return false;
 
         if (
           statusFilter !== "all" &&
@@ -1799,6 +1763,7 @@ const isSalesperson =
             { id: "today", label: "Due Today", count: stats.dueToday },
             { id: "overdue", label: "Overdue", count: stats.overdue },
             { id: "completed", label: "Completed", count: stats.completed },
+            { id: "interested", label: "Interested Leads", count: stats.interestedLeads },
             { id: "all", label: "All Tasks", count: tasks.length },
           ].map((tab) => (
             <button key={tab.id} type="button"
