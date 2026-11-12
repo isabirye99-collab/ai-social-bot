@@ -20,6 +20,19 @@ begin
     raise exception 'Sent management reports are immutable; create a new version';
   end if;
 
+  if old.status = 'reviewed' and (
+       new.plan_id is distinct from old.plan_id
+       or new.report_type is distinct from old.report_type
+       or new.reporting_start is distinct from old.reporting_start
+       or new.reporting_end is distinct from old.reporting_end
+       or new.version is distinct from old.version
+       or new.snapshot is distinct from old.snapshot
+       or new.recipients is distinct from old.recipients
+       or new.created_at is distinct from old.created_at
+     ) then
+    raise exception 'Reviewed management report snapshots cannot be altered; create a new version';
+  end if;
+
   if old.status = 'approved' then
     if new.status = 'sent'
        and new.plan_id is not distinct from old.plan_id
