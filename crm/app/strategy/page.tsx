@@ -106,6 +106,7 @@ export default function StrategyPlanningPage() {
   const [targetAdmissions, setTargetAdmissions] = useState("0");
   const [targetRegistrations, setTargetRegistrations] = useState("0");
   const [recruitmentActuals, setRecruitmentActuals] = useState<RecruitmentActuals>({ leads: 0, applications: 0, admitted: 0, enrolled: 0 });
+  const [actualsAvailable, setActualsAvailable] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -138,6 +139,7 @@ export default function StrategyPlanningPage() {
       supabase.from("admissions").select("id,stage,created_at").gte("created_at", yearStart).lt("created_at", nextYearStart),
     ]);
     if (!leadActuals.error && !admissionActuals.error) {
+      setActualsAvailable(true);
       const actualAdmissions = admissionActuals.data ?? [];
       const stages = actualAdmissions.map((item) => String(item.stage || "").trim().toLowerCase());
       setRecruitmentActuals({
@@ -762,12 +764,13 @@ export default function StrategyPlanningPage() {
           ].map((metric) => (
             <article key={metric.label} className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-300 hover:bg-white hover:shadow-sm">
               <p className="text-xs font-medium text-slate-500">{metric.label}</p>
-              <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">{loading ? "—" : metric.value.toLocaleString()}</p>
+              <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">{loading || !actualsAvailable ? "—" : metric.value.toLocaleString()}</p>
               {metric.target !== null && <p className="mt-1 text-xs text-slate-500">Plan target: {metric.target.toLocaleString()}</p>}
               {metric.target !== null && <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-200"><div className="h-full rounded-full bg-emerald-700 transition-all duration-500" style={{ width: `${metric.target > 0 ? Math.min(100, metric.value / metric.target * 100) : 0}%` }} /></div>}
             </article>
           ))}
         </div>
+        {!loading && !actualsAvailable && <p className="border-t border-amber-100 bg-amber-50 px-4 py-2 text-xs text-amber-800">Live actuals could not be loaded from the CRM records available to this account. Values are hidden rather than incorrectly reported as zero.</p>}
         {currentPlan && currentPlan.strategy_year !== currentYear && <p className="border-t border-amber-100 bg-amber-50 px-4 py-2 text-xs text-amber-800">The selected strategy is for {currentPlan.strategy_year}; live actuals above are for {currentYear}. Targets are shown for the selected plan, so compare only when the years match.</p>}
       </section>
 
