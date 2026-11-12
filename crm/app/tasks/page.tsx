@@ -548,8 +548,6 @@ const isSalesperson =
       if (stagesResult.error)
         throw stagesResult.error;
 
-      let loadedTasks = (tasksResult.data || []) as Task[];
-
       const loadedTasks = (tasksResult.data || []) as Task[];
 
       setTasks(loadedTasks);
@@ -1799,7 +1797,6 @@ const isSalesperson =
             { id: "overdue", label: "Overdue", count: stats.overdue },
             { id: "completed", label: "Completed", count: stats.completed },
             { id: "interested", label: "Interested Leads", count: stats.interestedLeads },
-            { id: "all", label: "All Tasks", count: tasks.length },
           ].map((tab) => (
             <button key={tab.id} type="button"
               onClick={() => { setQuickTaskFilter(tab.id); setStatusFilter("all"); }}
