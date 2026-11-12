@@ -4295,3 +4295,112 @@ button, input, select, textarea {
     padding: 12px !important;
   }
 }
+
+
+/* Compact segmented tabs used instead of oversized KPI tiles in modules */
+.ciu-status-tabs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  padding: 2px 1px 5px;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+.ciu-status-tab {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex: 0 0 auto;
+  min-height: 43px;
+  padding: 7px 12px 7px 14px;
+  border: 1px solid #d9e5df;
+  border-radius: 12px;
+  background: #fff;
+  color: #426258;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 750;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color .16s ease, border-color .16s ease, color .16s ease, transform .16s ease, box-shadow .16s ease;
+}
+.ciu-status-tab:hover {
+  border-color: #9fcbb8;
+  background: #f5faf7;
+  color: #075442;
+  transform: translateY(-1px);
+}
+.ciu-status-tab.is-active {
+  border-color: #006b5c;
+  background: #006b5c;
+  color: #fff;
+  box-shadow: 0 2px 4px rgba(0, 83, 68, .10);
+}
+.ciu-status-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 25px;
+  height: 25px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: #edf4f0;
+  color: #527267;
+  font-size: 11px;
+  font-weight: 850;
+  font-variant-numeric: tabular-nums;
+}
+.ciu-status-tab.is-active .ciu-status-count {
+  background: rgba(255,255,255,.16);
+  color: #fff;
+}
+.ciu-status-tab:focus-visible {
+  outline: 3px solid rgba(139,195,74,.65);
+  outline-offset: 2px;
+}
+.ciu-settings-tabs {
+  gap: 8px;
+  border-bottom: 1px solid #e7efea;
+  padding-bottom: 10px;
+}
+.ciu-settings-tabs .ciu-status-tab {
+  min-height: 40px;
+  border-radius: 10px;
+  padding: 6px 13px;
+}
+.ciu-settings-tab-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  background: #eef6e8;
+  color: #006b5c;
+  font-size: 10px;
+  font-weight: 900;
+}
+.ciu-settings-tabs .is-active .ciu-settings-tab-icon {
+  background: rgba(255,255,255,.17);
+  color: #fff;
+}
+@media (max-width: 640px) {
+  .ciu-status-tabs {
+    gap: 6px;
+  }
+  .ciu-status-tab {
+    min-height: 40px;
+    padding: 6px 10px;
+    gap: 7px;
+    font-size: 11px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ciu-status-tab {
+    transition: none;
+  }
+}
