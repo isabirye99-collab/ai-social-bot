@@ -741,7 +741,7 @@ export default function CustomersPage() {
         <nav className="ciu-status-tabs" aria-label="Customer stages" style={{ marginTop: 14, marginBottom: 14 }}>
           {[
             { label: "All Customers", value: "All Enrolled Students", count: customers.length },
-            ...Array.from(new Set(customers.map((customer) => customer.stage).filter(Boolean))).map((stage) => ({
+            ...Array.from(new Set(customers.map((customer) => customer.stage).filter((stage): stage is string => Boolean(stage)))).map((stage) => ({
               label: stage,
               value: stage,
               count: customers.filter((customer) => customer.stage === stage).length,
