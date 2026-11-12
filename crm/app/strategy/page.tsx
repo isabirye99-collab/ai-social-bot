@@ -453,6 +453,72 @@ export default function StrategyPlanningPage() {
     setSaving(false);
   }
 
+  async function importUploadedStrategy() {
+    setSaving(true); setError(""); setNotice("");
+    const { data: auth } = await supabase.auth.getUser();
+    if (!auth.user) { setError("Please sign in again before importing strategy data."); setSaving(false); return; }
+
+    let planId = currentPlan?.id;
+    if (!planId) {
+      const { data: existing, error: findError } = await supabase.from("strategy_plans").select("id").eq("strategy_year", currentYear).maybeSingle();
+      if (findError) { setError("Could not check the annual strategy: " + findError.message); setSaving(false); return; }
+      planId = existing?.id;
+      if (!planId) {
+        const { data: created, error: createError } = await supabase.from("strategy_plans").insert({
+          strategy_year: currentYear, title: `${currentYear} Annual Marketing Strategy`, status: "draft", prepared_by: auth.user.id,
+        }).select("id").single();
+        if (createError || !created) { setError("Could not create the annual strategy: " + (createError?.message || "No plan returned")); setSaving(false); return; }
+        planId = created.id;
+      }
+    }
+
+    const sourceObjectives = [
+      { title: "Annual new-student recruitment", description: "Uploaded CIU general strategy target: recruit 862 new students per year across the main intakes.", target_value: 862, unit: "registrations" },
+      { title: "Inquiry-to-application conversion", description: "Convert 40% of prospective-student inquiries into applications.", target_value: 40, unit: "%" },
+      { title: "Admission-to-registration conversion", description: "Convert 60% of admitted students into full registrations.", target_value: 60, unit: "%" },
+      { title: "Digital inquiry share", description: "Achieve 65% of inquiries from digital channels by the end of FY 2026/27.", target_value: 65, unit: "%" },
+      { title: "Annual enrollment growth", description: "The uploaded strategy contains both a 12–17% annual growth goal and a separate 30% year-on-year KPI. This objective uses the conservative 17% upper bound; reconcile the conflicting target with management.", target_value: 17, unit: "%" },
+    ];
+    const { data: existingObjectives, error: objectivesError } = await supabase.from("strategy_objectives").select("title").eq("plan_id", planId);
+    if (objectivesError) { setError("Could not check existing objectives: " + objectivesError.message); setSaving(false); return; }
+    const knownTitles = new Set((existingObjectives ?? []).map((row) => row.title));
+    const missingObjectives = sourceObjectives.filter((item) => !knownTitles.has(item.title)).map((item) => ({ ...item, plan_id: planId, created_by: auth.user!.id }));
+    if (missingObjectives.length) {
+      const { error: insertError } = await supabase.from("strategy_objectives").insert(missingObjectives);
+      if (insertError) { setError("Could not import strategy objectives: " + insertError.message); setSaving(false); return; }
+    }
+
+    const sourceActivities = [
+      { title: "Digital recruitment and lead generation", description: "Prioritise TikTok, Facebook/Instagram, LinkedIn, website SEO/AEO and track cost per lead. Strategy allocation focus: digital-first (65% inquiry target).", activity_type: "Digital marketing", budget_amount: 0 },
+      { title: "Call-centre lead nurturing", description: "Follow up inquiries and incomplete applications; use intensive 14-day follow-up bursts around results releases and respond to new digital leads promptly.", activity_type: "Lead conversion", budget_amount: 0 },
+      { title: "School and community outreach", description: "Coordinate school activations, nursing-school engagement, church/mosque outreach and regional recruitment partnerships.", activity_type: "Outreach", budget_amount: 0 },
+      { title: "International recruitment and partnerships", description: "Develop localized Arabic/regional collateral and pursue hospital, employer, embassy and education-agent partnerships in target markets.", activity_type: "Partnerships", budget_amount: 0 },
+      { title: "Student and alumni referral programme", description: "Promote the documented 5% referral incentive, with Finance verifying referral attribution and successful registration before commission processing.", activity_type: "Referral marketing", budget_amount: 0 },
+    ];
+    const { data: existingActivities, error: activitiesError } = await supabase.from("strategy_activities").select("title").eq("plan_id", planId);
+    if (activitiesError) { setError("Could not check existing activities: " + activitiesError.message); setSaving(false); return; }
+    const activityTitles = new Set((existingActivities ?? []).map((row) => row.title));
+    const missingActivities = sourceActivities.filter((item) => !activityTitles.has(item.title)).map((item) => ({ ...item, plan_id: planId, created_by: auth.user!.id }));
+    if (missingActivities.length) {
+      const { error: insertError } = await supabase.from("strategy_activities").insert(missingActivities);
+      if (insertError) { setError("Objectives imported, but activities failed: " + insertError.message); await load(); setSaving(false); return; }
+    }
+
+    const { data: existingBudget, error: budgetCheckError } = await supabase.from("strategy_annual_budgets").select("id").eq("plan_id", planId).limit(1);
+    if (budgetCheckError) { setError("Strategy records imported, but budget check failed: " + budgetCheckError.message); await load(); setSaving(false); return; }
+    let budgetNote = "Source: uploaded general strategy document. Projected 2026 budget ~UGX 300,000,000 for charter branding and CRM implementation. This is a proposed estimate, not actual expenditure or an approved budget.";
+    if (!existingBudget?.length) {
+      const { error: budgetError } = await supabase.from("strategy_annual_budgets").insert({
+        plan_id: planId, proposed_amount: 300000000, status: "pending_approval", prepared_by: auth.user.id, notes: budgetNote,
+      });
+      if (budgetError) { setError("Strategy objectives and activities imported, but the budget record failed: " + budgetError.message); await load(); setSaving(false); return; }
+    } else budgetNote = "Existing annual budget retained; no duplicate budget was added.";
+
+    await load();
+    setNotice(`Uploaded strategy data imported. Added ${missingObjectives.length} objectives and ${missingActivities.length} activities. ${existingBudget?.length ? "Existing annual budget was preserved." : "Added the proposed 2026 budget of UGX 300,000,000 for approval."} Historical September 2026 intake results and the detailed February 2025 budget should be entered as dated reporting records, not mixed into 2026 forecasts.`);
+    setSaving(false);
+  }
+
   async function createAnnualPlan() {
     setSaving(true);
     setError("");
@@ -491,9 +557,14 @@ export default function StrategyPlanningPage() {
           <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">Strategy Overview</h1>
           <p className="mt-1 max-w-2xl text-sm text-slate-600">Plan annual objectives, coordinate recruitment cycles, track delivery and prepare management decisions.</p>
         </div>
-        <button onClick={createAnnualPlan} disabled={saving || Boolean(currentPlan)} className="inline-flex min-h-10 items-center justify-center rounded-lg bg-emerald-800 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-900 disabled:cursor-not-allowed disabled:opacity-50">
-          {saving ? "Creating…" : currentPlan ? `${currentYear} plan exists` : `Create ${currentYear} strategy`}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button onClick={() => void importUploadedStrategy()} disabled={saving} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-emerald-700 px-4 py-2 text-sm font-semibold text-emerald-900 transition hover:-translate-y-0.5 hover:bg-emerald-50 hover:shadow-sm disabled:opacity-50">
+            {saving ? "Importing…" : "Import uploaded strategy"}
+          </button>
+          <button onClick={createAnnualPlan} disabled={saving || Boolean(currentPlan)} className="inline-flex min-h-10 items-center justify-center rounded-lg bg-emerald-800 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-900 disabled:cursor-not-allowed disabled:opacity-50">
+            {saving ? "Saving…" : currentPlan ? `${currentYear} plan exists` : `Create ${currentYear} strategy`}
+          </button>
+        </div>
       </header>
 
       {error && <div role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{error}</div>}
