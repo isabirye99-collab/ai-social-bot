@@ -201,6 +201,7 @@ export default function MarketingPage() {
   const [search, setSearch] = useState("");
   const [channelFilter, setChannelFilter] =
     useState("All");
+  const [campaignStatusFilter, setCampaignStatusFilter] = useState("All");
 
   const [selectedCampaignId, setSelectedCampaignId] =
     useState<string | null>(null);
@@ -874,10 +875,13 @@ export default function MarketingPage() {
             channelFilter === "All" ||
             (campaign.channel || "") ===
               channelFilter;
+          const campaignStatus = getCampaignStatus(campaign.start_date, campaign.end_date).label;
+          const matchesStatus = campaignStatusFilter === "All" || campaignStatus === campaignStatusFilter;
 
           return (
             matchesSearch &&
-            matchesChannel
+            matchesChannel &&
+            matchesStatus
           );
         }
       );
@@ -885,6 +889,7 @@ export default function MarketingPage() {
       campaigns,
       search,
       channelFilter,
+      campaignStatusFilter,
     ]);
 
   const activeCampaigns =
@@ -1398,187 +1403,21 @@ export default function MarketingPage() {
           </div>
         )}
 
-        {/* KPI CARDS */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns:
-              "repeat(auto-fit, minmax(210px, 1fr))",
-            gap: 16,
-            marginBottom: 24,
-          }}
-        >
-          <div
-            style={{
-              background: "#ffffff",
-              border:
-                "1px solid #e5e7eb",
-              borderLeft: "4px solid var(--ciu-primary, #00695c)",
-              borderRadius: 12,
-              padding: 20,
-            }}
-          >
-            <div
-              style={{
-                fontSize: 13,
-                color: "#64748b",
-                marginBottom: 10,
-              }}
-            >
-              Active Campaigns
-            </div>
-
-            <div
-              style={{
-                fontSize: 30,
-                fontWeight: 700,
-              }}
-            >
-              {activeCampaigns}
-            </div>
-
-            <div
-              style={{
-                marginTop: 8,
-                fontSize: 12,
-                color: "#64748b",
-              }}
-            >
-              Across {channels.length}{" "}
-              {channels.length === 1
-                ? "channel"
-                : "channels"}
-            </div>
-          </div>
-
-          <div
-            style={{
-              background: "#ffffff",
-              border:
-                "1px solid #e5e7eb",
-              borderLeft: "4px solid var(--ciu-primary, #00695c)",
-              borderRadius: 12,
-              padding: 20,
-            }}
-          >
-            <div
-              style={{
-                fontSize: 13,
-                color: "#64748b",
-                marginBottom: 10,
-              }}
-            >
-              Leads Generated
-            </div>
-
-            <div
-              style={{
-                fontSize: 30,
-                fontWeight: 700,
-              }}
-            >
-              {formatNumber(
-                totalCampaignLeads
-              )}
-            </div>
-
-            <div
-              style={{
-                marginTop: 8,
-                fontSize: 12,
-                color: "#64748b",
-              }}
-            >
-              Linked to campaigns
-            </div>
-          </div>
-
-          <div
-            style={{
-              background: "#ffffff",
-              border:
-                "1px solid #e5e7eb",
-              borderLeft: "4px solid var(--ciu-primary, #00695c)",
-              borderRadius: 12,
-              padding: 20,
-            }}
-          >
-            <div
-              style={{
-                fontSize: 13,
-                color: "#64748b",
-                marginBottom: 10,
-              }}
-            >
-              Campaign Conversion
-            </div>
-
-            <div
-              style={{
-                fontSize: 30,
-                fontWeight: 700,
-              }}
-            >
-              {conversionRate.toFixed(
-                1
-              )}
-              %
-            </div>
-
-            <div
-              style={{
-                marginTop: 8,
-                fontSize: 12,
-                color: "#64748b",
-              }}
-            >
-              {convertedCampaignLeads} converted
-              leads
-            </div>
-          </div>
-
-          <div
-            style={{
-              background: "#ffffff",
-              border:
-                "1px solid #e5e7eb",
-              borderLeft: "4px solid var(--ciu-primary, #00695c)",
-              borderRadius: 12,
-              padding: 20,
-            }}
-          >
-            <div
-              style={{
-                fontSize: 13,
-                color: "#64748b",
-                marginBottom: 10,
-              }}
-            >
-              Campaign Budget
-            </div>
-
-            <div
-              style={{
-                fontSize: 25,
-                fontWeight: 700,
-              }}
-            >
-              {formatCurrency(
-                totalBudget
-              )}
-            </div>
-
-            <div
-              style={{
-                marginTop: 8,
-                fontSize: 12,
-                color: "#64748b",
-              }}
-            >
-              Total campaign budgets
-            </div>
-          </div>
-        </div>
+        {/* COMPACT CAMPAIGN STATUS TABS */}
+        <nav className="ciu-status-tabs" aria-label="Campaign status filters" style={{ marginBottom: 14 }}>
+          {[
+            { label: "All Campaigns", value: "All", count: campaigns.length },
+            { label: "Active", value: "Active", count: campaigns.filter((campaign) => getCampaignStatus(campaign.start_date, campaign.end_date).label === "Active").length },
+            { label: "Scheduled", value: "Scheduled", count: campaigns.filter((campaign) => getCampaignStatus(campaign.start_date, campaign.end_date).label === "Scheduled").length },
+            { label: "Completed", value: "Completed", count: campaigns.filter((campaign) => getCampaignStatus(campaign.start_date, campaign.end_date).label === "Completed").length },
+          ].map((tab) => (
+            <button key={tab.value} type="button" onClick={() => setCampaignStatusFilter(tab.value)}
+              className={campaignStatusFilter === tab.value ? "ciu-status-tab is-active" : "ciu-status-tab"}
+              aria-pressed={campaignStatusFilter === tab.value}>
+              <span>{tab.label}</span><span className="ciu-status-count">{tab.count.toLocaleString()}</span>
+            </button>
+          ))}
+        </nav>
 
         {/* OVERALL PIPELINE */}
         <div
