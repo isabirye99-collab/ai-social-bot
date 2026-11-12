@@ -489,11 +489,13 @@ export default function StrategyPlanningPage() {
     }
 
     const sourceActivities = [
-      { title: "Digital recruitment and lead generation", description: "Prioritise TikTok, Facebook/Instagram, LinkedIn, website SEO/AEO and track cost per lead. Strategy allocation focus: digital-first (65% inquiry target).", activity_type: "Digital marketing", budget_amount: 0 },
+      { title: "Digital recruitment and lead generation", description: "Prioritise TikTok, Facebook/Instagram, LinkedIn, website SEO/AEO and track cost per lead. Strategy allocation focus: digital-first (65% inquiry target). Influencer budget is tracked separately below.", activity_type: "Digital marketing", budget_amount: 0 },
       { title: "Call-centre lead nurturing", description: "Follow up inquiries and incomplete applications; use intensive 14-day follow-up bursts around results releases and respond to new digital leads promptly.", activity_type: "Lead conversion", budget_amount: 0 },
-      { title: "School and community outreach", description: "Coordinate school activations, nursing-school engagement, church/mosque outreach and regional recruitment partnerships.", activity_type: "Outreach", budget_amount: 0 },
+      { title: "School and community outreach", description: "Coordinate school activations, nursing-school engagement, church/mosque outreach and regional recruitment partnerships. School activation allocation: UGX 4,000,000 as stated in the uploaded strategy.", activity_type: "Outreach", budget_amount: 4000000 },
       { title: "International recruitment and partnerships", description: "Develop localized Arabic/regional collateral and pursue hospital, employer, embassy and education-agent partnerships in target markets.", activity_type: "Partnerships", budget_amount: 0 },
       { title: "Student and alumni referral programme", description: "Promote the documented 5% referral incentive, with Finance verifying referral attribution and successful registration before commission processing.", activity_type: "Referral marketing", budget_amount: 0 },
+      { title: "S6 release influencer campaign", description: "Source budget from the uploaded general strategy: UGX 1,500,000 for influencer promotion during S6 results release. Treat as a planned allocation pending budget approval.", activity_type: "Digital marketing", budget_amount: 1500000 },
+      { title: "S6 release call-centre blitz", description: "Source budget from the uploaded general strategy: UGX 20,000 per person per day for a 14-day results-release follow-up period (UGX 280,000 per person for 14 days). Budget amount records one staff member; adjust quantity in the annual budget before approval.", activity_type: "Lead conversion", budget_amount: 280000 },
     ];
     const { data: existingActivities, error: activitiesError } = await supabase.from("strategy_activities").select("title").eq("plan_id", planId);
     if (activitiesError) { setError("Could not check existing activities: " + activitiesError.message); setSaving(false); return; }
