@@ -737,82 +737,26 @@ export default function CustomersPage() {
           </div>
         )}
 
-        {/* KPI CARDS */}
-
-        <div
-          className="ciu-customer-kpis"
-          style={{
-            display: "grid",
-            gridTemplateColumns:
-              "repeat(4, minmax(0, 1fr))",
-            gap: 16,
-            marginTop: 20,
-          }}
-        >
-          <KpiCard
-            label="Enrolled Students"
-            value={totalCustomers}
-            description="Students currently in Customers"
-            accent="#00695c"
-          />
-
-          <KpiCard
-            label="New This Month"
-            value={newThisMonth}
-            description="Recently enrolled students"
-            accent="#2e7d32"
-          />
-
-          <KpiCard
-            label="Tuition Value"
-            value={formatCurrency(
-              totalTuitionValue,
-            )}
-            description={`${formatCurrency(
-              outstandingTuition,
-            )} outstanding`}
-            accent="#558b2f"
-          />
-
-          <KpiCard
-            label="Follow-Ups Due"
-            value={dueFollowUps}
-            description="Students requiring attention"
-            accent="#c77700"
-          />
-        </div>
-
-        {/* SUMMARY */}
-
-        <div
-          className="ciu-customer-summary"
-          style={{
-            display: "grid",
-            gridTemplateColumns:
-              "repeat(3, minmax(0, 1fr))",
-            gap: 16,
-            marginTop: 16,
-          }}
-        >
-          <SummaryCard
-            label="Tuition Collected"
-            value={formatCurrency(
-              totalTuitionPaid,
-            )}
-          />
-
-          <SummaryCard
-            label="Outstanding Tuition"
-            value={formatCurrency(
-              outstandingTuition,
-            )}
-          />
-
-          <SummaryCard
-            label="Average Payment"
-            value={`${averagePayment}%`}
-          />
-        </div>
+        {/* COMPACT CUSTOMER STATUS TABS */}
+        <nav className="ciu-status-tabs" aria-label="Customer stages" style={{ marginTop: 14, marginBottom: 14 }}>
+          {[
+            { label: "All Customers", value: "All Enrolled Students", count: customers.length },
+            ...Array.from(new Set(customers.map((customer) => customer.stage).filter(Boolean))).map((stage) => ({
+              label: stage,
+              value: stage,
+              count: customers.filter((customer) => customer.stage === stage).length,
+            })),
+          ].map((tab) => {
+            const active = statusFilter === tab.value;
+            return (
+              <button key={tab.value} type="button" onClick={() => setStatusFilter(tab.value)}
+                className={active ? "ciu-status-tab is-active" : "ciu-status-tab"}
+                aria-pressed={active}>
+                <span>{tab.label}</span><span className="ciu-status-count">{tab.count.toLocaleString()}</span>
+              </button>
+            );
+          })}
+        </nav>
 
         {/* WORKSPACE */}
 
