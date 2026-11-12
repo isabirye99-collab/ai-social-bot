@@ -575,6 +575,16 @@ export default function ReportsPage() {
       ["Active partnerships", relationshipMetrics.partnershipsActive],
       ["Partnership pipeline", relationshipMetrics.partnershipsPipeline],
       ["Renewals in next 90 days", relationshipMetrics.partnershipsRenewalWatch],
+      [],
+      ["ANNUAL STRATEGY PERFORMANCE", strategyOverview.year],
+      ["Strategy plan available", strategyOverview.available && strategyOverview.planFound ? "Yes" : "No"],
+      ["Annual leads recorded", strategyOverview.available ? strategyOverview.leads : "Unavailable"],
+      ["Applications actual", strategyOverview.available ? strategyOverview.applications : "Unavailable"],
+      ["Applications target", strategyOverview.available && strategyOverview.planFound ? strategyOverview.targetApplications : "Unavailable"],
+      ["Admissions actual", strategyOverview.available ? strategyOverview.admitted : "Unavailable"],
+      ["Admissions target", strategyOverview.available && strategyOverview.planFound ? strategyOverview.targetAdmissions : "Unavailable"],
+      ["Enrolments actual", strategyOverview.available ? strategyOverview.enrolled : "Unavailable"],
+      ["Enrolments target", strategyOverview.available && strategyOverview.planFound ? strategyOverview.targetRegistrations : "Unavailable"],
     ];
     const csv = "\uFEFF" + lines.map((line) => line.map(quote).join(",")).join("\r\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
@@ -659,7 +669,7 @@ export default function ReportsPage() {
                 type="button"
                 onClick={async () => {
                   setRefreshing(true);
-                  await loadReport();
+                  await Promise.all([loadReport(), loadStrategyOverview()]);
                 }}
                 disabled={refreshing}
                 className="report-refresh"
