@@ -301,13 +301,16 @@ export default function StrategyPlanningPage() {
     const overdueRisks = planRisks.filter((r) => r.status !== "resolved" && Boolean(r.due_date) && String(r.due_date) < new Date().toISOString().slice(0, 10)).length;
     const openMeetingActions = meetingActions.filter((a) => a.status !== "completed" && a.status !== "cancelled" && meetings.some((m) => m.id === a.meeting_id && m.plan_id === plan.id)).length;
     const overdueMeetingActions = meetingActions.filter((a) => a.status !== "completed" && a.status !== "cancelled" && Boolean(a.due_date) && String(a.due_date) < new Date().toISOString().slice(0, 10) && meetings.some((m) => m.id === a.meeting_id && m.plan_id === plan.id)).length;
+    const unassignedActivities = planActivities.filter((activity) => activity.status !== "completed" && !activity.owner_id).length;
+    const unassignedRisks = planRisks.filter((risk) => risk.status !== "resolved" && !risk.owner_id).length;
+    const unassignedMeetingActions = meetingActions.filter((action) => action.status !== "completed" && action.status !== "cancelled" && !action.owner_id && meetings.some((meeting) => meeting.id === action.meeting_id && meeting.plan_id === plan.id)).length;
     const proposedBudget = planBudgets.reduce((sum, budget) => sum + Number(budget.proposed_amount || 0), 0);
     const approvedBudget = planBudgets.reduce((sum, budget) => sum + Number(budget.approved_amount || 0), 0);
     const snapshot = {
       strategy_year: plan.strategy_year, strategy_title: plan.title, generated_at: new Date().toISOString(),
       executive_summary: {
         status: criticalRisks > 0 || overdueRisks > 0 || overdueMeetingActions > 0 || overdueActivities > 0 || delayedActivities > 0 ? "needs_attention" : "no_flagged_critical_risks_overdue_actions_or_delayed_activities",
-        status_note: criticalRisks > 0 || overdueRisks > 0 || overdueMeetingActions > 0 || overdueActivities > 0 || delayedActivities > 0 ? "Review critical risks, overdue risk actions, overdue meeting actions, overdue scheduled activities and delayed activities before approving this report." : "No critical unresolved risks, overdue risk actions, overdue meeting actions, overdue scheduled activities or delayed activities were flagged in the saved records. This is not a substitute for reviewing target attainment.",
+        status_note: criticalRisks > 0 || overdueRisks > 0 || overdueMeetingActions > 0 || overdueActivities > 0 || delayedActivities > 0 ? "Review critical risks, overdue risk actions, overdue meeting actions, overdue scheduled activities and delayed activities before approving this report. Also assign owners to outstanding items where possible." : "No critical unresolved risks, overdue risk actions, overdue meeting actions, overdue scheduled activities or delayed activities were flagged in the saved records. Check the unassigned-item counts before treating the plan as fully accountable; this is not a substitute for reviewing target attainment.",
         activity_completion_percent: planActivities.length > 0 ? Math.round(completedActivities / planActivities.length * 1000) / 10 : null,
         budget_approval_percent: proposedBudget > 0 ? Math.round(approvedBudget / proposedBudget * 1000) / 10 : null,
         delayed_activities: delayedActivities,
@@ -315,6 +318,10 @@ export default function StrategyPlanningPage() {
         critical_risks: criticalRisks,
         overdue_risks: overdueRisks,
         overdue_actions: overdueMeetingActions,
+        unassigned_activities: unassignedActivities,
+        unassigned_risks: unassignedRisks,
+        unassigned_meeting_actions: unassignedMeetingActions,
+        unassigned_total: unassignedActivities + unassignedRisks + unassignedMeetingActions,
       },
       objectives: { total: planObjectives.length, achieved: planObjectives.filter((o) => o.status === "achieved").length, at_risk: planObjectives.filter((o) => o.status === "at_risk" || o.status === "behind").length },
       recruitment_targets: planIntakes.reduce((acc, item) => ({ applications: acc.applications + item.target_applications, admissions: acc.admissions + item.target_admissions, registrations: acc.registrations + item.target_registrations }), { applications: 0, admissions: 0, registrations: 0 }),
@@ -439,6 +446,14 @@ export default function StrategyPlanningPage() {
     setActionDrafts((prev) => ({ ...prev, [meetingId]: { action: "", due_date: "" } }));
     const { data } = await supabase.from("strategy_meeting_actions").select("id,meeting_id,action,owner_id,due_date,status,notes").order("due_date", { ascending: true }).limit(200);
     setMeetingActions((data ?? []) as MeetingAction[]); setNotice("Meeting action added.");
+  }
+
+  async function updateMeetingActionOwner(action: MeetingAction, ownerId: string) {
+    setSaving(true); setError(""); setNotice("");
+    const { error: saveError } = await supabase.from("strategy_meeting_actions").update({ owner_id: ownerId || null, updated_at: new Date().toISOString() }).eq("id", action.id);
+    if (saveError) setError("Could not assign meeting action owner: " + saveError.message);
+    else { setMeetingActions((previous) => previous.map((item) => item.id === action.id ? { ...item, owner_id: ownerId || null } : item)); setNotice(ownerId ? "Meeting action owner assigned." : "Meeting action owner cleared."); }
+    setSaving(false);
   }
 
   async function updateMeetingAction(action: MeetingAction, status: "in_progress" | "completed") {
@@ -1022,7 +1037,7 @@ export default function StrategyPlanningPage() {
               <input type="date" aria-label="Action due date" value={actionDrafts[meeting.id]?.due_date || ""} onChange={(e) => setActionDrafts((prev) => ({ ...prev, [meeting.id]: { action: prev[meeting.id]?.action || "", due_date: e.target.value } }))} className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
               <button type="button" onClick={() => void addMeetingAction(meeting.id)} className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold">Add action</button>
             </div>
-            <div className="mt-3 space-y-2">{meetingActions.filter((a) => a.meeting_id === meeting.id).map((action) => <div key={action.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-100 px-3 py-2"><div><p className="text-sm text-slate-800">{action.action}</p><p className="mt-1 text-xs text-slate-500">Due {action.due_date || "not set"} · {statusLabel(action.status)}{action.owner_id ? " · Owner assigned" : " · Owner not assigned"}</p></div>{action.status !== "completed" && <div className="flex gap-2">{action.status === "pending" && <button type="button" onClick={() => void updateMeetingAction(action, "in_progress")} className="rounded-md border px-2 py-1 text-xs">Start</button>}<button type="button" onClick={() => void updateMeetingAction(action, "completed")} className="rounded-md bg-emerald-800 px-2 py-1 text-xs font-semibold text-white">Complete</button></div>}</div>)}</div>
+            <div className="mt-3 space-y-2">{meetingActions.filter((a) => a.meeting_id === meeting.id).map((action) => <div key={action.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-100 px-3 py-2"><div><p className="text-sm text-slate-800">{action.action}</p><p className="mt-1 text-xs text-slate-500">Due {action.due_date || "not set"} · {statusLabel(action.status)} · Owner: {action.owner_id ? (strategyProfileNames[action.owner_id] || "Assigned staff member") : "Unassigned"}</p></div><div className="flex flex-wrap items-center gap-2"><label className="flex items-center gap-1.5 text-xs text-slate-500">Owner<select aria-label={`Assign owner for meeting action ${action.action}`} value={action.owner_id || ""} disabled={saving} onChange={(e) => void updateMeetingActionOwner(action, e.target.value)} className="max-w-44 rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs disabled:opacity-50"><option value="">Unassigned</option>{strategyStaff.map((person) => <option key={person.id} value={person.id}>{person.full_name}</option>)}</select></label>{action.status !== "completed" && <div className="flex gap-2">{action.status === "pending" && <button type="button" onClick={() => void updateMeetingAction(action, "in_progress")} className="rounded-md border px-2 py-1 text-xs">Start</button>}<button type="button" onClick={() => void updateMeetingAction(action, "completed")} className="rounded-md bg-emerald-800 px-2 py-1 text-xs font-semibold text-white">Complete</button></div>}</div>)}</div>
           </article>)}
           {meetings.length === 0 && <p className="px-4 py-6 text-sm text-slate-500">No meetings recorded yet. Schedule the next Monday management meeting above.</p>}
         </div>
