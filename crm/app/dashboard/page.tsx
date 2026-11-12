@@ -1494,7 +1494,7 @@ export default function DashboardPage() {
           ALUMNI & PARTNERSHIPS REPORT
       ===================================================== */}
       <section className="ciu-animate-in ciu-animate-delay-4 mt-4 grid gap-4 lg:grid-cols-2" aria-label="Alumni and partnerships reports">
-        <div className="rounded-2xl border border-[#e2e9e5] bg-white p-5 shadow-[0_4px_18px_rgba(20,50,40,.035)]">
+        <div className="group rounded-2xl border border-[#e2e9e5] bg-white p-5 shadow-[0_4px_18px_rgba(20,50,40,.035)] transition-all duration-200 hover:-translate-y-1 hover:border-[#b9d9a1] hover:shadow-lg">
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-xs font-bold uppercase tracking-[.12em] text-[#718078]">Community report</p>
@@ -1525,7 +1525,7 @@ export default function DashboardPage() {
           </Link>
         </div>
 
-        <div className="rounded-2xl border border-[#e2e9e5] bg-white p-5 shadow-[0_4px_18px_rgba(20,50,40,.035)]">
+        <div className="group rounded-2xl border border-[#e2e9e5] bg-white p-5 shadow-[0_4px_18px_rgba(20,50,40,.035)] transition-all duration-200 hover:-translate-y-1 hover:border-[#b9d9a1] hover:shadow-lg">
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-xs font-bold uppercase tracking-[.12em] text-[#718078]">Relationship report</p>
