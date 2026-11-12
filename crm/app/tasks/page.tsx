@@ -947,21 +947,53 @@ const isSalesperson =
           "Task updated successfully."
         );
       } else {
-        const { error } =
+        const { data: createdTask, error } =
           await supabase
             .from("tasks")
             .insert({
               ...payload,
-              created_by:
-                currentUserId,
-            });
+              created_by: currentUserId,
+            })
+            .select("id")
+            .single();
 
         if (error) throw error;
+
+        // Keep one current open follow-up per lead. Previous tasks remain in
+        // the task history as cancelled, with a note explaining the replacement.
+        if (linkedLeadId) {
+          const previousTasks = tasks.filter(
+            (task) =>
+              task.lead_id === linkedLeadId &&
+              task.id !== createdTask.id &&
+              isActiveTask(task)
+          );
+
+          for (const previousTask of previousTasks) {
+            const historyNote = `Replaced by a newer follow-up task on ${new Date().toLocaleString("en-UG")}.`;
+            const previousDescription = previousTask.description?.trim();
+            const updatedDescription = [previousDescription, historyNote]
+              .filter(Boolean)
+              .join("\n");
+
+            const { error: historyError } = await supabase
+              .from("tasks")
+              .update({
+                status: "cancelled",
+                description: updatedDescription,
+                completed_at: null,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", previousTask.id);
+
+            if (historyError) throw historyError;
+          }
+        }
 
         setSuccess(
           walkInMode
             ? "Walk-in student registered, added to the pipeline, and follow-up task created."
-            : "Task created successfully."
+            : "New task created. The previous open follow-up was moved to history."
         );
       }
 
