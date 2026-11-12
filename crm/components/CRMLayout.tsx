@@ -30,6 +30,7 @@ const nav: NavItem[] = [
   { label: "Pipeline", href: "/pipeline", module: "pipeline" },
   { label: "Tasks", href: "/tasks", module: "tasks" },
   { label: "Marketing", href: "/marketing", module: "marketing" },
+  { label: "Strategy & Planning", href: "/strategy", module: "strategy" },
   { label: "Partnerships", href: "/partnerships", module: "partnerships" },
   { label: "Reports", href: "/reports", module: "reports" },
   { label: "Alumni", href: "/alumni", module: "alumni" },
