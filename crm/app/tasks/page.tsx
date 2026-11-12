@@ -796,11 +796,7 @@ const isSalesperson =
         ? `Follow up with ${lead.name}`
         : "",
       task_type: "call",
-      due_at: isDeadlineExemptLead(lead)
-        ? ""
-        : lead?.next_follow_up_at
-          ? toDateTimeLocal(lead.next_follow_up_at)
-          : defaultTaskDeadline(lead),
+      due_at: defaultTaskDeadline(lead),
     });
 
     setShowTaskModal(true);
