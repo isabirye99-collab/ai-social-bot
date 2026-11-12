@@ -304,13 +304,31 @@ export default function StrategyPlanningPage() {
         } : null,
         note: !actualsAvailable ? "Live recruitment queries were unavailable when this snapshot was generated; actuals were not recorded." : plan.strategy_year !== currentYear ? "Current-year actuals were not compared with a different strategy year." : "Actuals reflect CRM records created during the reporting calendar year.",
       },
-      activities: { total: planActivities.length, completed: planActivities.filter((a) => a.status === "completed").length, delayed: planActivities.filter((a) => a.status === "delayed").length },
+      activities: {
+        total: planActivities.length,
+        completed: planActivities.filter((a) => a.status === "completed").length,
+        in_progress: planActivities.filter((a) => a.status === "in_progress" || a.status === "in progress").length,
+        delayed: planActivities.filter((a) => a.status === "delayed").length,
+        not_started: planActivities.filter((a) => a.status === "planned" || a.status === "not_started").length,
+        planned_budget_ugx: planActivities.reduce((sum, activity) => sum + Number(activity.budget_amount || 0), 0),
+      },
+      budget_summary: {
+        records: planBudgets.length,
+        proposed_ugx: planBudgets.reduce((sum, budget) => sum + Number(budget.proposed_amount || 0), 0),
+        approved_ugx: planBudgets.reduce((sum, budget) => sum + Number(budget.approved_amount || 0), 0),
+        awaiting_approval: planBudgets.filter((budget) => !["approved", "rejected"].includes(String(budget.status || "").toLowerCase())).length,
+      },
       budgets: planBudgets.map((b) => ({ proposed: b.proposed_amount, approved: b.approved_amount, status: b.status })),
       cycle_allocations: planAllocations.map((a) => ({ cycle: a.cycle, proposed: a.proposed_amount, approved: a.approved_amount, status: a.status })),
       risks: { total: planRisks.length, critical: planRisks.filter((r) => r.priority === "critical" && r.status !== "resolved").length, unresolved: planRisks.filter((r) => r.status !== "resolved").length },
       weekly_reports: { total: planWeeklyReports.length, submitted: planWeeklyReports.filter((r) => r.status === "submitted").length, approved: planWeeklyReports.filter((r) => r.status === "approved").length },
       approvals: { pending: approvalRequests.filter((r) => r.status === "pending" && r.entity_id === plan.id).length, approved: approvalRequests.filter((r) => r.status === "approved" && r.entity_id === plan.id).length, rejected: approvalRequests.filter((r) => r.status === "rejected" && r.entity_id === plan.id).length },
-      meetings: meetings.filter((m) => m.plan_id === plan.id).length, open_actions: meetingActions.filter((a) => a.status !== "completed" && a.status !== "cancelled" && meetings.some((m) => m.id === a.meeting_id && m.plan_id === plan.id)).length,
+      meetings: meetings.filter((m) => m.plan_id === plan.id).length,
+      meeting_actions: {
+        open: meetingActions.filter((a) => a.status !== "completed" && a.status !== "cancelled" && meetings.some((m) => m.id === a.meeting_id && m.plan_id === plan.id)).length,
+        overdue: meetingActions.filter((a) => a.status !== "completed" && a.status !== "cancelled" && Boolean(a.due_date) && String(a.due_date) < new Date().toISOString().slice(0, 10) && meetings.some((m) => m.id === a.meeting_id && m.plan_id === plan.id)).length,
+      },
+      open_actions: meetingActions.filter((a) => a.status !== "completed" && a.status !== "cancelled" && meetings.some((m) => m.id === a.meeting_id && m.plan_id === plan.id)).length,
     };
     const { error: saveError } = await supabase.from("strategy_report_history").insert({
       plan_id: plan.id, report_type: "strategy_management_summary", reporting_start: null, reporting_end: new Date().toISOString().slice(0,10),
