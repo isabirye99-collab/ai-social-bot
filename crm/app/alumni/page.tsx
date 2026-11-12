@@ -201,12 +201,18 @@ export default function AlumniPage() {
         </label>
       </div>
     </div>
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 13, marginBottom: 20 }}>
-      {metric("Total Alumni", total, "Graduate records in the database")}
-      {metric("Profiles Requiring Review", needsReview, "Incomplete or unverified profiles", "/alumni") }
-      {metric("Verified Profiles", verified, "Confirmed by the Alumni Office")}
-      {metric("Marked Employed", employed, "Employment status recorded")}
-    </div>
+    <nav className="ciu-status-tabs" aria-label="Alumni verification filters" style={{ marginBottom: 14 }}>
+      {[
+        { label: "All Alumni", value: "all", count: total },
+        { label: "Needs Review", value: "needs_review", count: needsReview },
+        { label: "Verified", value: "verified", count: verified },
+      ].map((tab) => (
+        <button key={tab.value} type="button" onClick={() => { setPage(0); setStatus(tab.value); }}
+          className={status === tab.value ? "ciu-status-tab is-active" : "ciu-status-tab"} aria-pressed={status === tab.value}>
+          <span>{tab.label}</span><span className="ciu-status-count">{tab.count.toLocaleString()}</span>
+        </button>
+      ))}
+    </nav>
     {progress && <div style={{ ...card, marginBottom: 14, borderColor: "#c9e2d3", color: brand, fontSize: 13 }}>{progress}</div>}
     {error && <div role="alert" style={{ ...card, marginBottom: 14, borderColor: "#f4c7c7", color: "#a32828", fontSize: 13 }}>{error}</div>}
     <section style={card}>
