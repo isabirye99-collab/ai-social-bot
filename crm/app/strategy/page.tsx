@@ -287,6 +287,23 @@ export default function StrategyPlanningPage() {
       strategy_year: plan.strategy_year, strategy_title: plan.title, generated_at: new Date().toISOString(),
       objectives: { total: planObjectives.length, achieved: planObjectives.filter((o) => o.status === "achieved").length, at_risk: planObjectives.filter((o) => o.status === "at_risk" || o.status === "behind").length },
       recruitment_targets: planIntakes.reduce((acc, item) => ({ applications: acc.applications + item.target_applications, admissions: acc.admissions + item.target_admissions, registrations: acc.registrations + item.target_registrations }), { applications: 0, admissions: 0, registrations: 0 }),
+      live_recruitment_performance: {
+        reporting_year: currentYear,
+        strategy_year_matches_reporting_year: plan.strategy_year === currentYear,
+        data_available: actualsAvailable,
+        actuals: actualsAvailable && plan.strategy_year === currentYear ? {
+          leads: recruitmentActuals.leads,
+          applications: recruitmentActuals.applications,
+          admitted: recruitmentActuals.admitted,
+          enrolled: recruitmentActuals.enrolled,
+        } : null,
+        comparison: actualsAvailable && plan.strategy_year === currentYear ? {
+          applications: { target: planIntakes.reduce((sum, item) => sum + item.target_applications, 0), actual: recruitmentActuals.applications, variance: recruitmentActuals.applications - planIntakes.reduce((sum, item) => sum + item.target_applications, 0) },
+          admissions: { target: planIntakes.reduce((sum, item) => sum + item.target_admissions, 0), actual: recruitmentActuals.admitted, variance: recruitmentActuals.admitted - planIntakes.reduce((sum, item) => sum + item.target_admissions, 0) },
+          registrations: { target: planIntakes.reduce((sum, item) => sum + item.target_registrations, 0), actual: recruitmentActuals.enrolled, variance: recruitmentActuals.enrolled - planIntakes.reduce((sum, item) => sum + item.target_registrations, 0) },
+        } : null,
+        note: !actualsAvailable ? "Live recruitment queries were unavailable when this snapshot was generated; actuals were not recorded." : plan.strategy_year !== currentYear ? "Current-year actuals were not compared with a different strategy year." : "Actuals reflect CRM records created during the reporting calendar year.",
+      },
       activities: { total: planActivities.length, completed: planActivities.filter((a) => a.status === "completed").length, delayed: planActivities.filter((a) => a.status === "delayed").length },
       budgets: planBudgets.map((b) => ({ proposed: b.proposed_amount, approved: b.approved_amount, status: b.status })),
       cycle_allocations: planAllocations.map((a) => ({ cycle: a.cycle, proposed: a.proposed_amount, approved: a.approved_amount, status: a.status })),
