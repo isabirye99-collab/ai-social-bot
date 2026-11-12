@@ -75,7 +75,7 @@ export default function StrategyPlanningPage() {
   const [meetingTitle, setMeetingTitle] = useState("Monday Marketing Management Meeting");
   const [meetingAt, setMeetingAt] = useState("");
   const [meetingMinutes, setMeetingMinutes] = useState("");
-  const [actionDrafts, setActionDrafts] = useState<Record<string, { action: string; due_date: string }>>({});
+  const [actionDrafts, setActionDrafts] = useState<Record<string, { action: string; due_date: string; owner_id: string }>>({});
   const [reportStart, setReportStart] = useState("");
   const [reportEnd, setReportEnd] = useState("");
   const [reportWork, setReportWork] = useState("");
@@ -440,10 +440,10 @@ export default function StrategyPlanningPage() {
     const draft = actionDrafts[meetingId];
     if (!draft?.action.trim()) { setError("Enter the action before saving it."); return; }
     const { error: saveError } = await supabase.from("strategy_meeting_actions").insert({
-      meeting_id: meetingId, action: draft.action.trim(), due_date: draft.due_date || null, status: "pending"
+      meeting_id: meetingId, action: draft.action.trim(), due_date: draft.due_date || null, owner_id: draft.owner_id || null, status: "pending"
     });
     if (saveError) { setError("Could not add meeting action: " + saveError.message); return; }
-    setActionDrafts((prev) => ({ ...prev, [meetingId]: { action: "", due_date: "" } }));
+    setActionDrafts((prev) => ({ ...prev, [meetingId]: { action: "", due_date: "", owner_id: "" } }));
     const { data } = await supabase.from("strategy_meeting_actions").select("id,meeting_id,action,owner_id,due_date,status,notes").order("due_date", { ascending: true }).limit(200);
     setMeetingActions((data ?? []) as MeetingAction[]); setNotice("Meeting action added.");
   }
@@ -1033,9 +1033,10 @@ export default function StrategyPlanningPage() {
           {meetings.map((meeting) => <article key={meeting.id} className="p-4 transition-colors hover:bg-slate-50">
             <div className="flex flex-wrap items-start justify-between gap-2"><div><h3 className="text-sm font-semibold text-slate-900">{meeting.title}</h3><p className="mt-1 text-xs text-slate-500">{new Date(meeting.meeting_at).toLocaleString()}</p></div><span className="rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600">{meetingActions.filter((a) => a.meeting_id === meeting.id && a.status === "completed").length}/{meetingActions.filter((a) => a.meeting_id === meeting.id).length} actions complete</span></div>
             {meeting.minutes && <p className="mt-3 whitespace-pre-wrap rounded-lg bg-slate-50 p-3 text-sm text-slate-700">{meeting.minutes}</p>}
-            <div className="mt-3 grid gap-2 md:grid-cols-[minmax(0,1fr)_180px_auto]">
-              <input value={actionDrafts[meeting.id]?.action || ""} onChange={(e) => setActionDrafts((prev) => ({ ...prev, [meeting.id]: { action: e.target.value, due_date: prev[meeting.id]?.due_date || "" } }))} placeholder="Action to follow up" className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-              <input type="date" aria-label="Action due date" value={actionDrafts[meeting.id]?.due_date || ""} onChange={(e) => setActionDrafts((prev) => ({ ...prev, [meeting.id]: { action: prev[meeting.id]?.action || "", due_date: e.target.value } }))} className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            <div className="mt-3 grid gap-2 md:grid-cols-[minmax(0,1fr)_160px_minmax(150px,190px)_auto]">
+              <input value={actionDrafts[meeting.id]?.action || ""} onChange={(e) => setActionDrafts((prev) => ({ ...prev, [meeting.id]: { action: e.target.value, due_date: prev[meeting.id]?.due_date || "", owner_id: prev[meeting.id]?.owner_id || "" } }))} placeholder="Action to follow up" className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+              <input type="date" aria-label="Action due date" value={actionDrafts[meeting.id]?.due_date || ""} onChange={(e) => setActionDrafts((prev) => ({ ...prev, [meeting.id]: { action: prev[meeting.id]?.action || "", due_date: e.target.value, owner_id: prev[meeting.id]?.owner_id || "" } }))} className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+              <select aria-label="Accountable owner for new meeting action" value={actionDrafts[meeting.id]?.owner_id || ""} onChange={(e) => setActionDrafts((prev) => ({ ...prev, [meeting.id]: { action: prev[meeting.id]?.action || "", due_date: prev[meeting.id]?.due_date || "", owner_id: e.target.value } }))} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"><option value="">Unassigned owner</option>{strategyStaff.map((person) => <option key={person.id} value={person.id}>{person.full_name}</option>)}</select>
               <button type="button" onClick={() => void addMeetingAction(meeting.id)} className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold">Add action</button>
             </div>
             <div className="mt-3 space-y-2">{meetingActions.filter((a) => a.meeting_id === meeting.id).map((action) => <div key={action.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-100 px-3 py-2"><div><p className="text-sm text-slate-800">{action.action}</p><p className="mt-1 text-xs text-slate-500">Due {action.due_date || "not set"} · {statusLabel(action.status)} · Owner: {action.owner_id ? (strategyProfileNames[action.owner_id] || "Assigned staff member") : "Unassigned"}</p></div><div className="flex flex-wrap items-center gap-2"><label className="flex items-center gap-1.5 text-xs text-slate-500">Owner<select aria-label={`Assign owner for meeting action ${action.action}`} value={action.owner_id || ""} disabled={saving} onChange={(e) => void updateMeetingActionOwner(action, e.target.value)} className="max-w-44 rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs disabled:opacity-50"><option value="">Unassigned</option>{strategyStaff.map((person) => <option key={person.id} value={person.id}>{person.full_name}</option>)}</select></label>{action.status !== "completed" && <div className="flex gap-2">{action.status === "pending" && <button type="button" onClick={() => void updateMeetingAction(action, "in_progress")} className="rounded-md border px-2 py-1 text-xs">Start</button>}<button type="button" onClick={() => void updateMeetingAction(action, "completed")} className="rounded-md bg-emerald-800 px-2 py-1 text-xs font-semibold text-white">Complete</button></div>}</div>)}</div>
