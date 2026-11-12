@@ -548,12 +548,23 @@ export default function StrategyPlanningPage() {
       }
     ];
     let historicalReportsAdded = 0;
-    const historicalReportWarnings: string[] = [];
+    const historicalReportWarnings: string[] = [
+      "Meshack: recognised as a team member, but the uploaded 14–18 September 2026 report contains no separate activity entry for him; no historical activity was invented."
+    ];
     for (const staffReport of historicalStaff) {
-      const { data: staffProfile, error: profileError } = await supabase
-        .from("profiles").select("id,full_name").ilike("full_name", `%${staffReport.name}%`).limit(1).maybeSingle();
+      const { data: matchingProfiles, error: profileError } = await supabase
+        .from("profiles").select("id,full_name").ilike("full_name", `%${staffReport.name}%`).limit(10);
       if (profileError) {
         historicalReportWarnings.push(`${staffReport.name}: could not look up staff profile (${profileError.message})`);
+        continue;
+      }
+      const candidates = matchingProfiles ?? [];
+      const exactNameMatches = candidates.filter((profile) =>
+        profile.full_name.trim().toLocaleLowerCase() === staffReport.name.trim().toLocaleLowerCase()
+      );
+      const staffProfile = exactNameMatches.length === 1 ? exactNameMatches[0] : candidates.length === 1 ? candidates[0] : null;
+      if (!staffProfile && candidates.length > 1) {
+        historicalReportWarnings.push(`${staffReport.name}: multiple profiles matched; report not assigned to avoid misattribution`);
         continue;
       }
       if (!staffProfile) {
