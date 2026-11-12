@@ -653,6 +653,18 @@ export default function ReportsPage() {
           <div role="link" tabIndex={0} aria-label="Open Customers module" onClick={() => router.push("/customers")} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); router.push("/customers"); } }} className="report-kpi report-kpi-conversion cursor-pointer transition-all duration-200 hover:-translate-y-1 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"><span className="kpi-label">Sales · Enrolments</span><strong>{salesRows.reduce((sum, row) => sum + row.enrolled, 0).toLocaleString()}</strong><small>Enrolments recorded for this period · Open customers ↗</small></div>
           <div role="link" tabIndex={0} aria-label="Open Call Centre Tasks" onClick={() => router.push("/tasks")} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); router.push("/tasks"); } }} className="report-kpi report-kpi-contacts cursor-pointer transition-all duration-200 hover:-translate-y-1 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"><span className="kpi-label">Contact Activities</span><strong>{report.rows.reduce((sum, row) => sum + row.contactActivities, 0).toLocaleString()}</strong><small>Calls, emails, WhatsApp and meetings · Open tasks ↗</small></div>
         </section>
+        <section className="mb-4 flex flex-col gap-3 rounded-xl border border-emerald-100 bg-gradient-to-r from-white to-emerald-50/70 p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md sm:flex-row sm:items-center sm:justify-between" aria-label="Strategy and planning reports">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-800" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5"><path strokeLinecap="round" strokeLinejoin="round" d="M4 19V5m0 14h16M8 15v-4m4 4V7m4 8v-6m4 10V9" /></svg>
+            </div>
+            <div>
+              <h2 className="text-sm font-semibold text-slate-900">Strategy &amp; Planning</h2>
+              <p className="mt-1 max-w-2xl text-xs leading-5 text-slate-600">Review annual recruitment targets, live performance, campaign delivery, budgets, risks and versioned management report snapshots in one place.</p>
+            </div>
+          </div>
+          <button type="button" onClick={() => router.push("/strategy")} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-emerald-800 px-4 py-2.5 text-xs font-semibold text-white transition-all duration-200 hover:bg-emerald-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2">Open Strategy <span aria-hidden="true">↗</span></button>
+        </section>
         <section className="report-main-grid">
           <div className="ciu-card">
             <div className="ciu-card-head report-card-head">
