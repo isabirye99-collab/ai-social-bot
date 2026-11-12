@@ -516,7 +516,7 @@ export default function ReportsPage() {
       [],
       ["PARTNERSHIPS"],
       ["Staff Member", "Contact activities", "Calls", "Follow-ups", "Completed tasks"],
-      ...partnershipRows.map((r) => [r.name, r.contactActivities, r.calls, r.emails, r.whatsapp, r.meetings, r.completedTasks]),
+      ...partnershipRows.map((r) => [r.name, r.contactActivities, r.calls, r.followUps, r.completedTasks]),
       [],
       ["RELATIONSHIP SUMMARY", "Value"],
       ["Total alumni", relationshipMetrics.alumniTotal],
