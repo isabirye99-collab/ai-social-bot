@@ -28,6 +28,8 @@ type Plan = {
   updated_at: string;
 };
 
+type RecruitmentActuals = { leads: number; applications: number; admitted: number; enrolled: number; };
+
 
 const sections = [
   ["General Strategy", "Annual objectives, KPIs and accountable owners", "strategy-objectives"],
@@ -103,6 +105,7 @@ export default function StrategyPlanningPage() {
   const [targetApplications, setTargetApplications] = useState("0");
   const [targetAdmissions, setTargetAdmissions] = useState("0");
   const [targetRegistrations, setTargetRegistrations] = useState("0");
+  const [recruitmentActuals, setRecruitmentActuals] = useState<RecruitmentActuals>({ leads: 0, applications: 0, admitted: 0, enrolled: 0 });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -128,6 +131,22 @@ export default function StrategyPlanningPage() {
 
     const rows = (data ?? []) as Plan[];
     setPlans(rows);
+    const yearStart = `${currentYear}-01-01T00:00:00.000Z`;
+    const nextYearStart = `${currentYear + 1}-01-01T00:00:00.000Z`;
+    const [leadActuals, admissionActuals] = await Promise.all([
+      supabase.from("leads").select("id,created_at").gte("created_at", yearStart).lt("created_at", nextYearStart),
+      supabase.from("admissions").select("id,stage,created_at").gte("created_at", yearStart).lt("created_at", nextYearStart),
+    ]);
+    if (!leadActuals.error && !admissionActuals.error) {
+      const actualAdmissions = admissionActuals.data ?? [];
+      const stages = actualAdmissions.map((item) => String(item.stage || "").trim().toLowerCase());
+      setRecruitmentActuals({
+        leads: (leadActuals.data ?? []).length,
+        applications: stages.filter((stage) => ["application started", "application submitted", "admitted", "acceptance paid", "enrolled"].includes(stage)).length,
+        admitted: stages.filter((stage) => ["admitted", "acceptance paid", "enrolled"].includes(stage)).length,
+        enrolled: stages.filter((stage) => stage === "enrolled").length,
+      });
+    }
     if (rows.length) {
       const ids = rows.map((p) => p.id);
       const [objectives, activities, intakes] = await Promise.all([
@@ -725,6 +744,32 @@ export default function StrategyPlanningPage() {
           </div>
         </section>
       )}
+
+      <section id="strategy-live-performance" className="rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-4 py-3 sm:px-5">
+          <div>
+            <h2 className="text-sm font-semibold text-slate-900">Live Recruitment Performance · {currentYear}</h2>
+            <p className="mt-1 text-xs text-slate-500">Actuals are calculated from CRM lead and admission records created during the calendar year. No duplicate data entry is required.</p>
+          </div>
+          <a href="/reports" className="rounded-lg border border-emerald-800 px-3 py-2 text-xs font-semibold text-emerald-800 transition hover:bg-emerald-50">Open Reports →</a>
+        </div>
+        <div className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-4">
+          {[
+            { label: "Leads recorded", value: recruitmentActuals.leads, target: null },
+            { label: "Applications", value: recruitmentActuals.applications, target: intakeTargets.filter((item) => item.plan_id === currentPlan?.id).reduce((sum, item) => sum + item.target_applications, 0) },
+            { label: "Admitted", value: recruitmentActuals.admitted, target: intakeTargets.filter((item) => item.plan_id === currentPlan?.id).reduce((sum, item) => sum + item.target_admissions, 0) },
+            { label: "Enrolled", value: recruitmentActuals.enrolled, target: intakeTargets.filter((item) => item.plan_id === currentPlan?.id).reduce((sum, item) => sum + item.target_registrations, 0) },
+          ].map((metric) => (
+            <article key={metric.label} className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-300 hover:bg-white hover:shadow-sm">
+              <p className="text-xs font-medium text-slate-500">{metric.label}</p>
+              <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">{loading ? "—" : metric.value.toLocaleString()}</p>
+              {metric.target !== null && <p className="mt-1 text-xs text-slate-500">Plan target: {metric.target.toLocaleString()}</p>}
+              {metric.target !== null && <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-200"><div className="h-full rounded-full bg-emerald-700 transition-all duration-500" style={{ width: `${metric.target > 0 ? Math.min(100, metric.value / metric.target * 100) : 0}%` }} /></div>}
+            </article>
+          ))}
+        </div>
+        {currentPlan && currentPlan.strategy_year !== currentYear && <p className="border-t border-amber-100 bg-amber-50 px-4 py-2 text-xs text-amber-800">The selected strategy is for {currentPlan.strategy_year}; live actuals above are for {currentYear}. Targets are shown for the selected plan, so compare only when the years match.</p>}
+      </section>
 
       <section id="annual-strategy-register" className="grid gap-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(280px,0.85fr)]">
         <div className="rounded-xl border border-slate-200 bg-white">
