@@ -506,16 +506,14 @@ export default function StrategyPlanningPage() {
       if (insertError) { setError("Objectives imported, but activities failed: " + insertError.message); await load(); setSaving(false); return; }
     }
 
-    // Preserve the uploaded September 2026 weekly intake report as a dated record,
-    // separate from the current strategy targets and projected annual budget.
-    const { data: existingWeekly, error: weeklyCheckError } = await supabase
-      .from("strategy_weekly_reports").select("id")
-      .eq("staff_id", auth.user.id).eq("reporting_start", "2026-09-14").eq("reporting_end", "2026-09-18").limit(1);
-    if (weeklyCheckError) { setError("Strategy objectives and activities imported, but historical report check failed: " + weeklyCheckError.message); await load(); setSaving(false); return; }
-    if (!existingWeekly?.length) {
-      const { error: weeklyInsertError } = await supabase.from("strategy_weekly_reports").insert({
-        plan_id: planId, staff_id: auth.user.id, reporting_start: "2026-09-14", reporting_end: "2026-09-18",
-        completed_work: "Imported from the uploaded CIU Marketing Weekly Report for 14–18 September 2026. August intake performance: 898 applications and admissions, with 503 finance-cleared admissions. Applications and admissions were down year-on-year (14% and 13% respectively), while finance-cleared admissions increased by 188 (+59%); clearance conversion rose from 30% to 56%.",
+    // Import the historical staff activity against the named staff profiles in the
+    // source report, never against whichever manager happens to click Import.
+    const historicalStaff = [
+      {
+        name: "Nicholas",
+        completed_work: "Source: CIU Marketing Weekly Report, 14–18 September 2026. Completed: Kyabazinga Coronation; meeting with Rest TV; supported students and loan-scheme applicants; handled prospective-student calls and WhatsApp inquiries.",
+        next_week_plan: "Follow up loan-scheme students; Senior Six player day at Wanyange on 25 September; deliver success cards to secondary schools; coordinate inter-faculties, Freshers Ball, Get Real, Masaka SS career guidance, inaugural lecture and GIC–Phaneroo.",
+        challenges: "Historical report imported from the uploaded source; no additional challenge was recorded in the staff activity log.",
         recruitment_outcomes: {
           source: "Weekly Report 14th September to 18th September 2026.pdf",
           intake: "August 2026",
@@ -530,15 +528,57 @@ export default function StrategyPlanningPage() {
             applications: { previous: 1045, current: 898, change: -147, percentage_change: -14 },
             admitted: { previous: 1043, current: 898, change: -145, percentage_change: -13 },
             finance_cleared: { previous: 315, current: 503, change: 188, percentage_change: 59 },
-            clearance_conversion: { previous_percent: 30, current_percent: 56, percentage_point_change: 25, relative_growth_percent: 85 }
+            clearance_conversion: { previous_percent: 30, current_percent: 56, source_reported_percentage_point_change: 25, source_reported_relative_growth_percent: 85 }
           }
-        },
-        challenges: "Year-on-year applications and admissions declined despite improved finance clearance.",
-        next_week_plan: "Prioritise follow-up to admitted students who have not cleared Finance; review application-generation channels and faculty conversion.",
+        }
+      },
+      {
+        name: "Vivian",
+        completed_work: "Source: CIU Marketing Weekly Report, 14–18 September 2026. Managed walk-ins, phone calls, WhatsApp inquiries and document uploads; processed application submissions and follow-ups; handled walk-in inquiries.",
+        next_week_plan: "Support Call Center operations; prepare upcoming Alumni activities; follow up with organizations awarded institutional scholarships.",
+        challenges: "Historical report imported from the uploaded source; no additional challenge was recorded in the staff activity log.",
+        recruitment_outcomes: {}
+      },
+      {
+        name: "Arnold",
+        completed_work: "Source: CIU Marketing Weekly Report, 14–18 September 2026. The source report records Arnold as on leave.",
+        next_week_plan: "Prepare brochures; update the website; support Freshers Ball preparations.",
+        challenges: "Recorded as on leave in the source report.",
+        recruitment_outcomes: {}
+      }
+    ];
+    let historicalReportsAdded = 0;
+    const historicalReportWarnings: string[] = [];
+    for (const staffReport of historicalStaff) {
+      const { data: staffProfile, error: profileError } = await supabase
+        .from("profiles").select("id,full_name").ilike("full_name", `%${staffReport.name}%`).limit(1).maybeSingle();
+      if (profileError) {
+        historicalReportWarnings.push(`${staffReport.name}: could not look up staff profile (${profileError.message})`);
+        continue;
+      }
+      if (!staffProfile) {
+        historicalReportWarnings.push(`${staffReport.name}: no matching profile found; weekly report not assigned`);
+        continue;
+      }
+      const { data: existingWeekly, error: weeklyCheckError } = await supabase
+        .from("strategy_weekly_reports").select("id")
+        .eq("staff_id", staffProfile.id).eq("reporting_start", "2026-09-14").eq("reporting_end", "2026-09-18").limit(1);
+      if (weeklyCheckError) {
+        historicalReportWarnings.push(`${staffReport.name}: duplicate check failed (${weeklyCheckError.message})`);
+        continue;
+      }
+      if (existingWeekly?.length) continue;
+      const { error: weeklyInsertError } = await supabase.from("strategy_weekly_reports").insert({
+        plan_id: planId, staff_id: staffProfile.id, reporting_start: "2026-09-14", reporting_end: "2026-09-18",
+        completed_work: staffReport.completed_work,
+        recruitment_outcomes: staffReport.recruitment_outcomes,
+        challenges: staffReport.challenges,
+        next_week_plan: staffReport.next_week_plan,
         status: "submitted",
         submitted_at: new Date().toISOString()
       });
-      if (weeklyInsertError) { setError("Objectives and activities imported, but the historical weekly report failed: " + weeklyInsertError.message); await load(); setSaving(false); return; }
+      if (weeklyInsertError) historicalReportWarnings.push(`${staffReport.name}: report insert failed (${weeklyInsertError.message})`);
+      else historicalReportsAdded += 1;
     }
 
     const { data: existingBudget, error: budgetCheckError } = await supabase.from("strategy_annual_budgets").select("id").eq("plan_id", planId).limit(1);
@@ -552,7 +592,7 @@ export default function StrategyPlanningPage() {
     } else budgetNote = "Existing annual budget retained; no duplicate budget was added.";
 
     await load();
-    setNotice(`Uploaded strategy data imported. Added ${missingObjectives.length} objectives and ${missingActivities.length} activities. ${existingBudget?.length ? "Existing annual budget was preserved." : "Added the proposed 2026 budget of UGX 300,000,000 for approval."} Historical September 2026 intake results and the detailed February 2025 budget should be entered as dated reporting records, not mixed into 2026 forecasts.`);
+    setNotice(`Uploaded strategy data imported. Added ${missingObjectives.length} objectives and ${missingActivities.length} activities. Added ${historicalReportsAdded} historical staff reports. ${existingBudget?.length ? "Existing annual budget was preserved." : "Added the proposed 2026 budget of UGX 300,000,000 for approval."}${historicalReportWarnings.length ? " Staff report notes: " + historicalReportWarnings.join("; ") : ""} The February 2025 budget remains historical and is not mixed into the 2026 forecast.`);
     setSaving(false);
   }
 
