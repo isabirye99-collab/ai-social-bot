@@ -30,15 +30,15 @@ type Plan = {
 
 
 const sections = [
-  ["General Strategy", "Annual objectives, KPIs and accountable owners"],
-  ["Intake Plans", "February, April, August and November targets"],
-  ["Activities", "Delivery plans, owners, evidence and outcomes"],
-  ["Budget Planning", "Annual budget, cycle allocations and commitments"],
-  ["Performance & Outcomes", "Recruitment and objective progress"],
-  ["Weekly Reports & Meetings", "Staff reports, minutes and assigned actions"],
-  ["Risks & Corrective Actions", "Risk register, mitigations and deadlines"],
-  ["Approvals Centre", "Pending decisions and approval history"],
-  ["Management Reports", "Executive summaries and approved report history"],
+  ["General Strategy", "Annual objectives, KPIs and accountable owners", "strategy-objectives"],
+  ["Intake Plans", "February, April, August and November targets", "intake-plans"],
+  ["Activities", "Delivery plans, owners, evidence and outcomes", "strategy-activities"],
+  ["Budget Planning", "Annual budget, cycle allocations and commitments", "strategy-budget"],
+  ["Performance & Outcomes", "Recruitment and objective progress", "annual-strategy-register"],
+  ["Weekly Reports & Meetings", "Staff reports, minutes and assigned actions", "weekly-reports"],
+  ["Risks & Corrective Actions", "Risk register, mitigations and deadlines", "strategy-risks"],
+  ["Approvals Centre", "Pending decisions and approval history", "strategy-approvals"],
+  ["Management Reports", "Executive summaries and approved report history", "strategy-management-reports"],
 ];
 
 function statusLabel(status: string) {
@@ -724,20 +724,20 @@ export default function StrategyPlanningPage() {
       <section>
         <div className="mb-3">
           <h2 className="text-sm font-semibold text-slate-900">Planning workspaces</h2>
-          <p className="mt-1 text-xs text-slate-500">The module will be delivered in stages. Additional registers will appear as their workflows are implemented.</p>
+          <p className="mt-1 text-xs text-slate-500">Jump directly to a strategy register. Each card opens the matching section below.</p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {sections.map(([title, description], index) => (
-            <article key={title} className="rounded-xl border border-slate-200 bg-white p-4">
+          {sections.map(([title, description, href], index) => (
+            <a key={title} href={`#${href}`} className="group rounded-xl border border-slate-200 bg-white p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600">
               <div className="flex items-start gap-3">
-                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-emerald-50 text-xs font-bold text-emerald-800">{String(index + 1).padStart(2, "0")}</span>
-                <div>
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-emerald-50 text-xs font-bold text-emerald-800 transition-colors group-hover:bg-emerald-100">{String(index + 1).padStart(2, "0")}</span>
+                <div className="min-w-0">
                   <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
                   <p className="mt-1 text-xs leading-5 text-slate-500">{description}</p>
-                  <span className="mt-2 inline-block text-[11px] font-medium text-slate-400">Implementation staged</span>
+                  <span className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800">Open section <span aria-hidden="true">→</span></span>
                 </div>
               </div>
-            </article>
+            </a>
           ))}
         </div>
       </section>
