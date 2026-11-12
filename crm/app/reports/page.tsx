@@ -36,6 +36,8 @@ type Task = {
   created_at: string | null;
 };
 
+type StrategyOverview = { year: number; targetApplications: number; targetAdmissions: number; targetRegistrations: number; leads: number; applications: number; admitted: number; enrolled: number; available: boolean; planFound: boolean };
+
 type ReportRow = {
   id: string;
   name: string;
@@ -143,10 +145,56 @@ export default function ReportsPage() {
   const [admissions, setAdmissions] = useState<Admission[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [relationshipMetrics, setRelationshipMetrics] = useState({ alumniTotal: 0, alumniVerified: 0, alumniEmployed: 0, partnershipsTotal: 0, partnershipsActive: 0, partnershipsPipeline: 0, partnershipsRenewalWatch: 0 });
+  const [strategyOverview, setStrategyOverview] = useState<StrategyOverview>({ year: new Date().getFullYear(), targetApplications: 0, targetAdmissions: 0, targetRegistrations: 0, leads: 0, applications: 0, admitted: 0, enrolled: 0, available: false, planFound: false });
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
+
+  async function loadStrategyOverview() {
+    const year = new Date().getFullYear();
+    const yearStart = `${year}-01-01T00:00:00.000Z`;
+    const nextYearStart = `${year + 1}-01-01T00:00:00.000Z`;
+    try {
+      const [plansResult, leadsResult, admissionsResult] = await Promise.all([
+        supabase.from("strategy_plans").select("id,strategy_year").eq("strategy_year", year).order("updated_at", { ascending: false }).limit(1),
+        supabase.from("leads").select("id,created_at").gte("created_at", yearStart).lt("created_at", nextYearStart),
+        supabase.from("admissions").select("id,stage,created_at").gte("created_at", yearStart).lt("created_at", nextYearStart),
+      ]);
+      if (plansResult.error || leadsResult.error || admissionsResult.error) {
+        setStrategyOverview((current) => ({ ...current, year, available: false }));
+        return;
+      }
+      const plan = plansResult.data?.[0];
+      const admissions = admissionsResult.data ?? [];
+      const stages = admissions.map((item) => String(item.stage || "").trim().toLowerCase());
+      let targetApplications = 0;
+      let targetAdmissions = 0;
+      let targetRegistrations = 0;
+      if (plan) {
+        const { data: targets, error: targetError } = await supabase.from("strategy_intake_plans").select("target_applications,target_admissions,target_registrations").eq("plan_id", plan.id);
+        if (targetError) {
+          setStrategyOverview((current) => ({ ...current, year, available: false, planFound: true }));
+          return;
+        }
+        for (const target of targets ?? []) {
+          targetApplications += Number(target.target_applications || 0);
+          targetAdmissions += Number(target.target_admissions || 0);
+          targetRegistrations += Number(target.target_registrations || 0);
+        }
+      }
+      setStrategyOverview({
+        year, targetApplications, targetAdmissions, targetRegistrations,
+        leads: (leadsResult.data ?? []).length,
+        applications: stages.filter((stage) => ["application started", "application submitted", "admitted", "acceptance paid", "enrolled"].includes(stage)).length,
+        admitted: stages.filter((stage) => ["admitted", "acceptance paid", "enrolled"].includes(stage)).length,
+        enrolled: stages.filter((stage) => stage === "enrolled").length,
+        available: true, planFound: Boolean(plan),
+      });
+    } catch {
+      setStrategyOverview((current) => ({ ...current, available: false }));
+    }
+  }
 
   async function loadReport() {
     try {
@@ -261,6 +309,7 @@ export default function ReportsPage() {
 
   useEffect(() => {
     loadReport();
+    void loadStrategyOverview();
   }, []);
 
   const report = useMemo(() => {
@@ -664,6 +713,28 @@ export default function ReportsPage() {
             </div>
           </div>
           <button type="button" onClick={() => router.push("/strategy")} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-emerald-800 px-4 py-2.5 text-xs font-semibold text-white transition-all duration-200 hover:bg-emerald-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2">Open Strategy <span aria-hidden="true">↗</span></button>
+        </section>
+        <section className="mb-5 rounded-xl border border-slate-200 bg-white p-4 shadow-sm" aria-label="Annual strategy target performance">
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+            <div><h2 className="text-sm font-semibold text-slate-900">Annual Recruitment Targets · {strategyOverview.year}</h2><p className="mt-1 text-xs text-slate-500">Live CRM outcomes compared with targets in the current annual strategy plan.</p></div>
+            <button type="button" onClick={() => router.push("/strategy")} className="rounded-lg border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-800 transition hover:bg-emerald-50">Manage targets ↗</button>
+          </div>
+          {!strategyOverview.available ? <p className="rounded-lg bg-amber-50 px-3 py-3 text-xs text-amber-800">Annual target performance is unavailable. Check Strategy module access and CRM data permissions; the rest of this report remains available.</p> : !strategyOverview.planFound ? <p className="rounded-lg bg-slate-50 px-3 py-3 text-xs text-slate-600">No annual strategy plan was found for {strategyOverview.year}. Create this year’s plan in Strategy &amp; Planning to compare actuals against targets.</p> : <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {([
+              { label: "Applications", actual: strategyOverview.applications, target: strategyOverview.targetApplications },
+              { label: "Admitted", actual: strategyOverview.admitted, target: strategyOverview.targetAdmissions },
+              { label: "Enrolled", actual: strategyOverview.enrolled, target: strategyOverview.targetRegistrations },
+            ] as const).map((metric) => {
+              const progress = metric.target > 0 ? Math.min(100, Math.round(metric.actual / metric.target * 100)) : 0;
+              return <div key={metric.label} className="rounded-lg border border-slate-100 bg-slate-50/70 p-3">
+                <div className="flex items-center justify-between gap-2"><span className="text-xs font-medium text-slate-600">{metric.label}</span><span className="text-xs font-semibold text-slate-500">{metric.target > 0 ? `${progress}%` : "No target"}</span></div>
+                <p className="mt-2 text-xl font-semibold tracking-tight text-slate-900">{metric.actual.toLocaleString()} <span className="text-xs font-normal text-slate-500">/ {metric.target.toLocaleString()}</span></p>
+                <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-200"><div className="h-full rounded-full bg-emerald-700 transition-all duration-700" style={{ width: `${progress}%` }} /></div>
+                <p className="mt-2 text-[11px] text-slate-500">{metric.target > 0 ? `${Math.max(0, metric.target - metric.actual).toLocaleString()} remaining to target` : "Set an annual target in Strategy"}</p>
+              </div>;
+            })}
+            <div className="rounded-lg border border-slate-100 bg-slate-50/70 p-3"><div className="flex items-center justify-between gap-2"><span className="text-xs font-medium text-slate-600">Leads recorded</span><span className="text-xs text-slate-500">YTD</span></div><p className="mt-2 text-xl font-semibold tracking-tight text-slate-900">{strategyOverview.leads.toLocaleString()}</p><p className="mt-2 text-[11px] text-slate-500">Created during {strategyOverview.year}</p></div>
+          </div>}
         </section>
         <section className="report-main-grid">
           <div className="ciu-card">
