@@ -138,6 +138,7 @@ export default function PartnershipsPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [showImport, setShowImport] = useState(false);
   const [showAddContact, setShowAddContact] = useState(false);
   const [editingRecord, setEditingRecord] = useState<Partnership | null>(null);
@@ -177,12 +178,17 @@ export default function PartnershipsPage() {
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
-    if (!term) return records;
-    return records.filter((item) =>
-      [item.name, item.primary_contact_name, item.primary_contact_email, item.primary_contact_phone, item.category, item.status]
-        .some((value) => (value || "").toLowerCase().includes(term)),
-    );
-  }, [records, search]);
+    return records.filter((item) => {
+      const matchesSearch = !term || [item.name, item.primary_contact_name, item.primary_contact_email, item.primary_contact_phone, item.category, item.status]
+        .some((value) => (value || "").toLowerCase().includes(term));
+      const normalizedStatus = (item.status || "").toLowerCase();
+      const matchesStatus = statusFilter === "all" ||
+        (statusFilter === "active" && ["active", "signed", "in progress"].includes(normalizedStatus)) ||
+        (statusFilter === "prospect" && ["prospect", "negotiation", "engaging"].includes(normalizedStatus)) ||
+        (statusFilter === "other" && !["active", "signed", "in progress", "prospect", "negotiation", "engaging"].includes(normalizedStatus));
+      return matchesSearch && matchesStatus;
+    });
+  }, [records, search, statusFilter]);
 
   const resetImport = () => {
     setFileName("");
@@ -339,20 +345,19 @@ export default function PartnershipsPage() {
           </div>
         </header>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <div className="rounded-xl border border-slate-200 bg-white p-5">
-            <div className="flex items-center gap-2 text-sm font-medium text-slate-500"><Users size={17} /> Total partnerships</div>
-            <div className="mt-3 text-3xl font-semibold tracking-tight text-slate-900">{records.length.toLocaleString()}</div>
-          </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-5">
-            <div className="text-sm font-medium text-slate-500">Active partnerships</div>
-            <div className="mt-3 text-3xl font-semibold tracking-tight text-slate-900">{records.filter((r) => ["active", "signed", "in progress"].includes((r.status || "").toLowerCase())).length.toLocaleString()}</div>
-          </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-5">
-            <div className="text-sm font-medium text-slate-500">Partnership categories</div>
-            <div className="mt-3 text-3xl font-semibold tracking-tight text-slate-900">{new Set(records.map((r) => r.category).filter(Boolean)).size.toLocaleString()}</div>
-          </div>
-        </div>
+        <nav className="ciu-status-tabs" aria-label="Partnership status filters" style={{ marginBottom: 14 }}>
+          {[
+            { label: "All Partnerships", value: "all", count: records.length },
+            { label: "Active", value: "active", count: records.filter((r) => ["active", "signed", "in progress"].includes((r.status || "").toLowerCase())).length },
+            { label: "Prospects", value: "prospect", count: records.filter((r) => ["prospect", "negotiation", "engaging"].includes((r.status || "").toLowerCase())).length },
+            { label: "Other Statuses", value: "other", count: records.filter((r) => !["active", "signed", "in progress", "prospect", "negotiation", "engaging"].includes((r.status || "").toLowerCase())).length },
+          ].map((tab) => (
+            <button key={tab.value} type="button" onClick={() => setStatusFilter(tab.value)}
+              className={statusFilter === tab.value ? "ciu-status-tab is-active" : "ciu-status-tab"} aria-pressed={statusFilter === tab.value}>
+              <span>{tab.label}</span><span className="ciu-status-count">{tab.count.toLocaleString()}</span>
+            </button>
+          ))}
+        </nav>
 
         {fileError && !showImport && (
           <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
