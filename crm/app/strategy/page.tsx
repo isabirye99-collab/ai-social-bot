@@ -10,6 +10,7 @@ type WeeklyReport = { id: string; plan_id: string | null; reporting_start: strin
 type StrategyRisk = { id: string; plan_id: string; title: string; description: string | null; priority: string; status: string; corrective_action: string | null; due_date: string | null; programme: string | null };
 type IntakeTarget = { id: string; plan_id: string; intake_month: number; cycle: string; programme: string; target_applications: number; target_admissions: number; target_registrations: number };
 
+type CycleAllocation = { id: string; plan_id: string; cycle: string; proposed_amount: number; approved_amount: number | null; status: string; notes: string | null; };
 type StrategyMeeting = { id: string; plan_id: string | null; meeting_at: string; title: string; minutes: string; decisions: unknown[]; };
 type MeetingAction = { id: string; meeting_id: string; action: string; owner_id: string | null; due_date: string | null; status: string; notes: string | null; };
 
@@ -49,6 +50,10 @@ export default function StrategyPlanningPage() {
   const [objectives, setObjectives] = useState<Objective[]>([]);
   const [intakeTargets, setIntakeTargets] = useState<IntakeTarget[]>([]);
   const [budgets, setBudgets] = useState<BudgetRecord[]>([]);
+  const [cycleAllocations, setCycleAllocations] = useState<CycleAllocation[]>([]);
+  const [allocationCycle, setAllocationCycle] = useState("february");
+  const [allocationAmount, setAllocationAmount] = useState("");
+  const [allocationNotes, setAllocationNotes] = useState("");
   const [risks, setRisks] = useState<StrategyRisk[]>([]);
   const [weeklyReports, setWeeklyReports] = useState<WeeklyReport[]>([]);
   const [approvalRequests, setApprovalRequests] = useState<ApprovalRequest[]>([]);
@@ -125,7 +130,7 @@ export default function StrategyPlanningPage() {
       setObjectiveCount(objectives.count ?? 0);
       setActivityCount(activities.count ?? 0);
       setIntakeCount(intakes.count ?? 0);
-      const [objectiveRows, intakeRows, activityRows, budgetRows, riskRows, reportRows, approvalRows, meetingRows] = await Promise.all([
+      const [objectiveRows, intakeRows, activityRows, budgetRows, riskRows, reportRows, approvalRows, meetingRows, allocationRows] = await Promise.all([
         supabase.from("strategy_objectives").select("id,plan_id,title,description,target_value,actual_value,unit,status,due_date").in("plan_id", ids).order("sort_order"),
         supabase.from("strategy_intake_plans").select("id,plan_id,intake_month,cycle,programme,target_applications,target_admissions,target_registrations").in("plan_id", ids).order("intake_month"),
         supabase.from("strategy_activities").select("id,plan_id,title,description,activity_type,starts_on,ends_on,status,budget_amount").in("plan_id", ids).order("starts_on"),
@@ -134,13 +139,15 @@ export default function StrategyPlanningPage() {
         supabase.from("strategy_weekly_reports").select("id,plan_id,reporting_start,reporting_end,staff_id,completed_work,recruitment_outcomes,challenges,next_week_plan,status,submitted_at,reviewer_comments").order("reporting_start", { ascending: false }).limit(100),
         supabase.from("strategy_approval_requests").select("id,request_type,entity_type,entity_id,title,reason,status,submitted_at,submitted_by,decision_comment").order("submitted_at", { ascending: false }).limit(100),
         supabase.from("strategy_meetings").select("id,plan_id,meeting_at,title,minutes,decisions").order("meeting_at", { ascending: false }).limit(50),
+        supabase.from("strategy_cycle_allocations").select("id,plan_id,cycle,proposed_amount,approved_amount,status,notes").in("plan_id", ids).order("cycle"),
       ]);
-      const failed = objectiveRows.error || intakeRows.error || activityRows.error || budgetRows.error || riskRows.error || reportRows.error || approvalRows.error || meetingRows.error;
+      const failed = objectiveRows.error || intakeRows.error || activityRows.error || budgetRows.error || riskRows.error || reportRows.error || approvalRows.error || meetingRows.error || allocationRows.error;
       if (failed) { setError(`Unable to load all strategy registers: ${failed.message}`); setLoading(false); return; }
       setObjectives((objectiveRows.data ?? []) as Objective[]);
       setIntakeTargets((intakeRows.data ?? []) as IntakeTarget[]);
       setActivities((activityRows.data ?? []) as StrategyActivity[]);
       setBudgets((budgetRows.data ?? []) as BudgetRecord[]);
+      setCycleAllocations((allocationRows.data ?? []) as CycleAllocation[]);
       setRisks((riskRows.data ?? []) as StrategyRisk[]);
       setWeeklyReports((reportRows.data ?? []) as WeeklyReport[]);
       setApprovalRequests((approvalRows.data ?? []) as ApprovalRequest[]);
@@ -181,6 +188,23 @@ export default function StrategyPlanningPage() {
     if (reloadError) setError("Decision saved, but queue refresh failed: " + reloadError.message);
     else { setApprovalRequests((data ?? []) as ApprovalRequest[]); setNotice("Decision recorded."); }
     setDecisionBusy(null);
+  }
+
+  async function saveCycleAllocation() {
+    const plan = plans.find((p) => p.strategy_year === currentYear) ?? plans[0];
+    const amount = Number(allocationAmount);
+    if (!plan) { setError("Create or select an annual strategy plan before allocating a recruitment-cycle budget."); return; }
+    if (!allocationAmount.trim() || !Number.isFinite(amount) || amount < 0) { setError("Enter a valid non-negative allocation amount in UGX."); return; }
+    const { data: auth } = await supabase.auth.getUser();
+    if (!auth.user) { setError("Please sign in again before saving an allocation."); return; }
+    setSaving(true); setError(""); setNotice("");
+    const { error: saveError } = await supabase.from("strategy_cycle_allocations").upsert({
+      plan_id: plan.id, cycle: allocationCycle, proposed_amount: amount, notes: allocationNotes.trim() || null,
+      submitted_by: auth.user.id, status: "draft", updated_at: new Date().toISOString()
+    }, { onConflict: "plan_id,cycle" });
+    if (saveError) setError("Could not save cycle allocation: " + saveError.message);
+    else { setAllocationAmount(""); setAllocationNotes(""); setNotice("Recruitment-cycle allocation saved."); await load(); }
+    setSaving(false);
   }
 
   async function createMeeting() {
@@ -517,6 +541,17 @@ export default function StrategyPlanningPage() {
           </article>)}
           {meetings.length === 0 && <p className="px-4 py-6 text-sm text-slate-500">No meetings recorded yet. Schedule the next Monday management meeting above.</p>}
         </div>
+      </section>
+
+      <section className="rounded-xl border border-slate-200 bg-white">
+        <div className="border-b border-slate-200 px-4 py-3"><h2 className="text-sm font-semibold text-slate-900">Recruitment Cycle Budget Allocations</h2><p className="mt-1 text-xs text-slate-500">Plan allocations for February/April and August/November recruitment cycles. Currency: UGX.</p></div>
+        <form onSubmit={(e) => { e.preventDefault(); void saveCycleAllocation(); }} className="grid gap-3 p-4 md:grid-cols-2">
+          <label className="grid gap-1 text-xs font-medium text-slate-700">Recruitment cycle<select value={allocationCycle} onChange={(e) => setAllocationCycle(e.target.value)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal"><option value="february">February + April</option><option value="august">August + November</option></select></label>
+          <label className="grid gap-1 text-xs font-medium text-slate-700">Proposed allocation (UGX)<input type="number" min="0" step="1000" required value={allocationAmount} onChange={(e) => setAllocationAmount(e.target.value)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal" /></label>
+          <label className="grid gap-1 text-xs font-medium text-slate-700 md:col-span-2">Allocation notes<textarea value={allocationNotes} onChange={(e) => setAllocationNotes(e.target.value)} rows={2} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal" placeholder="Programmes covered, planned activities and justification" /></label>
+          <button disabled={saving} className="w-fit rounded-lg bg-emerald-800 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Save allocation</button>
+        </form>
+        <div className="grid gap-3 p-4 sm:grid-cols-2">{["february","august"].map((cycle) => { const a = cycleAllocations.find((x) => x.cycle === cycle && x.plan_id === (plans.find((p) => p.strategy_year === currentYear)?.id ?? plans[0]?.id)); return <article key={cycle} className="rounded-xl border border-slate-200 p-4"><p className="text-xs font-medium uppercase tracking-wide text-slate-500">{cycle === "february" ? "February + April" : "August + November"}</p><p className="mt-2 text-xl font-semibold text-slate-900">UGX {Number(a?.approved_amount ?? a?.proposed_amount ?? 0).toLocaleString()}</p><p className="mt-1 text-xs text-slate-500">Proposed: UGX {Number(a?.proposed_amount ?? 0).toLocaleString()} · {statusLabel(a?.status ?? "not allocated")}</p>{a?.notes && <p className="mt-2 text-sm text-slate-600">{a.notes}</p>}</article>; })}</div>
       </section>
 
       <section className="rounded-xl border border-slate-200 bg-white">
