@@ -216,7 +216,7 @@ export default function StrategyPlanningPage() {
     };
     const { error: saveError } = await supabase.from("strategy_report_history").insert({
       plan_id: plan.id, report_type: "strategy_management_summary", reporting_start: null, reporting_end: new Date().toISOString().slice(0,10),
-      version: Number(versions?.[0]?.version ?? 0) + 1, status: "draft", snapshot, recipients: [], sent_by: auth.user.id
+      version: Number(versions?.[0]?.version ?? 0) + 1, status: "draft", snapshot, recipients: []
     });
     if (saveError) setError("Could not save report snapshot: " + saveError.message);
     else { setNotice("Management report snapshot saved as a new version."); await load(); }
