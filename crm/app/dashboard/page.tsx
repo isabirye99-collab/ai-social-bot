@@ -1462,6 +1462,11 @@ export default function DashboardPage() {
               <span className="min-w-0 flex-1"><span className="block text-sm font-bold text-[#263d31]">Campaign Activity</span><span className="mt-0.5 block text-xs text-[#718078]">Open campaigns and lead generation</span></span>
               <span className="text-sm font-bold text-[#00695c]">→</span>
             </Link>
+            <Link href="/strategy" className="group flex items-center gap-3 rounded-xl border border-[#e5ece7] p-3 transition hover:-translate-y-0.5 hover:border-[#b8d9a7] hover:bg-[#f7fbf8] hover:shadow-sm">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#e8f4e0] text-[#075442]"><Icon name="target" size={17} /></span>
+              <span className="min-w-0 flex-1"><span className="block text-sm font-bold text-[#263d31]">Strategy & Planning</span><span className="mt-0.5 block text-xs text-[#718078]">Annual targets, budgets and outcomes</span></span>
+              <span className="text-sm font-bold text-[#00695c]">→</span>
+            </Link>
           </div>
         </div>
 
