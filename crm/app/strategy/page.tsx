@@ -10,6 +10,8 @@ type WeeklyReport = { id: string; plan_id: string | null; reporting_start: strin
 type StrategyRisk = { id: string; plan_id: string; title: string; description: string | null; priority: string; status: string; corrective_action: string | null; due_date: string | null; programme: string | null };
 type IntakeTarget = { id: string; plan_id: string; intake_month: number; cycle: string; programme: string; target_applications: number; target_admissions: number; target_registrations: number };
 
+type ApprovalRequest = { id: string; request_type: string; entity_type: string; entity_id: string | null; title: string; reason: string; status: string; submitted_at: string; submitted_by: string | null; decision_comment: string | null; };
+
 type Plan = {
   id: string;
   strategy_year: number;
@@ -46,6 +48,9 @@ export default function StrategyPlanningPage() {
   const [budgets, setBudgets] = useState<BudgetRecord[]>([]);
   const [risks, setRisks] = useState<StrategyRisk[]>([]);
   const [weeklyReports, setWeeklyReports] = useState<WeeklyReport[]>([]);
+  const [approvalRequests, setApprovalRequests] = useState<ApprovalRequest[]>([]);
+  const [decisionComments, setDecisionComments] = useState<Record<string, string>>({});
+  const [decisionBusy, setDecisionBusy] = useState<string | null>(null);
   const [reportStart, setReportStart] = useState("");
   const [reportEnd, setReportEnd] = useState("");
   const [reportWork, setReportWork] = useState("");
@@ -111,15 +116,16 @@ export default function StrategyPlanningPage() {
       setObjectiveCount(objectives.count ?? 0);
       setActivityCount(activities.count ?? 0);
       setIntakeCount(intakes.count ?? 0);
-      const [objectiveRows, intakeRows, activityRows, budgetRows, riskRows, reportRows] = await Promise.all([
+      const [objectiveRows, intakeRows, activityRows, budgetRows, riskRows, reportRows, approvalRows] = await Promise.all([
         supabase.from("strategy_objectives").select("id,plan_id,title,description,target_value,actual_value,unit,status,due_date").in("plan_id", ids).order("sort_order"),
         supabase.from("strategy_intake_plans").select("id,plan_id,intake_month,cycle,programme,target_applications,target_admissions,target_registrations").in("plan_id", ids).order("intake_month"),
         supabase.from("strategy_activities").select("id,plan_id,title,description,activity_type,starts_on,ends_on,status,budget_amount").in("plan_id", ids).order("starts_on"),
         supabase.from("strategy_annual_budgets").select("id,plan_id,proposed_amount,approved_amount,status,notes").in("plan_id", ids),
         supabase.from("strategy_risks").select("id,plan_id,title,description,priority,status,corrective_action,due_date,programme").in("plan_id", ids).order("created_at", { ascending: false }),
         supabase.from("strategy_weekly_reports").select("id,plan_id,reporting_start,reporting_end,staff_id,completed_work,recruitment_outcomes,challenges,next_week_plan,status,submitted_at,reviewer_comments").order("reporting_start", { ascending: false }).limit(100),
+        supabase.from("strategy_approval_requests").select("id,request_type,entity_type,entity_id,title,reason,status,submitted_at,submitted_by,decision_comment").order("submitted_at", { ascending: false }).limit(100),
       ]);
-      const failed = objectiveRows.error || intakeRows.error || activityRows.error || budgetRows.error || riskRows.error || reportRows.error;
+      const failed = objectiveRows.error || intakeRows.error || activityRows.error || budgetRows.error || riskRows.error || reportRows.error || approvalRows.error;
       if (failed) { setError(`Unable to load all strategy registers: ${failed.message}`); setLoading(false); return; }
       setObjectives((objectiveRows.data ?? []) as Objective[]);
       setIntakeTargets((intakeRows.data ?? []) as IntakeTarget[]);
@@ -127,6 +133,7 @@ export default function StrategyPlanningPage() {
       setBudgets((budgetRows.data ?? []) as BudgetRecord[]);
       setRisks((riskRows.data ?? []) as StrategyRisk[]);
       setWeeklyReports((reportRows.data ?? []) as WeeklyReport[]);
+      setApprovalRequests((approvalRows.data ?? []) as ApprovalRequest[]);
     } else {
       setObjectiveCount(0);
       setActivityCount(0);
@@ -143,6 +150,25 @@ export default function StrategyPlanningPage() {
   }, [supabase]);
 
   useEffect(() => { void load(); }, [load]);
+
+  async function decideApproval(request: ApprovalRequest, decision: "approved" | "returned_for_revision" | "rejected") {
+    const comment = (decisionComments[request.id] || "").trim();
+    if (decision !== "approved" && !comment) { setError("Add a decision comment when returning or rejecting a request."); return; }
+    const { data: auth } = await supabase.auth.getUser();
+    if (!auth.user) { setError("Please sign in again before recording a decision."); return; }
+    setDecisionBusy(request.id); setError(""); setNotice("");
+    const { error: decisionError } = await supabase.from("strategy_approval_requests").update({
+      status: decision, decided_by: auth.user.id, decided_at: new Date().toISOString(),
+      decision_comment: comment || null, updated_at: new Date().toISOString()
+    }).eq("id", request.id).eq("status", "pending");
+    if (decisionError) { setError("Could not record decision: " + decisionError.message); setDecisionBusy(null); return; }
+    const { data, error: reloadError } = await supabase.from("strategy_approval_requests")
+      .select("id,request_type,entity_type,entity_id,title,reason,status,submitted_at,submitted_by,decision_comment")
+      .order("submitted_at", { ascending: false }).limit(100);
+    if (reloadError) setError("Decision saved, but queue refresh failed: " + reloadError.message);
+    else { setApprovalRequests((data ?? []) as ApprovalRequest[]); setNotice("Decision recorded."); }
+    setDecisionBusy(null);
+  }
 
   async function submitWeeklyReport() {
     if (!reportStart || !reportEnd || reportEnd < reportStart || !reportWork.trim()) { setError("Enter a valid reporting period and describe the work completed."); return; }
@@ -420,6 +446,28 @@ export default function StrategyPlanningPage() {
           <div><button disabled={saving} className="rounded-lg bg-emerald-800 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{saving ? "Saving…" : "Submit weekly report"}</button></div>
         </form>
         <div className="overflow-x-auto border-t border-slate-200"><table className="w-full min-w-[700px] text-left text-sm"><thead className="bg-slate-50 text-xs text-slate-500"><tr><th className="px-4 py-3 font-medium">Period</th><th className="px-4 py-3 font-medium">Work summary</th><th className="px-4 py-3 font-medium">Status</th><th className="px-4 py-3 font-medium">Submitted</th><th className="px-4 py-3 font-medium">Review notes</th></tr></thead><tbody className="divide-y divide-slate-100">{weeklyReports.map((r) => <tr key={r.id}><td className="px-4 py-3 whitespace-nowrap text-xs text-slate-600">{r.reporting_start} – {r.reporting_end}</td><td className="px-4 py-3"><p className="max-w-md whitespace-pre-wrap text-sm text-slate-800">{r.completed_work}</p></td><td className="px-4 py-3 text-xs">{statusLabel(r.status)}</td><td className="px-4 py-3 whitespace-nowrap text-xs text-slate-500">{r.submitted_at ? new Date(r.submitted_at).toLocaleString() : "—"}</td><td className="px-4 py-3 text-xs text-slate-600">{r.reviewer_comments || "—"}</td></tr>)}</tbody></table>{weeklyReports.length === 0 && <p className="px-4 py-5 text-xs text-slate-500">No weekly reports available to this account.</p>}</div>
+      </section>
+
+      <section className="rounded-xl border border-slate-200 bg-white">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-4 py-3">
+          <div><h2 className="text-sm font-semibold text-slate-900">Approvals Centre</h2><p className="mt-1 text-xs text-slate-500">Review requests, record decisions and retain decision comments.</p></div>
+          <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800">{approvalRequests.filter((r) => r.status === "pending").length} pending</span>
+        </div>
+        <div className="divide-y divide-slate-100">
+          {approvalRequests.map((request) => <article key={request.id} className="grid gap-3 p-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.8fr)]">
+            <div><div className="flex flex-wrap items-center gap-2"><h3 className="text-sm font-semibold text-slate-900">{request.title}</h3><span className="rounded-full bg-slate-100 px-2 py-1 text-[11px]">{statusLabel(request.status)}</span></div>
+              <p className="mt-1 text-xs text-slate-500">{statusLabel(request.request_type)} · Submitted {new Date(request.submitted_at).toLocaleString()}</p><p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">{request.reason}</p>
+              {request.decision_comment && <p className="mt-2 rounded-lg bg-slate-50 p-3 text-xs text-slate-600"><strong>Decision note:</strong> {request.decision_comment}</p>}</div>
+            {request.status === "pending" ? <div className="grid content-start gap-2">
+              <label className="grid gap-1 text-xs font-medium text-slate-700">Decision comment<textarea value={decisionComments[request.id] || ""} onChange={(e) => setDecisionComments((prev) => ({ ...prev, [request.id]: e.target.value }))} rows={2} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal" placeholder="Explain the decision or revisions required" /></label>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" disabled={decisionBusy === request.id} onClick={() => void decideApproval(request, "approved")} className="rounded-lg bg-emerald-800 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Approve</button>
+                <button type="button" disabled={decisionBusy === request.id} onClick={() => void decideApproval(request, "returned_for_revision")} className="rounded-lg border border-amber-300 px-3 py-2 text-xs font-semibold text-amber-800 disabled:opacity-50">Return for revision</button>
+                <button type="button" disabled={decisionBusy === request.id} onClick={() => void decideApproval(request, "rejected")} className="rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-700 disabled:opacity-50">Reject</button>
+              </div></div> : <p className="self-start text-xs text-slate-500">Decision recorded.</p>}
+          </article>)}
+          {approvalRequests.length === 0 && <p className="px-4 py-6 text-sm text-slate-500">No approval requests have been submitted yet.</p>}
+        </div>
       </section>
 
       <section>
