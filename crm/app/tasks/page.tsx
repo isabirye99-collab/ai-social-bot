@@ -652,19 +652,12 @@ const isSalesperson =
       (task) =>
         task.status === "completed"
     ).length;
-    const interestedLeadIds = new Set(
-      tasks
-        .filter((task) => isInterestedLead(getLead(task)))
-        .map((task) => task.lead_id)
-        .filter((id): id is string => Boolean(id))
-    );
-
     return {
       active: active.length,
       overdue,
       dueToday,
       completed,
-      interestedLeads: interestedLeadIds.size,
+      interestedLeads: leads.filter(isInterestedLead).length,
     };
   }, [tasks, leads]);
 
@@ -752,6 +745,16 @@ const isSalesperson =
     typeFilter,
     assignedFilter,
   ]);
+
+  const interestedLeads = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return leads.filter((lead) => {
+      if (!isInterestedLead(lead)) return false;
+      if (!query) return true;
+      return [lead.name, lead.ciu_number, lead.phone, lead.email, lead.product_service]
+        .filter(Boolean).join(" ").toLowerCase().includes(query);
+    });
+  }, [leads, search]);
 
   const openNewTask = (
     lead?: Lead | null
@@ -2109,6 +2112,38 @@ const isSalesperson =
             </div>
                    ) : (
             <>
+{quickTaskFilter === "interested" && (
+  <section aria-label="Interested leads follow-up list" style={{ margin: "12px 0 16px", border: "1px solid #dce9e2", borderRadius: 12, background: "#fff", overflow: "hidden" }}>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "12px 15px", background: "#f4f8f5", borderBottom: "1px solid #e4eee8" }}>
+      <div>
+        <div style={{ fontWeight: 800, fontSize: 13, color: "#075442" }}>Interested leads</div>
+        <div style={{ fontSize: 12, color: "#64748b", marginTop: 3 }}>Leads marked Interested or Qualified, including those without an existing task.</div>
+      </div>
+      <span style={{ borderRadius: 999, background: "#e4f1e9", color: "#075442", fontWeight: 800, fontSize: 12, padding: "5px 9px" }}>{interestedLeads.length.toLocaleString()}</span>
+    </div>
+    {interestedLeads.length === 0 ? (
+      <div style={{ padding: 16, fontSize: 12, color: "#64748b" }}>No interested leads match your search.</div>
+    ) : (
+      <div style={{ maxHeight: 280, overflow: "auto" }}>
+        {interestedLeads.map((lead) => {
+          const hasOpenTask = tasks.some((task) => task.lead_id === lead.id && isActiveTask(task));
+          return (
+            <div key={lead.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "10px 15px", borderTop: "1px solid #f0f4f1" }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 12, fontWeight: 750, color: "#172f29" }}>{lead.name || "Unnamed lead"}</div>
+                <div style={{ fontSize: 11, color: "#64748b", marginTop: 3 }}>{[lead.ciu_number, lead.phone, lead.product_service].filter(Boolean).join(" · ") || "No additional details"}</div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flex: "0 0 auto" }}>
+                <span style={{ fontSize: 11, color: hasOpenTask ? "#47725f" : "#9a6700" }}>{hasOpenTask ? "Open follow-up exists" : "No open follow-up"}</span>
+                <button type="button" onClick={() => openNewTask(lead)} style={{ border: "1px solid #cbded3", borderRadius: 8, background: "#fff", color: "#075442", fontSize: 11, fontWeight: 750, padding: "7px 9px", cursor: "pointer" }}>+ Task</button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    )}
+  </section>
+)}
 <div
   ref={tableScrollRef}
   onScroll={(event) => {
