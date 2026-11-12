@@ -489,11 +489,11 @@ export default function StrategyPlanningPage() {
     }
 
     const sourceActivities = [
-      { title: "Digital recruitment and lead generation", description: "Prioritise TikTok, Facebook/Instagram, LinkedIn, website SEO/AEO and track cost per lead. Strategy allocation focus: digital-first (65% inquiry target). Influencer budget is tracked separately below.", activity_type: "Digital marketing", budget_amount: 0 },
-      { title: "Call-centre lead nurturing", description: "Follow up inquiries and incomplete applications; use intensive 14-day follow-up bursts around results releases and respond to new digital leads promptly.", activity_type: "Lead conversion", budget_amount: 0 },
-      { title: "School and community outreach", description: "Coordinate school activations, nursing-school engagement, church/mosque outreach and regional recruitment partnerships. School activation allocation: UGX 4,000,000 as stated in the uploaded strategy.", activity_type: "Outreach", budget_amount: 4000000 },
-      { title: "International recruitment and partnerships", description: "Develop localized Arabic/regional collateral and pursue hospital, employer, embassy and education-agent partnerships in target markets.", activity_type: "Partnerships", budget_amount: 0 },
-      { title: "Student and alumni referral programme", description: "Promote the documented 5% referral incentive, with Finance verifying referral attribution and successful registration before commission processing.", activity_type: "Referral marketing", budget_amount: 0 },
+      { title: "Digital recruitment and lead generation", description: "Accountable lead: Nicholas (Marketing Manager); creative support: Arnold (website and graphics). Prioritise TikTok, Facebook/Instagram, LinkedIn, website SEO/AEO and track cost per lead. Strategy allocation focus: digital-first (65% inquiry target). Influencer budget is tracked separately below.", activity_type: "Digital marketing", budget_amount: 0 },
+      { title: "Call-centre lead nurturing", description: "Planned operational owner: Monica (Call Centre & Enrollment), subject to joining/onboarding; Meshack supports incoming WhatsApp and phone enquiries, with Nicholas overseeing performance. Follow up inquiries and incomplete applications; use intensive 14-day follow-up bursts around results releases and respond to new digital leads promptly.", activity_type: "Lead conversion", budget_amount: 0 },
+      { title: "School and community outreach", description: "Operational lead: Meshack; Nicholas oversees strategy and performance. Coordinate school activations, nursing-school engagement, church/mosque outreach and regional recruitment partnerships. School activation allocation: UGX 4,000,000 as stated in the uploaded general strategy; this is not a verified total for the full annual budget workbook.", activity_type: "Outreach", budget_amount: 4000000 },
+      { title: "International recruitment and partnerships", description: "Operational lead: Vivian (Alumni & Partnerships), with Nicholas overseeing priorities and Arnold supporting collateral. Develop localized regional collateral and pursue hospital, employer, embassy and education-agent partnerships in target markets.", activity_type: "Partnerships", budget_amount: 0 },
+      { title: "Student and alumni referral programme", description: "Operational lead: Vivian (Alumni & Partnerships), with Nicholas overseeing strategy. Promote the documented 5% referral incentive, with Finance verifying referral attribution and successful registration before commission processing.", activity_type: "Referral marketing", budget_amount: 0 },
       { title: "S6 release influencer campaign", description: "Source budget from the uploaded general strategy: UGX 1,500,000 for influencer promotion during S6 results release. Treat as a planned allocation pending budget approval.", activity_type: "Digital marketing", budget_amount: 1500000 },
       { title: "S6 release call-centre blitz", description: "Source budget from the uploaded general strategy: UGX 20,000 per person per day for a 14-day results-release follow-up period (UGX 280,000 per person for 14 days). Budget amount records one staff member; adjust quantity in the annual budget before approval.", activity_type: "Lead conversion", budget_amount: 280000 },
     ];
@@ -677,6 +677,30 @@ export default function StrategyPlanningPage() {
         })}
       </section>
 
+      <section id="strategy-team-responsibilities" className="rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-200 px-4 py-3 sm:px-5">
+          <h2 className="text-sm font-semibold text-slate-900">Marketing team responsibilities</h2>
+          <p className="mt-1 text-xs text-slate-500">Working ownership map for planning and coordination. These role labels do not grant CRM permissions or create staff accounts.</p>
+        </div>
+        <div className="grid gap-px bg-slate-100 sm:grid-cols-2 xl:grid-cols-3">
+          {[
+            { name: "Nicholas", role: "Marketing Manager", detail: "Owns marketing strategy, campaign priorities, performance reviews, coordination and management reporting." },
+            { name: "Arnold", role: "Website & Graphics", detail: "Owns website updates, design and graphics, brochures, digital collateral and creative support for campaigns." },
+            { name: "Vivian", role: "Alumni & Partnerships", detail: "Coordinates alumni engagement, institutional partnerships, scholarship-organisation follow-ups and related activities." },
+            { name: "Meshack", role: "Outreach & Enquiries", detail: "Coordinates school activations and outreach, and supports responses to WhatsApp and phone enquiries." },
+            { name: "Monica", role: "Call Centre & Enrollment", detail: "Planned new team member responsible for call-centre operations and enrollment follow-up; account/onboarding is pending." },
+          ].map((member) => (
+            <article key={member.name} className="bg-white p-4 transition-colors duration-200 hover:bg-emerald-50/50">
+              <div className="flex items-start justify-between gap-2">
+                <h3 className="text-sm font-semibold text-slate-900">{member.name}</h3>
+                {member.name === "Monica" && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800">Planned</span>}
+              </div>
+              <p className="mt-1 text-xs font-medium text-emerald-800">{member.role}</p>
+              <p className="mt-2 text-xs leading-5 text-slate-600">{member.detail}</p>
+            </article>
+          ))}
+        </div>
+      </section>
 
       {currentPlan && (
         <section className="grid gap-5 xl:grid-cols-2">
