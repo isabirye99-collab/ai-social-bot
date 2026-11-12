@@ -11,7 +11,8 @@ type StrategyRisk = { id: string; plan_id: string; title: string; description: s
 type IntakeTarget = { id: string; plan_id: string; intake_month: number; cycle: string; programme: string; target_applications: number; target_admissions: number; target_registrations: number };
 
 type ManagementReportHistory = { id: string; plan_id: string | null; report_type: string; reporting_start: string | null; reporting_end: string | null; version: number; status: string; snapshot: Record<string, unknown>; created_at: string; approved_by?: string | null; approved_at?: string | null; sent_by?: string | null; sent_at?: string | null; provider_status?: string | null; provider_message_id?: string | null; recipients?: unknown[]; };
-type ApprovalDecisionHistory = { id: string; request_id: string; previous_status: string; decision: string; reviewer_id: string | null; reviewer_comment: string | null; decided_at: string; };\ntype StrategyProfileName = { id: string; full_name: string };
+type ApprovalDecisionHistory = { id: string; request_id: string; previous_status: string; decision: string; reviewer_id: string | null; reviewer_comment: string | null; decided_at: string; };
+type StrategyProfileName = { id: string; full_name: string };
 type CycleAllocation = { id: string; plan_id: string; cycle: string; proposed_amount: number; approved_amount: number | null; status: string; notes: string | null; };
 type StrategyMeeting = { id: string; plan_id: string | null; meeting_at: string; title: string; minutes: string; decisions: unknown[]; };
 type MeetingAction = { id: string; meeting_id: string; action: string; owner_id: string | null; due_date: string | null; status: string; notes: string | null; };
@@ -54,7 +55,8 @@ export default function StrategyPlanningPage() {
   const [budgets, setBudgets] = useState<BudgetRecord[]>([]);
   const [cycleAllocations, setCycleAllocations] = useState<CycleAllocation[]>([]);
   const [reportHistory, setReportHistory] = useState<ManagementReportHistory[]>([]);
-  const [approvalHistory, setApprovalHistory] = useState<ApprovalDecisionHistory[]>([]);\n  const [strategyProfileNames, setStrategyProfileNames] = useState<Record<string, string>>({});
+  const [approvalHistory, setApprovalHistory] = useState<ApprovalDecisionHistory[]>([]);
+  const [strategyProfileNames, setStrategyProfileNames] = useState<Record<string, string>>({});
   const [allocationCycle, setAllocationCycle] = useState("february");
   const [allocationAmount, setAllocationAmount] = useState("");
   const [allocationNotes, setAllocationNotes] = useState("");
@@ -158,7 +160,12 @@ export default function StrategyPlanningPage() {
       setReportHistory((historyRows.data ?? []) as ManagementReportHistory[]);
       const { data: decisions, error: decisionsError } = await supabase.from("strategy_approval_decision_history").select("id,request_id,previous_status,decision,reviewer_id,reviewer_comment,decided_at").order("decided_at", { ascending: false }).limit(200);
       if (decisionsError) { setError("Could not load approval decision history: " + decisionsError.message); }
-      setApprovalHistory((decisions ?? []) as ApprovalDecisionHistory[]);\n      const profileIds = Array.from(new Set([...(decisions ?? []).map((item) => item.reviewer_id), ...(historyRows.data ?? []).flatMap((item) => [item.approved_by, item.sent_by])].filter((id): id is string => Boolean(id))));\n      if (profileIds.length) {\n        const { data: profileRows, error: profileError } = await supabase.from("profiles").select("id,full_name").in("id", profileIds);\n        if (profileError) setError("Could not load reviewer names: " + profileError.message);\n        else setStrategyProfileNames(Object.fromEntries((profileRows ?? []).map((profile) => [profile.id, profile.full_name])));\n      } else setStrategyProfileNames({});
+      setApprovalHistory((decisions ?? []) as ApprovalDecisionHistory[]);\n      const profileIds = Array.from(new Set([...(decisions ?? []).map((item) => item.reviewer_id), ...(historyRows.data ?? []).flatMap((item) => [item.approved_by, item.sent_by])].filter((id): id is string => Boolean(id))));
+      if (profileIds.length) {
+        const { data: profileRows, error: profileError } = await supabase.from("profiles").select("id,full_name").in("id", profileIds);
+        if (profileError) setError("Could not load reviewer names: " + profileError.message);
+        else setStrategyProfileNames(Object.fromEntries((profileRows ?? []).map((profile) => [profile.id, profile.full_name])));
+      } else setStrategyProfileNames({});
       setRisks((riskRows.data ?? []) as StrategyRisk[]);
       setWeeklyReports((reportRows.data ?? []) as WeeklyReport[]);
       setApprovalRequests((approvalRows.data ?? []) as ApprovalRequest[]);
