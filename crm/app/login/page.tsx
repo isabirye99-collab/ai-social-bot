@@ -182,6 +182,41 @@ export default function Login() {
         .ciu-login-security:before { content: "✓"; display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: #edf7e3; color: #4d7c0f; font-weight: 900; }
         .ciu-login-divider { height: 1px; margin: 28px 0 19px; background: #edf1ee; }
         .ciu-login-bottom { text-align: center; color: #8a958e; font-size: 11px; line-height: 1.7; }
+        .ciu-login-brand-panel {
+          animation: ciuLoginPanelIn .55s cubic-bezier(.2,.7,.25,1) both;
+        }
+        .ciu-login-form-wrap {
+          animation: ciuLoginFormIn .55s .08s cubic-bezier(.2,.7,.25,1) both;
+        }
+        .ciu-login-points span {
+          transition: border-color .18s ease, transform .18s ease, box-shadow .18s ease;
+        }
+        .ciu-login-points span:hover {
+          transform: translateY(-2px);
+          border-color: #b9d8c4;
+          box-shadow: 0 5px 14px rgba(23,59,43,.06);
+        }
+        .ciu-login-field input:focus-visible,
+        .ciu-login-submit:focus-visible {
+          outline: 3px solid rgba(139,198,63,.48);
+          outline-offset: 3px;
+        }
+        @keyframes ciuLoginPanelIn {
+          from { opacity: 0; transform: translateX(-10px); }
+          to { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes ciuLoginFormIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .ciu-login-brand-panel, .ciu-login-form-wrap {
+            animation: none !important;
+          }
+          .ciu-login-points span, .ciu-login-submit {
+            transition: none !important;
+          }
+        }
         @media (max-width: 850px) {
           .ciu-login-page { grid-template-columns: 1fr; }
           .ciu-login-brand-panel { display: none; }
