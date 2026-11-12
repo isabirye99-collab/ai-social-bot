@@ -1650,6 +1650,7 @@ const isSalesperson =
   const clearFilters = () => {
     setSearch("");
     setStatusFilter("all");
+    setQuickTaskFilter("all");
     setTypeFilter("all");
     setAssignedFilter("all");
   };
@@ -1855,11 +1856,10 @@ const isSalesperson =
 
             <select
               value={statusFilter}
-              onChange={(event) =>
-                setStatusFilter(
-                  event.target.value
-                )
-              }
+              onChange={(event) => {
+                setStatusFilter(event.target.value);
+                setQuickTaskFilter("all");
+              }}
               style={{
                 border:
                   "1px solid #d1d5db",
