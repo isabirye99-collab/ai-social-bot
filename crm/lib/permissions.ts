@@ -15,6 +15,7 @@ export type CrmModule =
   | "pipeline"
   | "tasks"
   | "marketing"
+  | "strategy"
   | "partnerships"
   | "alumni"
   | "reports"
