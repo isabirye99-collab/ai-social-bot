@@ -9,6 +9,7 @@ as $$
 declare
   v_role text;
   v_is_manager boolean := false;
+  v_owner_submission boolean := false;
 begin
   select pr.role into v_role
   from public.profiles pr
@@ -16,13 +17,19 @@ begin
     and pr.is_active = true;
 
   v_is_manager := coalesce(v_role in ('super_admin', 'admin', 'manager'), false);
+  v_owner_submission := auth.uid() = old.staff_id
+    and old.status = 'draft'
+    and new.status = 'submitted'
+    and new.reviewed_by is not distinct from old.reviewed_by
+    and new.reviewed_at is not distinct from old.reviewed_at
+    and new.reviewer_comments is not distinct from old.reviewer_comments;
 
   if (
     new.status is distinct from old.status
     or new.reviewed_by is distinct from old.reviewed_by
     or new.reviewed_at is distinct from old.reviewed_at
     or new.reviewer_comments is distinct from old.reviewer_comments
-  ) and not v_is_manager then
+  ) and not v_is_manager and not v_owner_submission then
     raise exception 'Only an active manager or administrator may review weekly staff reports.';
   end if;
 
@@ -48,4 +55,4 @@ before update on public.strategy_weekly_reports
 for each row execute function public.strategy_guard_weekly_report_review();
 
 comment on function public.strategy_guard_weekly_report_review() is
-'Restricts review decisions to active managers/admins and prevents staff editing submitted reports until returned for revision.';
+'Restricts review decisions to active managers/admins, allows staff draft submission, and prevents staff editing submitted reports until returned for revision.';
