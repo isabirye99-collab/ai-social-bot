@@ -10,6 +10,7 @@ type WeeklyReport = { id: string; plan_id: string | null; reporting_start: strin
 type StrategyRisk = { id: string; plan_id: string; title: string; description: string | null; priority: string; status: string; corrective_action: string | null; due_date: string | null; programme: string | null };
 type IntakeTarget = { id: string; plan_id: string; intake_month: number; cycle: string; programme: string; target_applications: number; target_admissions: number; target_registrations: number };
 
+type ManagementReportHistory = { id: string; plan_id: string | null; report_type: string; reporting_start: string | null; reporting_end: string | null; version: number; status: string; snapshot: Record<string, unknown>; created_at: string; };
 type CycleAllocation = { id: string; plan_id: string; cycle: string; proposed_amount: number; approved_amount: number | null; status: string; notes: string | null; };
 type StrategyMeeting = { id: string; plan_id: string | null; meeting_at: string; title: string; minutes: string; decisions: unknown[]; };
 type MeetingAction = { id: string; meeting_id: string; action: string; owner_id: string | null; due_date: string | null; status: string; notes: string | null; };
@@ -51,6 +52,7 @@ export default function StrategyPlanningPage() {
   const [intakeTargets, setIntakeTargets] = useState<IntakeTarget[]>([]);
   const [budgets, setBudgets] = useState<BudgetRecord[]>([]);
   const [cycleAllocations, setCycleAllocations] = useState<CycleAllocation[]>([]);
+  const [reportHistory, setReportHistory] = useState<ManagementReportHistory[]>([]);
   const [allocationCycle, setAllocationCycle] = useState("february");
   const [allocationAmount, setAllocationAmount] = useState("");
   const [allocationNotes, setAllocationNotes] = useState("");
@@ -130,7 +132,7 @@ export default function StrategyPlanningPage() {
       setObjectiveCount(objectives.count ?? 0);
       setActivityCount(activities.count ?? 0);
       setIntakeCount(intakes.count ?? 0);
-      const [objectiveRows, intakeRows, activityRows, budgetRows, riskRows, reportRows, approvalRows, meetingRows, allocationRows] = await Promise.all([
+      const [objectiveRows, intakeRows, activityRows, budgetRows, riskRows, reportRows, approvalRows, meetingRows, allocationRows, historyRows] = await Promise.all([
         supabase.from("strategy_objectives").select("id,plan_id,title,description,target_value,actual_value,unit,status,due_date").in("plan_id", ids).order("sort_order"),
         supabase.from("strategy_intake_plans").select("id,plan_id,intake_month,cycle,programme,target_applications,target_admissions,target_registrations").in("plan_id", ids).order("intake_month"),
         supabase.from("strategy_activities").select("id,plan_id,title,description,activity_type,starts_on,ends_on,status,budget_amount").in("plan_id", ids).order("starts_on"),
@@ -140,14 +142,16 @@ export default function StrategyPlanningPage() {
         supabase.from("strategy_approval_requests").select("id,request_type,entity_type,entity_id,title,reason,status,submitted_at,submitted_by,decision_comment").order("submitted_at", { ascending: false }).limit(100),
         supabase.from("strategy_meetings").select("id,plan_id,meeting_at,title,minutes,decisions").order("meeting_at", { ascending: false }).limit(50),
         supabase.from("strategy_cycle_allocations").select("id,plan_id,cycle,proposed_amount,approved_amount,status,notes").in("plan_id", ids).order("cycle"),
+        supabase.from("strategy_report_history").select("id,plan_id,report_type,reporting_start,reporting_end,version,status,snapshot,created_at").in("plan_id", ids).order("created_at", { ascending: false }).limit(50),
       ]);
-      const failed = objectiveRows.error || intakeRows.error || activityRows.error || budgetRows.error || riskRows.error || reportRows.error || approvalRows.error || meetingRows.error || allocationRows.error;
+      const failed = objectiveRows.error || intakeRows.error || activityRows.error || budgetRows.error || riskRows.error || reportRows.error || approvalRows.error || meetingRows.error || allocationRows.error || historyRows.error;
       if (failed) { setError(`Unable to load all strategy registers: ${failed.message}`); setLoading(false); return; }
       setObjectives((objectiveRows.data ?? []) as Objective[]);
       setIntakeTargets((intakeRows.data ?? []) as IntakeTarget[]);
       setActivities((activityRows.data ?? []) as StrategyActivity[]);
       setBudgets((budgetRows.data ?? []) as BudgetRecord[]);
       setCycleAllocations((allocationRows.data ?? []) as CycleAllocation[]);
+      setReportHistory((historyRows.data ?? []) as ManagementReportHistory[]);
       setRisks((riskRows.data ?? []) as StrategyRisk[]);
       setWeeklyReports((reportRows.data ?? []) as WeeklyReport[]);
       setApprovalRequests((approvalRows.data ?? []) as ApprovalRequest[]);
@@ -188,6 +192,35 @@ export default function StrategyPlanningPage() {
     if (reloadError) setError("Decision saved, but queue refresh failed: " + reloadError.message);
     else { setApprovalRequests((data ?? []) as ApprovalRequest[]); setNotice("Decision recorded."); }
     setDecisionBusy(null);
+  }
+
+  async function saveManagementReport() {
+    const plan = plans.find((p) => p.strategy_year === currentYear) ?? plans[0];
+    if (!plan) { setError("Create an annual strategy plan before saving a management report."); return; }
+    const { data: auth } = await supabase.auth.getUser();
+    if (!auth.user) { setError("Please sign in again before saving a report."); return; }
+    setSaving(true); setError(""); setNotice("");
+    const { data: versions, error: versionError } = await supabase.from("strategy_report_history").select("version").eq("report_type", "strategy_management_summary").eq("plan_id", plan.id).order("version", { ascending: false }).limit(1);
+    if (versionError) { setError("Could not check report versions: " + versionError.message); setSaving(false); return; }
+    const snapshot = {
+      strategy_year: plan.strategy_year, strategy_title: plan.title, generated_at: new Date().toISOString(),
+      objectives: { total: objectives.length, achieved: objectives.filter((o) => o.status === "achieved").length, at_risk: objectives.filter((o) => o.status === "at_risk" || o.status === "behind").length },
+      recruitment_targets: intakeTargets.reduce((acc, item) => ({ applications: acc.applications + item.target_applications, admissions: acc.admissions + item.target_admissions, registrations: acc.registrations + item.target_registrations }), { applications: 0, admissions: 0, registrations: 0 }),
+      activities: { total: activities.length, completed: activities.filter((a) => a.status === "completed").length, delayed: activities.filter((a) => a.status === "delayed").length },
+      budgets: budgets.map((b) => ({ proposed: b.proposed_amount, approved: b.approved_amount, status: b.status })),
+      cycle_allocations: cycleAllocations.map((a) => ({ cycle: a.cycle, proposed: a.proposed_amount, approved: a.approved_amount, status: a.status })),
+      risks: { total: risks.length, critical: risks.filter((r) => r.priority === "critical" && r.status !== "resolved").length, unresolved: risks.filter((r) => r.status !== "resolved").length },
+      weekly_reports: { total: weeklyReports.length, submitted: weeklyReports.filter((r) => r.status === "submitted").length, approved: weeklyReports.filter((r) => r.status === "approved").length },
+      approvals: { pending: approvalRequests.filter((r) => r.status === "pending").length, approved: approvalRequests.filter((r) => r.status === "approved").length, rejected: approvalRequests.filter((r) => r.status === "rejected").length },
+      meetings: meetings.length, open_actions: meetingActions.filter((a) => a.status !== "completed" && a.status !== "cancelled").length,
+    };
+    const { error: saveError } = await supabase.from("strategy_report_history").insert({
+      plan_id: plan.id, report_type: "strategy_management_summary", reporting_start: null, reporting_end: new Date().toISOString().slice(0,10),
+      version: Number(versions?.[0]?.version ?? 0) + 1, status: "draft", snapshot, recipients: [], sent_by: auth.user.id
+    });
+    if (saveError) setError("Could not save report snapshot: " + saveError.message);
+    else { setNotice("Management report snapshot saved as a new version."); await load(); }
+    setSaving(false);
   }
 
   async function saveCycleAllocation() {
@@ -552,6 +585,20 @@ export default function StrategyPlanningPage() {
           <button disabled={saving} className="w-fit rounded-lg bg-emerald-800 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Save allocation</button>
         </form>
         <div className="grid gap-3 p-4 sm:grid-cols-2">{["february","august"].map((cycle) => { const a = cycleAllocations.find((x) => x.cycle === cycle && x.plan_id === (plans.find((p) => p.strategy_year === currentYear)?.id ?? plans[0]?.id)); return <article key={cycle} className="rounded-xl border border-slate-200 p-4"><p className="text-xs font-medium uppercase tracking-wide text-slate-500">{cycle === "february" ? "February + April" : "August + November"}</p><p className="mt-2 text-xl font-semibold text-slate-900">UGX {Number(a?.approved_amount ?? a?.proposed_amount ?? 0).toLocaleString()}</p><p className="mt-1 text-xs text-slate-500">Proposed: UGX {Number(a?.proposed_amount ?? 0).toLocaleString()} · {statusLabel(a?.status ?? "not allocated")}</p>{a?.notes && <p className="mt-2 text-sm text-slate-600">{a.notes}</p>}</article>; })}</div>
+      </section>
+
+      <section className="rounded-xl border border-slate-200 bg-white">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3"><div><h2 className="text-sm font-semibold text-slate-900">Management Reports</h2><p className="mt-1 text-xs text-slate-500">Capture a dated snapshot of strategy delivery, recruitment targets, budgets, risks, approvals and actions. Saved versions remain in report history.</p></div><button type="button" disabled={saving || plans.length === 0} onClick={() => void saveManagementReport()} className="rounded-lg bg-emerald-800 px-4 py-2 text-xs font-semibold text-white disabled:opacity-50">{saving ? "Saving…" : "Save report snapshot"}</button></div>
+        <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-4">
+          <article className="rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-500">Objectives achieved</p><p className="mt-1 text-xl font-semibold">{objectives.filter((o) => o.status === "achieved").length} / {objectives.length}</p></article>
+          <article className="rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-500">Recruitment targets</p><p className="mt-1 text-xl font-semibold">{intakeTargets.reduce((n, x) => n + x.target_applications, 0).toLocaleString()}</p><p className="text-xs text-slate-500">Applications planned</p></article>
+          <article className="rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-500">Unresolved risks</p><p className="mt-1 text-xl font-semibold">{risks.filter((r) => r.status !== "resolved").length}</p><p className="text-xs text-slate-500">{risks.filter((r) => r.priority === "critical" && r.status !== "resolved").length} critical</p></article>
+          <article className="rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-500">Open meeting actions</p><p className="mt-1 text-xl font-semibold">{meetingActions.filter((a) => a.status !== "completed" && a.status !== "cancelled").length}</p></article>
+        </div>
+        <div className="border-t border-slate-100"><div className="px-4 py-3"><h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Saved report versions</h3></div>
+          {reportHistory.map((report) => <div key={report.id} className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 px-4 py-3"><div><p className="text-sm font-medium text-slate-800">{statusLabel(report.report_type)} · Version {report.version}</p><p className="mt-1 text-xs text-slate-500">Created {new Date(report.created_at).toLocaleString()} · {statusLabel(report.status)}</p></div><button type="button" onClick={() => { const snapshot = JSON.stringify(report.snapshot, null, 2); const blob = new Blob([snapshot], { type: "application/json" }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = "ciu-strategy-report-v" + report.version + ".json"; link.click(); URL.revokeObjectURL(url); }} className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold">Export snapshot</button></div>)}
+          {reportHistory.length === 0 && <p className="px-4 pb-4 text-sm text-slate-500">No saved report snapshots yet.</p>}
+        </div>
       </section>
 
       <section className="rounded-xl border border-slate-200 bg-white">
