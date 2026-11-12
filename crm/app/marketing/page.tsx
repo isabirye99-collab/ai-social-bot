@@ -27,6 +27,7 @@ type Lead = {
   id: string;
   name: string | null;
   status: string | null;
+  pipeline_stage?: string | null;
   product_service: string | null;
   created_at: string | null;
 };
@@ -151,6 +152,7 @@ function getPipelineStage(
   if (
     normalized.includes("paid acceptance") ||
     normalized.includes("acceptance paid") ||
+    normalized.includes("acceptance fee paid") ||
     normalized.includes("enrolled")
   ) {
     return "Paid Acceptance Fee";
@@ -158,7 +160,8 @@ function getPipelineStage(
 
   if (
     normalized.includes("paid application") ||
-    normalized.includes("application paid")
+    normalized.includes("application paid") ||
+    normalized.includes("application fee paid")
   ) {
     return "Paid Application Fee";
   }
@@ -233,6 +236,8 @@ export default function MarketingPage() {
         campaignLeadsResult,
         leadsResult,
         profilesResult,
+        opportunitiesResult,
+        pipelineStagesResult,
       ] = await Promise.all([
         supabase
           .from("campaigns")
@@ -288,6 +293,16 @@ export default function MarketingPage() {
           .order("full_name", {
             ascending: true,
           }),
+
+        supabase
+          .from("opportunities")
+          .select("id,lead_id,stage_id,status,created_at")
+          .order("created_at", { ascending: false }),
+
+        supabase
+          .from("pipeline_stages")
+          .select("id,name,position,is_won,is_lost")
+          .order("position", { ascending: true }),
       ]);
 
       if (campaignsResult.error) {
@@ -313,6 +328,22 @@ export default function MarketingPage() {
           `Profiles: ${profilesResult.error.message}`
         );
       }
+      if (opportunitiesResult.error) {
+        throw new Error(`Opportunities: ${opportunitiesResult.error.message}`);
+      }
+      if (pipelineStagesResult.error) {
+        throw new Error(`Pipeline stages: ${pipelineStagesResult.error.message}`);
+      }
+
+      const stageNameById = new Map<string, string>(
+        (pipelineStagesResult.data || []).map((stage: { id: string; name: string }) => [stage.id, stage.name])
+      );
+      const stageByLead = new Map<string, string>();
+      for (const opportunity of (opportunitiesResult.data || []) as Array<{ lead_id: string | null; stage_id: string | null; status: string | null }>) {
+        if (!opportunity.lead_id || stageByLead.has(opportunity.lead_id)) continue;
+        const stageName = opportunity.stage_id ? stageNameById.get(opportunity.stage_id) : null;
+        if (stageName) stageByLead.set(opportunity.lead_id, stageName);
+      }
 
       setCampaigns(
         (campaignsResult.data || []) as Campaign[]
@@ -323,7 +354,10 @@ export default function MarketingPage() {
       );
 
       setLeads(
-        (leadsResult.data || []) as Lead[]
+        ((leadsResult.data || []) as Lead[]).map((lead) => ({
+          ...lead,
+          pipeline_stage: stageByLead.get(lead.id) || null,
+        }))
       );
 
       setProfiles(
@@ -1017,14 +1051,14 @@ export default function MarketingPage() {
         selectedCampaignLeads.filter(
           (lead) =>
             getPipelineStage(
-              lead.status
+              lead.pipeline_stage || lead.status
             ) === "Applied" ||
             getPipelineStage(
-              lead.status
+              lead.pipeline_stage || lead.status
             ) ===
               "Paid Application Fee" ||
             getPipelineStage(
-              lead.status
+              lead.pipeline_stage || lead.status
             ) ===
               "Paid Acceptance Fee"
         ).length;
@@ -1033,11 +1067,11 @@ export default function MarketingPage() {
         selectedCampaignLeads.filter(
           (lead) =>
             getPipelineStage(
-              lead.status
+              lead.pipeline_stage || lead.status
             ) ===
             "Paid Application Fee" ||
             getPipelineStage(
-              lead.status
+              lead.pipeline_stage || lead.status
             ) ===
               "Paid Acceptance Fee"
         ).length;
@@ -1046,7 +1080,7 @@ export default function MarketingPage() {
         selectedCampaignLeads.filter(
           (lead) =>
             getPipelineStage(
-              lead.status
+              lead.pipeline_stage || lead.status
             ) ===
             "Paid Acceptance Fee"
         ).length;
@@ -1119,7 +1153,7 @@ export default function MarketingPage() {
 
           const stage =
             getPipelineStage(
-              lead?.status || null
+              lead?.pipeline_stage || lead?.status || null
             );
 
           if (
@@ -1171,7 +1205,7 @@ export default function MarketingPage() {
         (lead) => {
           const stage =
             getPipelineStage(
-              lead.status
+              lead.pipeline_stage || lead.status
             );
 
           if (stage === "Leads") {
@@ -1720,15 +1754,7 @@ export default function MarketingPage() {
                 const converted =
                   campaignLeadsForCard.filter(
                     (lead) =>
-                      isStatus(
-                        lead.status,
-                        [
-                          "converted",
-                          "paid",
-                          "enrolled",
-                          "acceptance",
-                        ]
-                      )
+                      getPipelineStage(lead.pipeline_stage || lead.status) === "Paid Acceptance Fee"
                   ).length;
 
                 const campaignConversion =
