@@ -98,43 +98,163 @@ alter table public.strategy_audit_events enable row level security;
 -- Match existing CRM access boundaries. No broad public policies are created.
 drop policy if exists strategy_plans_read on public.strategy_plans;
 create policy strategy_plans_read on public.strategy_plans
-  for select to authenticated using (private.is_marketing_or_admin_manager());
+  for select to authenticated using (exists (
+    select 1 from public.profiles pr
+    where pr.id = auth.uid()
+      and pr.is_active = true
+      and pr.role in ('super_admin', 'admin', 'manager', 'marketing')
+      and (
+        pr.role = 'super_admin'
+        or pr.module_permissions is null
+        or pr.module_permissions @> '["strategy"]'::jsonb
+      )
+  ));
 
 drop policy if exists strategy_plans_insert on public.strategy_plans;
 create policy strategy_plans_insert on public.strategy_plans
-  for insert to authenticated with check (private.is_marketing_or_admin_manager());
+  for insert to authenticated with check (exists (
+    select 1 from public.profiles pr
+    where pr.id = auth.uid()
+      and pr.is_active = true
+      and pr.role in ('super_admin', 'admin', 'manager', 'marketing')
+      and (
+        pr.role = 'super_admin'
+        or pr.module_permissions is null
+        or pr.module_permissions @> '["strategy"]'::jsonb
+      )
+  ));
 
 drop policy if exists strategy_plans_update on public.strategy_plans;
 create policy strategy_plans_update on public.strategy_plans
   for update to authenticated
-  using (private.is_marketing_or_admin_manager())
-  with check (private.is_marketing_or_admin_manager());
+  using (exists (
+    select 1 from public.profiles pr
+    where pr.id = auth.uid()
+      and pr.is_active = true
+      and pr.role in ('super_admin', 'admin', 'manager', 'marketing')
+      and (
+        pr.role = 'super_admin'
+        or pr.module_permissions is null
+        or pr.module_permissions @> '["strategy"]'::jsonb
+      )
+  ))
+  with check (exists (
+    select 1 from public.profiles pr
+    where pr.id = auth.uid()
+      and pr.is_active = true
+      and pr.role in ('super_admin', 'admin', 'manager', 'marketing')
+      and (
+        pr.role = 'super_admin'
+        or pr.module_permissions is null
+        or pr.module_permissions @> '["strategy"]'::jsonb
+      )
+  ));
 
 drop policy if exists strategy_objectives_access on public.strategy_objectives;
 create policy strategy_objectives_access on public.strategy_objectives
   for all to authenticated
-  using (exists (select 1 from public.strategy_plans p where p.id = plan_id and private.is_marketing_or_admin_manager()))
-  with check (exists (select 1 from public.strategy_plans p where p.id = plan_id and private.is_marketing_or_admin_manager()));
+  using (exists (select 1 from public.strategy_plans p where p.id = plan_id and exists (
+    select 1 from public.profiles pr
+    where pr.id = auth.uid()
+      and pr.is_active = true
+      and pr.role in ('super_admin', 'admin', 'manager', 'marketing')
+      and (
+        pr.role = 'super_admin'
+        or pr.module_permissions is null
+        or pr.module_permissions @> '["strategy"]'::jsonb
+      )
+  )))
+  with check (exists (select 1 from public.strategy_plans p where p.id = plan_id and exists (
+    select 1 from public.profiles pr
+    where pr.id = auth.uid()
+      and pr.is_active = true
+      and pr.role in ('super_admin', 'admin', 'manager', 'marketing')
+      and (
+        pr.role = 'super_admin'
+        or pr.module_permissions is null
+        or pr.module_permissions @> '["strategy"]'::jsonb
+      )
+  )));
 
 drop policy if exists strategy_intake_plans_access on public.strategy_intake_plans;
 create policy strategy_intake_plans_access on public.strategy_intake_plans
   for all to authenticated
-  using (exists (select 1 from public.strategy_plans p where p.id = plan_id and private.is_marketing_or_admin_manager()))
-  with check (exists (select 1 from public.strategy_plans p where p.id = plan_id and private.is_marketing_or_admin_manager()));
+  using (exists (select 1 from public.strategy_plans p where p.id = plan_id and exists (
+    select 1 from public.profiles pr
+    where pr.id = auth.uid()
+      and pr.is_active = true
+      and pr.role in ('super_admin', 'admin', 'manager', 'marketing')
+      and (
+        pr.role = 'super_admin'
+        or pr.module_permissions is null
+        or pr.module_permissions @> '["strategy"]'::jsonb
+      )
+  )))
+  with check (exists (select 1 from public.strategy_plans p where p.id = plan_id and exists (
+    select 1 from public.profiles pr
+    where pr.id = auth.uid()
+      and pr.is_active = true
+      and pr.role in ('super_admin', 'admin', 'manager', 'marketing')
+      and (
+        pr.role = 'super_admin'
+        or pr.module_permissions is null
+        or pr.module_permissions @> '["strategy"]'::jsonb
+      )
+  )));
 
 drop policy if exists strategy_activities_access on public.strategy_activities;
 create policy strategy_activities_access on public.strategy_activities
   for all to authenticated
-  using (exists (select 1 from public.strategy_plans p where p.id = plan_id and private.is_marketing_or_admin_manager()))
-  with check (exists (select 1 from public.strategy_plans p where p.id = plan_id and private.is_marketing_or_admin_manager()));
+  using (exists (select 1 from public.strategy_plans p where p.id = plan_id and exists (
+    select 1 from public.profiles pr
+    where pr.id = auth.uid()
+      and pr.is_active = true
+      and pr.role in ('super_admin', 'admin', 'manager', 'marketing')
+      and (
+        pr.role = 'super_admin'
+        or pr.module_permissions is null
+        or pr.module_permissions @> '["strategy"]'::jsonb
+      )
+  )))
+  with check (exists (select 1 from public.strategy_plans p where p.id = plan_id and exists (
+    select 1 from public.profiles pr
+    where pr.id = auth.uid()
+      and pr.is_active = true
+      and pr.role in ('super_admin', 'admin', 'manager', 'marketing')
+      and (
+        pr.role = 'super_admin'
+        or pr.module_permissions is null
+        or pr.module_permissions @> '["strategy"]'::jsonb
+      )
+  )));
 
 drop policy if exists strategy_audit_events_read on public.strategy_audit_events;
 create policy strategy_audit_events_read on public.strategy_audit_events
-  for select to authenticated using (private.is_marketing_or_admin_manager());
+  for select to authenticated using (exists (
+    select 1 from public.profiles pr
+    where pr.id = auth.uid()
+      and pr.is_active = true
+      and pr.role in ('super_admin', 'admin', 'manager', 'marketing')
+      and (
+        pr.role = 'super_admin'
+        or pr.module_permissions is null
+        or pr.module_permissions @> '["strategy"]'::jsonb
+      )
+  ));
 
 drop policy if exists strategy_audit_events_insert on public.strategy_audit_events;
 create policy strategy_audit_events_insert on public.strategy_audit_events
-  for insert to authenticated with check (private.is_marketing_or_admin_manager());
+  for insert to authenticated with check (exists (
+    select 1 from public.profiles pr
+    where pr.id = auth.uid()
+      and pr.is_active = true
+      and pr.role in ('super_admin', 'admin', 'manager', 'marketing')
+      and (
+        pr.role = 'super_admin'
+        or pr.module_permissions is null
+        or pr.module_permissions @> '["strategy"]'::jsonb
+      )
+  ));
 
 comment on table public.strategy_plans is 'Annual CIU Strategy & Planning records; calendar-year plans.';
 comment on table public.strategy_intake_plans is 'Four intake-level targets grouped into February and August recruitment cycles.';
