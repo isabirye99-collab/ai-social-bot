@@ -181,11 +181,11 @@ export default function StrategyPlanningPage() {
     const { data: auth } = await supabase.auth.getUser();
     if (!auth.user) { setError("Please sign in again before recording a decision."); return; }
     setDecisionBusy(request.id); setError(""); setNotice("");
-    const { error: decisionError } = await supabase.from("strategy_approval_requests").update({
+    const { data: decidedRow, error: decisionError } = await supabase.from("strategy_approval_requests").update({
       status: decision, decided_by: auth.user.id, decided_at: new Date().toISOString(),
       decision_comment: comment || null, updated_at: new Date().toISOString()
-    }).eq("id", request.id).eq("status", "pending");
-    if (decisionError) { setError("Could not record decision: " + decisionError.message); setDecisionBusy(null); return; }
+    }).eq("id", request.id).eq("status", "pending").select("id").maybeSingle();
+    if (decisionError || !decidedRow) { setError(decisionError ? "Could not record decision: " + decisionError.message : "This request is no longer pending or your account is not authorised to decide it."); setDecisionBusy(null); return; }
     const { data, error: reloadError } = await supabase.from("strategy_approval_requests")
       .select("id,request_type,entity_type,entity_id,title,reason,status,submitted_at,submitted_by,decision_comment")
       .order("submitted_at", { ascending: false }).limit(100);
