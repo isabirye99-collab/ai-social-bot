@@ -160,7 +160,8 @@ export default function StrategyPlanningPage() {
       setReportHistory((historyRows.data ?? []) as ManagementReportHistory[]);
       const { data: decisions, error: decisionsError } = await supabase.from("strategy_approval_decision_history").select("id,request_id,previous_status,decision,reviewer_id,reviewer_comment,decided_at").order("decided_at", { ascending: false }).limit(200);
       if (decisionsError) { setError("Could not load approval decision history: " + decisionsError.message); }
-      setApprovalHistory((decisions ?? []) as ApprovalDecisionHistory[]);\n      const profileIds = Array.from(new Set([...(decisions ?? []).map((item) => item.reviewer_id), ...(historyRows.data ?? []).flatMap((item) => [item.approved_by, item.sent_by])].filter((id): id is string => Boolean(id))));
+      setApprovalHistory((decisions ?? []) as ApprovalDecisionHistory[]);
+      const profileIds = Array.from(new Set([...(decisions ?? []).map((item) => item.reviewer_id), ...(historyRows.data ?? []).flatMap((item) => [item.approved_by, item.sent_by])].filter((id): id is string => Boolean(id))));
       if (profileIds.length) {
         const { data: profileRows, error: profileError } = await supabase.from("profiles").select("id,full_name").in("id", profileIds);
         if (profileError) setError("Could not load reviewer names: " + profileError.message);
