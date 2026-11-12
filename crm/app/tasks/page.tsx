@@ -330,6 +330,7 @@ export default function TasksPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] =
     useState("all");
+  const [quickTaskFilter, setQuickTaskFilter] = useState("open");
   const [typeFilter, setTypeFilter] =
     useState("all");
   const [assignedFilter, setAssignedFilter] =
@@ -732,6 +733,11 @@ const isSalesperson =
           return false;
         }
 
+        if (quickTaskFilter === "open" && !isActiveTask(task)) return false;
+        if (quickTaskFilter === "today" && (!isActiveTask(task) || !isToday(task.due_at))) return false;
+        if (quickTaskFilter === "overdue" && !isOverdue(task)) return false;
+        if (quickTaskFilter === "completed" && task.status !== "completed") return false;
+
         if (
           statusFilter !== "all" &&
           task.status !== statusFilter
@@ -778,6 +784,7 @@ const isSalesperson =
     profiles,
     search,
     statusFilter,
+    quickTaskFilter,
     typeFilter,
     assignedFilter,
   ]);
@@ -1784,133 +1791,23 @@ const isSalesperson =
           </div>
         )}
 
-        {/* KPI CARDS */}
-<div
-          className="ciu-tasks-kpis"
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-            gap: "14px",
-            marginBottom: "18px",
-          }}
-        >
+        {/* COMPACT TASK STATUS TABS */}
+        <nav className="ciu-status-tabs" aria-label="Task status filters" style={{ marginBottom: 14 }}>
           {[
-            {
-              label: "OPEN TASKS",
-              value: stats.active,
-              description: "Active work",
-              icon: "◷",
-            },
-            {
-              label: "DUE TODAY",
-              value: stats.dueToday,
-              description: "Today's activities",
-              icon: "▦",
-            },
-            {
-              label: "OVERDUE",
-              value: stats.overdue,
-              description: "Need attention",
-              icon: "!",
-            },
-            {
-              label: "COMPLETED",
-              value: stats.completed,
-              description: "Completed activities",
-              icon: "✓",
-            },
-          ].map((item) => (
-            <div
-              key={item.label}
-              style={{
-                position: "relative",
-                overflow: "hidden",
-                background: "#ffffff",
-                border: "1px solid #dce9e0",
-                borderLeft: "3px solid #8bc34a",
-                borderRadius: "10px",
-                padding: "17px 18px",
-                boxShadow: "0 1px 3px rgba(20, 40, 32, 0.035)",
-              }}
-            >
-              <div
-                style={{
-                  position: "absolute",
-                  right: "-14px",
-                  top: "-17px",
-                  width: "76px",
-                  height: "76px",
-                  borderRadius: "50%",
-                  background: "rgba(8, 116, 67, 0.06)",
-                  pointerEvents: "none",
-                }}
-              />
-
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  gap: "8px",
-                  position: "relative",
-                }}
-              >
-                <div
-                  style={{
-                    color: "#475569",
-                    fontSize: "11px",
-                    fontWeight: 800,
-                    letterSpacing: "0.7px",
-                  }}
-                >
-                  {item.label}
-                </div>
-
-                <div
-                  style={{
-                    width: "31px",
-                    height: "31px",
-                    minWidth: "31px",
-                    borderRadius: "9px",
-                    background: "#e8f5ed",
-                    color: "#087443",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: "18px",
-                    fontWeight: 800,
-                  }}
-                >
-                  {item.icon}
-                </div>
-              </div>
-
-              <div
-                style={{
-                  marginTop: "9px",
-                  fontSize: "26px",
-                  lineHeight: 1.25,
-                  fontWeight: 700,
-                  color: "#17483b",
-                  position: "relative",
-                }}
-              >
-                {item.value}
-              </div>
-
-              <div
-                style={{
-                  marginTop: "5px",
-                  fontSize: "12px",
-                  color: "#64748b",
-                  position: "relative",
-                }}
-              >
-                {item.description}
-              </div>
-            </div>
+            { id: "open", label: "Open Tasks", count: stats.active },
+            { id: "today", label: "Due Today", count: stats.dueToday },
+            { id: "overdue", label: "Overdue", count: stats.overdue },
+            { id: "completed", label: "Completed", count: stats.completed },
+            { id: "all", label: "All Tasks", count: tasks.length },
+          ].map((tab) => (
+            <button key={tab.id} type="button"
+              onClick={() => { setQuickTaskFilter(tab.id); setStatusFilter("all"); }}
+              className={quickTaskFilter === tab.id ? "ciu-status-tab is-active" : "ciu-status-tab"}
+              aria-pressed={quickTaskFilter === tab.id}>
+              <span>{tab.label}</span><span className="ciu-status-count">{tab.count.toLocaleString()}</span>
+            </button>
           ))}
-        </div>
+        </nav>
 
         {/* FILTER BAR */}
         <div
