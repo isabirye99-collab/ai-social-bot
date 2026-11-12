@@ -154,12 +154,19 @@ export default function StrategyPlanningPage() {
       try { recruitment = JSON.parse(reportRecruitment); } catch { setError('Recruitment outcomes must be valid JSON, e.g. {"applications":12,"admissions":8,"registrations":5}.'); setSaving(false); return; }
       if (!recruitment || Array.isArray(recruitment) || typeof recruitment !== "object") { setError("Recruitment outcomes must be a JSON object."); setSaving(false); return; }
     }
-    const { error: saveError } = await supabase.from("strategy_weekly_reports").upsert({
+    const { data: existing, error: lookupError } = await supabase.from("strategy_weekly_reports")
+      .select("id,status").eq("staff_id", auth.user.id).eq("reporting_start", reportStart).eq("reporting_end", reportEnd).maybeSingle();
+    if (lookupError) { setError(lookupError.message); setSaving(false); return; }
+    if (existing?.status === "approved") { setError("This reporting period has an approved report and is locked. Contact the manager to arrange a controlled correction."); setSaving(false); return; }
+    const payload = {
       plan_id: currentPlan?.id ?? null, reporting_start: reportStart, reporting_end: reportEnd, staff_id: auth.user.id,
       completed_work: reportWork.trim(), recruitment_outcomes: recruitment, challenges: reportChallenges.trim() || null,
       next_week_plan: reportNextWeek.trim() || null, status: "submitted", submitted_at: new Date().toISOString(),
-    }, { onConflict: "staff_id,reporting_start,reporting_end" });
-    if (saveError) setError(saveError.message);
+    };
+    const saveResult = existing
+      ? await supabase.from("strategy_weekly_reports").update(payload).eq("id", existing.id)
+      : await supabase.from("strategy_weekly_reports").insert(payload);
+    if (saveResult.error) setError(saveResult.error.message);
     else { setReportWork(""); setReportRecruitment(""); setReportChallenges(""); setReportNextWeek(""); setNotice("Weekly report submitted for manager review."); await load(); }
     setSaving(false);
   }
