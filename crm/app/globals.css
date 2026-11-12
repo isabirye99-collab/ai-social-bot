@@ -4182,3 +4182,116 @@ button, input, select, textarea {
     gap: 8px !important;
   }
 }
+
+
+/* Second-pass density pass for the remaining CRM tabs.
+   Dashboard intentionally keeps its own spacing system. */
+.crm-content:not(:has(.ciu-dashboard)) {
+  padding: 18px 22px 30px !important;
+}
+.crm-content:not(:has(.ciu-dashboard)) .crm-page-heading {
+  margin-bottom: 14px !important;
+}
+.crm-content:not(:has(.ciu-dashboard)) .crm-page-heading h1 {
+  font-size: clamp(22px, 1.6vw, 26px) !important;
+}
+.crm-content:not(:has(.ciu-dashboard)) .crm-page-heading p {
+  margin-top: 5px !important;
+  font-size: 12px !important;
+}
+.crm-content:not(:has(.ciu-dashboard)) .crm-kpi {
+  padding: 13px 15px !important;
+  border-radius: 11px !important;
+}
+.crm-content:not(:has(.ciu-dashboard)) .crm-kpi-value {
+  margin-top: 5px !important;
+  font-size: clamp(22px, 1.6vw, 27px) !important;
+}
+.crm-content:not(:has(.ciu-dashboard)) .crm-card,
+.crm-content:not(:has(.ciu-dashboard)) .crm-card-header,
+.crm-content:not(:has(.ciu-dashboard)) .crm-card-body {
+  border-radius: 11px !important;
+}
+.crm-content:not(:has(.ciu-dashboard)) .crm-card-header {
+  min-height: 0 !important;
+  padding: 12px 15px !important;
+}
+.crm-content:not(:has(.ciu-dashboard)) .crm-card-body {
+  padding: 15px !important;
+}
+.crm-content:not(:has(.ciu-dashboard)) .crm-table th {
+  padding: 9px 12px !important;
+}
+.crm-content:not(:has(.ciu-dashboard)) .crm-table td {
+  padding: 10px 12px !important;
+}
+.crm-content:not(:has(.ciu-dashboard)) .crm-filterbar {
+  gap: 9px !important;
+  margin-bottom: 12px !important;
+}
+.crm-content:not(:has(.ciu-dashboard)) .crm-filterbar input,
+.crm-content:not(:has(.ciu-dashboard)) .crm-filterbar select {
+  min-height: 36px !important;
+}
+.crm-content:not(:has(.ciu-dashboard)) .crm-btn {
+  min-height: 35px !important;
+  padding: 8px 12px !important;
+}
+.crm-content:not(:has(.ciu-dashboard)) .crm-page-heading + section,
+.crm-content:not(:has(.ciu-dashboard)) .crm-page-heading + div {
+  margin-top: 12px !important;
+}
+
+/* Tasks uses its own wrapper, so compact it explicitly as well. */
+.ciu-tasks-page {
+  padding: 16px !important;
+  font-size: 13px !important;
+}
+.ciu-tasks-page > div {
+  max-width: 1600px !important;
+}
+.ciu-tasks-page .ciu-tasks-hero {
+  padding: 13px 17px !important;
+  margin-bottom: 12px !important;
+  gap: 12px !important;
+}
+.ciu-tasks-page .ciu-tasks-hero h1 {
+  font-size: 23px !important;
+}
+.ciu-tasks-page .ciu-tasks-hero p {
+  margin-top: 4px !important;
+  font-size: 12px !important;
+}
+.ciu-tasks-page .ciu-tasks-kpis {
+  gap: 9px !important;
+  margin-bottom: 12px !important;
+}
+.ciu-tasks-page .ciu-tasks-kpis > div {
+  padding: 11px 13px !important;
+  border-radius: 9px !important;
+}
+.ciu-tasks-page .ciu-tasks-kpis > div > div[style*="fontSize: 29px"],
+.ciu-tasks-page .ciu-tasks-kpis > div > div[style*="font-size: 29px"] {
+  font-size: 23px !important;
+}
+.ciu-tasks-page .ciu-tasks-kpis > div > div[style*="width: 31px"] {
+  width: 26px !important;
+  height: 26px !important;
+  min-width: 26px !important;
+  border-radius: 7px !important;
+  font-size: 15px !important;
+}
+.ciu-tasks-page table th {
+  padding: 8px 11px !important;
+}
+.ciu-tasks-page table td {
+  padding: 8px 11px !important;
+}
+@media (max-width: 760px) {
+  .crm-content:not(:has(.ciu-dashboard)) {
+    padding: 14px 12px 24px !important;
+  }
+  .ciu-tasks-page {
+    padding: 12px !important;
+  }
+}
