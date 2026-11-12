@@ -497,6 +497,29 @@ export default function StrategyPlanningPage() {
       </section>
 
       <section className="rounded-xl border border-slate-200 bg-white">
+        <div className="border-b border-slate-200 px-4 py-3"><h2 className="text-sm font-semibold text-slate-900">Monday Meetings & Action Tracker</h2><p className="mt-1 text-xs text-slate-500">Schedule management meetings, record minutes and track decisions through to completion.</p></div>
+        <form onSubmit={(e) => { e.preventDefault(); void createMeeting(); }} className="grid gap-3 p-4 md:grid-cols-2">
+          <label className="grid gap-1 text-xs font-medium text-slate-700">Meeting title<input value={meetingTitle} onChange={(e) => setMeetingTitle(e.target.value)} required className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal" /></label>
+          <label className="grid gap-1 text-xs font-medium text-slate-700">Date and time<input type="datetime-local" value={meetingAt} onChange={(e) => setMeetingAt(e.target.value)} required className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal" /></label>
+          <label className="grid gap-1 text-xs font-medium text-slate-700 md:col-span-2">Minutes / key decisions<textarea value={meetingMinutes} onChange={(e) => setMeetingMinutes(e.target.value)} rows={3} placeholder="Agenda outcomes, decisions, attendance and follow-up notes" className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal" /></label>
+          <button disabled={saving} className="w-fit rounded-lg bg-emerald-800 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{saving ? "Saving…" : "Schedule meeting"}</button>
+        </form>
+        <div className="divide-y divide-slate-100">
+          {meetings.map((meeting) => <article key={meeting.id} className="p-4">
+            <div className="flex flex-wrap items-start justify-between gap-2"><div><h3 className="text-sm font-semibold text-slate-900">{meeting.title}</h3><p className="mt-1 text-xs text-slate-500">{new Date(meeting.meeting_at).toLocaleString()}</p></div><span className="rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600">{meetingActions.filter((a) => a.meeting_id === meeting.id && a.status === "completed").length}/{meetingActions.filter((a) => a.meeting_id === meeting.id).length} actions complete</span></div>
+            {meeting.minutes && <p className="mt-3 whitespace-pre-wrap rounded-lg bg-slate-50 p-3 text-sm text-slate-700">{meeting.minutes}</p>}
+            <div className="mt-3 grid gap-2 md:grid-cols-[minmax(0,1fr)_180px_auto]">
+              <input value={actionDrafts[meeting.id]?.action || ""} onChange={(e) => setActionDrafts((prev) => ({ ...prev, [meeting.id]: { action: e.target.value, due_date: prev[meeting.id]?.due_date || "" } }))} placeholder="Action to follow up" className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+              <input type="date" aria-label="Action due date" value={actionDrafts[meeting.id]?.due_date || ""} onChange={(e) => setActionDrafts((prev) => ({ ...prev, [meeting.id]: { action: prev[meeting.id]?.action || "", due_date: e.target.value } }))} className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+              <button type="button" onClick={() => void addMeetingAction(meeting.id)} className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold">Add action</button>
+            </div>
+            <div className="mt-3 space-y-2">{meetingActions.filter((a) => a.meeting_id === meeting.id).map((action) => <div key={action.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-100 px-3 py-2"><div><p className="text-sm text-slate-800">{action.action}</p><p className="mt-1 text-xs text-slate-500">Due {action.due_date || "not set"} · {statusLabel(action.status)}{action.owner_id ? " · Owner assigned" : " · Owner not assigned"}</p></div>{action.status !== "completed" && <div className="flex gap-2">{action.status === "pending" && <button type="button" onClick={() => void updateMeetingAction(action, "in_progress")} className="rounded-md border px-2 py-1 text-xs">Start</button>}<button type="button" onClick={() => void updateMeetingAction(action, "completed")} className="rounded-md bg-emerald-800 px-2 py-1 text-xs font-semibold text-white">Complete</button></div>}</div>)}</div>
+          </article>)}
+          {meetings.length === 0 && <p className="px-4 py-6 text-sm text-slate-500">No meetings recorded yet. Schedule the next Monday management meeting above.</p>}
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-slate-200 bg-white">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-4 py-3">
           <div><h2 className="text-sm font-semibold text-slate-900">Approvals Centre</h2><p className="mt-1 text-xs text-slate-500">Review requests, record decisions and retain decision comments.</p></div>
           <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800">{approvalRequests.filter((r) => r.status === "pending").length} pending</span>
