@@ -304,6 +304,26 @@ function isInterestedLead(lead: Lead | null | undefined) {
   return status === "qualified" || status === "interested" || outcome === "interested";
 }
 
+function isDeadlineExemptLead(lead: Lead | null | undefined) {
+  if (!lead) return false;
+  const normalize = (value: string | null | undefined) =>
+    (value || "").trim().toLowerCase().replace(/[ _-]+/g, " ");
+  const status = normalize(lead.status);
+  const outcome = normalize(lead.follow_up_status);
+  return (
+    ["applied", "enrolled", "paid acceptance fee", "acceptance fee paid", "lost leads", "lost"].includes(status) ||
+    ["applied", "enrolled", "paid acceptance fee", "acceptance fee paid", "lost leads", "lost"].includes(outcome)
+  );
+}
+
+function defaultTaskDeadline(lead: Lead | null | undefined) {
+  if (isDeadlineExemptLead(lead)) return "";
+  const deadline = new Date();
+  deadline.setDate(deadline.getDate() + 7);
+  deadline.setSeconds(0, 0);
+  return toDateTimeLocal(deadline.toISOString());
+}
+
 function getPriority(task: Task) {
   if (isOverdue(task)) return 1;
   if (isToday(task.due_at)) return 2;
@@ -776,11 +796,11 @@ const isSalesperson =
         ? `Follow up with ${lead.name}`
         : "",
       task_type: "call",
-      due_at: lead?.next_follow_up_at
-        ? toDateTimeLocal(
-            lead.next_follow_up_at
-          )
-        : "",
+      due_at: isDeadlineExemptLead(lead)
+        ? ""
+        : lead?.next_follow_up_at
+          ? toDateTimeLocal(lead.next_follow_up_at)
+          : defaultTaskDeadline(lead),
     });
 
     setShowTaskModal(true);
@@ -924,7 +944,15 @@ const isSalesperson =
         lead_id: linkedLeadId,
         opportunity_id: linkedOpportunityId,
         assigned_to: !editingTask && walkInMode ? linkedAssigneeId : (form.assigned_to || null),
-        due_at: form.due_at ? new Date(form.due_at).toISOString() : null,
+        due_at: isDeadlineExemptLead(
+          linkedLeadId ? leads.find((lead) => lead.id === linkedLeadId) : null
+        )
+          ? null
+          : form.due_at
+            ? new Date(form.due_at).toISOString()
+            : !editingTask
+              ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+              : null,
         status: form.status,
         updated_at: new Date().toISOString(),
       };
@@ -1475,9 +1503,11 @@ const isSalesperson =
       return;
     }
 
+    if (isDeadlineExemptLead(lead)) return;
+
     const dateValue =
       followUpDate ||
-      new Date().toISOString();
+      new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
     const { error: insertError } =
       await supabase
