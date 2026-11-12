@@ -504,6 +504,41 @@ export default function StrategyPlanningPage() {
       if (insertError) { setError("Objectives imported, but activities failed: " + insertError.message); await load(); setSaving(false); return; }
     }
 
+    // Preserve the uploaded September 2026 weekly intake report as a dated record,
+    // separate from the current strategy targets and projected annual budget.
+    const { data: existingWeekly, error: weeklyCheckError } = await supabase
+      .from("strategy_weekly_reports").select("id")
+      .eq("staff_id", auth.user.id).eq("reporting_start", "2026-09-14").eq("reporting_end", "2026-09-18").limit(1);
+    if (weeklyCheckError) { setError("Strategy objectives and activities imported, but historical report check failed: " + weeklyCheckError.message); await load(); setSaving(false); return; }
+    if (!existingWeekly?.length) {
+      const { error: weeklyInsertError } = await supabase.from("strategy_weekly_reports").insert({
+        plan_id: planId, staff_id: auth.user.id, reporting_start: "2026-09-14", reporting_end: "2026-09-18",
+        completed_work: "Imported from the uploaded CIU Marketing Weekly Report for 14–18 September 2026. August intake performance: 898 applications and admissions, with 503 finance-cleared admissions. Applications and admissions were down year-on-year (14% and 13% respectively), while finance-cleared admissions increased by 188 (+59%); clearance conversion rose from 30% to 56%.",
+        recruitment_outcomes: {
+          source: "Weekly Report 14th September to 18th September 2026.pdf",
+          intake: "August 2026",
+          faculty: [
+            { programme: "SOBAT", applications: 118, admitted: 118, finance_cleared: 58 },
+            { programme: "SPH", applications: 159, admitted: 159, finance_cleared: 80 },
+            { programme: "SON", applications: 162, admitted: 162, finance_cleared: 82 },
+            { programme: "IAHS", applications: 459, admitted: 459, finance_cleared: 283 }
+          ],
+          totals: { applications: 898, admitted: 898, finance_cleared: 503 },
+          year_on_year: {
+            applications: { previous: 1045, current: 898, change: -147, percentage_change: -14 },
+            admitted: { previous: 1043, current: 898, change: -145, percentage_change: -13 },
+            finance_cleared: { previous: 315, current: 503, change: 188, percentage_change: 59 },
+            clearance_conversion: { previous_percent: 30, current_percent: 56, percentage_point_change: 25, relative_growth_percent: 85 }
+          }
+        },
+        challenges: "Year-on-year applications and admissions declined despite improved finance clearance.",
+        next_week_plan: "Prioritise follow-up to admitted students who have not cleared Finance; review application-generation channels and faculty conversion.",
+        status: "submitted",
+        submitted_at: new Date().toISOString()
+      });
+      if (weeklyInsertError) { setError("Objectives and activities imported, but the historical weekly report failed: " + weeklyInsertError.message); await load(); setSaving(false); return; }
+    }
+
     const { data: existingBudget, error: budgetCheckError } = await supabase.from("strategy_annual_budgets").select("id").eq("plan_id", planId).limit(1);
     if (budgetCheckError) { setError("Strategy records imported, but budget check failed: " + budgetCheckError.message); await load(); setSaving(false); return; }
     let budgetNote = "Source: uploaded general strategy document. Projected 2026 budget ~UGX 300,000,000 for charter branding and CRM implementation. This is a proposed estimate, not actual expenditure or an approved budget.";
