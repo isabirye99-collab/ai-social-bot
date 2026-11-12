@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 type Objective = { id: string; plan_id: string; title: string; description: string | null; target_value: number | null; actual_value: number | null; unit: string | null; status: string; due_date: string | null };
 type StrategyActivity = { id: string; plan_id: string; title: string; description: string | null; activity_type: string | null; starts_on: string | null; ends_on: string | null; status: string; budget_amount: number };
 type BudgetRecord = { id: string; plan_id: string; proposed_amount: number; approved_amount: number | null; status: string; notes: string | null };
+type WeeklyReport = { id: string; plan_id: string | null; reporting_start: string; reporting_end: string; staff_id: string; completed_work: string; recruitment_outcomes: Record<string, unknown>; challenges: string | null; next_week_plan: string | null; status: string; submitted_at: string | null; reviewer_comments: string | null };
 type StrategyRisk = { id: string; plan_id: string; title: string; description: string | null; priority: string; status: string; corrective_action: string | null; due_date: string | null; programme: string | null };
 type IntakeTarget = { id: string; plan_id: string; intake_month: number; cycle: string; programme: string; target_applications: number; target_admissions: number; target_registrations: number };
 
@@ -44,6 +45,13 @@ export default function StrategyPlanningPage() {
   const [intakeTargets, setIntakeTargets] = useState<IntakeTarget[]>([]);
   const [budgets, setBudgets] = useState<BudgetRecord[]>([]);
   const [risks, setRisks] = useState<StrategyRisk[]>([]);
+  const [weeklyReports, setWeeklyReports] = useState<WeeklyReport[]>([]);
+  const [reportStart, setReportStart] = useState("");
+  const [reportEnd, setReportEnd] = useState("");
+  const [reportWork, setReportWork] = useState("");
+  const [reportRecruitment, setReportRecruitment] = useState("");
+  const [reportChallenges, setReportChallenges] = useState("");
+  const [reportNextWeek, setReportNextWeek] = useState("");
   const [budgetAmount, setBudgetAmount] = useState("");
   const [budgetNotes, setBudgetNotes] = useState("");
   const [riskTitle, setRiskTitle] = useState("");
@@ -103,20 +111,22 @@ export default function StrategyPlanningPage() {
       setObjectiveCount(objectives.count ?? 0);
       setActivityCount(activities.count ?? 0);
       setIntakeCount(intakes.count ?? 0);
-      const [objectiveRows, intakeRows, activityRows, budgetRows, riskRows] = await Promise.all([
+      const [objectiveRows, intakeRows, activityRows, budgetRows, riskRows, reportRows] = await Promise.all([
         supabase.from("strategy_objectives").select("id,plan_id,title,description,target_value,actual_value,unit,status,due_date").in("plan_id", ids).order("sort_order"),
         supabase.from("strategy_intake_plans").select("id,plan_id,intake_month,cycle,programme,target_applications,target_admissions,target_registrations").in("plan_id", ids).order("intake_month"),
         supabase.from("strategy_activities").select("id,plan_id,title,description,activity_type,starts_on,ends_on,status,budget_amount").in("plan_id", ids).order("starts_on"),
         supabase.from("strategy_annual_budgets").select("id,plan_id,proposed_amount,approved_amount,status,notes").in("plan_id", ids),
         supabase.from("strategy_risks").select("id,plan_id,title,description,priority,status,corrective_action,due_date,programme").in("plan_id", ids).order("created_at", { ascending: false }),
+        supabase.from("strategy_weekly_reports").select("id,plan_id,reporting_start,reporting_end,staff_id,completed_work,recruitment_outcomes,challenges,next_week_plan,status,submitted_at,reviewer_comments").order("reporting_start", { ascending: false }).limit(100),
       ]);
-      const failed = objectiveRows.error || intakeRows.error || activityRows.error || budgetRows.error || riskRows.error;
+      const failed = objectiveRows.error || intakeRows.error || activityRows.error || budgetRows.error || riskRows.error || reportRows.error;
       if (failed) { setError(`Unable to load all strategy registers: ${failed.message}`); setLoading(false); return; }
       setObjectives((objectiveRows.data ?? []) as Objective[]);
       setIntakeTargets((intakeRows.data ?? []) as IntakeTarget[]);
       setActivities((activityRows.data ?? []) as StrategyActivity[]);
       setBudgets((budgetRows.data ?? []) as BudgetRecord[]);
       setRisks((riskRows.data ?? []) as StrategyRisk[]);
+      setWeeklyReports((reportRows.data ?? []) as WeeklyReport[]);
     } else {
       setObjectiveCount(0);
       setActivityCount(0);
@@ -126,11 +136,33 @@ export default function StrategyPlanningPage() {
       setActivities([]);
       setBudgets([]);
       setRisks([]);
+      const { data: reportRows } = await supabase.from("strategy_weekly_reports").select("id,plan_id,reporting_start,reporting_end,staff_id,completed_work,recruitment_outcomes,challenges,next_week_plan,status,submitted_at,reviewer_comments").order("reporting_start", { ascending: false }).limit(100);
+      setWeeklyReports((reportRows ?? []) as WeeklyReport[]);
     }
     setLoading(false);
   }, [supabase]);
 
   useEffect(() => { void load(); }, [load]);
+
+  async function submitWeeklyReport() {
+    if (!reportStart || !reportEnd || reportEnd < reportStart || !reportWork.trim()) { setError("Enter a valid reporting period and describe the work completed."); return; }
+    setSaving(true); setError(""); setNotice("");
+    const { data: auth } = await supabase.auth.getUser();
+    if (!auth.user) { setError("Please sign in again to submit your report."); setSaving(false); return; }
+    let recruitment: Record<string, unknown> = {};
+    if (reportRecruitment.trim()) {
+      try { recruitment = JSON.parse(reportRecruitment); } catch { setError('Recruitment outcomes must be valid JSON, e.g. {"applications":12,"admissions":8,"registrations":5}.'); setSaving(false); return; }
+      if (!recruitment || Array.isArray(recruitment) || typeof recruitment !== "object") { setError("Recruitment outcomes must be a JSON object."); setSaving(false); return; }
+    }
+    const { error: saveError } = await supabase.from("strategy_weekly_reports").upsert({
+      plan_id: currentPlan?.id ?? null, reporting_start: reportStart, reporting_end: reportEnd, staff_id: auth.user.id,
+      completed_work: reportWork.trim(), recruitment_outcomes: recruitment, challenges: reportChallenges.trim() || null,
+      next_week_plan: reportNextWeek.trim() || null, status: "submitted", submitted_at: new Date().toISOString(),
+    }, { onConflict: "staff_id,reporting_start,reporting_end" });
+    if (saveError) setError(saveError.message);
+    else { setReportWork(""); setReportRecruitment(""); setReportChallenges(""); setReportNextWeek(""); setNotice("Weekly report submitted for manager review."); await load(); }
+    setSaving(false);
+  }
 
   async function submitBudget() {
     if (!currentPlan || !budgetAmount.trim() || Number(budgetAmount) < 0) return;
@@ -367,6 +399,21 @@ export default function StrategyPlanningPage() {
           <div className="divide-y divide-slate-100">{risks.filter((r) => r.plan_id === currentPlan.id).map((r) => <div key={r.id} className="px-4 py-3"><div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-semibold text-slate-900">{r.title}</p><span className={`rounded-full px-2 py-1 text-xs font-semibold ${r.priority === "critical" ? "bg-red-100 text-red-800" : r.priority === "high" ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-700"}`}>{statusLabel(r.priority)}</span></div>{r.corrective_action && <p className="mt-1 text-xs text-slate-600">Action: {r.corrective_action}</p>}<p className="mt-1 text-xs text-slate-500">Due: {r.due_date || "Not set"} · {statusLabel(r.status)}{r.programme ? ` · ${r.programme}` : ""}</p></div>)}{risks.filter((r) => r.plan_id === currentPlan.id).length === 0 && <p className="px-4 py-4 text-xs text-slate-500">No risks recorded.</p>}</div>
         </div>
       </section>}
+
+
+      <section className="rounded-xl border border-slate-200 bg-white">
+        <div className="border-b border-slate-200 px-4 py-3"><h2 className="text-sm font-semibold text-slate-900">Weekly Reports & Meetings</h2><p className="mt-1 text-xs text-slate-500">Submit Monday–Friday work reports for manager review. PDF delivery and meeting minutes are a subsequent workflow stage.</p></div>
+        <form onSubmit={(e) => { e.preventDefault(); void submitWeeklyReport(); }} className="grid gap-3 p-4 md:grid-cols-2">
+          <label className="grid gap-1 text-xs font-medium text-slate-700">Period start<input required type="date" value={reportStart} onChange={(e) => setReportStart(e.target.value)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal" /></label>
+          <label className="grid gap-1 text-xs font-medium text-slate-700">Period end<input required type="date" min={reportStart || undefined} value={reportEnd} onChange={(e) => setReportEnd(e.target.value)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal" /></label>
+          <label className="grid gap-1 text-xs font-medium text-slate-700 md:col-span-2">Work completed<textarea required value={reportWork} onChange={(e) => setReportWork(e.target.value)} rows={4} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal" placeholder="Activities delivered, follow-ups, outreach and other work" /></label>
+          <label className="grid gap-1 text-xs font-medium text-slate-700 md:col-span-2">Recruitment outcomes (optional JSON)<textarea value={reportRecruitment} onChange={(e) => setReportRecruitment(e.target.value)} rows={2} className="rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs font-normal" placeholder='{"applications":12,"admissions":8,"registrations":5}' /></label>
+          <label className="grid gap-1 text-xs font-medium text-slate-700">Challenges<textarea value={reportChallenges} onChange={(e) => setReportChallenges(e.target.value)} rows={3} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal" /></label>
+          <label className="grid gap-1 text-xs font-medium text-slate-700">Plan for next week<textarea value={reportNextWeek} onChange={(e) => setReportNextWeek(e.target.value)} rows={3} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal" /></label>
+          <div><button disabled={saving} className="rounded-lg bg-emerald-800 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{saving ? "Saving…" : "Submit weekly report"}</button></div>
+        </form>
+        <div className="overflow-x-auto border-t border-slate-200"><table className="w-full min-w-[700px] text-left text-sm"><thead className="bg-slate-50 text-xs text-slate-500"><tr><th className="px-4 py-3 font-medium">Period</th><th className="px-4 py-3 font-medium">Work summary</th><th className="px-4 py-3 font-medium">Status</th><th className="px-4 py-3 font-medium">Submitted</th><th className="px-4 py-3 font-medium">Review notes</th></tr></thead><tbody className="divide-y divide-slate-100">{weeklyReports.map((r) => <tr key={r.id}><td className="px-4 py-3 whitespace-nowrap text-xs text-slate-600">{r.reporting_start} – {r.reporting_end}</td><td className="px-4 py-3"><p className="max-w-md whitespace-pre-wrap text-sm text-slate-800">{r.completed_work}</p></td><td className="px-4 py-3 text-xs">{statusLabel(r.status)}</td><td className="px-4 py-3 whitespace-nowrap text-xs text-slate-500">{r.submitted_at ? new Date(r.submitted_at).toLocaleString() : "—"}</td><td className="px-4 py-3 text-xs text-slate-600">{r.reviewer_comments || "—"}</td></tr>)}</tbody></table>{weeklyReports.length === 0 && <p className="px-4 py-5 text-xs text-slate-500">No weekly reports available to this account.</p>}</div>
+      </section>
 
       <section>
         <div className="mb-3">
