@@ -14,6 +14,7 @@ function getRequiredModule(pathname: string): CrmModule | null {
     ["/pipeline", "pipeline"],
     ["/tasks", "tasks"],
     ["/marketing", "marketing"],
+    ["/strategy", "strategy"],
     ["/reports", "reports"],
     ["/staff", "staff"],
     ["/settings", "settings"],
