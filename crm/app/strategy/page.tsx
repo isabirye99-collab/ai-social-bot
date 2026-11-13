@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 type Objective = { id: string; plan_id: string; title: string; description: string | null; target_value: number | null; actual_value: number | null; unit: string | null; status: string; due_date: string | null };
 type StrategyActivity = { id: string; plan_id: string; title: string; description: string | null; activity_type: string | null; starts_on: string | null; ends_on: string | null; status: string; budget_amount: number; owner_id: string | null };
 type BudgetRecord = { id: string; plan_id: string; proposed_amount: number; approved_amount: number | null; status: string; notes: string | null };
+type StrategyBudgetItem = { id: string; plan_id: string; category: string; item_name: string; quantity: number; unit_rate: number; planned_amount: number; actual_spent: number; strategic_goal_id: string | null; activity_id: string | null; status: "planned" | "in_progress" | "completed" | "cancelled"; notes: string | null };
 type WeeklyReport = { id: string; plan_id: string | null; reporting_start: string; reporting_end: string; staff_id: string; completed_work: string; recruitment_outcomes: Record<string, unknown>; challenges: string | null; next_week_plan: string | null; status: string; submitted_at: string | null; reviewer_comments: string | null };
 type StrategyRisk = { id: string; plan_id: string; title: string; description: string | null; priority: string; status: string; corrective_action: string | null; due_date: string | null; programme: string | null; owner_id: string | null };
 type IntakeTarget = { id: string; plan_id: string; intake_month: number; cycle: string; programme: string; intake_strategy: string | null; target_applications: number; target_admissions: number; target_registrations: number; achieved_registrations: number };
@@ -64,6 +65,11 @@ export default function StrategyPlanningPage() {
   const [intakeDraft, setIntakeDraft] = useState({ strategic_pillar: "", objectives: "", key_activities: "", channels_tools: "", kpis_targets: "" });
   const [intakeTargets, setIntakeTargets] = useState<IntakeTarget[]>([]);
   const [budgets, setBudgets] = useState<BudgetRecord[]>([]);
+  const [budgetItems, setBudgetItems] = useState<StrategyBudgetItem[]>([]);
+  const [budgetCategoryDraft, setBudgetCategoryDraft] = useState("Community Engagement");
+  const [budgetItemDraft, setBudgetItemDraft] = useState("");
+  const [budgetQuantityDraft, setBudgetQuantityDraft] = useState("1");
+  const [budgetRateDraft, setBudgetRateDraft] = useState("0");
   const [cycleAllocations, setCycleAllocations] = useState<CycleAllocation[]>([]);
   const [reportHistory, setReportHistory] = useState<ManagementReportHistory[]>([]);
   const [approvalHistory, setApprovalHistory] = useState<ApprovalDecisionHistory[]>([]);
@@ -203,6 +209,9 @@ export default function StrategyPlanningPage() {
       setIntakeTargets((intakeRows.data ?? []) as IntakeTarget[]);
       setActivities((activityRows.data ?? []) as StrategyActivity[]);
       setBudgets((budgetRows.data ?? []) as BudgetRecord[]);
+      const { data: budgetItemRows, error: budgetItemError } = await supabase.from("strategy_budget_items").select("id,plan_id,category,item_name,quantity,unit_rate,planned_amount,actual_spent,strategic_goal_id,activity_id,status,notes").in("plan_id", ids).order("category").order("item_name");
+      if (budgetItemError) setError("Could not load itemized marketing budget: " + budgetItemError.message);
+      setBudgetItems((budgetItemRows ?? []) as StrategyBudgetItem[]);
       setCycleAllocations((allocationRows.data ?? []) as CycleAllocation[]);
       setReportHistory((historyRows.data ?? []) as ManagementReportHistory[]);
       const { data: decisions, error: decisionsError } = await supabase.from("strategy_approval_decision_history").select("id,request_id,previous_status,decision,reviewer_id,reviewer_comment,decided_at").order("decided_at", { ascending: false }).limit(200);
@@ -422,6 +431,27 @@ export default function StrategyPlanningPage() {
       await load();
     }
     setSaving(false);
+  }
+
+  async function addBudgetItem() {
+    const plan = currentPlan ?? plans.find((p) => p.strategy_year === 2026) ?? plans[0];
+    const quantity = Number(budgetQuantityDraft), rate = Number(budgetRateDraft);
+    if (!plan) { setError("Create a strategy plan before adding budget items."); return; }
+    if (!budgetItemDraft.trim() || !Number.isFinite(quantity) || quantity < 0 || !Number.isFinite(rate) || rate < 0) { setError("Enter an item name, a valid quantity and a non-negative unit rate."); return; }
+    setSaving(true); setError(""); setNotice("");
+    const { error: insertError } = await supabase.from("strategy_budget_items").insert({ plan_id: plan.id, category: budgetCategoryDraft, item_name: budgetItemDraft.trim(), quantity, unit_rate: rate, planned_amount: quantity * rate, actual_spent: 0, status: "planned" });
+    if (insertError) setError(insertError.code === "23505" ? "That item already exists in this category." : insertError.message);
+    else { setBudgetItemDraft(""); setBudgetQuantityDraft("1"); setBudgetRateDraft("0"); setNotice("Budget item added."); await load(); }
+    setSaving(false);
+  }
+
+  async function updateBudgetItem(itemId: string, patch: Partial<Pick<StrategyBudgetItem, "actual_spent" | "strategic_goal_id" | "activity_id" | "status" | "notes">>) {
+    if (patch.actual_spent !== undefined && (!Number.isFinite(Number(patch.actual_spent)) || Number(patch.actual_spent) < 0)) { setError("Actual expenditure must be a non-negative amount."); return; }
+    setError(""); setNotice("");
+    const { error: updateError } = await supabase.from("strategy_budget_items").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", itemId);
+    if (updateError) { setError("Could not update budget item: " + updateError.message); return; }
+    setBudgetItems((previous) => previous.map((item) => item.id === itemId ? { ...item, ...patch } : item));
+    setNotice("Budget register updated.");
   }
 
   async function saveCycleAllocation() {
@@ -1059,14 +1089,50 @@ export default function StrategyPlanningPage() {
       </section>
 
       <section id="strategy-budget" hidden={activeWorkspace !== "budget"} className="rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
-        <div className="border-b border-slate-200 px-4 py-3"><h2 className="text-sm font-semibold text-slate-900">Recruitment Cycle Budget Allocations</h2><p className="mt-1 text-xs text-slate-500">Plan allocations for February/April and August/November recruitment cycles. Currency: UGX.</p></div>
-        <form onSubmit={(e) => { e.preventDefault(); void saveCycleAllocation(); }} className="grid gap-3 p-4 md:grid-cols-2">
-          <label className="grid gap-1 text-xs font-medium text-slate-700">Recruitment cycle<select value={allocationCycle} onChange={(e) => setAllocationCycle(e.target.value)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal"><option value="february">February + April</option><option value="august">August + November</option></select></label>
-          <label className="grid gap-1 text-xs font-medium text-slate-700">Proposed allocation (UGX)<input type="number" min="0" step="1000" required value={allocationAmount} onChange={(e) => setAllocationAmount(e.target.value)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal" /></label>
-          <label className="grid gap-1 text-xs font-medium text-slate-700 md:col-span-2">Allocation notes<textarea value={allocationNotes} onChange={(e) => setAllocationNotes(e.target.value)} rows={2} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal" placeholder="Programmes covered, planned activities and justification" /></label>
-          <button disabled={saving} className="w-fit rounded-lg bg-emerald-800 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Save allocation</button>
+        <div className="border-b border-slate-200 px-4 py-3">
+          <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-sm font-semibold text-slate-900">2025–2026 Annual Marketing Budget</h2><p className="mt-1 text-xs text-slate-500">Itemized planned costs, actual expenditure and traceability to strategic goals and delivered activities. Currency: UGX.</p></div><span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">{budgetItems.length} budget lines</span></div>
+        </div>
+        <div className="grid gap-3 border-b border-slate-200 bg-slate-50/70 p-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-xs text-slate-500">Planned budget</p><p className="mt-1 text-lg font-semibold text-slate-900">UGX {budgetItems.reduce((n,x)=>n+Number(x.planned_amount||0),0).toLocaleString("en-UG")}</p></div>
+          <div className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-xs text-slate-500">Actual spent</p><p className="mt-1 text-lg font-semibold text-emerald-700">UGX {budgetItems.reduce((n,x)=>n+Number(x.actual_spent||0),0).toLocaleString("en-UG")}</p></div>
+          <div className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-xs text-slate-500">Remaining budget</p><p className="mt-1 text-lg font-semibold text-slate-900">UGX {(budgetItems.reduce((n,x)=>n+Number(x.planned_amount||0),0)-budgetItems.reduce((n,x)=>n+Number(x.actual_spent||0),0)).toLocaleString("en-UG")}</p></div>
+          <div className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-xs text-slate-500">Budget spent</p><p className="mt-1 text-lg font-semibold text-slate-900">{budgetItems.reduce((n,x)=>n+Number(x.planned_amount||0),0)>0?Math.round(budgetItems.reduce((n,x)=>n+Number(x.actual_spent||0),0)/budgetItems.reduce((n,x)=>n+Number(x.planned_amount||0),0)*1000)/10:0}%</p></div>
+        </div>
+        <form onSubmit={(e)=>{e.preventDefault();void addBudgetItem();}} className="grid gap-3 border-b border-slate-200 p-4 md:grid-cols-6">
+          <label className="grid gap-1 text-xs font-medium text-slate-700 md:col-span-2">Category<input value={budgetCategoryDraft} onChange={(e)=>setBudgetCategoryDraft(e.target.value)} required className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal" /></label>
+          <label className="grid gap-1 text-xs font-medium text-slate-700 md:col-span-2">New budget item<input value={budgetItemDraft} onChange={(e)=>setBudgetItemDraft(e.target.value)} required placeholder="Activity or cost item" className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal" /></label>
+          <label className="grid gap-1 text-xs font-medium text-slate-700">Quantity<input type="number" min="0" step="any" value={budgetQuantityDraft} onChange={(e)=>setBudgetQuantityDraft(e.target.value)} required className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal" /></label>
+          <label className="grid gap-1 text-xs font-medium text-slate-700">Rate (UGX)<input type="number" min="0" step="any" value={budgetRateDraft} onChange={(e)=>setBudgetRateDraft(e.target.value)} required className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal" /></label>
+          <button disabled={saving} className="w-fit rounded-lg bg-emerald-800 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50 md:col-span-6">Add budget item</button>
         </form>
-        <div className="grid grid-cols-2 gap-3 border-t border-slate-200 bg-slate-50/70 p-4 sm:grid-cols-4"><div className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-xs text-slate-500">Proposed total</p><p className="mt-1 text-lg font-semibold text-slate-900">UGX {cycleAllocations.filter((a) => a.plan_id === (plans.find((p) => p.strategy_year === currentYear)?.id ?? plans[0]?.id)).reduce((n, a) => n + Number(a.proposed_amount || 0), 0).toLocaleString("en-UG")}</p></div><div className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-xs text-slate-500">Approved total</p><p className="mt-1 text-lg font-semibold text-emerald-700">UGX {cycleAllocations.filter((a) => a.plan_id === (plans.find((p) => p.strategy_year === currentYear)?.id ?? plans[0]?.id)).reduce((n, a) => n + Number(a.approved_amount || 0), 0).toLocaleString("en-UG")}</p></div><div className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-xs text-slate-500">Cycles allocated</p><p className="mt-1 text-xl font-semibold text-slate-900">{cycleAllocations.filter((a) => a.plan_id === (plans.find((p) => p.strategy_year === currentYear)?.id ?? plans[0]?.id)).length}</p></div><div className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-xs text-slate-500">Annual budget proposals</p><p className="mt-1 text-xl font-semibold text-slate-900">{budgets.filter((b) => b.plan_id === (plans.find((p) => p.strategy_year === currentYear)?.id ?? plans[0]?.id)).length}</p></div></div><div className="grid gap-3 p-4 sm:grid-cols-2">{["february","august"].map((cycle) => { const a = cycleAllocations.find((x) => x.cycle === cycle && x.plan_id === (plans.find((p) => p.strategy_year === currentYear)?.id ?? plans[0]?.id)); return <article key={cycle} className="rounded-xl border border-slate-200 p-4"><p className="text-xs font-medium uppercase tracking-wide text-slate-500">{cycle === "february" ? "February + April" : "August + November"}</p><p className="mt-2 text-xl font-semibold text-slate-900">UGX {Number(a?.approved_amount ?? a?.proposed_amount ?? 0).toLocaleString()}</p><p className="mt-1 text-xs text-slate-500">Proposed: UGX {Number(a?.proposed_amount ?? 0).toLocaleString()} · {statusLabel(a?.status ?? "not allocated")}</p>{a?.notes && <p className="mt-2 text-sm text-slate-600">{a.notes}</p>}</article>; })}</div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[1180px] border-collapse text-left text-xs">
+            <thead className="bg-slate-50 text-slate-600"><tr>{["Category / Activity","Qty","Rate (UGX)","Planned (UGX)","Actual spent (UGX)","Strategic goal","Activity delivered","Status"].map(h=><th key={h} className="border-b border-slate-200 px-3 py-3 font-semibold">{h}</th>)}</tr></thead>
+            <tbody>
+              {budgetItems.filter((item)=>item.plan_id===(currentPlan?.id??plans.find(p=>p.strategy_year===2026)?.id)).map((item)=><tr key={item.id} className="align-top hover:bg-slate-50/70">
+                <td className="border-b border-slate-100 px-3 py-3"><p className="font-semibold text-slate-800">{item.item_name}</p><p className="mt-1 text-[11px] text-slate-500">{item.category}</p></td>
+                <td className="border-b border-slate-100 px-3 py-3 text-slate-700">{Number(item.quantity).toLocaleString()}</td>
+                <td className="border-b border-slate-100 px-3 py-3 tabular-nums">{Number(item.unit_rate).toLocaleString("en-UG")}</td>
+                <td className="border-b border-slate-100 px-3 py-3 font-semibold tabular-nums">{Number(item.planned_amount).toLocaleString("en-UG")}</td>
+                <td className="border-b border-slate-100 px-3 py-3"><input aria-label={"Actual spent for "+item.item_name} type="number" min="0" step="any" defaultValue={Number(item.actual_spent)} onBlur={(e)=>{const v=Number(e.target.value);if(v!==Number(item.actual_spent))void updateBudgetItem(item.id,{actual_spent:v});}} className="w-36 rounded-md border border-slate-300 px-2 py-2 text-xs tabular-nums" /></td>
+                <td className="border-b border-slate-100 px-3 py-3"><select aria-label={"Strategic goal for "+item.item_name} value={item.strategic_goal_id||""} onChange={(e)=>void updateBudgetItem(item.id,{strategic_goal_id:e.target.value||null})} className="w-48 rounded-md border border-slate-300 px-2 py-2"><option value="">Link a goal…</option>{frameworkEntries.filter(g=>g.plan_id===item.plan_id).map(g=><option key={g.id} value={g.id}>{g.strategic_pillar} — {g.objectives}</option>)}</select></td>
+                <td className="border-b border-slate-100 px-3 py-3"><select aria-label={"Activity for "+item.item_name} value={item.activity_id||""} onChange={(e)=>void updateBudgetItem(item.id,{activity_id:e.target.value||null})} className="w-48 rounded-md border border-slate-300 px-2 py-2"><option value="">Link an activity…</option>{activities.filter(a=>a.plan_id===item.plan_id).map(a=><option key={a.id} value={a.id}>{a.title}</option>)}</select></td>
+                <td className="border-b border-slate-100 px-3 py-3"><select aria-label={"Status for "+item.item_name} value={item.status} onChange={(e)=>void updateBudgetItem(item.id,{status:e.target.value as StrategyBudgetItem["status"]})} className="rounded-md border border-slate-300 px-2 py-2"><option value="planned">Planned</option><option value="in_progress">In progress</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></td>
+              </tr>)}
+              {budgetItems.filter((item)=>item.plan_id===(currentPlan?.id??plans.find(p=>p.strategy_year===2026)?.id)).length===0&&<tr><td colSpan={8} className="px-4 py-8 text-center text-sm text-slate-500">No budget lines are loaded for this strategy year yet.</td></tr>}
+            </tbody>
+            <tfoot className="bg-slate-50 font-semibold text-slate-800"><tr><td colSpan={3} className="px-3 py-3">TOTAL</td><td className="px-3 py-3">{budgetItems.filter(item=>item.plan_id===(currentPlan?.id??plans.find(p=>p.strategy_year===2026)?.id)).reduce((n,x)=>n+Number(x.planned_amount||0),0).toLocaleString("en-UG")}</td><td className="px-3 py-3">{budgetItems.filter(item=>item.plan_id===(currentPlan?.id??plans.find(p=>p.strategy_year===2026)?.id)).reduce((n,x)=>n+Number(x.actual_spent||0),0).toLocaleString("en-UG")}</td><td colSpan={3} className="px-3 py-3">Budget totals update automatically</td></tr></tfoot>
+          </table>
+        </div>
+        <div className="border-t border-slate-200 p-4"><h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Recruitment cycle allocations</h3><p className="mt-1 text-xs text-slate-500">Keep cycle-level planning alongside the detailed annual register.</p>
+          <form onSubmit={(e) => { e.preventDefault(); void saveCycleAllocation(); }} className="mt-3 grid gap-3 md:grid-cols-2">
+            <label className="grid gap-1 text-xs font-medium text-slate-700">Recruitment cycle<select value={allocationCycle} onChange={(e) => setAllocationCycle(e.target.value)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal"><option value="february">February + April</option><option value="august">August + November</option></select></label>
+            <label className="grid gap-1 text-xs font-medium text-slate-700">Proposed allocation (UGX)<input type="number" min="0" step="1000" required value={allocationAmount} onChange={(e) => setAllocationAmount(e.target.value)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal" /></label>
+            <label className="grid gap-1 text-xs font-medium text-slate-700 md:col-span-2">Allocation notes<textarea value={allocationNotes} onChange={(e) => setAllocationNotes(e.target.value)} rows={2} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal" placeholder="Programmes covered, planned activities and justification" /></label>
+            <button disabled={saving} className="w-fit rounded-lg bg-emerald-800 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Save allocation</button>
+          </form>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">{["february","august"].map((cycle) => { const a = cycleAllocations.find((x) => x.cycle === cycle && x.plan_id === (currentPlan?.id ?? plans[0]?.id)); return <article key={cycle} className="rounded-xl border border-slate-200 p-4"><p className="text-xs font-medium uppercase tracking-wide text-slate-500">{cycle === "february" ? "February + April" : "August + November"}</p><p className="mt-2 text-xl font-semibold text-slate-900">UGX {Number(a?.approved_amount ?? a?.proposed_amount ?? 0).toLocaleString()}</p><p className="mt-1 text-xs text-slate-500">Proposed: UGX {Number(a?.proposed_amount ?? 0).toLocaleString()} · {statusLabel(a?.status ?? "not allocated")}</p>{a?.notes && <p className="mt-2 text-sm text-slate-600">{a.notes}</p>}</article>; })}</div>
+        </div>
       </section>
 
       <section id="strategy-management-reports" hidden={activeWorkspace !== "reports"} className="rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
