@@ -549,7 +549,7 @@ export default function StrategyPlanningPage() {
     const next = { ...patch, ...amountPatch };
     const { error: updateError } = await supabase.from("strategy_intake_budget_allocations").update({ ...next, updated_at: new Date().toISOString() }).eq("id", allocation.id);
     if (updateError) { setError("Could not update intake allocation: " + updateError.message); return; }
-    const updated = { ...allocation, ...next };
+    const updated: IntakeBudgetAllocation = { ...allocation, ...next, allocated_quantity: Number(patch.allocated_quantity ?? allocation.allocated_quantity), intake_unit_rate: Number(patch.intake_unit_rate ?? allocation.intake_unit_rate), allocated_amount: Number(amountPatch.allocated_amount ?? patch.allocated_amount ?? allocation.allocated_amount), actual_spent: Number(patch.actual_spent ?? allocation.actual_spent) };
     const item = budgetItems.find((row) => row.id === allocation.budget_item_id);
     const others = intakeBudgetAllocations.filter((row) => row.budget_item_id === allocation.budget_item_id && row.id !== allocation.id);
     const qtyOver = item && others.reduce((sum, row) => sum + Number(row.allocated_quantity || 0), 0) + Number(updated.allocated_quantity || 0) > Number(item.quantity);
