@@ -466,18 +466,27 @@ export default function StrategyPlanningPage() {
   }
 
   async function editBudgetItem(item: StrategyBudgetItem) {
-    const itemName = window.prompt("Activity name", item.item_name);
-    if (itemName === null) return;
+    const action = window.prompt(`Edit “${item.item_name}”: type EDIT to update the full activity, DELETE to remove it, or Cancel to leave unchanged.`, "EDIT");
+    if (action === null) return;
+    if (action.trim().toLowerCase() === "delete") { await deleteBudgetItem(item); return; }
+    if (action.trim().toLowerCase() !== "edit") { setNotice("No changes made."); return; }
     const category = window.prompt("Category", item.category);
     if (category === null) return;
-    const quantityText = window.prompt("Quantity", String(item.quantity));
+    const itemName = window.prompt("Activity / budget item", item.item_name);
+    if (itemName === null) return;
+    const quantityText = window.prompt("Qty", String(item.quantity));
     if (quantityText === null) return;
-    const rateText = window.prompt("Rate per unit (UGX)", String(item.unit_rate));
+    const rateText = window.prompt("Rate / unit (UGX)", String(item.unit_rate));
     if (rateText === null) return;
+    const status = window.prompt("Status: planned, in_progress, completed, or cancelled", item.status);
+    if (status === null) return;
+    const notes = window.prompt("Activity comment / notes", item.notes || "");
+    if (notes === null) return;
     const quantity = Number(quantityText), unit_rate = Number(rateText);
-    if (!itemName.trim() || !category.trim() || !Number.isFinite(quantity) || quantity < 0 || !Number.isFinite(unit_rate) || unit_rate < 0) { setError("Enter a valid activity, category, quantity and rate."); return; }
-    if (window.confirm(`Delete budget item “${item.item_name}”? Any linked intake allocations must be removed first or deletion may be blocked.`)) { await deleteBudgetItem(item); return; }
-    await updateBudgetItem(item.id, { item_name: itemName.trim(), category: category.trim(), quantity, unit_rate, planned_amount: quantity * unit_rate });
+    if (!itemName.trim() || !category.trim() || !Number.isFinite(quantity) || quantity < 0 || !Number.isFinite(unit_rate) || unit_rate < 0 || !["planned", "in_progress", "completed", "cancelled"].includes(status.trim())) {
+      setError("Check the activity name, category, quantity, rate and status. All values must be valid."); return;
+    }
+    await updateBudgetItem(item.id, { item_name: itemName.trim(), category: category.trim(), quantity, unit_rate, planned_amount: quantity * unit_rate, status: status.trim() as StrategyBudgetItem["status"], notes: notes.trim() });
   }
 
   async function deleteBudgetItem(item: StrategyBudgetItem) {
@@ -1198,7 +1207,7 @@ export default function StrategyPlanningPage() {
 
       <section id="strategy-budget" hidden={activeWorkspace !== "budget"} className="rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
         <div className="border-b border-slate-200 px-4 py-3">
-          <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-sm font-semibold text-slate-900">2025–2026 Annual Marketing Budget</h2><p className="mt-1 text-xs text-slate-500">Itemized planned costs, actual expenditure and traceability to strategic goals and delivered activities. Currency: UGX.</p></div><span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">{budgetItems.length} budget lines</span></div>
+          <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-sm font-semibold text-slate-900">2025–2026 Annual Marketing Budget</h2><p className="mt-1 text-xs text-slate-500">Itemized activities with quantity, unit rate and planned budget. Use Edit to update or delete the complete activity. Currency: UGX.</p></div><span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">{budgetItems.length} budget lines</span></div>
         </div>
         <div className="grid gap-3 border-b border-slate-200 bg-slate-50/70 p-4 sm:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-xs text-slate-500">Planned budget</p><p className="mt-1 text-lg font-semibold text-slate-900">UGX {budgetItems.reduce((n,x)=>n+Number(x.planned_amount||0),0).toLocaleString("en-UG")}</p></div>
@@ -1214,8 +1223,8 @@ export default function StrategyPlanningPage() {
           <button disabled={saving} className="w-fit rounded-lg bg-emerald-800 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50 md:col-span-6">Add budget item</button>
         </form>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1180px] border-collapse text-left text-xs">
-            <thead className="bg-slate-50 text-slate-600"><tr>{["Category / Activity","Qty","Rate per unit (UGX)","Planned budget (UGX)","Strategic goal","Activity delivered","Status",""].map(h=><th key={h} className="border-b border-slate-200 px-3 py-3 font-semibold">{h}</th>)}</tr></thead>
+          <table className="w-full min-w-[760px] border-collapse text-left text-xs">
+            <thead className="bg-slate-50 text-slate-600"><tr>{["Category / Activity","Qty","Rate / unit (UGX)","Planned budget (UGX)","Status","Edit"].map(h=><th key={h} className="border-b border-slate-200 px-3 py-3 font-semibold">{h}</th>)}</tr></thead>
             <tbody>
               {budgetItems.filter((item)=>item.plan_id===(currentPlan?.id??plans.find(p=>p.strategy_year===2026)?.id)).map((item)=><tr key={item.id} className="align-top hover:bg-slate-50/70">
                 <td className="border-b border-slate-100 px-3 py-3"><p className="font-semibold text-slate-800">{item.item_name}</p><p className="mt-1 text-[11px] text-slate-500">{item.category}</p></td>
@@ -1223,13 +1232,11 @@ export default function StrategyPlanningPage() {
                 <td className="border-b border-slate-100 px-3 py-3 tabular-nums">{Number(item.unit_rate).toLocaleString("en-UG")}</td>
                 <td className="border-b border-slate-100 px-3 py-3 font-semibold tabular-nums">{Number(item.planned_amount).toLocaleString("en-UG")}</td>
                 
-                <td className="border-b border-slate-100 px-3 py-3"><select aria-label={"Strategic goal for "+item.item_name} value={item.strategic_goal_id||""} onChange={(e)=>void updateBudgetItem(item.id,{strategic_goal_id:e.target.value||null})} className="w-48 rounded-md border border-slate-300 px-2 py-2"><option value="">Link a goal…</option>{frameworkEntries.filter(g=>g.plan_id===item.plan_id).map(g=><option key={g.id} value={g.id}>{g.strategic_pillar} — {g.objectives}</option>)}</select></td>
-                <td className="border-b border-slate-100 px-3 py-3"><select aria-label={"Activity for "+item.item_name} value={item.activity_id||""} onChange={(e)=>void updateBudgetItem(item.id,{activity_id:e.target.value||null})} className="w-48 rounded-md border border-slate-300 px-2 py-2"><option value="">Link an activity…</option>{activities.filter(a=>a.plan_id===item.plan_id).map(a=><option key={a.id} value={a.id}>{a.title}</option>)}</select></td>
                 <td className="border-b border-slate-100 px-3 py-3"><select aria-label={"Status for "+item.item_name} value={item.status} onChange={(e)=>void updateBudgetItem(item.id,{status:e.target.value as StrategyBudgetItem["status"]})} className="rounded-md border border-slate-300 px-2 py-2"><option value="planned">Planned</option><option value="in_progress">In progress</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></td><td className="border-b border-slate-100 px-3 py-3"><button type="button" disabled={saving} onClick={() => void editBudgetItem(item)} className="rounded-lg border border-slate-300 px-3 py-1.5 font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">Edit</button></td>
               </tr>)}
-              {budgetItems.filter((item)=>item.plan_id===(currentPlan?.id??plans.find(p=>p.strategy_year===2026)?.id)).length===0&&<tr><td colSpan={9} className="px-4 py-8 text-center text-sm text-slate-500">No budget lines are loaded for this strategy year yet.</td></tr>}
+              {budgetItems.filter((item)=>item.plan_id===(currentPlan?.id??plans.find(p=>p.strategy_year===2026)?.id)).length===0&&<tr><td colSpan={6} className="px-4 py-8 text-center text-sm text-slate-500">No budget lines are loaded for this strategy year yet.</td></tr>}
             </tbody>
-            <tfoot className="bg-slate-50 font-semibold text-slate-800"><tr><td colSpan={3} className="px-3 py-3">TOTAL</td><td className="px-3 py-3">{budgetItems.filter(item=>item.plan_id===(currentPlan?.id??plans.find(p=>p.strategy_year===2026)?.id)).reduce((n,x)=>n+Number(x.planned_amount||0),0).toLocaleString("en-UG")}</td><td colSpan={4} className="px-3 py-3">Budget totals update automatically</td></tr></tfoot>
+            <tfoot className="bg-slate-50 font-semibold text-slate-800"><tr><td colSpan={3} className="px-3 py-3">TOTAL</td><td className="px-3 py-3">{budgetItems.filter(item=>item.plan_id===(currentPlan?.id??plans.find(p=>p.strategy_year===2026)?.id)).reduce((n,x)=>n+Number(x.planned_amount||0),0).toLocaleString("en-UG")}</td><td colSpan={2} className="px-3 py-3">Budget totals update automatically</td></tr></tfoot>
           </table>
         </div>
         <div className="border-t border-slate-200 p-4"><h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Recruitment cycle allocations</h3><p className="mt-1 text-xs text-slate-500">Keep cycle-level planning alongside the detailed annual register.</p>
