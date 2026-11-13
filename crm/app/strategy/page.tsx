@@ -30,6 +30,8 @@ type Plan = {
 };
 
 type RecruitmentActuals = { leads: number; applications: number; admitted: number; enrolled: number; };
+type FrameworkEntry = { id: string; plan_id: string; strategic_pillar: string; objectives: string; key_activities: string; channels_tools: string; kpis_targets: string; sort_order: number };
+type IntakeStrategyEntry = { id: string; intake_plan_id: string; source_framework_entry_id: string | null; strategic_pillar: string; objectives: string; key_activities: string; channels_tools: string; kpis_targets: string };
 
 
 const sections = [
@@ -54,6 +56,12 @@ export default function StrategyPlanningPage() {
   const [activityCount, setActivityCount] = useState(0);
   const [intakeCount, setIntakeCount] = useState(0);
   const [objectives, setObjectives] = useState<Objective[]>([]);
+  const [frameworkEntries, setFrameworkEntries] = useState<FrameworkEntry[]>([]);
+  const [intakeStrategyEntries, setIntakeStrategyEntries] = useState<IntakeStrategyEntry[]>([]);
+  const [planTitleDraft, setPlanTitleDraft] = useState("");
+  const [strategyPeriodDraft, setStrategyPeriodDraft] = useState("FY 2026");
+  const [frameworkDraft, setFrameworkDraft] = useState({ strategic_pillar: "", objectives: "", key_activities: "", channels_tools: "", kpis_targets: "" });
+  const [intakeDraft, setIntakeDraft] = useState({ strategic_pillar: "", objectives: "", key_activities: "", channels_tools: "", kpis_targets: "" });
   const [intakeTargets, setIntakeTargets] = useState<IntakeTarget[]>([]);
   const [budgets, setBudgets] = useState<BudgetRecord[]>([]);
   const [cycleAllocations, setCycleAllocations] = useState<CycleAllocation[]>([]);
@@ -183,6 +191,15 @@ export default function StrategyPlanningPage() {
       const failed = objectiveRows.error || intakeRows.error || activityRows.error || budgetRows.error || riskRows.error || reportRows.error || approvalRows.error || meetingRows.error || allocationRows.error || historyRows.error;
       if (failed) { setError(`Unable to load all strategy registers: ${failed.message}`); setLoading(false); return; }
       setObjectives((objectiveRows.data ?? []) as Objective[]);
+      const { data: frameworkRows, error: frameworkError } = await supabase.from("strategy_framework_entries").select("id,plan_id,strategic_pillar,objectives,key_activities,channels_tools,kpis_targets,sort_order").in("plan_id", ids).order("sort_order");
+      if (frameworkError) setError("Could not load strategy framework: " + frameworkError.message);
+      setFrameworkEntries((frameworkRows ?? []) as FrameworkEntry[]);
+      const intakeIds = (intakeRows.data ?? []).map((row) => row.id);
+      if (intakeIds.length) {
+        const { data: intakeStrategyRows, error: intakeStrategyError } = await supabase.from("strategy_intake_strategy_entries").select("id,intake_plan_id,source_framework_entry_id,strategic_pillar,objectives,key_activities,channels_tools,kpis_targets").in("intake_plan_id", intakeIds);
+        if (intakeStrategyError) setError("Could not load intake strategies: " + intakeStrategyError.message);
+        setIntakeStrategyEntries((intakeStrategyRows ?? []) as IntakeStrategyEntry[]);
+      } else setIntakeStrategyEntries([]);
       setIntakeTargets((intakeRows.data ?? []) as IntakeTarget[]);
       setActivities((activityRows.data ?? []) as StrategyActivity[]);
       setBudgets((budgetRows.data ?? []) as BudgetRecord[]);
@@ -522,6 +539,81 @@ export default function StrategyPlanningPage() {
     const { error: saveError } = await supabase.from("strategy_risks").insert({ plan_id: currentPlan.id, title: riskTitle.trim(), description: riskDescription.trim() || null, priority: riskPriority, corrective_action: riskAction.trim() || null, due_date: riskDueDate || null, programme: riskProgramme.trim() || null, owner_id: riskOwnerId || null, raised_by: auth.user?.id ?? null });
     if (saveError) setError(saveError.message);
     else { setRiskTitle(""); setRiskDescription(""); setRiskAction(""); setRiskDueDate(""); setRiskProgramme(""); setRiskOwnerId(""); setNotice(riskPriority === "critical" ? "Critical risk recorded. Escalate it to management immediately." : "Risk added to the register."); await load(); }
+    setSaving(false);
+  }
+
+  async function savePlanDetails() {
+    if (!currentPlan || !planTitleDraft.trim() || !strategyPeriodDraft.trim()) { setError("Enter a plan name and strategy period."); return; }
+    setSaving(true); setError(""); setNotice("");
+    const { error: saveError } = await supabase.from("strategy_plans").update({ title: planTitleDraft.trim(), strategy_period: strategyPeriodDraft.trim(), updated_at: new Date().toISOString() }).eq("id", currentPlan.id);
+    if (saveError) setError("Could not save plan details: " + saveError.message);
+    else { setNotice("Plan details saved."); await load(); }
+    setSaving(false);
+  }
+
+  async function addFrameworkEntry() {
+    if (!currentPlan) return;
+    if (![frameworkDraft.strategic_pillar, frameworkDraft.objectives, frameworkDraft.key_activities, frameworkDraft.channels_tools, frameworkDraft.kpis_targets].some((value) => value.trim())) { setError("Enter at least one field."); return; }
+    setSaving(true); setError(""); setNotice("");
+    const { error: saveError } = await supabase.from("strategy_framework_entries").insert({ plan_id: currentPlan.id, ...frameworkDraft, sort_order: frameworkEntries.filter((entry) => entry.plan_id === currentPlan.id).length });
+    if (saveError) setError("Could not add framework row: " + saveError.message);
+    else { setFrameworkDraft({ strategic_pillar: "", objectives: "", key_activities: "", channels_tools: "", kpis_targets: "" }); setNotice("Framework row added."); await load(); }
+    setSaving(false);
+  }
+
+  async function deleteFrameworkEntry(entry: FrameworkEntry) {
+    if (!window.confirm("Delete this general strategy row? Existing intake copies will remain unchanged.")) return;
+    setSaving(true); setError(""); setNotice("");
+    const { error: deleteError } = await supabase.from("strategy_framework_entries").delete().eq("id", entry.id);
+    if (deleteError) setError("Could not delete framework row: " + deleteError.message);
+    else { setNotice("Framework row deleted."); await load(); }
+    setSaving(false);
+  }
+
+  async function ensureIntakePlan() {
+    if (!currentPlan) throw new Error("Select an annual strategy plan first.");
+    const month = Number(intakeMonth);
+    const existing = intakeTargets.find((target) => target.plan_id === currentPlan.id && target.intake_month === month && target.programme === "All programmes");
+    if (existing) return existing.id;
+    const cycle = month === 2 || month === 4 ? "february" : "august";
+    const { data, error: insertError } = await supabase.from("strategy_intake_plans").insert({
+      plan_id: currentPlan.id, intake_month: month, cycle, programme: "All programmes",
+      intake_strategy: null, target_applications: 0, target_admissions: 0, target_registrations: 0, achieved_registrations: 0,
+    }).select("id").single();
+    if (insertError || !data) throw new Error(insertError?.message || "Could not prepare intake.");
+    return data.id as string;
+  }
+
+  async function copyGeneralStrategiesToIntake() {
+    setSaving(true); setError(""); setNotice("");
+    try {
+      const intakePlanId = await ensureIntakePlan();
+      const { data: existing, error: existingError } = await supabase.from("strategy_intake_strategy_entries").select("source_framework_entry_id").eq("intake_plan_id", intakePlanId);
+      if (existingError) throw new Error(existingError.message);
+      const alreadyCopied = new Set((existing ?? []).map((row) => row.source_framework_entry_id).filter((id): id is string => Boolean(id)));
+      const toCopy = frameworkEntries.filter((entry) => entry.plan_id === currentPlan?.id && !alreadyCopied.has(entry.id)).map((entry) => ({
+        intake_plan_id: intakePlanId, source_framework_entry_id: entry.id, strategic_pillar: entry.strategic_pillar, objectives: entry.objectives,
+        key_activities: entry.key_activities, channels_tools: entry.channels_tools, kpis_targets: entry.kpis_targets,
+      }));
+      if (toCopy.length) {
+        const { error: insertError } = await supabase.from("strategy_intake_strategy_entries").insert(toCopy);
+        if (insertError) throw new Error(insertError.message);
+      }
+      setNotice(toCopy.length ? `Copied ${toCopy.length} general strategy row(s) to this intake.` : "All general strategy rows are already copied to this intake.");
+      await load();
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not copy strategies to intake."); }
+    setSaving(false);
+  }
+
+  async function addIntakeStrategyEntry() {
+    setSaving(true); setError(""); setNotice("");
+    try {
+      const intakePlanId = await ensureIntakePlan();
+      const { error: insertError } = await supabase.from("strategy_intake_strategy_entries").insert({ intake_plan_id: intakePlanId, source_framework_entry_id: null, ...intakeDraft });
+      if (insertError) throw new Error(insertError.message);
+      setIntakeDraft({ strategic_pillar: "", objectives: "", key_activities: "", channels_tools: "", kpis_targets: "" });
+      setNotice("Intake-specific strategy added."); await load();
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not add intake strategy."); }
     setSaving(false);
   }
 
