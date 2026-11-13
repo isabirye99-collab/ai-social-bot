@@ -847,9 +847,9 @@ export default function StrategyPlanningPage() {
           ["Activities", String(activityCount), "Delivery register records"],
           ["Intake targets", String(intakeCount), "Programme-level targets"],
         ].map(([label, value, caption]) => {
-          const destination = label === "Annual plans" ? "annual-strategy-register" : label === "Objectives" ? "strategy-objectives" : label === "Activities" ? "strategy-activities" : "intake-plans";
+          const destination = label === "Annual plans" ? "performance" : label === "Objectives" ? "general" : label === "Activities" ? "activities" : "intakes";
           return (
-            <a key={label} href={`#${destination}`} className="group rounded-xl border border-slate-200 bg-white p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-700 focus:ring-offset-2">
+            <button type="button" key={label} onClick={() => setActiveWorkspace(destination as typeof activeWorkspace)} className="group rounded-xl border border-slate-200 bg-white p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-700 focus:ring-offset-2">
               <p className="text-sm font-medium text-slate-600">{label}</p>
               <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-900 transition-colors group-hover:text-emerald-800">{loading ? "—" : value}</p>
               <p className="mt-1 text-xs text-slate-500">{caption}</p>
