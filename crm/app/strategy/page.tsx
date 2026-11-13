@@ -780,8 +780,6 @@ export default function StrategyPlanningPage() {
           <p className="mt-1 max-w-2xl text-sm text-slate-600">Plan annual objectives, coordinate recruitment cycles, track delivery and prepare management decisions.</p>
         </div>
         <div className="flex flex-wrap gap-2">
-            {saving ? "Importing…" : "Import uploaded strategy"}
-          </button>
           <button onClick={createAnnualPlan} disabled={saving || Boolean(currentPlan)} className="inline-flex min-h-10 items-center justify-center rounded-lg bg-emerald-800 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-900 disabled:cursor-not-allowed disabled:opacity-50">
             {saving ? "Saving…" : currentPlan ? `${currentYear} plan exists` : `Create ${currentYear} strategy`}
           </button>
