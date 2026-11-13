@@ -895,6 +895,13 @@ export default function StrategyPlanningPage() {
               </table>
               {frameworkEntries.filter((entry) => entry.plan_id === currentPlan.id).length === 0 && <p className="px-4 py-8 text-center text-sm text-slate-500">No strategic pillars added yet. Use the form above to build the plan row by row.</p>}
             </div>
+            <div className="border-t border-slate-200">
+              <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
+                <div><h3 className="text-sm font-semibold text-slate-900">Saved strategy plans</h3><p className="mt-0.5 text-xs text-slate-500">Your saved plans appear here. Choose a plan to open and edit it.</p></div>
+                <button type="button" onClick={() => void load()} className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Refresh list</button>
+              </div>
+              {plans.length === 0 ? <p className="px-4 pb-4 text-sm text-slate-500">No saved plans found yet.</p> : <div className="divide-y divide-slate-100">{plans.map((plan) => <article key={plan.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 hover:bg-slate-50"><div className="min-w-0"><p className="text-sm font-semibold text-slate-900">{plan.title}</p><p className="mt-0.5 text-xs text-slate-500">{plan.strategy_period || ("FY " + plan.strategy_year)} · {statusLabel(plan.status)} · {frameworkEntries.filter((entry) => entry.plan_id === plan.id).length} strategic rows</p></div><button type="button" onClick={() => { setCurrentYear(plan.strategy_year); setActiveWorkspace("general"); window.setTimeout(() => document.getElementById("strategy-objectives")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0); }} className="rounded-lg border border-emerald-800 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-50">{plan.strategy_year === currentYear ? "Current plan" : "Open plan"}</button></article>)}</div>}
+            </div>
           </div>
           <div id="intake-plans" hidden={activeWorkspace !== "intakes"} className="rounded-xl border border-slate-200 bg-white shadow-sm">
             <div className="border-b border-slate-200 px-4 py-3"><h2 className="text-sm font-semibold text-slate-900">Intake Strategies</h2><p className="mt-1 text-xs text-slate-500">Select an intake, copy relevant rows from the General Strategy Framework, then add intake-specific strategies. Recruitment figures are managed separately.</p></div>
