@@ -843,31 +843,6 @@ export default function StrategyPlanningPage() {
         })}
       </section>
 
-      <section id="strategy-team-responsibilities" hidden={activeWorkspace !== "general"} className="rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-200 px-4 py-3 sm:px-5">
-          <h2 className="text-sm font-semibold text-slate-900">Marketing team responsibilities</h2>
-          <p className="mt-1 text-xs text-slate-500">Working ownership map for planning and coordination. These role labels do not grant CRM permissions or create staff accounts.</p>
-        </div>
-        <div className="grid gap-px bg-slate-100 sm:grid-cols-2 xl:grid-cols-3">
-          {[
-            { name: "Nicholas", role: "Marketing Manager", detail: "Owns marketing strategy, campaign priorities, performance reviews, coordination and management reporting." },
-            { name: "Arnold", role: "Website & Graphics", detail: "Owns website updates, design and graphics, brochures, digital collateral and creative support for campaigns." },
-            { name: "Vivian", role: "Alumni & Partnerships", detail: "Coordinates alumni engagement, institutional partnerships, scholarship-organisation follow-ups and related activities." },
-            { name: "Meshack", role: "Outreach & Enquiries", detail: "Coordinates school activations and outreach, and supports responses to WhatsApp and phone enquiries." },
-            { name: "Monica", role: "Call Centre & Enrollment", detail: "Planned new team member responsible for call-centre operations and enrollment follow-up; account/onboarding is pending." },
-          ].map((member) => (
-            <article key={member.name} className="bg-white p-4 transition-colors duration-200 hover:bg-emerald-50/50">
-              <div className="flex items-start justify-between gap-2">
-                <h3 className="text-sm font-semibold text-slate-900">{member.name}</h3>
-                {member.name === "Monica" && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800">Planned</span>}
-              </div>
-              <p className="mt-1 text-xs font-medium text-emerald-800">{member.role}</p>
-              <p className="mt-2 text-xs leading-5 text-slate-600">{member.detail}</p>
-            </article>
-          ))}
-        </div>
-      </section>
-
       {currentPlan && (
         <section hidden={activeWorkspace !== "general" && activeWorkspace !== "intakes"} className="grid gap-5">
           <div id="strategy-objectives" hidden={activeWorkspace !== "general"} className="rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -900,7 +875,7 @@ export default function StrategyPlanningPage() {
                 <div><h3 className="text-sm font-semibold text-slate-900">Saved strategy plans</h3><p className="mt-0.5 text-xs text-slate-500">Your saved plans appear here. Choose a plan to open and edit it.</p></div>
                 <button type="button" onClick={() => void load()} className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Refresh list</button>
               </div>
-              {plans.length === 0 ? <p className="px-4 pb-4 text-sm text-slate-500">No saved plans found yet.</p> : <div className="divide-y divide-slate-100">{plans.map((plan) => <article key={plan.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 hover:bg-slate-50"><div className="min-w-0"><p className="text-sm font-semibold text-slate-900">{plan.title}</p><p className="mt-0.5 text-xs text-slate-500">{plan.strategy_period || ("FY " + plan.strategy_year)} · {statusLabel(plan.status)} · {frameworkEntries.filter((entry) => entry.plan_id === plan.id).length} strategic rows</p></div><button type="button" onClick={() => { setCurrentYear(plan.strategy_year); setActiveWorkspace("general"); window.setTimeout(() => document.getElementById("strategy-objectives")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0); }} className="rounded-lg border border-emerald-800 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-50">{plan.strategy_year === currentYear ? "Current plan" : "Open plan"}</button></article>)}</div>}
+              {plans.filter((plan) => plan.title.trim().length > 0).length === 0 ? <p className="px-4 pb-4 text-sm text-slate-500">No named strategy plans yet. Enter a plan name above and save it to add it to this list.</p> : <div className="divide-y divide-slate-100">{plans.filter((plan) => plan.title.trim().length > 0).map((plan) => <article key={plan.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 hover:bg-slate-50"><div className="min-w-0"><p className="text-sm font-semibold text-slate-900">{plan.title}</p><p className="mt-0.5 text-xs text-slate-500">{plan.strategy_period || ("FY " + plan.strategy_year)} · {statusLabel(plan.status)} · {frameworkEntries.filter((entry) => entry.plan_id === plan.id).length} strategic rows</p></div><button type="button" onClick={() => { setCurrentYear(plan.strategy_year); setActiveWorkspace("general"); window.setTimeout(() => document.getElementById("strategy-objectives")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0); }} className="rounded-lg border border-emerald-800 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-50">{plan.strategy_year === currentYear ? "Current plan" : "Open plan"}</button></article>)}</div>}
             </div>
           </div>
           <div id="intake-plans" hidden={activeWorkspace !== "intakes"} className="rounded-xl border border-slate-200 bg-white shadow-sm">
