@@ -854,7 +854,7 @@ export default function StrategyPlanningPage() {
               <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-900 transition-colors group-hover:text-emerald-800">{loading ? "—" : value}</p>
               <p className="mt-1 text-xs text-slate-500">{caption}</p>
               <p className="mt-3 text-[11px] font-semibold text-emerald-800">View details →</p>
-            </a>
+            </button>
           );
         })}
       </section>
@@ -1120,7 +1120,6 @@ export default function StrategyPlanningPage() {
         </div>
       </section>
 
->
     </main>
   );
 }
