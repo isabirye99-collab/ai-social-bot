@@ -115,6 +115,7 @@ export default function StrategyPlanningPage() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [attentionFilter, setAttentionFilter] = useState<"all" | "activities" | "risks" | "actions">("all");
+  const [activeWorkspace, setActiveWorkspace] = useState<"general" | "intakes" | "activities" | "budget" | "performance" | "weekly" | "risks" | "approvals" | "reports">("general");
 
   const supabase = useMemo(() => createClient(), []);
   const [currentYear, setCurrentYear] = useState(() => new Date().getFullYear());
@@ -800,6 +801,24 @@ export default function StrategyPlanningPage() {
           </button>
         </div>
       </header>
+
+      <section aria-labelledby="planning-workspaces-heading" className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-white to-emerald-50/60 p-4 shadow-sm sm:p-5">
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
+          <div><h2 id="planning-workspaces-heading" className="text-base font-semibold text-slate-900">Planning workspaces</h2><p className="mt-1 text-xs text-slate-600">Choose an area to open only the register you need. Your data and workflows stay in place.</p></div>
+          <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-emerald-800 ring-1 ring-emerald-100">9 workspaces</span>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+          {sections.map(([title, description], index) => {
+            const keys = ["general", "intakes", "activities", "budget", "performance", "weekly", "risks", "approvals", "reports"] as const;
+            const key = keys[index];
+            const selected = activeWorkspace === key;
+            return <button key={title} type="button" aria-pressed={selected} onClick={() => { setActiveWorkspace(key); window.scrollTo({ top: 0, behavior: "smooth" }); }} className={`group flex min-h-[88px] items-start gap-3 rounded-xl border p-3 text-left transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 ${selected ? "border-emerald-700 bg-emerald-800 text-white shadow-sm" : "border-slate-200 bg-white text-slate-900 hover:border-emerald-300"}`}>
+              <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg text-xs font-bold ${selected ? "bg-white/15 text-white" : "bg-emerald-50 text-emerald-800 group-hover:bg-emerald-100"}`}>{String(index + 1).padStart(2, "0")}</span>
+              <span className="min-w-0 flex-1"><span className="block text-sm font-semibold">{title}</span><span className={`mt-1 block text-xs leading-5 ${selected ? "text-emerald-50" : "text-slate-500"}`}>{description}</span><span className={`mt-2 block text-[11px] font-semibold ${selected ? "text-white" : "text-emerald-800"}`}>{selected ? "Currently open ✓" : "Open workspace →"}</span></span>
+            </button>;
+          })}
+        </div>
+      </section>
       {currentPlan && (
         <section aria-label="Attention required" className={`overflow-hidden rounded-xl border ${attentionTotal ? "border-amber-200 bg-amber-50/40" : "border-emerald-200 bg-emerald-50/30"} shadow-sm transition-all duration-200`}>
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/70 px-4 py-3 sm:px-5">
@@ -840,7 +859,7 @@ export default function StrategyPlanningPage() {
         })}
       </section>
 
-      <section id="strategy-team-responsibilities" className="rounded-xl border border-slate-200 bg-white shadow-sm">
+      <section id="strategy-team-responsibilities" hidden={activeWorkspace !== "general"} className="rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-200 px-4 py-3 sm:px-5">
           <h2 className="text-sm font-semibold text-slate-900">Marketing team responsibilities</h2>
           <p className="mt-1 text-xs text-slate-500">Working ownership map for planning and coordination. These role labels do not grant CRM permissions or create staff accounts.</p>
@@ -866,8 +885,8 @@ export default function StrategyPlanningPage() {
       </section>
 
       {currentPlan && (
-        <section className="grid gap-5 xl:grid-cols-2">
-          <div id="strategy-objectives" className="rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
+        <section hidden={activeWorkspace !== "budget" && activeWorkspace !== "risks"} className="grid gap-5 xl:grid-cols-2">
+          <div id="strategy-objectives" hidden={activeWorkspace !== "general"} className="rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
             <div className="border-b border-slate-200 px-4 py-3"><h2 className="text-sm font-semibold text-slate-900">Annual objectives</h2><p className="mt-1 text-xs text-slate-500">Create measurable objectives for {currentYear}.</p></div>
             <form onSubmit={(event) => { event.preventDefault(); void addObjective(); }} className="grid gap-3 p-4">
               <label className="grid gap-1 text-xs font-medium text-slate-700">Objective title<input required value={objectiveTitle} onChange={(e) => setObjectiveTitle(e.target.value)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal" placeholder="e.g. Increase qualified applications" /></label>
@@ -877,7 +896,7 @@ export default function StrategyPlanningPage() {
             </form>
             <div className="grid grid-cols-2 gap-3 border-t border-slate-200 bg-slate-50/70 p-4 sm:grid-cols-4"><div className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-xs text-slate-500">Objectives</p><p className="mt-1 text-xl font-semibold">{objectives.filter((o) => o.plan_id === currentPlan.id).length}</p></div><div className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-xs text-slate-500">Achieved</p><p className="mt-1 text-xl font-semibold text-emerald-700">{objectives.filter((o) => o.plan_id === currentPlan.id && o.status === "achieved").length}</p></div><div className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-xs text-slate-500">At risk / behind</p><p className="mt-1 text-xl font-semibold text-amber-700">{objectives.filter((o) => o.plan_id === currentPlan.id && (o.status === "at_risk" || o.status === "behind")).length}</p></div><div className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-xs text-slate-500">Achievement rate</p><p className="mt-1 text-xl font-semibold">{objectives.filter((o) => o.plan_id === currentPlan.id).length ? Math.round(objectives.filter((o) => o.plan_id === currentPlan.id && o.status === "achieved").length / objectives.filter((o) => o.plan_id === currentPlan.id).length * 100) : 0}%</p></div></div><div className="divide-y divide-slate-100">{objectives.filter((o) => o.plan_id === currentPlan.id).map((o) => <div key={o.id} className="px-4 py-3"><div className="flex items-start justify-between gap-3"><p className="text-sm font-medium text-slate-900">{o.title}</p><span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] text-slate-600">{statusLabel(o.status)}</span></div>{o.description && <p className="mt-1 text-xs text-slate-500">{o.description}</p>}{o.target_value != null && <p className="mt-1 text-xs text-slate-600">Target: {o.target_value.toLocaleString()} {o.unit || ""}</p>}</div>)}{objectives.filter((o) => o.plan_id === currentPlan.id).length === 0 && <p className="px-4 py-4 text-xs text-slate-500">No objectives recorded yet.</p>}</div>
           </div>
-          <div id="intake-plans" className="rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
+          <div id="intake-plans" hidden={activeWorkspace !== "intakes"} className="rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
             <div className="border-b border-slate-200 px-4 py-3"><h2 className="text-sm font-semibold text-slate-900">Programme intake targets</h2><p className="mt-1 text-xs text-slate-500">Each intake remains separately tracked.</p></div>
             <form onSubmit={(event) => { event.preventDefault(); void addIntakeTarget(); }} className="grid gap-3 p-4">
               <div className="grid grid-cols-2 gap-3"><label className="grid gap-1 text-xs font-medium text-slate-700">Intake<select value={intakeMonth} onChange={(e) => setIntakeMonth(e.target.value)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal"><option value="2">February</option><option value="4">April</option><option value="8">August</option><option value="11">November</option></select></label><label className="grid gap-1 text-xs font-medium text-slate-700">Programme<input required value={programme} onChange={(e) => setProgramme(e.target.value)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal" placeholder="Programme name" /></label></div>
@@ -889,7 +908,7 @@ export default function StrategyPlanningPage() {
         </section>
       )}
 
-      <section id="strategy-live-performance" className="rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
+      <section id="strategy-live-performance" hidden={activeWorkspace !== "performance"} className="rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-4 py-3 sm:px-5">
           <div>
             <h2 className="text-sm font-semibold text-slate-900">Live Recruitment Performance · {currentYear}</h2>
@@ -916,7 +935,7 @@ export default function StrategyPlanningPage() {
         {currentPlan && currentPlan.strategy_year !== currentYear && <p className="border-t border-amber-100 bg-amber-50 px-4 py-2 text-xs text-amber-800">The selected strategy is for {currentPlan.strategy_year}; live actuals above are for {currentYear}. Targets are shown for the selected plan, so compare only when the years match.</p>}
       </section>
 
-      <section id="annual-strategy-register" className="grid gap-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(280px,0.85fr)]">
+      <section id="annual-strategy-register" hidden={activeWorkspace !== "performance"} className="grid gap-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(280px,0.85fr)]">
         <div className="rounded-xl border border-slate-200 bg-white">
           <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 sm:px-5">
             <div>
@@ -965,7 +984,7 @@ export default function StrategyPlanningPage() {
 
 
       {currentPlan && (
-        <section id="strategy-activities" className="rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
+        <section id="strategy-activities" hidden={activeWorkspace !== "activities"} className="rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
           <div className="border-b border-slate-200 px-4 py-3"><h2 className="text-sm font-semibold text-slate-900">Activity register</h2><p className="mt-1 text-xs text-slate-500">Plan strategic activities, delivery dates and budget estimates. Operational follow-up tasks remain in the Call Centre Tasks module.</p></div>
           <div className="grid gap-3 border-b border-slate-200 bg-slate-50/70 p-4 md:grid-cols-3"><article className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">Call centre</p><p className="mt-1 text-sm font-medium text-slate-900">Lead follow-up & conversion</p><p className="mt-1 text-xs leading-5 text-slate-600">Use Call Centre Tasks for day-to-day inquiry calls, WhatsApp responses and applicant follow-ups. This register is for the strategic campaign or workstream plan, not individual call tasks.</p></article><article className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">Alumni</p><p className="mt-1 text-sm font-medium text-slate-900">Engagement & referrals</p><p className="mt-1 text-xs leading-5 text-slate-600">Plan alumni events, graduate stories and referral campaigns here. Manage alumni profiles and engagement records in the Alumni module; Vivian coordinates this workstream.</p></article><article className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">Partnerships</p><p className="mt-1 text-sm font-medium text-slate-900">Partner pipeline & activation</p><p className="mt-1 text-xs leading-5 text-slate-600">Track partner outreach, scholarship organisations, employer/community links, next actions and outcomes. Vivian coordinates follow-up.</p></article></div>
           <form onSubmit={(event) => { event.preventDefault(); void addActivity(); }} className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">
@@ -994,7 +1013,7 @@ export default function StrategyPlanningPage() {
           </form>
           <div className="divide-y divide-slate-100">{budgets.filter((b) => b.plan_id === currentPlan.id).map((b) => <div key={b.id} className="flex items-center justify-between gap-3 px-4 py-3"><div><p className="text-sm font-semibold text-slate-900">UGX {Number(b.proposed_amount).toLocaleString("en-UG")}</p><p className="mt-1 text-xs text-slate-500">{b.notes || "No notes"}{b.approved_amount != null ? ` · Approved: UGX ${Number(b.approved_amount).toLocaleString("en-UG")}` : ""}</p></div><span className="rounded-full bg-amber-50 px-2 py-1 text-xs text-amber-800">{statusLabel(b.status)}</span></div>)}{budgets.filter((b) => b.plan_id === currentPlan.id).length === 0 && <p className="px-4 py-4 text-xs text-slate-500">No annual budget submitted.</p>}</div>
         </div>
-        <div id="strategy-risks" className="rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
+        <div id="strategy-risks" hidden={activeWorkspace !== "risks"} className="rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
           <div className="border-b border-slate-200 px-4 py-3"><h2 className="text-sm font-semibold text-slate-900">Risks & corrective actions</h2><p className="mt-1 text-xs text-slate-500">Record risk mitigation and due dates. Critical risks require immediate management escalation.</p></div>
           <form onSubmit={(e) => { e.preventDefault(); void addRisk(); }} className="grid gap-3 p-4">
             <label className="grid gap-1 text-xs font-medium text-slate-700">Risk title<input required value={riskTitle} onChange={(e) => setRiskTitle(e.target.value)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal" /></label>
@@ -1011,7 +1030,7 @@ export default function StrategyPlanningPage() {
       )}
 
 
-      <section id="weekly-reports" className="rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
+      <section id="weekly-reports" hidden={activeWorkspace !== "weekly"} className="rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
         <div className="border-b border-slate-200 px-4 py-3"><h2 className="text-sm font-semibold text-slate-900">Weekly Reports & Meetings</h2><p className="mt-1 text-xs text-slate-500">Submit Monday–Friday work reports for manager review. PDF delivery and meeting minutes are a subsequent workflow stage.</p></div>
         <form onSubmit={(e) => { e.preventDefault(); void submitWeeklyReport(); }} className="grid gap-3 p-4 md:grid-cols-2">
           <label className="grid gap-1 text-xs font-medium text-slate-700">Period start<input required type="date" value={reportStart} onChange={(e) => setReportStart(e.target.value)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal" /></label>
@@ -1025,7 +1044,7 @@ export default function StrategyPlanningPage() {
         <div className="grid grid-cols-2 gap-3 border-t border-slate-200 bg-slate-50/70 p-4 sm:grid-cols-4"><div className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-xs text-slate-500">Reports listed</p><p className="mt-1 text-xl font-semibold text-slate-900">{weeklyReports.length}</p></div><div className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-xs text-slate-500">Awaiting review</p><p className="mt-1 text-xl font-semibold text-amber-700">{weeklyReports.filter((r) => ["submitted","reviewed"].includes(r.status)).length}</p></div><div className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-xs text-slate-500">Approved</p><p className="mt-1 text-xl font-semibold text-emerald-700">{weeklyReports.filter((r) => r.status === "approved").length}</p></div><div className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-xs text-slate-500">Returned</p><p className="mt-1 text-xl font-semibold text-rose-700">{weeklyReports.filter((r) => r.status === "returned_for_revision").length}</p></div></div><div className="overflow-x-auto border-t border-slate-200"><table className="w-full min-w-[700px] text-left text-sm"><thead className="bg-slate-50 text-xs text-slate-500"><tr><th className="px-4 py-3 font-medium">Period</th><th className="px-4 py-3 font-medium">Work summary</th><th className="px-4 py-3 font-medium">Status</th><th className="px-4 py-3 font-medium">Submitted</th><th className="px-4 py-3 font-medium">Review notes</th><th className="px-4 py-3 font-medium">Management review</th></tr></thead><tbody className="divide-y divide-slate-100">{weeklyReports.map((r) => <tr key={r.id} className="transition-colors hover:bg-slate-50"><td className="px-4 py-3 whitespace-nowrap text-xs text-slate-600">{r.reporting_start} – {r.reporting_end}</td><td className="px-4 py-3"><p className="max-w-md whitespace-pre-wrap text-sm text-slate-800">{r.completed_work}</p></td><td className="px-4 py-3 text-xs">{statusLabel(r.status)}</td><td className="px-4 py-3 whitespace-nowrap text-xs text-slate-500">{r.submitted_at ? new Date(r.submitted_at).toLocaleString() : "—"}</td><td className="px-4 py-3 text-xs text-slate-600">{r.reviewer_comments || "—"}</td><td className="min-w-64 px-4 py-3"><textarea value={weeklyReviewComments[r.id] ?? ""} onChange={(e) => setWeeklyReviewComments((prev) => ({...prev, [r.id]: e.target.value}))} placeholder="Review comment (required to return)" rows={2} className="mb-2 w-full rounded-md border border-slate-200 px-2 py-1.5 text-xs" disabled={weeklyReviewBusy === r.id || r.status === "approved"} /><div className="flex flex-wrap gap-2"><button type="button" disabled={weeklyReviewBusy === r.id || !["submitted","reviewed","returned_for_revision"].includes(r.status)} onClick={() => void reviewWeeklyReport(r, "approved")} className="rounded-md bg-emerald-700 px-2.5 py-1.5 text-xs font-semibold text-white disabled:opacity-40">{weeklyReviewBusy === r.id ? "Saving…" : "Approve"}</button><button type="button" disabled={weeklyReviewBusy === r.id || !["submitted","reviewed","returned_for_revision"].includes(r.status)} onClick={() => void reviewWeeklyReport(r, "returned_for_revision")} className="rounded-md border border-amber-300 px-2.5 py-1.5 text-xs font-semibold text-amber-800 disabled:opacity-40">Return for revision</button></div></td></tr>)}</tbody></table>{weeklyReports.length === 0 && <p className="px-4 py-5 text-xs text-slate-500">No weekly reports available to this account.</p>}</div>
       </section>
 
-      <section id="meeting-actions" className="rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
+      <section id="meeting-actions" hidden={activeWorkspace !== "weekly"} className="rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
         <div className="border-b border-slate-200 px-4 py-3"><h2 className="text-sm font-semibold text-slate-900">Monday Meetings & Action Tracker</h2><p className="mt-1 text-xs text-slate-500">Schedule management meetings, record minutes and track decisions through to completion.</p></div>
         <form onSubmit={(e) => { e.preventDefault(); void createMeeting(); }} className="grid gap-3 p-4 md:grid-cols-2">
           <label className="grid gap-1 text-xs font-medium text-slate-700">Meeting title<input value={meetingTitle} onChange={(e) => setMeetingTitle(e.target.value)} required className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal" /></label>
@@ -1049,7 +1068,7 @@ export default function StrategyPlanningPage() {
         </div>
       </section>
 
-      <section id="strategy-budget" className="rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
+      <section id="strategy-budget" hidden={activeWorkspace !== "budget"} className="rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
         <div className="border-b border-slate-200 px-4 py-3"><h2 className="text-sm font-semibold text-slate-900">Recruitment Cycle Budget Allocations</h2><p className="mt-1 text-xs text-slate-500">Plan allocations for February/April and August/November recruitment cycles. Currency: UGX.</p></div>
         <form onSubmit={(e) => { e.preventDefault(); void saveCycleAllocation(); }} className="grid gap-3 p-4 md:grid-cols-2">
           <label className="grid gap-1 text-xs font-medium text-slate-700">Recruitment cycle<select value={allocationCycle} onChange={(e) => setAllocationCycle(e.target.value)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal"><option value="february">February + April</option><option value="august">August + November</option></select></label>
@@ -1060,7 +1079,7 @@ export default function StrategyPlanningPage() {
         <div className="grid grid-cols-2 gap-3 border-t border-slate-200 bg-slate-50/70 p-4 sm:grid-cols-4"><div className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-xs text-slate-500">Proposed total</p><p className="mt-1 text-lg font-semibold text-slate-900">UGX {cycleAllocations.filter((a) => a.plan_id === (plans.find((p) => p.strategy_year === currentYear)?.id ?? plans[0]?.id)).reduce((n, a) => n + Number(a.proposed_amount || 0), 0).toLocaleString("en-UG")}</p></div><div className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-xs text-slate-500">Approved total</p><p className="mt-1 text-lg font-semibold text-emerald-700">UGX {cycleAllocations.filter((a) => a.plan_id === (plans.find((p) => p.strategy_year === currentYear)?.id ?? plans[0]?.id)).reduce((n, a) => n + Number(a.approved_amount || 0), 0).toLocaleString("en-UG")}</p></div><div className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-xs text-slate-500">Cycles allocated</p><p className="mt-1 text-xl font-semibold text-slate-900">{cycleAllocations.filter((a) => a.plan_id === (plans.find((p) => p.strategy_year === currentYear)?.id ?? plans[0]?.id)).length}</p></div><div className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-xs text-slate-500">Annual budget proposals</p><p className="mt-1 text-xl font-semibold text-slate-900">{budgets.filter((b) => b.plan_id === (plans.find((p) => p.strategy_year === currentYear)?.id ?? plans[0]?.id)).length}</p></div></div><div className="grid gap-3 p-4 sm:grid-cols-2">{["february","august"].map((cycle) => { const a = cycleAllocations.find((x) => x.cycle === cycle && x.plan_id === (plans.find((p) => p.strategy_year === currentYear)?.id ?? plans[0]?.id)); return <article key={cycle} className="rounded-xl border border-slate-200 p-4"><p className="text-xs font-medium uppercase tracking-wide text-slate-500">{cycle === "february" ? "February + April" : "August + November"}</p><p className="mt-2 text-xl font-semibold text-slate-900">UGX {Number(a?.approved_amount ?? a?.proposed_amount ?? 0).toLocaleString()}</p><p className="mt-1 text-xs text-slate-500">Proposed: UGX {Number(a?.proposed_amount ?? 0).toLocaleString()} · {statusLabel(a?.status ?? "not allocated")}</p>{a?.notes && <p className="mt-2 text-sm text-slate-600">{a.notes}</p>}</article>; })}</div>
       </section>
 
-      <section id="strategy-management-reports" className="rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
+      <section id="strategy-management-reports" hidden={activeWorkspace !== "reports"} className="rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3"><div><h2 className="text-sm font-semibold text-slate-900">Management Reports</h2><p className="mt-1 text-xs text-slate-500">Capture a dated snapshot of strategy delivery, recruitment targets, budgets, risks, approvals and actions. Saved versions remain in report history.</p></div><button type="button" disabled={saving || plans.length === 0} onClick={() => void saveManagementReport()} className="rounded-lg bg-emerald-800 px-4 py-2 text-xs font-semibold text-white disabled:opacity-50">{saving ? "Saving…" : "Save report snapshot"}</button></div>
         <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-5">
           <a href="#strategy-objectives" className="group rounded-xl bg-slate-50 p-3 transition-all duration-200 hover:-translate-y-0.5 hover:bg-emerald-50 hover:shadow-sm"><p className="text-xs text-slate-500">Objectives achieved</p><p className="mt-1 text-xl font-semibold">{objectives.filter((o) => o.plan_id === currentPlan?.id && o.status === "achieved").length} / {objectives.filter((o) => o.plan_id === currentPlan?.id).length}</p><p className="mt-1 text-[11px] font-semibold text-emerald-800">View objectives →</p></a>
@@ -1075,7 +1094,7 @@ export default function StrategyPlanningPage() {
         </div>
       </section>
 
-      <section id="strategy-approvals" className="rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
+      <section id="strategy-approvals" hidden={activeWorkspace !== "approvals"} className="rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-4 py-3">
           <div><h2 className="text-sm font-semibold text-slate-900">Approvals Centre</h2><p className="mt-1 text-xs text-slate-500">Review requests, record decisions and retain decision comments.</p></div>
           <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800">{approvalRequests.filter((r) => r.status === "pending").length} pending</span>
@@ -1101,26 +1120,7 @@ export default function StrategyPlanningPage() {
         </div>
       </section>
 
-      <section>
-        <div className="mb-3">
-          <h2 className="text-sm font-semibold text-slate-900">Planning workspaces</h2>
-          <p className="mt-1 text-xs text-slate-500">Jump directly to a strategy register. Each card opens the matching section below.</p>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {sections.map(([title, description, href], index) => (
-            <a key={title} href={`#${href}`} className="group rounded-xl border border-slate-200 bg-white p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600">
-              <div className="flex items-start gap-3">
-                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-emerald-50 text-xs font-bold text-emerald-800 transition-colors group-hover:bg-emerald-100">{String(index + 1).padStart(2, "0")}</span>
-                <div className="min-w-0">
-                  <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
-                  <p className="mt-1 text-xs leading-5 text-slate-500">{description}</p>
-                  <span className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800">Open section <span aria-hidden="true">→</span></span>
-                </div>
-              </div>
-            </a>
-          ))}
-        </div>
-      </section>
+>
     </main>
   );
 }
