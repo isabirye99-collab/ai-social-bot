@@ -513,6 +513,21 @@ export default function StrategyPlanningPage() {
     else { setIntakeStrategyEntries((prev) => prev.filter((row) => row.id !== entry.id)); setNotice("Intake strategy row deleted."); }
   }
 
+  async function deleteMeetingAction(action: MeetingAction) {
+    if (!window.confirm(`Delete meeting action “${action.action}”?`)) return;
+    const { error: deleteError } = await supabase.from("strategy_meeting_actions").delete().eq("id", action.id);
+    if (deleteError) setError("Could not delete meeting action: " + deleteError.message);
+    else { setMeetingActions((prev) => prev.filter((row) => row.id !== action.id)); setNotice("Meeting action deleted."); }
+  }
+
+  async function deleteCycleAllocation(allocation: CycleAllocation) {
+    if (!window.confirm(`Delete the ${allocation.cycle} recruitment-cycle allocation?`)) return;
+    if (["approved", "submitted", "pending_approval"].includes(allocation.status)) { setError("Submitted or approved allocations cannot be deleted here. Use the controlled approval/revision workflow."); return; }
+    const { error: deleteError } = await supabase.from("strategy_cycle_allocations").delete().eq("id", allocation.id);
+    if (deleteError) setError("Could not delete cycle allocation: " + deleteError.message);
+    else { setCycleAllocations((prev) => prev.filter((row) => row.id !== allocation.id)); setNotice("Cycle allocation deleted."); }
+  }
+
   async function deleteRisk(risk: StrategyRisk) {
     if (!window.confirm(`Delete risk “${risk.title}” from the risk register?`)) return;
     const { error: deleteError } = await supabase.from("strategy_risks").delete().eq("id", risk.id);
@@ -1214,7 +1229,7 @@ export default function StrategyPlanningPage() {
             <label className="grid gap-1 text-xs font-medium text-slate-700 md:col-span-2">Allocation notes<textarea value={allocationNotes} onChange={(e) => setAllocationNotes(e.target.value)} rows={2} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal" placeholder="Programmes covered, planned activities and justification" /></label>
             <button disabled={saving} className="w-fit rounded-lg bg-emerald-800 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Save allocation</button>
           </form>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">{["february","august"].map((cycle) => { const a = cycleAllocations.find((x) => x.cycle === cycle && x.plan_id === (currentPlan?.id ?? plans[0]?.id)); return <article key={cycle} className="rounded-xl border border-slate-200 p-4"><p className="text-xs font-medium uppercase tracking-wide text-slate-500">{cycle === "february" ? "February + April" : "August + November"}</p><p className="mt-2 text-xl font-semibold text-slate-900">UGX {Number(a?.approved_amount ?? a?.proposed_amount ?? 0).toLocaleString()}</p><p className="mt-1 text-xs text-slate-500">Proposed: UGX {Number(a?.proposed_amount ?? 0).toLocaleString()} · {statusLabel(a?.status ?? "not allocated")}</p>{a?.notes && <p className="mt-2 text-sm text-slate-600">{a.notes}</p>}</article>; })}</div>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">{["february","august"].map((cycle) => { const a = cycleAllocations.find((x) => x.cycle === cycle && x.plan_id === (currentPlan?.id ?? plans[0]?.id)); return <article key={cycle} className="rounded-xl border border-slate-200 p-4"><p className="text-xs font-medium uppercase tracking-wide text-slate-500">{cycle === "february" ? "February + April" : "August + November"}</p><p className="mt-2 text-xl font-semibold text-slate-900">UGX {Number(a?.approved_amount ?? a?.proposed_amount ?? 0).toLocaleString()}</p><p className="mt-1 text-xs text-slate-500">Proposed: UGX {Number(a?.proposed_amount ?? 0).toLocaleString()} · {statusLabel(a?.status ?? "not allocated")}</p>{a?.notes && <p className="mt-2 text-sm text-slate-600">{a.notes}</p>}<button type="button" onClick={() => a && void deleteCycleAllocation(a)} disabled={!a || saving || ["approved", "submitted", "pending_approval"].includes(a.status)} className="mt-2 text-xs font-semibold text-rose-700 hover:underline disabled:opacity-40">Delete draft allocation</button></article>; })}</div>
         </div>
       </section>
 
