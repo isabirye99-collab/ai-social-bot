@@ -580,9 +580,9 @@ export default function StrategyPlanningPage() {
 
   async function addIntakeTarget() {
     if (!currentPlan) { setError("Create or select an annual strategy plan before saving intake targets."); return; }
-    const targets = [Number(targetApplications), Number(targetAdmissions), Number(targetRegistrations)];
-    if ([targetApplications, targetAdmissions, targetRegistrations].some((v) => !v.trim()) || targets.some((v) => !Number.isFinite(v) || v < 0 || !Number.isInteger(v))) {
-      setError("Enter whole-number, non-negative targets for applications, admissions and registrations.");
+    const targets = [Number(targetApplications), Number(targetAdmissions), Number(targetRegistrations), Number(achievedRegistrations || 0)];
+    if ([targetApplications, targetAdmissions, targetRegistrations, achievedRegistrations].some((v) => !v.trim()) || targets.some((v) => !Number.isFinite(v) || v < 0 || !Number.isInteger(v))) {
+      setError("Enter whole-number, non-negative values for application, admission, enrolment targets and students enrolled.");
       return;
     }
     setSaving(true); setError(""); setNotice("");
@@ -595,7 +595,7 @@ export default function StrategyPlanningPage() {
         cycle,
         programme: "All programmes",
         intake_strategy: intakeStrategy.trim() || null,
-        achieved_registrations: Number(achievedRegistrations || 0),
+        achieved_registrations: targets[3],
         target_applications: targets[0],
         target_admissions: targets[1],
         target_registrations: targets[2],
