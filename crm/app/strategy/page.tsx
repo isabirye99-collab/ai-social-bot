@@ -166,7 +166,7 @@ export default function StrategyPlanningPage() {
       setIntakeCount(intakes.count ?? 0);
       const [objectiveRows, intakeRows, activityRows, budgetRows, riskRows, reportRows, approvalRows, meetingRows, allocationRows, historyRows] = await Promise.all([
         supabase.from("strategy_objectives").select("id,plan_id,title,description,target_value,actual_value,unit,status,due_date").in("plan_id", ids).order("sort_order"),
-        supabase.from("strategy_intake_plans").select("id,plan_id,intake_month,cycle,programme,target_applications,target_admissions,target_registrations").in("plan_id", ids).order("intake_month"),
+        supabase.from("strategy_intake_plans").select("id,plan_id,intake_month,cycle,programme,target_applications,target_admissions,target_registrations").in("plan_id", ids).eq("programme", "All programmes").order("intake_month"),
         supabase.from("strategy_activities").select("id,plan_id,title,description,activity_type,starts_on,ends_on,status,budget_amount,owner_id").in("plan_id", ids).order("starts_on"),
         supabase.from("strategy_annual_budgets").select("id,plan_id,proposed_amount,approved_amount,status,notes").in("plan_id", ids),
         supabase.from("strategy_risks").select("id,plan_id,title,description,priority,status,corrective_action,due_date,programme,owner_id").in("plan_id", ids).order("created_at", { ascending: false }),
@@ -578,19 +578,36 @@ export default function StrategyPlanningPage() {
 
   async function addIntakeTarget() {
     if (!currentPlan) { setError("Create or select an annual strategy plan before saving intake targets."); return; }
-    if (!programme.trim()) { setError("Enter a programme name."); return; }
     const targets = [Number(targetApplications), Number(targetAdmissions), Number(targetRegistrations)];
-    if ([targetApplications, targetAdmissions, targetRegistrations].some((v) => !v.trim()) || targets.some((v) => !Number.isFinite(v) || v < 0 || !Number.isInteger(v))) { setError("Enter whole-number, non-negative targets for applications, admissions and registrations."); return; }
+    if ([targetApplications, targetAdmissions, targetRegistrations].some((v) => !v.trim()) || targets.some((v) => !Number.isFinite(v) || v < 0 || !Number.isInteger(v))) {
+      setError("Enter whole-number, non-negative targets for applications, admissions and registrations.");
+      return;
+    }
     setSaving(true); setError(""); setNotice("");
-    const { error: saveError } = await supabase.from("strategy_intake_plans").upsert({
-      plan_id: currentPlan.id, intake_month: Number(intakeMonth), programme: programme.trim(),
-      target_applications: targets[0],
-      target_admissions: targets[1],
-      target_registrations: targets[2],
-    }, { onConflict: "plan_id,intake_month,programme" });
-    if (saveError) setError(saveError.message);
-    else { setNotice("Intake targets saved."); setProgramme(""); setTargetApplications("0"); setTargetAdmissions("0"); setTargetRegistrations("0"); await load(); }
-    setSaving(false);
+    try {
+      const month = Number(intakeMonth);
+      const cycle = month === 2 || month === 4 ? "february" : "august";
+      const { error: saveError } = await supabase.from("strategy_intake_plans").upsert({
+        plan_id: currentPlan.id,
+        intake_month: month,
+        cycle,
+        programme: "All programmes",
+        target_applications: targets[0],
+        target_admissions: targets[1],
+        target_registrations: targets[2],
+      }, { onConflict: "plan_id,intake_month,programme" });
+      if (saveError) {
+        setError("Could not save intake targets: " + saveError.message);
+      } else {
+        setNotice("All-programme intake targets saved.");
+        setTargetApplications("0"); setTargetAdmissions("0"); setTargetRegistrations("0");
+        await load();
+      }
+    } catch (cause) {
+      setError(cause instanceof Error ? "Could not reach the strategy database while saving intake targets: " + cause.message : "Could not reach the strategy database while saving intake targets. Check your connection and try again.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function importUploadedStrategy() {
@@ -897,13 +914,13 @@ export default function StrategyPlanningPage() {
             <div className="grid grid-cols-2 gap-3 border-t border-slate-200 bg-slate-50/70 p-4 sm:grid-cols-4"><div className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-xs text-slate-500">Objectives</p><p className="mt-1 text-xl font-semibold">{objectives.filter((o) => o.plan_id === currentPlan.id).length}</p></div><div className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-xs text-slate-500">Achieved</p><p className="mt-1 text-xl font-semibold text-emerald-700">{objectives.filter((o) => o.plan_id === currentPlan.id && o.status === "achieved").length}</p></div><div className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-xs text-slate-500">At risk / behind</p><p className="mt-1 text-xl font-semibold text-amber-700">{objectives.filter((o) => o.plan_id === currentPlan.id && (o.status === "at_risk" || o.status === "behind")).length}</p></div><div className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-xs text-slate-500">Achievement rate</p><p className="mt-1 text-xl font-semibold">{objectives.filter((o) => o.plan_id === currentPlan.id).length ? Math.round(objectives.filter((o) => o.plan_id === currentPlan.id && o.status === "achieved").length / objectives.filter((o) => o.plan_id === currentPlan.id).length * 100) : 0}%</p></div></div><div className="divide-y divide-slate-100">{objectives.filter((o) => o.plan_id === currentPlan.id).map((o) => <div key={o.id} className="px-4 py-3"><div className="flex items-start justify-between gap-3"><p className="text-sm font-medium text-slate-900">{o.title}</p><span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] text-slate-600">{statusLabel(o.status)}</span></div>{o.description && <p className="mt-1 text-xs text-slate-500">{o.description}</p>}{o.target_value != null && <p className="mt-1 text-xs text-slate-600">Target: {o.target_value.toLocaleString()} {o.unit || ""}</p>}</div>)}{objectives.filter((o) => o.plan_id === currentPlan.id).length === 0 && <p className="px-4 py-4 text-xs text-slate-500">No objectives recorded yet.</p>}</div>
           </div>
           <div id="intake-plans" hidden={activeWorkspace !== "intakes"} className="rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
-            <div className="border-b border-slate-200 px-4 py-3"><h2 className="text-sm font-semibold text-slate-900">Programme intake targets</h2><p className="mt-1 text-xs text-slate-500">Each intake remains separately tracked.</p></div>
+            <div className="border-b border-slate-200 px-4 py-3"><h2 className="text-sm font-semibold text-slate-900">Programme intake targets</h2><p className="mt-1 text-xs text-slate-500">Set one combined target for all programmes for each intake.</p></div>
             <form onSubmit={(event) => { event.preventDefault(); void addIntakeTarget(); }} className="grid gap-3 p-4">
-              <div className="grid grid-cols-2 gap-3"><label className="grid gap-1 text-xs font-medium text-slate-700">Intake<select value={intakeMonth} onChange={(e) => setIntakeMonth(e.target.value)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal"><option value="2">February</option><option value="4">April</option><option value="8">August</option><option value="11">November</option></select></label><label className="grid gap-1 text-xs font-medium text-slate-700">Programme<input required value={programme} onChange={(e) => setProgramme(e.target.value)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal" placeholder="Programme name" /></label></div>
+              <div className="grid grid-cols-1 gap-3"><label className="grid gap-1 text-xs font-medium text-slate-700">Intake<select value={intakeMonth} onChange={(e) => setIntakeMonth(e.target.value)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal"><option value="2">February</option><option value="4">April</option><option value="8">August</option><option value="11">November</option></select></label><p className="self-end text-xs text-slate-500">Targets apply to all CIU programmes combined.</p></div>
               <div className="grid grid-cols-3 gap-2"><label className="grid gap-1 text-xs font-medium text-slate-700">Applications<input type="number" min="0" value={targetApplications} onChange={(e) => setTargetApplications(e.target.value)} className="min-w-0 rounded-lg border border-slate-300 px-2 py-2 text-sm font-normal" /></label><label className="grid gap-1 text-xs font-medium text-slate-700">Admissions<input type="number" min="0" value={targetAdmissions} onChange={(e) => setTargetAdmissions(e.target.value)} className="min-w-0 rounded-lg border border-slate-300 px-2 py-2 text-sm font-normal" /></label><label className="grid gap-1 text-xs font-medium text-slate-700">Registrations<input type="number" min="0" value={targetRegistrations} onChange={(e) => setTargetRegistrations(e.target.value)} className="min-w-0 rounded-lg border border-slate-300 px-2 py-2 text-sm font-normal" /></label></div>
               <button disabled={saving} className="w-fit rounded-lg bg-emerald-800 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{saving ? "Saving…" : "Save intake targets"}</button>
             </form>
-            <div className="grid grid-cols-2 gap-3 border-t border-slate-200 bg-slate-50/70 p-4 sm:grid-cols-4"><div className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-xs text-slate-500">Programmes / intakes</p><p className="mt-1 text-xl font-semibold text-slate-900">{intakeTargets.filter((t) => t.plan_id === currentPlan.id).length}</p></div><div className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-xs text-slate-500">Applications target</p><p className="mt-1 text-xl font-semibold text-slate-900">{intakeTargets.filter((t) => t.plan_id === currentPlan.id).reduce((n, t) => n + t.target_applications, 0).toLocaleString()}</p></div><div className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-xs text-slate-500">Admissions target</p><p className="mt-1 text-xl font-semibold text-slate-900">{intakeTargets.filter((t) => t.plan_id === currentPlan.id).reduce((n, t) => n + t.target_admissions, 0).toLocaleString()}</p></div><div className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-xs text-slate-500">Registrations target</p><p className="mt-1 text-xl font-semibold text-slate-900">{intakeTargets.filter((t) => t.plan_id === currentPlan.id).reduce((n, t) => n + t.target_registrations, 0).toLocaleString()}</p></div></div><div className="divide-y divide-slate-100">{intakeTargets.filter((t) => t.plan_id === currentPlan.id).map((t) => <div key={t.id} className="flex items-center justify-between gap-3 px-4 py-3"><div><p className="text-sm font-medium text-slate-900">{new Date(2000, t.intake_month - 1, 1).toLocaleString("en", { month: "long" })} · {t.programme}</p><p className="mt-1 text-xs text-slate-500">{t.cycle === "february" ? "February cycle" : "August cycle"}</p></div><div className="text-right text-xs text-slate-600"><p>Apps {t.target_applications}</p><p>Admissions {t.target_admissions}</p><p>Registrations {t.target_registrations}</p></div></div>)}{intakeTargets.filter((t) => t.plan_id === currentPlan.id).length === 0 && <p className="px-4 py-4 text-xs text-slate-500">No intake targets recorded yet.</p>}</div>
+            <div className="grid grid-cols-2 gap-3 border-t border-slate-200 bg-slate-50/70 p-4 sm:grid-cols-4"><div className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-xs text-slate-500">Intakes planned</p><p className="mt-1 text-xl font-semibold text-slate-900">{intakeTargets.filter((t) => t.plan_id === currentPlan.id).length}</p></div><div className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-xs text-slate-500">Applications target</p><p className="mt-1 text-xl font-semibold text-slate-900">{intakeTargets.filter((t) => t.plan_id === currentPlan.id).reduce((n, t) => n + t.target_applications, 0).toLocaleString()}</p></div><div className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-xs text-slate-500">Admissions target</p><p className="mt-1 text-xl font-semibold text-slate-900">{intakeTargets.filter((t) => t.plan_id === currentPlan.id).reduce((n, t) => n + t.target_admissions, 0).toLocaleString()}</p></div><div className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-xs text-slate-500">Registrations target</p><p className="mt-1 text-xl font-semibold text-slate-900">{intakeTargets.filter((t) => t.plan_id === currentPlan.id).reduce((n, t) => n + t.target_registrations, 0).toLocaleString()}</p></div></div><div className="divide-y divide-slate-100">{intakeTargets.filter((t) => t.plan_id === currentPlan.id).map((t) => <div key={t.id} className="flex items-center justify-between gap-3 px-4 py-3"><div><p className="text-sm font-medium text-slate-900">{new Date(2000, t.intake_month - 1, 1).toLocaleString("en", { month: "long" })} intake · All programmes</p><p className="mt-1 text-xs text-slate-500">{t.cycle === "february" ? "February cycle" : "August cycle"}</p></div><div className="text-right text-xs text-slate-600"><p>Apps {t.target_applications}</p><p>Admissions {t.target_admissions}</p><p>Registrations {t.target_registrations}</p></div></div>)}{intakeTargets.filter((t) => t.plan_id === currentPlan.id).length === 0 && <p className="px-4 py-4 text-xs text-slate-500">No intake targets recorded yet.</p>}</div>
           </div>
         </section>
       )}
