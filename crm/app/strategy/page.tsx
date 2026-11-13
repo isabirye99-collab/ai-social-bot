@@ -1218,17 +1218,17 @@ export default function StrategyPlanningPage() {
         <form onSubmit={(e)=>{e.preventDefault();void addBudgetItem();}} className="grid gap-3 border-b border-slate-200 p-4 md:grid-cols-6">
           <label className="grid gap-1 text-xs font-medium text-slate-700 md:col-span-2">Category<input value={budgetCategoryDraft} onChange={(e)=>setBudgetCategoryDraft(e.target.value)} required className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal" /></label>
           <label className="grid gap-1 text-xs font-medium text-slate-700 md:col-span-2">New budget item<input value={budgetItemDraft} onChange={(e)=>setBudgetItemDraft(e.target.value)} required placeholder="Activity or cost item" className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal" /></label>
-          <label className="grid gap-1 text-xs font-medium text-slate-700">Quantity<input type="number" min="0" step="any" value={budgetQuantityDraft} onChange={(e)=>setBudgetQuantityDraft(e.target.value)} required className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal" /></label>
+          <label className="grid gap-1 text-xs font-medium text-slate-700">Qty (Quantity)<input type="number" min="0" step="any" value={budgetQuantityDraft} onChange={(e)=>setBudgetQuantityDraft(e.target.value)} required className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal" /></label>
           <label className="grid gap-1 text-xs font-medium text-slate-700">Rate (UGX)<input type="number" min="0" step="any" value={budgetRateDraft} onChange={(e)=>setBudgetRateDraft(e.target.value)} required className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal" /></label>
           <button disabled={saving} className="w-fit rounded-lg bg-emerald-800 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50 md:col-span-6">Add budget item</button>
         </form>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] border-collapse text-left text-xs">
-            <thead className="bg-slate-50 text-slate-600"><tr>{["Category / Activity","Qty","Rate / unit (UGX)","Planned budget (UGX)","Status","Edit"].map(h=><th key={h} className="border-b border-slate-200 px-3 py-3 font-semibold">{h}</th>)}</tr></thead>
+            <thead className="bg-slate-50 text-slate-600"><tr>{["Category / Activity","Qty (Quantity)","Rate / unit (UGX)","Planned budget (UGX)","Status","Edit"].map(h=><th key={h} className="border-b border-slate-200 px-3 py-3 font-semibold">{h}</th>)}</tr></thead>
             <tbody>
               {budgetItems.filter((item)=>item.plan_id===(currentPlan?.id??plans.find(p=>p.strategy_year===2026)?.id)).map((item)=><tr key={item.id} className="align-top hover:bg-slate-50/70">
                 <td className="border-b border-slate-100 px-3 py-3"><p className="font-semibold text-slate-800">{item.item_name}</p><p className="mt-1 text-[11px] text-slate-500">{item.category}</p></td>
-                <td className="border-b border-slate-100 px-3 py-3 text-slate-700">{Number(item.quantity).toLocaleString()}</td>
+                <td className="border-b border-slate-100 px-3 py-3 font-semibold text-slate-800 tabular-nums"><span className="mr-1 text-[10px] font-medium text-slate-500">Qty</span>{Number(item.quantity).toLocaleString("en-UG")}</td>
                 <td className="border-b border-slate-100 px-3 py-3 tabular-nums">{Number(item.unit_rate).toLocaleString("en-UG")}</td>
                 <td className="border-b border-slate-100 px-3 py-3 font-semibold tabular-nums">{Number(item.planned_amount).toLocaleString("en-UG")}</td>
                 
