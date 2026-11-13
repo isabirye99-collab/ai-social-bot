@@ -780,7 +780,7 @@ export default function StrategyPlanningPage() {
       </section>
 
       {currentPlan && (
-        <section hidden={activeWorkspace !== "general" && activeWorkspace !== "intakes"} className="grid gap-5 xl:grid-cols-2">
+        <section hidden={activeWorkspace !== "general" && activeWorkspace !== "intakes"} className="grid gap-5">
           <div id="strategy-objectives" hidden={activeWorkspace !== "general"} className="rounded-xl border border-slate-200 bg-white shadow-sm">
             <div className="border-b border-slate-200 px-4 py-3"><h2 className="text-sm font-semibold text-slate-900">General Strategy Framework</h2><p className="mt-1 text-xs text-slate-500">Enter the approved plan structure. Financial amounts belong in Budget Planning, not in this framework.</p></div>
             <form onSubmit={(event) => { event.preventDefault(); void savePlanDetails(); }} className="grid gap-3 border-b border-slate-200 p-4 sm:grid-cols-2">
@@ -874,8 +874,8 @@ export default function StrategyPlanningPage() {
                 <article key={plan.id} className={`flex flex-col gap-3 px-4 py-4 transition-colors hover:bg-slate-50 sm:flex-row sm:items-center sm:justify-between sm:px-5 ${currentPlan?.id === plan.id ? "bg-emerald-50/50" : ""}`}>
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold text-slate-900">{plan.title}</p>
-                    <p className="mt-1 text-xs text-slate-500">{plan.summary || "No summary added yet"}</p>
-                    <p className="mt-1 text-xs text-slate-500">{objectives.filter((o) => o.plan_id === plan.id).length} objectives · {activities.filter((a) => a.plan_id === plan.id).length} activities · {intakeTargets.filter((t) => t.plan_id === plan.id).length} intake targets</p>
+                    <p className="mt-1 text-xs text-slate-500">Strategy period: {plan.strategy_period || `FY ${plan.strategy_year}`}</p>
+                    <p className="mt-1 text-xs text-slate-500">{frameworkEntries.filter((entry) => entry.plan_id === plan.id).length} strategic rows · {activities.filter((a) => a.plan_id === plan.id).length} activity records · {intakeStrategyEntries.filter((entry) => intakeTargets.some((target) => target.plan_id === plan.id && target.id === entry.intake_plan_id)).length} intake strategy rows</p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2"><span className={`inline-flex w-fit rounded-full px-2.5 py-1 text-xs font-semibold ${plan.status === "approved" ? "bg-emerald-100 text-emerald-800" : plan.status === "pending_approval" ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-700"}`}>{statusLabel(plan.status)}</span><button type="button" onClick={() => { setCurrentYear(plan.strategy_year); window.setTimeout(() => document.getElementById("strategy-objectives")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0); }} className="rounded-lg border border-emerald-800 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-50">{currentPlan?.id === plan.id ? "Selected" : "View plan"}</button></div>
                 </article>
