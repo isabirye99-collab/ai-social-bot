@@ -781,16 +781,16 @@ export default function StrategyPlanningPage() {
 
     const { data: existingBudget, error: budgetCheckError } = await supabase.from("strategy_annual_budgets").select("id").eq("plan_id", planId).limit(1);
     if (budgetCheckError) { setError("Strategy records imported, but budget check failed: " + budgetCheckError.message); await load(); setSaving(false); return; }
-    let budgetNote = "Source: uploaded general strategy document. Projected 2026 budget ~UGX 300,000,000 for charter branding and CRM implementation. This is a proposed estimate, not actual expenditure or an approved budget.";
+    let budgetNote = "Source: uploaded general strategy document. Approved 2026 budget of UGX 300,000,000 for charter branding and CRM implementation. Approval status reflects the confirmed budget; actual expenditure must be tracked separately.";
     if (!existingBudget?.length) {
       const { error: budgetError } = await supabase.from("strategy_annual_budgets").insert({
-        plan_id: planId, proposed_amount: 300000000, status: "pending_approval", prepared_by: auth.user.id, notes: budgetNote,
+        plan_id: planId, proposed_amount: 300000000, approved_amount: 300000000, status: "approved", prepared_by: auth.user.id, notes: budgetNote,
       });
       if (budgetError) { setError("Strategy objectives and activities imported, but the budget record failed: " + budgetError.message); await load(); setSaving(false); return; }
     } else budgetNote = "Existing annual budget retained; no duplicate budget was added.";
 
     await load();
-    setNotice(`Uploaded strategy data imported. Added ${missingObjectives.length} objectives and ${missingActivities.length} activities. Added ${historicalReportsAdded} historical staff reports. ${existingBudget?.length ? "Existing annual budget was preserved." : "Added the proposed 2026 budget of UGX 300,000,000 for approval."}${historicalReportWarnings.length ? " Staff report notes: " + historicalReportWarnings.join("; ") : ""} The February 2025 budget remains historical and is not mixed into the 2026 forecast.`);
+    setNotice(`Uploaded strategy data imported. Added ${missingObjectives.length} objectives and ${missingActivities.length} activities. Added ${historicalReportsAdded} historical staff reports. ${existingBudget?.length ? "Existing annual budget was preserved." : "Recorded the approved 2026 budget of UGX 300,000,000."}${historicalReportWarnings.length ? " Staff report notes: " + historicalReportWarnings.join("; ") : ""} The February 2025 budget remains historical and is not mixed into the 2026 forecast.`);
     setSaving(false);
   }
 
@@ -1052,7 +1052,7 @@ export default function StrategyPlanningPage() {
       {currentPlan && (
         <section hidden={activeWorkspace !== "budget" && activeWorkspace !== "risks"} className="grid gap-5 xl:grid-cols-2">
         <div hidden={activeWorkspace !== "budget"} className="rounded-xl border border-slate-200 bg-white">
-          <div className="border-b border-slate-200 px-4 py-3"><h2 className="text-sm font-semibold text-slate-900">Annual budget planning</h2><p className="mt-1 text-xs text-slate-500">Submit a proposed annual budget for management approval. Submission does not approve funds.</p></div><div className="mx-4 mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950"><p className="font-semibold">Budget figures are kept distinct</p><p className="mt-1">The projected UGX 300 million imported from the general strategy is an estimate for charter branding and CRM implementation, not the approved line-item marketing budget. The activity budget total below includes only amounts entered against activities. Confirm the source workbook, period and approval status before treating figures as approved or actual expenditure.</p></div>
+          <div className="border-b border-slate-200 px-4 py-3"><h2 className="text-sm font-semibold text-slate-900">Annual budget planning</h2><p className="mt-1 text-xs text-slate-500">Track approved allocations, proposed budgets and actual expenditure separately.</p></div><div className="mx-4 mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs leading-5 text-emerald-950"><p className="font-semibold">Approved 2026 budget · UGX 300,000,000</p><p className="mt-1">Source: uploaded general strategy document. Approved for charter branding and CRM implementation. This is the approved budget allocation, not a statement of actual expenditure; record actual spending separately.</p></div>
           <form onSubmit={(e) => { e.preventDefault(); void submitBudget(); }} className="grid gap-3 p-4">
             <label className="grid gap-1 text-xs font-medium text-slate-700">Proposed annual budget (UGX)<input required type="number" min="0" step="1000" value={budgetAmount} onChange={(e) => setBudgetAmount(e.target.value)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal" /></label>
             <label className="grid gap-1 text-xs font-medium text-slate-700">Notes / assumptions<textarea value={budgetNotes} onChange={(e) => setBudgetNotes(e.target.value)} rows={2} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal" /></label>
