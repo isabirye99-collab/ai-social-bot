@@ -1237,7 +1237,7 @@ export default function StrategyPlanningPage() {
               </tr>)}
               {budgetItems.filter((item)=>item.plan_id===(currentPlan?.id??plans.find(p=>p.strategy_year===2026)?.id)).length===0&&<tr><td colSpan={9} className="px-4 py-8 text-center text-sm text-slate-500">No budget lines are loaded for this strategy year yet.</td></tr>}
             </tbody>
-            <tfoot className="bg-slate-50 font-semibold text-slate-800"><tr><td colSpan={3} className="px-3 py-3">TOTAL</td><td className="px-3 py-3">{budgetItems.filter(item=>item.plan_id===(currentPlan?.id??plans.find(p=>p.strategy_year===2026)?.id)).reduce((n,x)=>n+Number(x.planned_amount||0),0).toLocaleString("en-UG")}</td><td className="px-3 py-3">{budgetItems.filter(item=>item.plan_id===(currentPlan?.id??plans.find(p=>p.strategy_year===2026)?.id)).reduce((n,x)=>n+Number(x.actual_spent||0),0).toLocaleString("en-UG")}</td><td colSpan={4} className="px-3 py-3">Budget totals update automatically</td></tr></tfoot>
+            <tfoot className="bg-slate-50 font-semibold text-slate-800"><tr><td colSpan={3} className="px-3 py-3">TOTAL</td><td className="px-3 py-3">{budgetItems.filter(item=>item.plan_id===(currentPlan?.id??plans.find(p=>p.strategy_year===2026)?.id)).reduce((n,x)=>n+Number(x.planned_amount||0),0).toLocaleString("en-UG")}</td><td colSpan={4} className="px-3 py-3">Budget totals update automatically</td></tr></tfoot>
           </table>
         </div>
         <div className="border-t border-slate-200 p-4"><h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Recruitment cycle allocations</h3><p className="mt-1 text-xs text-slate-500">Keep cycle-level planning alongside the detailed annual register.</p>
