@@ -43,9 +43,6 @@ const sections = [
   ["Budget Planning", "Annual budget, cycle allocations and commitments", "strategy-budget"],
   ["Performance & Outcomes", "Recruitment and objective progress", "annual-strategy-register"],
   ["Weekly Reports & Meetings", "Staff reports, minutes and assigned actions", "weekly-reports"],
-  ["Risks & Corrective Actions", "Risk register, mitigations and deadlines", "strategy-risks"],
-  ["Approvals Centre", "Pending decisions and approval history", "strategy-approvals"],
-  ["Management Reports", "Executive summaries and approved report history", "strategy-management-reports"],
 ];
 
 function statusLabel(status: string) {
@@ -966,11 +963,11 @@ export default function StrategyPlanningPage() {
       <section aria-labelledby="planning-workspaces-heading" className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-white to-emerald-50/60 p-4 shadow-sm sm:p-5">
         <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
           <div><h2 id="planning-workspaces-heading" className="text-base font-semibold text-slate-900">Planning workspaces</h2><p className="mt-1 text-xs text-slate-600">Choose an area to open only the register you need. Your data and workflows stay in place.</p></div>
-          <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-emerald-800 ring-1 ring-emerald-100">9 workspaces</span>
+          <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-emerald-800 ring-1 ring-emerald-100">6 workspaces</span>
         </div>
         <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
           {sections.map(([title, description], index) => {
-            const keys = ["general", "intakes", "activities", "budget", "performance", "weekly", "risks", "approvals", "reports"] as const;
+            const keys = ["general", "intakes", "activities", "budget", "performance", "weekly"] as const;
             const key = keys[index];
             const selected = activeWorkspace === key;
             return <button key={title} type="button" aria-pressed={selected} onClick={() => { setActiveWorkspace(key); window.scrollTo({ top: 0, behavior: "smooth" }); }} className={`group flex min-h-[88px] items-start gap-3 rounded-xl border p-3 text-left transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 ${selected ? "border-emerald-700 bg-emerald-800 text-white shadow-sm" : "border-slate-200 bg-white text-slate-900 hover:border-emerald-300"}`}>
@@ -980,22 +977,7 @@ export default function StrategyPlanningPage() {
           })}
         </div>
       </section>
-      {currentPlan && (
-        <section aria-label="Attention required" className={`overflow-hidden rounded-xl border ${attentionTotal ? "border-amber-200 bg-amber-50/40" : "border-emerald-200 bg-emerald-50/30"} shadow-sm transition-all duration-200`}>
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/70 px-4 py-3 sm:px-5">
-          <div><div className="flex flex-wrap items-center gap-2"><h2 className="text-sm font-semibold text-slate-900">Attention required</h2><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${attentionTotal ? "bg-amber-100 text-amber-900" : "bg-emerald-100 text-emerald-800"}`}>{attentionTotal} item{attentionTotal === 1 ? "" : "s"}</span></div><p className="mt-1 text-xs text-slate-600">Prioritised follow-up for overdue strategic delivery, critical risks and late management actions.</p><p className="mt-1 text-xs text-amber-800">{unassignedOwnerTotal} outstanding item{unassignedOwnerTotal === 1 ? "" : "s"} without an accountable owner.</p></div>
-          <button type="button" onClick={() => void load()} disabled={loading} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-emerald-400 hover:bg-emerald-50 disabled:opacity-50">{loading ? "Refreshing…" : "Refresh queue"}</button>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 border-b border-white/70 px-4 py-3 sm:px-5" role="group" aria-label="Filter attention items">
-          {([{ value: "all", label: `All items (${attentionTotal})` }, { value: "activities", label: `Activities (${attentionActivities.length})` }, { value: "risks", label: `Risks (${attentionRisks.length})` }, { value: "actions", label: `Meeting actions (${attentionActions.length})` }] as const).map((filter) => <button key={filter.value} type="button" onClick={() => setAttentionFilter(filter.value)} aria-pressed={attentionFilter === filter.value} className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${attentionFilter === filter.value ? "border-emerald-800 bg-emerald-800 text-white" : "border-slate-200 bg-white text-slate-600 hover:border-emerald-300 hover:text-emerald-800"}`}>{filter.label}</button>)}
-        </div>
-        {visibleAttentionTotal === 0 ? <div className="flex items-center gap-3 px-4 py-4 sm:px-5"><span className="grid h-9 w-9 place-items-center rounded-full bg-emerald-100 text-emerald-800">✓</span><div><p className="text-sm font-medium text-slate-800">{attentionTotal === 0 ? "No flagged items for this strategy year" : "No items in this filter"}</p><p className="mt-1 text-xs text-slate-600">Completed items are excluded. Keep dates and risk/action statuses up to date.</p></div></div> : <div className="grid gap-3 p-3 sm:grid-cols-2 xl:grid-cols-3 sm:p-4">
-          {(attentionFilter === "all" || attentionFilter === "activities") && attentionActivities.map((activity) => <a key={`activity-${activity.id}`} href="#strategy-activities" className="group rounded-lg border border-amber-200 bg-white p-3 transition-all duration-200 hover:-translate-y-0.5 hover:border-amber-400 hover:shadow-sm"><div className="flex items-start justify-between gap-2"><span className="text-[10px] font-bold uppercase tracking-wide text-amber-800">{activity.status === "delayed" ? "Marked delayed" : "Activity overdue"}</span><span className="text-xs text-emerald-800 transition-transform group-hover:translate-x-0.5">Review →</span></div><p className="mt-1 text-sm font-semibold text-slate-900">{activity.title}</p>{activity.description && <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-600">{activity.description}</p>}<p className="mt-2 text-xs text-slate-500">{activity.ends_on ? `Due ${new Date(activity.ends_on + "T00:00:00").toLocaleDateString()}` : "Delivery date needs review"} · {statusLabel(activity.status)}</p><p className="mt-1 text-[10px] text-slate-400">Strategic activity · Owner: {activity.owner_id ? (strategyProfileNames[activity.owner_id] || "Assigned staff member") : "Unassigned"}</p></a>)}
-          {(attentionFilter === "all" || attentionFilter === "risks") && attentionRisks.map((risk) => <a key={`risk-${risk.id}`} href="#strategy-risks" className="group rounded-lg border border-amber-200 bg-white p-3 transition-all duration-200 hover:-translate-y-0.5 hover:border-amber-400 hover:shadow-sm"><div className="flex items-start justify-between gap-2"><span className="text-[10px] font-bold uppercase tracking-wide text-amber-800">{risk.priority === "critical" ? "Critical risk" : "Risk action overdue"}</span><span className="text-xs text-emerald-800 transition-transform group-hover:translate-x-0.5">Review →</span></div><p className="mt-1 text-sm font-semibold text-slate-900">{risk.title}</p>{risk.corrective_action && <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-600">Action: {risk.corrective_action}</p>}<p className="mt-2 text-xs text-slate-500">{risk.due_date ? `Due ${new Date(risk.due_date + "T00:00:00").toLocaleDateString()}` : "No deadline recorded"} · {statusLabel(risk.status)}</p><p className="mt-1 text-[10px] text-slate-400">Priority: {statusLabel(risk.priority)} · Owner: {risk.owner_id ? (strategyProfileNames[risk.owner_id] || "Assigned staff member") : "Unassigned"}</p></a>)}
-          {(attentionFilter === "all" || attentionFilter === "actions") && attentionActions.map((action) => <a key={`action-${action.id}`} href="#meeting-actions" className="group rounded-lg border border-amber-200 bg-white p-3 transition-all duration-200 hover:-translate-y-0.5 hover:border-amber-400 hover:shadow-sm"><div className="flex items-start justify-between gap-2"><span className="text-[10px] font-bold uppercase tracking-wide text-amber-800">Meeting action overdue</span><span className="text-xs text-emerald-800 transition-transform group-hover:translate-x-0.5">Review →</span></div><p className="mt-1 text-sm font-semibold text-slate-900">{action.action}</p>{action.notes && <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-600">{action.notes}</p>}<p className="mt-2 text-xs text-slate-500">Due {action.due_date ? new Date(action.due_date + "T00:00:00").toLocaleDateString() : "date not recorded"}</p><p className="mt-1 text-[10px] text-slate-400">Meeting action · {statusLabel(action.status)} · Owner: {action.owner_id ? (strategyProfileNames[action.owner_id] || "Assigned staff member") : "Unassigned"}</p></a>)}
-        </div>}
-        </section>
-      )}
+
 
 
       {error && <div role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{error}</div>}
