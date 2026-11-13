@@ -885,7 +885,7 @@ export default function StrategyPlanningPage() {
       </section>
 
       {currentPlan && (
-        <section hidden={activeWorkspace !== "budget" && activeWorkspace !== "risks"} className="grid gap-5 xl:grid-cols-2">
+        <section hidden={activeWorkspace !== "general" && activeWorkspace !== "intakes"} className="grid gap-5 xl:grid-cols-2">
           <div id="strategy-objectives" hidden={activeWorkspace !== "general"} className="rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
             <div className="border-b border-slate-200 px-4 py-3"><h2 className="text-sm font-semibold text-slate-900">Annual objectives</h2><p className="mt-1 text-xs text-slate-500">Create measurable objectives for {currentYear}.</p></div>
             <form onSubmit={(event) => { event.preventDefault(); void addObjective(); }} className="grid gap-3 p-4">
