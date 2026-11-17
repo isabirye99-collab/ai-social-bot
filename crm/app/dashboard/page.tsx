@@ -644,12 +644,6 @@ export default function DashboardPage() {
         color: "#a4d66d",
         tint: "#f5f9ed",
       },
-      {
-        label: "Enrolled",
-        value: stats.enrolled,
-        color: "#075442",
-        tint: "#eaf4ef",
-      },
     ];
 
     const first = Math.max(
