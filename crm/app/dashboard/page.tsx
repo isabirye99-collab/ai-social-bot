@@ -558,11 +558,18 @@ export default function DashboardPage() {
         task.status !== "done",
     ).length;
 
-    const interested = leads.filter(
-      (lead) =>
-        lead.status === "qualified" ||
-        lead.status === "interested",
-    ).length;
+    const interested = leads.filter((lead) => {
+      const status = (lead.status || "").trim().toLowerCase().replace(/[_-]+/g, " ");
+      return ["qualified", "interested"].includes(status);
+    }).length;
+
+    const dropped = leads.filter((lead) => {
+      const status = (lead.status || "").trim().toLowerCase().replace(/[_-]+/g, " ");
+      return ["dropped", "lost", "disqualified", "closed lost", "not interested"].includes(status);
+    }).length;
+
+    // Every lead belongs to exactly one dashboard bucket: interested, dropped or in progress.
+    const inProgress = Math.max(0, leads.length - interested - dropped);
 
     const enrolled = enrolledOpportunities.length;
 
@@ -611,6 +618,8 @@ export default function DashboardPage() {
       followUpsDue,
       tasksToday,
       interested,
+      dropped,
+      inProgress,
       enrolled,
       completedTasks,
       newLeads,
@@ -793,13 +802,28 @@ export default function DashboardPage() {
       tone: "green",
     },
     {
-      label: "Interested leads",
-      description:
-        "Prospects ready for conversion",
+      label: "Interested",
+      description: "Leads marked as interested or qualified",
       value: stats.interested,
       href: "/leads",
       icon: "target",
       tone: "lime",
+    },
+    {
+      label: "Dropped",
+      description: "Leads marked dropped, lost or not interested",
+      value: stats.dropped,
+      href: "/leads",
+      icon: "alert",
+      tone: "amber",
+    },
+    {
+      label: "In progress",
+      description: "Remaining leads still being worked",
+      value: stats.inProgress,
+      href: "/leads",
+      icon: "clock",
+      tone: "green",
     },
     {
       label: "Enrolled students",
