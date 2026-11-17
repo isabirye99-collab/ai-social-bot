@@ -48,9 +48,9 @@ export async function updateSession(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
   // Prospective students must be able to open campaign lead-capture links
-  // without having a CRM staff account. The form submits through the
-  // public-lead-capture Edge Function, which performs server-side validation.
-  if (pathname === "/lead-capture" || pathname.startsWith("/lead-capture/")) {
+  // without having a CRM staff account. Student registration accepts only
+  // inserts for an existing secondary school through restrictive table RLS.
+  if (pathname === "/lead-capture" || pathname.startsWith("/lead-capture/") || pathname === "/school-student-registration" || pathname.startsWith("/school-student-registration/")) {
     return NextResponse.next({ request });
   }
 
