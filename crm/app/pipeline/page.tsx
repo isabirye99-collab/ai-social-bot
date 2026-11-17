@@ -44,26 +44,13 @@ type Profile = {
 };
 
 const WORKFLOW = [
-  {
-    name: "Leads",
-    probability: 10,
-  },
-  {
-    name: "Applied",
-    probability: 40,
-  },
-  {
-    name: "Paid Application Fee",
-    probability: 75,
-  },
-  {
-    name: "Paid Acceptance Fee",
-    probability: 100,
-  },
-  {
-    name: "Enrolled",
-    probability: 100,
-  },
+  { name: "Leads", probability: 10 },
+  { name: "Applied", probability: 35 },
+  { name: "Application Submitted", probability: 50 },
+  { name: "Admitted", probability: 65 },
+  { name: "Paid Application Fee", probability: 75 },
+  { name: "Paid Acceptance Fee", probability: 90 },
+  { name: "Enrolled", probability: 100 },
 ];
 
 function normalizeStageName(
@@ -97,8 +84,17 @@ function stageMatches(
     applied: [
       "application",
       "application started",
-      "admitted",
+    ],
+
+    "application submitted": [
+      "submitted application",
+      "application complete",
+    ],
+
+    admitted: [
       "admission",
+      "accepted",
+      "offer made",
     ],
 
     "paid application fee": [
