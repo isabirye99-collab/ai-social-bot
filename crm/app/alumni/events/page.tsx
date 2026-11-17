@@ -2,6 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 type AlumniEvent = {
@@ -22,6 +23,7 @@ const secondary: React.CSSProperties = { border: "1px solid #d9e4dd", borderRadi
 
 export default function AlumniEventsPage() {
   const supabase = createClient();
+  const searchParams = useSearchParams();
   const [events, setEvents] = useState<AlumniEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -46,6 +48,13 @@ export default function AlumniEventsPage() {
 
   useEffect(() => { void load(); }, [load]);
 
+  useEffect(() => {
+    const eventId = searchParams.get("event");
+    if (!eventId || !events.length) return;
+    const match = events.find(event => event.id === eventId);
+    if (match && selected?.id !== match.id) void openRegistrations(match);
+  }, [searchParams, events, selected?.id]);
+
   async function createEvent(e: FormEvent) {
     e.preventDefault(); setSaving(true); setError(""); setNotice("");
     const { error: saveError } = await supabase.from("alumni_events").insert({
@@ -63,6 +72,12 @@ export default function AlumniEventsPage() {
       await load();
     }
     setSaving(false);
+  }
+
+  async function copyAttendanceLink(event: AlumniEvent) {
+    const url = window.location.origin + "/alumni/events?event=" + encodeURIComponent(event.id);
+    try { await navigator.clipboard.writeText(url); setNotice("Staff attendance link copied. Recipients must have permission to access the CIU CRM."); }
+    catch { setNotice("Attendance link: " + url); }
   }
 
   async function setStatus(event: AlumniEvent, status: string) {
@@ -147,7 +162,7 @@ export default function AlumniEventsPage() {
           <td style={{ padding: 12 }}>{new Date(event.starts_at).toLocaleString()}<div style={{ color: "#87958d", marginTop: 3 }}>{event.venue || "Venue to be confirmed"}</div></td>
           <td style={{ padding: 12 }}>{event.capacity ?? "Unlimited"}</td>
           <td style={{ padding: 12, textTransform: "capitalize" }}>{event.status.replaceAll("_", " ")}</td>
-          <td style={{ padding: 12, display: "flex", flexWrap: "wrap", gap: 6 }}><button style={secondary} onClick={() => void openRegistrations(event)}>Registrations</button>{event.status === "draft" && <button style={primary} onClick={() => void setStatus(event, "published")}>Publish</button>}{event.status === "published" && <button style={secondary} onClick={() => void setStatus(event, "completed")}>Complete</button>}{event.status !== "cancelled" && event.status !== "completed" && <button style={{ ...secondary, color: "#a32828" }} onClick={() => void setStatus(event, "cancelled")}>Cancel</button>}</td>
+          <td style={{ padding: 12, display: "flex", flexWrap: "wrap", gap: 6 }}><button style={secondary} onClick={() => void openRegistrations(event)}>Registrations</button>{event.status === "draft" && <button style={primary} onClick={() => void setStatus(event, "published")}>Publish</button>}{event.status === "published" && <><button style={secondary} onClick={() => void copyAttendanceLink(event)}>Copy attendance link</button><button style={secondary} onClick={() => void setStatus(event, "completed")}>Complete</button></>}{event.status !== "cancelled" && event.status !== "completed" && <button style={{ ...secondary, color: "#a32828" }} onClick={() => void setStatus(event, "cancelled")}>Cancel</button>}</td>
         </tr>)}</tbody>
       </table></div>
     </section>
