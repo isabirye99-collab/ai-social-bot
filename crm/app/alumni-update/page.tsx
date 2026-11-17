@@ -57,7 +57,7 @@ export default function AlumniUpdatePage() {
  async function submit(e:FormEvent) {
    e.preventDefault();setBusy(true);setError("");setNotice("");
    const changes:Record<string,unknown>={...profile,profile_bio:bio,career_interests:interests,...preferences};
-   delete changes.full_name;delete changes.alumni_id;
+   delete changes.id;delete changes.full_name;delete changes.alumni_id;
    try {const result=await call({action:"submit_update",email:email.trim(),sessionToken:token,changes});setNotice(result.message||"Your update has been submitted for review.");setStage("done");}
    catch(err){setError(err instanceof Error?err.message:"Unable to submit your update.");}
    finally{setBusy(false);}
