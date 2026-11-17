@@ -41,6 +41,9 @@ type SchoolForm = {
 };
 
 type Staff = { id: string; full_name: string | null; role: string | null };
+type StudentContact = { id: string; school_id: string; student_name: string; contact: string; email: string | null; program: string; created_at: string; school?: { school_name: string } | null };
+type StudentContactForm = { school_id: string; student_name: string; contact: string; email: string; program: string };
+const EMPTY_STUDENT_FORM: StudentContactForm = { school_id: "", student_name: "", contact: "", email: "", program: "" };
 
 const EMPTY_FORM: SchoolForm = {
   school_name: "", school_type: "Secondary", district: "", region: "",
@@ -65,6 +68,11 @@ function dateLabel(value: string | null) {
 export default function SchoolsPage() {
   const [schools, setSchools] = useState<School[]>([]);
   const [staff, setStaff] = useState<Staff[]>([]);
+  const [studentContacts, setStudentContacts] = useState<StudentContact[]>([]);
+  const [studentForm, setStudentForm] = useState<StudentContactForm>(EMPTY_STUDENT_FORM);
+  const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
+  const [showStudentForm, setShowStudentForm] = useState(false);
+  const [studentSearch, setStudentSearch] = useState("");
   const [form, setForm] = useState<SchoolForm>(EMPTY_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -79,9 +87,9 @@ export default function SchoolsPage() {
     setLoading(true);
     setError("");
     try {
-      const [{ data: schoolRows, error: schoolError }, { data: staffRows, error: staffError }] = await Promise.all([
+      const [{ data: schoolRows, error: schoolError }, { data: staffRows, error: staffError }, { data: contactRows, error: contactError }] = await Promise.all([
         supabase.from("schools").select("*").order("updated_at", { ascending: false }),
-        supabase.from("profiles").select("id,full_name,role").eq("is_active", true).order("full_name"),
+        supabase.from("profiles").select("id,full_name,role").eq("is_active", true).order("full_name"),\n        supabase.from("school_student_contacts").select("id,school_id,student_name,contact,email,program,created_at,school:schools(school_name)").order("created_at", { ascending: false }),
       ]);
       if (schoolError) throw schoolError;
       if (staffError) throw staffError;
@@ -183,6 +191,29 @@ export default function SchoolsPage() {
     }
   }
 
+  async function saveStudentContact(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault(); setSaving(true); setError(""); setSuccess("");
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) throw userError;
+      if (!user) throw new Error("Please sign in again before saving.");
+      const payload = { school_id: studentForm.school_id, student_name: studentForm.student_name.trim(), contact: studentForm.contact.trim(), email: studentForm.email.trim() || null, program: studentForm.program.trim(), updated_at: new Date().toISOString() };
+      const result = editingStudentId ? await supabase.from("school_student_contacts").update(payload).eq("id", editingStudentId) : await supabase.from("school_student_contacts").insert({ ...payload, created_by: user.id });
+      if (result.error) throw result.error;
+      setSuccess(editingStudentId ? "Student contact updated." : "Student contact added.");
+      setShowStudentForm(false); setEditingStudentId(null); setStudentForm(EMPTY_STUDENT_FORM); await load();
+    } catch (e) { setError(e instanceof Error ? e.message : "Unable to save student contact."); }
+    finally { setSaving(false); }
+  }
+  function editStudentContact(contact: StudentContact) {
+    setEditingStudentId(contact.id); setStudentForm({ school_id: contact.school_id, student_name: contact.student_name, contact: contact.contact, email: contact.email || "", program: contact.program }); setShowStudentForm(true); setError(""); setSuccess("");
+  }
+  async function deleteStudentContact(contact: StudentContact) {
+    if (!window.confirm("Delete student contact for " + contact.student_name + "?")) return;
+    const { error: deleteError } = await supabase.from("school_student_contacts").delete().eq("id", contact.id);
+    if (deleteError) { setError(deleteError.message); return; } setSuccess("Student contact deleted."); await load();
+  }
+
   async function deleteSchool(school: School) {
     if (!window.confirm("Delete the record for " + school.school_name + "? This cannot be undone.")) return;
     setError(""); setSuccess("");
@@ -244,6 +275,20 @@ export default function SchoolsPage() {
           <div className="flex justify-end gap-3 border-t border-slate-100 pt-4"><button type="button" onClick={() => setShowForm(false)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600">Cancel</button><button disabled={saving} className="rounded-xl bg-emerald-800 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60">{saving ? "Saving…" : editingId ? "Save changes" : "Save school"}</button></div>
         </form>
       </section>}
+
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="font-bold text-slate-900">Secondary school student contacts</h2><p className="mt-1 text-xs text-slate-500">Record each prospective student, contact details and intended CIU programme.</p></div><button onClick={() => { setEditingStudentId(null); setStudentForm(EMPTY_STUDENT_FORM); setShowStudentForm(v => !v); }} className="rounded-xl bg-emerald-800 px-4 py-2.5 text-sm font-semibold text-white">+ Add student contact</button></div>
+        {showStudentForm && <form onSubmit={saveStudentContact} className="grid grid-cols-1 gap-4 border-b border-slate-100 p-4 sm:grid-cols-2 lg:grid-cols-3">
+          <label className="space-y-1.5 text-sm font-medium text-slate-700">School name *<select required className={fieldClass()} value={studentForm.school_id} onChange={e => setStudentForm(v => ({...v, school_id:e.target.value}))}><option value="">Select secondary school</option>{schools.filter(s => s.school_type === "Secondary").map(s => <option key={s.id} value={s.id}>{s.school_name}</option>)}</select></label>
+          <label className="space-y-1.5 text-sm font-medium text-slate-700">Student name *<input required className={fieldClass()} value={studentForm.student_name} onChange={e => setStudentForm(v => ({...v, student_name:e.target.value}))} /></label>
+          <label className="space-y-1.5 text-sm font-medium text-slate-700">Contact / phone *<input required type="tel" className={fieldClass()} value={studentForm.contact} onChange={e => setStudentForm(v => ({...v, contact:e.target.value}))} /></label>
+          <label className="space-y-1.5 text-sm font-medium text-slate-700">Email<input type="email" className={fieldClass()} value={studentForm.email} onChange={e => setStudentForm(v => ({...v, email:e.target.value}))} /></label>
+          <label className="space-y-1.5 text-sm font-medium text-slate-700">Program *<input required placeholder="e.g. Bachelor of Nursing" className={fieldClass()} value={studentForm.program} onChange={e => setStudentForm(v => ({...v, program:e.target.value}))} /></label>
+          <div className="flex items-end gap-2"><button disabled={saving} className="rounded-xl bg-emerald-800 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60">{saving ? "Saving…" : editingStudentId ? "Save changes" : "Save student"}</button><button type="button" onClick={() => {setShowStudentForm(false); setEditingStudentId(null);}} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm">Cancel</button></div>
+        </form>}
+        <div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between"><p className="text-xs text-slate-500">{studentContacts.length} student contacts</p><input aria-label="Search student contacts" placeholder="Search student, school, contact, program…" className={fieldClass() + " sm:min-w-80"} value={studentSearch} onChange={e => setStudentSearch(e.target.value)} /></div>
+        {(() => { const q = studentSearch.trim().toLowerCase(); const rows = studentContacts.filter(s => [s.student_name,s.contact,s.email,s.program,s.school?.school_name].some(v => (v || "").toLowerCase().includes(q))); return rows.length ? <div className="overflow-x-auto"><table className="min-w-[850px] w-full text-left text-sm"><thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th className="px-4 py-3">School name</th><th className="px-4 py-3">Student name</th><th className="px-4 py-3">Contact</th><th className="px-4 py-3">Email</th><th className="px-4 py-3">Program</th><th className="px-4 py-3">Actions</th></tr></thead><tbody className="divide-y divide-slate-100">{rows.map(student => <tr key={student.id} className="hover:bg-slate-50/70"><td className="px-4 py-3 font-medium">{student.school?.school_name || schools.find(s => s.id === student.school_id)?.school_name || "—"}</td><td className="px-4 py-3">{student.student_name}</td><td className="px-4 py-3">{student.contact}</td><td className="px-4 py-3">{student.email || "—"}</td><td className="px-4 py-3">{student.program}</td><td className="px-4 py-3"><div className="flex gap-2"><button onClick={() => editStudentContact(student)} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold">Edit</button><button onClick={() => void deleteStudentContact(student)} className="rounded-lg px-2 py-1.5 text-xs font-semibold text-red-600">Delete</button></div></td></tr>)}</tbody></table></div> : <div className="p-8 text-center text-sm text-slate-500">No student contacts found. Add a contact to get started.</div>; })()}
+      </section>
 
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
