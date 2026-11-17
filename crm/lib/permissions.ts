@@ -90,6 +90,7 @@ export const ROLE_MODULES: Record<CrmRole, CrmModule[]> = {
   salesperson: [
     "dashboard",
     "leads",
+    "schools",
     "customers",
     "pipeline",
     "tasks",
@@ -98,7 +99,7 @@ export const ROLE_MODULES: Record<CrmRole, CrmModule[]> = {
   ],
   marketing: ["dashboard", "leads", "schools", "marketing", "strategy", "partnerships", "alumni", "reports", "advanced"],
   finance: ["dashboard", "customers", "pipeline", "reports", "advanced"],
-  viewer: ["dashboard", "leads", "customers", "pipeline", "reports"],
+  viewer: ["dashboard", "leads", "schools", "customers", "pipeline", "reports"],
 };
 
 export function isValidCrmRole(
