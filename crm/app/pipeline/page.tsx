@@ -1031,10 +1031,6 @@ export default function Pipeline() {
   function displayStageName(
     name: string,
   ) {
-    if (name === "Applied") {
-      return "Applied / Admitted";
-    }
-
     if (
       name ===
       "Paid Application Fee"
