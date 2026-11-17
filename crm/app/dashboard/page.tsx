@@ -502,9 +502,9 @@ export default function DashboardPage() {
         item.status !== "lost",
     );
 
-    const applied = opportunities.filter((item) =>
-      opportunityIsInStage(item, "Applied"),
-    );
+    const admittedStages = ["Applied", "Application Submitted", "Admitted", "Paid Application Fee"];
+    const applied = opportunities.filter((item) => opportunityIsInStage(item, "Applied")); 
+    const admittedTotal = opportunities.filter((item) => admittedStages.some((stage) => opportunityIsInStage(item, stage))).length;
 
     const applicationFeePaid = opportunities.filter((item) =>
       opportunityIsInStage(
@@ -520,12 +520,11 @@ export default function DashboardPage() {
       ),
     );
 
-    const enrolledOpportunities = opportunities.filter(
-      (item) =>
-        opportunityIsInStage(item, "Enrolled") &&
-        (item.status === "won" ||
-          item.status === "open"),
+    const enrolledOpportunities = opportunities.filter((item) =>
+      (opportunityIsInStage(item, "Enrolled") || opportunityIsInStage(item, "Paid Acceptance Fee")) &&
+      (item.status === "won" || item.status === "open")
     );
+    const enrolledTotal = enrolledOpportunities.length;
 
     const weightedForecast = openDeals.reduce(
       (total, item) => {
@@ -634,20 +633,14 @@ export default function DashboardPage() {
         tint: "#eaf4ef",
       },
       {
-        label: "Applied / Admitted",
-        value: stats.applied,
+        label: "Admitted",
+        value: stats.admittedTotal,
         color: "#8abf52",
         tint: "#f3f8e9",
       },
       {
-        label: "Application Fee Paid",
-        value: stats.applicationFeePaid,
-        color: "#28765f",
-        tint: "#e7f3ee",
-      },
-      {
-        label: "Acceptance Fee Paid",
-        value: stats.acceptanceFeePaid,
+        label: "Enrolled",
+        value: stats.enrolledTotal,
         color: "#a4d66d",
         tint: "#f5f9ed",
       },
@@ -679,10 +672,8 @@ export default function DashboardPage() {
     }));
   }, [
     leads.length,
-    stats.applied,
-    stats.applicationFeePaid,
-    stats.acceptanceFeePaid,
-    stats.enrolled,
+    stats.admittedTotal,
+    stats.enrolledTotal,
   ]);
 
   const pipelineOverview = useMemo(() => {
