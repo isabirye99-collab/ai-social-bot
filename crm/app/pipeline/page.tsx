@@ -21,6 +21,7 @@ type Lead = {
   product_service: string | null;
   contact_id: string | null;
   assigned_to: string | null;
+  status?: string | null;
 };
 
 type Opportunity = {
@@ -288,7 +289,7 @@ export default function Pipeline() {
         supabase
           .from("leads")
           .select(
-            "id, ciu_number, name, phone, email, product_service, contact_id, assigned_to",
+            "id, ciu_number, name, phone, email, product_service, contact_id, assigned_to, status",
           )
           .order("name", {
             ascending: true,
@@ -1136,6 +1137,20 @@ export default function Pipeline() {
             {errorMessage}
           </div>
         )}
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3" style={{ marginTop: 18 }}>
+          {[
+            { label: "Interested", count: leads.filter((lead) => ["interested", "qualified"].includes((lead.status || "").trim().toLowerCase().replace(/[_-]+/g, " "))).length, hint: "Interested or qualified leads" },
+            { label: "Admitted", count: opportunities.filter((opportunity) => { const stage = getStageForOpportunity(opportunity)?.name || ""; return ["Applied", "Application Submitted", "Admitted", "Paid Application Fee"].includes(stage); }).length, hint: "Applications through admission and application fee" },
+            { label: "Enrolled", count: opportunities.filter((opportunity) => ["Enrolled", "Paid Acceptance Fee"].includes(getStageForOpportunity(opportunity)?.name || "") && ["won", "open"].includes(opportunity.status)).length, hint: "Successful admissions" },
+          ].map((metric) => (
+            <div key={metric.label} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{metric.label}</p>
+              <p className="mt-2 text-2xl font-extrabold text-emerald-900">{metric.count.toLocaleString()}</p>
+              <p className="mt-1 text-xs text-slate-500">{metric.hint}</p>
+            </div>
+          ))}
+        </div>
 
         <div
           className="pipeline-stage-tabs-wrap"
