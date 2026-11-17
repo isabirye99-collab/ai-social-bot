@@ -73,6 +73,8 @@ export default function SchoolsPage() {
   const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
   const [showStudentForm, setShowStudentForm] = useState(false);
   const [studentSearch, setStudentSearch] = useState("");
+  const [importingCsv, setImportingCsv] = useState(false);
+  const [publicFormSchoolId, setPublicFormSchoolId] = useState("");
   const [form, setForm] = useState<SchoolForm>(EMPTY_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -96,6 +98,8 @@ export default function SchoolsPage() {
       if (staffError) throw staffError;
       setSchools((schoolRows || []) as School[]);
       setStaff((staffRows || []) as Staff[]);
+      if (contactError) throw contactError;
+      setStudentContacts((contactRows || []) as unknown as StudentContact[]);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unable to load the School Database.");
     } finally {
@@ -209,6 +213,83 @@ export default function SchoolsPage() {
   function editStudentContact(contact: StudentContact) {
     setEditingStudentId(contact.id); setStudentForm({ school_id: contact.school_id, student_name: contact.student_name, contact: contact.contact, email: contact.email || "", program: contact.program }); setShowStudentForm(true); setError(""); setSuccess("");
   }
+  function parseCsv(text: string): string[][] {
+    const rows: string[][] = [];
+    let row: string[] = [], cell = "", quoted = false;
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      if (ch === '"' && quoted && text[i + 1] === '"') { cell += '"'; i++; }
+      else if (ch === '"') quoted = !quoted;
+      else if (ch === "," && !quoted) { row.push(cell.trim()); cell = ""; }
+      else if ((ch === "\n" || ch === "\r") && !quoted) {
+        if (ch === "\r" && text[i + 1] === "\n") i++;
+        row.push(cell.trim()); cell = "";
+        if (row.some(value => value.length)) rows.push(row);
+        row = [];
+      } else cell += ch;
+    }
+    row.push(cell.trim());
+    if (row.some(value => value.length)) rows.push(row);
+    return rows;
+  }
+
+  async function importStudentCsv(file?: File) {
+    if (!file) return;
+    setImportingCsv(true); setError(""); setSuccess("");
+    try {
+      const parsed = parseCsv(await file.text());
+      if (parsed.length < 2) throw new Error("The CSV is empty or has no student rows.");
+      const headers = parsed[0].map(value => value.toLowerCase().replace(/[ _-]+/g, ""));
+      const findColumn = (...names: string[]) => headers.findIndex(h => names.includes(h));
+      const schoolCol = findColumn("school", "schoolname");
+      const nameCol = findColumn("studentname", "name", "fullname");
+      const contactCol = findColumn("contact", "phone", "telephone", "phonenumber");
+      const emailCol = findColumn("email", "emailaddress");
+      const programCol = findColumn("program", "programme", "course");
+      if ([schoolCol, nameCol, contactCol, programCol].some(i => i < 0)) {
+        throw new Error("CSV headers must include School name, Student name, Contact and Program. Email is optional.");
+      }
+      const schoolLookup = new Map(schools.map(s => [s.school_name.trim().toLowerCase(), s]));
+      const rows = parsed.slice(1);
+      const payload = rows.map((row, index) => {
+        const school = schoolLookup.get((row[schoolCol] || "").trim().toLowerCase());
+        const student_name = (row[nameCol] || "").trim();
+        const contact = (row[contactCol] || "").trim();
+        const program = (row[programCol] || "").trim();
+        if (!school || !student_name || !contact || !program) {
+          throw new Error("CSV row " + (index + 2) + " has a missing required value or a school name that does not match the School Database.");
+        }
+        return { school_id: school.id, student_name, contact, email: emailCol >= 0 ? ((row[emailCol] || "").trim() || null) : null, program };
+      });
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) throw userError;
+      if (!user) throw new Error("Please sign in again before importing.");
+      for (let i = 0; i < payload.length; i += 100) {
+        const { error: insertError } = await supabase.from("school_student_contacts").insert(payload.slice(i, i + 100).map(row => ({ ...row, created_by: user.id })));
+        if (insertError) throw insertError;
+      }
+      setSuccess("Imported " + payload.length + " student contacts successfully.");
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to import the CSV.");
+    } finally {
+      setImportingCsv(false);
+    }
+  }
+
+  async function copyStudentFormLink() {
+    if (!publicFormSchoolId) { setError("Select a secondary school first to create its student form link."); return; }
+    const school = schools.find(s => s.id === publicFormSchoolId);
+    if (!school) return;
+    const url = window.location.origin + "/school-student-registration?school_id=" + encodeURIComponent(school.id) + "&school_name=" + encodeURIComponent(school.school_name);
+    try {
+      await navigator.clipboard.writeText(url);
+      setSuccess("Phone registration link copied for " + school.school_name + ". You can share it by WhatsApp or display it as a QR code.");
+    } catch {
+      setSuccess("Student form link: " + url);
+    }
+  }
+
   async function deleteStudentContact(contact: StudentContact) {
     if (!window.confirm("Delete student contact for " + contact.student_name + "?")) return;
     const { error: deleteError } = await supabase.from("school_student_contacts").delete().eq("id", contact.id);
@@ -278,7 +359,7 @@ export default function SchoolsPage() {
       </section>}
 
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="font-bold text-slate-900">Secondary school student contacts</h2><p className="mt-1 text-xs text-slate-500">Record each prospective student, contact details and intended CIU programme.</p></div><button onClick={() => { setEditingStudentId(null); setStudentForm(EMPTY_STUDENT_FORM); setShowStudentForm(v => !v); }} className="rounded-xl bg-emerald-800 px-4 py-2.5 text-sm font-semibold text-white">+ Add student contact</button></div>
+        <div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="font-bold text-slate-900">Secondary school student contacts</h2><p className="mt-1 text-xs text-slate-500">Add contacts manually, import a CSV, or share a phone-friendly registration link with students.</p></div><div className="flex flex-wrap gap-2"><label className="inline-flex cursor-pointer items-center rounded-xl border border-emerald-200 px-4 py-2.5 text-sm font-semibold text-emerald-800 hover:bg-emerald-50">{importingCsv ? "Importing CSV…" : "Upload CSV"}<input type="file" accept=".csv,text/csv" className="sr-only" disabled={importingCsv} onChange={e => { void importStudentCsv(e.target.files?.[0]); e.currentTarget.value = ""; }} /></label><button onClick={() => { setEditingStudentId(null); setStudentForm(EMPTY_STUDENT_FORM); setShowStudentForm(v => !v); }} className="rounded-xl bg-emerald-800 px-4 py-2.5 text-sm font-semibold text-white">+ Add student contact</button></div></div><div className="grid grid-cols-1 gap-2 border-b border-slate-100 bg-emerald-50/50 p-4 sm:grid-cols-[1fr_auto] sm:items-center"><div><p className="text-sm font-semibold text-slate-800">Field registration link</p><p className="mt-1 text-xs text-slate-600">Choose a secondary school, then copy a link students can open on their phones. They do not need a CRM account.</p></div><div className="flex gap-2"><select aria-label="School for student registration link" className={fieldClass()} value={publicFormSchoolId} onChange={e => setPublicFormSchoolId(e.target.value)}><option value="">Select secondary school</option>{schools.filter(s => s.school_type.toLowerCase() === "secondary").map(s => <option key={s.id} value={s.id}>{s.school_name}</option>)}</select><button type="button" onClick={() => void copyStudentFormLink()} className="shrink-0 rounded-xl border border-emerald-200 bg-white px-3 py-2 text-sm font-semibold text-emerald-800">Copy link</button></div></div><div className="border-b border-slate-100 px-4 py-2 text-xs text-slate-500">CSV columns: School name, Student name, Contact, Email (optional), Program. School names must match existing records.
         {showStudentForm && <form onSubmit={saveStudentContact} className="grid grid-cols-1 gap-4 border-b border-slate-100 p-4 sm:grid-cols-2 lg:grid-cols-3">
           <label className="space-y-1.5 text-sm font-medium text-slate-700">School name *<select required className={fieldClass()} value={studentForm.school_id} onChange={e => setStudentForm(v => ({...v, school_id:e.target.value}))}><option value="">Select secondary school</option>{schools.filter(s => s.school_type === "Secondary").map(s => <option key={s.id} value={s.id}>{s.school_name}</option>)}</select></label>
           <label className="space-y-1.5 text-sm font-medium text-slate-700">Student name *<input required className={fieldClass()} value={studentForm.student_name} onChange={e => setStudentForm(v => ({...v, student_name:e.target.value}))} /></label>
