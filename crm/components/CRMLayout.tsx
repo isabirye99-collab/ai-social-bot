@@ -26,6 +26,7 @@ type NavItem = {
 const nav: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", module: "dashboard" },
   { label: "Leads", href: "/leads", module: "leads" },
+  { label: "School Database", href: "/schools", module: "schools" },
   { label: "Customers", href: "/customers", module: "customers" },
   { label: "Pipeline", href: "/pipeline", module: "pipeline" },
   { label: "Tasks", href: "/tasks", module: "tasks" },
