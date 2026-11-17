@@ -89,7 +89,8 @@ export default function SchoolsPage() {
     try {
       const [{ data: schoolRows, error: schoolError }, { data: staffRows, error: staffError }, { data: contactRows, error: contactError }] = await Promise.all([
         supabase.from("schools").select("*").order("updated_at", { ascending: false }),
-        supabase.from("profiles").select("id,full_name,role").eq("is_active", true).order("full_name"),\n        supabase.from("school_student_contacts").select("id,school_id,student_name,contact,email,program,created_at,school:schools(school_name)").order("created_at", { ascending: false }),
+        supabase.from("profiles").select("id,full_name,role").eq("is_active", true).order("full_name"),
+        supabase.from("school_student_contacts").select("id,school_id,student_name,contact,email,program,created_at,school:schools(school_name)").order("created_at", { ascending: false }),
       ]);
       if (schoolError) throw schoolError;
       if (staffError) throw staffError;
