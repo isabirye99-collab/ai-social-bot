@@ -1074,8 +1074,29 @@ const isSalesperson =
 
       if (error) throw error;
 
+      // Business rule: completing a task linked to a lead means the
+      // student has applied or been admitted. Reflect that on the lead
+      // record as well as on the task.
+      if (status === "completed" && task.lead_id) {
+        const completedAt = new Date().toISOString();
+        const { error: leadError } = await supabase
+          .from("leads")
+          .update({
+            status: "converted",
+            follow_up_status: "Applied/Admitted",
+            next_follow_up_at: null,
+            converted_at: completedAt,
+            updated_at: completedAt,
+          })
+          .eq("id", task.lead_id);
+
+        if (leadError) throw leadError;
+      }
+
       setSuccess(
-        "Task status updated."
+        status === "completed" && task.lead_id
+          ? "Task completed and lead updated as Applied/Admitted."
+          : "Task status updated."
       );
 
       await loadAll();
