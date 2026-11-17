@@ -2,7 +2,6 @@
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 type AlumniEvent = {
@@ -23,7 +22,6 @@ const secondary: React.CSSProperties = { border: "1px solid #d9e4dd", borderRadi
 
 export default function AlumniEventsPage() {
   const supabase = createClient();
-  const searchParams = useSearchParams();
   const [events, setEvents] = useState<AlumniEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -49,11 +47,11 @@ export default function AlumniEventsPage() {
   useEffect(() => { void load(); }, [load]);
 
   useEffect(() => {
-    const eventId = searchParams.get("event");
+    const eventId = new URLSearchParams(window.location.search).get("event");
     if (!eventId || !events.length) return;
     const match = events.find(event => event.id === eventId);
     if (match && selected?.id !== match.id) void openRegistrations(match);
-  }, [searchParams, events, selected?.id]);
+  }, [events, selected?.id]);
 
   async function createEvent(e: FormEvent) {
     e.preventDefault(); setSaving(true); setError(""); setNotice("");
