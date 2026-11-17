@@ -643,6 +643,30 @@ export default function Pipeline() {
         throw error;
       }
 
+      // Keep the linked lead's recruitment outcome aligned with the pipeline stage.
+      if (opportunity.lead_id) {
+        const { error: leadSyncError } = await supabase
+          .from("leads")
+          .update({
+            follow_up_status: workflowStageName,
+            updated_at: now,
+          })
+          .eq("id", opportunity.lead_id);
+
+        if (leadSyncError) {
+          await supabase
+            .from("opportunities")
+            .update({
+              stage_id: previousStageId,
+              probability: previousProbability,
+              status: previousStatus,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", opportunityId);
+          throw new Error("The linked lead could not be updated, so the pipeline stage change was rolled back.");
+        }
+      }
+
       setOpportunities(
         (current) =>
           current.map((item) =>
