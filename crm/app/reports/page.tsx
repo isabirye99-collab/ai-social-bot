@@ -381,7 +381,7 @@ export default function ReportsPage() {
         // Do not count this combined outcome as confirmed admission.
         const taskOutcomeLeads = leads.filter((lead) =>
           lead.assigned_to === profile.id &&
-          (lead.follow_up_status || "").trim().toLowerCase() === "applied/admitted" &&
+          ["applied", "applied/admitted"].includes((lead.follow_up_status || "").trim().toLowerCase()) &&
           inPeriod(lead.converted_at, start, end) &&
           !admissions.some((admission) => admission.lead_id === lead.id)
         );
@@ -417,15 +417,14 @@ export default function ReportsPage() {
 
         const admitted = staffAdmissions.filter((admission) =>
           [
+            "application started",
+            "application submitted",
+            "applied",
             "admitted",
-          "paid acceptance fee",
-          "acceptance fee paid",
-          "acceptance paid",
-          "enrolled",
-          ].includes(
-            (admission.stage || "").toLowerCase()
-          )
-        ).length;
+            "paid application fee",
+            "application fee paid",
+          ].includes((admission.stage || "").trim().toLowerCase())
+        ).length + taskOutcomeLeads.length;
 
         const acceptancePaid = staffAdmissions.filter(
           (admission) =>
