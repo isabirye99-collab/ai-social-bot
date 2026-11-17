@@ -391,6 +391,10 @@ export default function ReportsPage() {
             "application started",
             "application submitted",
             "admitted",
+            "paid application fee",
+            "application fee paid",
+            "paid acceptance fee",
+            "acceptance fee paid",
             "acceptance paid",
             "enrolled",
           ].includes(
@@ -401,9 +405,11 @@ export default function ReportsPage() {
         const submitted = staffAdmissions.filter((admission) =>
           [
             "application submitted",
-            "admitted",
-            "acceptance paid",
-            "enrolled",
+          "admitted",
+          "paid acceptance fee",
+          "acceptance fee paid",
+          "acceptance paid",
+          "enrolled",
           ].includes(
             (admission.stage || "").toLowerCase()
           )
@@ -412,8 +418,10 @@ export default function ReportsPage() {
         const admitted = staffAdmissions.filter((admission) =>
           [
             "admitted",
-            "acceptance paid",
-            "enrolled",
+          "paid acceptance fee",
+          "acceptance fee paid",
+          "acceptance paid",
+          "enrolled",
           ].includes(
             (admission.stage || "").toLowerCase()
           )
@@ -421,7 +429,7 @@ export default function ReportsPage() {
 
         const acceptancePaid = staffAdmissions.filter(
           (admission) =>
-            ["acceptance paid", "enrolled"].includes(
+            ["paid acceptance fee", "acceptance fee paid", "acceptance paid", "enrolled"].includes(
               (admission.stage || "").toLowerCase()
             )
         ).length;
