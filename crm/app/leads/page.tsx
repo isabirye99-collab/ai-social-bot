@@ -17,6 +17,7 @@ type Lead = {
   created_at: string;
   organization_id?: string | null;
   contact_id?: string | null;
+  school_id?: string | null;
 };
 
 type SchoolOption = { id: string; school_name: string; district: string | null };
@@ -237,7 +238,8 @@ export default function LeadsPage() {
           assigned_to,
           created_at,
           organization_id,
-          contact_id
+          contact_id,
+          school_id
         `)
         .order("created_at", {
           ascending: false,
@@ -320,6 +322,7 @@ export default function LeadsPage() {
           lead.phone,
           lead.email,
           lead.product_service,
+          schools.find((school) => school.id === lead.school_id)?.school_name,
           displayStatus,
         ]
           .filter(Boolean)
@@ -349,6 +352,7 @@ export default function LeadsPage() {
     search,
     statusFilter,
     programFilter,
+    schools,
   ]);
 
   const activeLeads = leads.filter(
@@ -1406,6 +1410,10 @@ export default function LeadsPage() {
                     </th>
 
                     <th>
+                      SCHOOL
+                    </th>
+
+                    <th>
                       STATUS
                     </th>
 
@@ -1465,6 +1473,10 @@ export default function LeadsPage() {
                           <td>
                             {lead.product_service ||
                               "—"}
+                          </td>
+
+                          <td>
+                            {schools.find((school) => school.id === lead.school_id)?.school_name || "—"}
                           </td>
 
                           <td>
