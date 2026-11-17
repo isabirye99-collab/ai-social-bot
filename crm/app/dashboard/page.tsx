@@ -601,6 +601,8 @@ export default function DashboardPage() {
     return {
       openDeals: openDeals.length,
       applied: applied.length,
+      admittedTotal,
+      enrolledTotal,
       applicationFeePaid:
         applicationFeePaid.length,
       acceptanceFeePaid:
