@@ -19,6 +19,8 @@ type Lead = {
   contact_id?: string | null;
 };
 
+type SchoolOption = { id: string; school_name: string; district: string | null };
+
 type Activity = {
   id: string;
   lead_id: string | null;
@@ -163,7 +165,10 @@ export default function LeadsPage() {
   const [qualifyingLeadId, setQualifyingLeadId] =
     useState<string | null>(null);
 
+  const [schools, setSchools] = useState<SchoolOption[]>([]);
+
   const [newLead, setNewLead] = useState({
+    school_id: "",
     ciu_number: "",
     name: "",
     phone: "",
@@ -257,6 +262,13 @@ export default function LeadsPage() {
       setLeads(
         (data || []) as Lead[]
       );
+
+      // School linking is optional; a school-list failure must not block lead management.
+      const { data: schoolData } = await supabase
+        .from("schools")
+        .select("id, school_name, district")
+        .order("school_name", { ascending: true });
+      setSchools((schoolData || []) as SchoolOption[]);
     } catch (err) {
       console.error(
         "Leads loading error:",
@@ -537,6 +549,8 @@ export default function LeadsPage() {
             newLead.product_service.trim() ||
             null,
 
+          school_id: newLead.school_id || null,
+
           status:
             newLead.status,
 
@@ -555,6 +569,7 @@ export default function LeadsPage() {
       }
 
       setNewLead({
+        school_id: "",
         ciu_number: "",
         name: "",
         phone: "",
@@ -2008,6 +2023,22 @@ export default function LeadsPage() {
                     }
                     placeholder="Programme / course"
                   />
+
+                  <div>
+                    <label style={labelStyle}>School (optional)</label>
+                    <select
+                      value={newLead.school_id}
+                      onChange={(event) => setNewLead({ ...newLead, school_id: event.target.value })}
+                      style={inputStyle}
+                    >
+                      <option value="">Not linked to a school</option>
+                      {schools.map((school) => (
+                        <option key={school.id} value={school.id}>
+                          {school.school_name}{school.district ? ` — ${school.district}` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
                   <div>
                     <label
