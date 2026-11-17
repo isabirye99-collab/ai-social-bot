@@ -1104,6 +1104,7 @@ const isSalesperson =
           .from("opportunities")
           .select("id, lead_id, title, value, probability, stage_id, status, assigned_to")
           .eq("lead_id", task.lead_id)
+          .limit(1)
           .maybeSingle();
 
         if (opportunityLookupError) throw opportunityLookupError;
