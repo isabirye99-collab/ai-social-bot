@@ -1074,16 +1074,15 @@ const isSalesperson =
 
       if (error) throw error;
 
-      // Business rule: completing a task linked to a lead means the
-      // student has applied or been admitted. Reflect that on the lead
-      // record as well as on the task.
+      // Completing a task linked to a lead records application progress
+      // on the lead and moves the same lead's opportunity into Applied.
       if (status === "completed" && task.lead_id) {
         const completedAt = new Date().toISOString();
         const { error: leadError } = await supabase
           .from("leads")
           .update({
             status: "converted",
-            follow_up_status: "Applied/Admitted",
+            follow_up_status: "Applied",
             next_follow_up_at: null,
             converted_at: completedAt,
             updated_at: completedAt,
@@ -1091,6 +1090,52 @@ const isSalesperson =
           .eq("id", task.lead_id);
 
         if (leadError) throw leadError;
+
+        const appliedStage = stages.find((stage) =>
+          ["applied", "application", "application started"].includes(
+            (stage.name || "").trim().toLowerCase()
+          )
+        );
+        if (!appliedStage) {
+          throw new Error("The Applied pipeline stage is missing. The lead was updated, but its pipeline stage could not be synchronized.");
+        }
+
+        const { data: linkedOpportunity, error: opportunityLookupError } = await supabase
+          .from("opportunities")
+          .select("id, lead_id, title, value, probability, stage_id, status, assigned_to")
+          .eq("lead_id", task.lead_id)
+          .maybeSingle();
+
+        if (opportunityLookupError) throw opportunityLookupError;
+
+        if (linkedOpportunity) {
+          const { error: opportunityUpdateError } = await supabase
+            .from("opportunities")
+            .update({
+              stage_id: appliedStage.id,
+              probability: Number(appliedStage.probability ?? 35),
+              status: "open",
+              updated_at: completedAt,
+            })
+            .eq("id", linkedOpportunity.id);
+          if (opportunityUpdateError) throw opportunityUpdateError;
+        } else {
+          const lead = leads.find((item) => item.id === task.lead_id);
+          if (!lead) throw new Error("The linked lead could not be found to create its pipeline record.");
+          const { error: opportunityCreateError } = await supabase
+            .from("opportunities")
+            .insert({
+              lead_id: lead.id,
+              title: lead.name || lead.ciu_number || "Student recruitment",
+              value: 0,
+              probability: Number(appliedStage.probability ?? 35),
+              stage_id: appliedStage.id,
+              status: "open",
+              assigned_to: lead.assigned_to,
+              updated_at: completedAt,
+            });
+          if (opportunityCreateError) throw opportunityCreateError;
+        }
       }
 
       setSuccess(
