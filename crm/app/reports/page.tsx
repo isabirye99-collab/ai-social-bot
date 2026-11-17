@@ -348,14 +348,22 @@ export default function ReportsPage() {
             )
         );
 
-        const calls = staffTasks.filter(
-          (task) =>
-            (task.task_type || "").toLowerCase() === "call"
+        // Report completed contact work in the selected period, using
+        // completion time rather than task creation time. Pending tasks
+        // must not be counted as completed calls or outreach.
+        const calls = completedTasks.filter(
+          (task) => (task.task_type || "").toLowerCase() === "call"
         ).length;
 
-        const emails = staffTasks.filter((task) => (task.task_type || "").toLowerCase() === "email").length;
-        const whatsapp = staffTasks.filter((task) => (task.task_type || "").toLowerCase() === "whatsapp").length;
-        const meetings = staffTasks.filter((task) => (task.task_type || "").toLowerCase() === "meeting").length;
+        const emails = completedTasks.filter(
+          (task) => (task.task_type || "").toLowerCase() === "email"
+        ).length;
+        const whatsapp = completedTasks.filter(
+          (task) => (task.task_type || "").toLowerCase() === "whatsapp"
+        ).length;
+        const meetings = completedTasks.filter(
+          (task) => (task.task_type || "").toLowerCase() === "meeting"
+        ).length;
         const followUps = calls + emails + whatsapp;
         const contactActivities = calls + emails + whatsapp + meetings;
 
