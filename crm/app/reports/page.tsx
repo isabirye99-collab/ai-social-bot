@@ -17,11 +17,14 @@ type Lead = {
   id: string;
   assigned_to: string | null;
   status: string | null;
+  follow_up_status: string | null;
+  converted_at: string | null;
   created_at: string | null;
 };
 
 type Admission = {
   id: string;
+  lead_id: string | null;
   assigned_to: string | null;
   stage: string | null;
   created_at: string | null;
@@ -227,11 +230,11 @@ export default function ReportsPage() {
 
       const leadsQuery = supabase
         .from("leads")
-        .select("id,assigned_to,status,created_at");
+        .select("id,assigned_to,status,follow_up_status,converted_at,created_at");
 
       const admissionsQuery = supabase
         .from("admissions")
-        .select("id,assigned_to,stage,created_at");
+        .select("id,lead_id,assigned_to,stage,created_at");
 
       const tasksQuery = supabase
         .from("tasks")
@@ -372,6 +375,17 @@ export default function ReportsPage() {
             (lead.status || "").toLowerCase() === "qualified"
         ).length;
 
+        // Completed lead tasks are recorded as the combined
+        // Applied/Admitted outcome. Include these in application progress
+        // unless an admissions record already exists for the same lead.
+        // Do not count this combined outcome as confirmed admission.
+        const taskOutcomeLeads = leads.filter((lead) =>
+          lead.assigned_to === profile.id &&
+          (lead.follow_up_status || "").trim().toLowerCase() === "applied/admitted" &&
+          inPeriod(lead.converted_at, start, end) &&
+          !admissions.some((admission) => admission.lead_id === lead.id)
+        );
+
         const applications = staffAdmissions.filter((admission) =>
           [
             "application started",
@@ -382,7 +396,7 @@ export default function ReportsPage() {
           ].includes(
             (admission.stage || "").toLowerCase()
           )
-        ).length;
+        ).length + taskOutcomeLeads.length;
 
         const submitted = staffAdmissions.filter((admission) =>
           [
@@ -393,7 +407,7 @@ export default function ReportsPage() {
           ].includes(
             (admission.stage || "").toLowerCase()
           )
-        ).length;
+        ).length + taskOutcomeLeads.length;
 
         const admitted = staffAdmissions.filter((admission) =>
           [
