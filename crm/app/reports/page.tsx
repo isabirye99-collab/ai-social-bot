@@ -433,10 +433,10 @@ export default function ReportsPage() {
             )
         ).length;
 
-        const enrolled = staffAdmissions.filter(
-          (admission) =>
-            (admission.stage || "").toLowerCase() ===
-            "enrolled"
+        const enrolled = staffAdmissions.filter((admission) =>
+          ["paid acceptance fee", "acceptance fee paid", "acceptance paid", "enrolled"].includes(
+            (admission.stage || "").trim().toLowerCase()
+          )
         ).length;
 
         return {
