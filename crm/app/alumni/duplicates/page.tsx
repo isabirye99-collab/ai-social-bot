@@ -16,17 +16,30 @@ export default function AlumniDuplicatesPage(){
  async function update(item:Candidate,status:"not_duplicate"|"confirmed_duplicate",canonicalId?:string){
   if(status==="confirmed_duplicate"&&(!canonicalId||canonicalId===item.id)){setError("Choose another record to keep as the primary record.");return;}
   setBusy(item.id);setError("");setNotice("");
-  let actionError: string | null = null;
-  if(status==="confirmed_duplicate"){
-   const {error:mergeError}=await supabase.rpc("resolve_alumni_duplicate",{p_duplicate_id:item.id,p_primary_id:canonicalId});
-   actionError=mergeError?.message||null;
-  }else{
-   const {data:{user}}=await supabase.auth.getUser();
-   const {error:reviewError}=await supabase.from("alumni").update({duplicate_review_status:"not_duplicate",duplicate_of:null,duplicate_reviewed_at:new Date().toISOString(),duplicate_reviewed_by:user?.id||null,updated_at:new Date().toISOString()}).eq("id",item.id);
-   actionError=reviewError?.message||null;
+  try {
+   let actionError: string | null = null;
+   if(status==="confirmed_duplicate"){
+    const {error:mergeError}=await supabase.rpc("resolve_alumni_duplicate",{p_duplicate_id:item.id,p_primary_id:canonicalId});
+    actionError=mergeError?.message||null;
+   }else{
+    const {data:{user},error:authError}=await supabase.auth.getUser();
+    if(authError) actionError=authError.message;
+    else if(!user) actionError="Your session has expired. Sign in again before reviewing duplicates.";
+    else {
+     const {error:reviewError}=await supabase.from("alumni").update({duplicate_review_status:"not_duplicate",duplicate_of:null,duplicate_reviewed_at:new Date().toISOString(),duplicate_reviewed_by:user.id,updated_at:new Date().toISOString()}).eq("id",item.id);
+     actionError=reviewError?.message||null;
+    }
+   }
+   if(actionError) setError(actionError);
+   else {
+    setNotice(status==="confirmed_duplicate"?"Missing information was copied into the selected primary profile. The duplicate record was archived for audit; no data was deleted.":"Record marked as a separate alumnus.");
+    await load();
+   }
+  } catch(err) {
+   setError(err instanceof Error?err.message:"Unable to update this duplicate record. Please refresh and try again.");
+  } finally {
+   setBusy("");
   }
-  if(actionError)setError(actionError);else{setNotice(status==="confirmed_duplicate"?"Missing information was copied into the selected primary profile. The duplicate record was archived for audit; no data was deleted.":"Record marked as a separate alumnus.");await load();}
-  setBusy("");
  }
  return <main style={{padding:"28px clamp(16px,3vw,34px) 48px",color:"#173d34"}}>
   <Link href="/alumni" style={{color:"#106053",fontSize:12,fontWeight:750,textDecoration:"none"}}>← Alumni directory</Link>
