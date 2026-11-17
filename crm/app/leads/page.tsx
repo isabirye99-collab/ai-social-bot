@@ -986,7 +986,7 @@ export default function LeadsPage() {
                 <input type="file" accept=".csv,text/csv" disabled={uploadingCsv} style={{ display: "none" }} onChange={(event) => { const file = event.target.files?.[0]; void handleLeadCsvUpload(file); event.currentTarget.value = ""; }} />
               </label>
               <a className="ciu-btn-light" href="data:text/csv;charset=utf-8,Name%2CPhone%2CEmail%2CCIU%20Number%2CProgramme%2CStatus%0AExample%20Student%2C256700000000%2Cstudent%40example.com%2CCIU12345%2CBachelor%20of%20Business%2Cnew" download="ciu-leads-template.csv" style={{ display: "inline-flex", alignItems: "center", textDecoration: "none" }}>Download CSV template</a>
-              <button type="button" className="ciu-btn" onClick={() => setShowAddLead(true)}>+ Add Lead</button>
+              
             </div>
             {csvSummary && <p role="status" style={{ marginTop: 10, color: "#166534", fontSize: 13 }}>{csvSummary}</p>}
             <p>
