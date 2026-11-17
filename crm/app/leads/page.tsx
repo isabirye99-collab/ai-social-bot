@@ -141,6 +141,8 @@ export default function LeadsPage() {
 
   const [showAddLead, setShowAddLead] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [uploadingCsv, setUploadingCsv] = useState(false);
+  const [csvSummary, setCsvSummary] = useState("");
 
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedLead, setSelectedLead] =
@@ -586,6 +588,40 @@ export default function LeadsPage() {
     }
   }
 
+  function parseLeadCsv(text: string): string[][] {
+    const rows: string[][] = []; let row: string[] = [], cell = "", quoted = false;
+    for (let i = 0; i < text.length; i++) { const ch = text[i];
+      if (ch === '"' && quoted && text[i + 1] === '"' ) { cell += '"' ; i++; }
+      else if (ch === '"' ) quoted = !quoted;
+      else if (ch === "," && !quoted) { row.push(cell.trim()); cell = ""; }
+      else if ((ch === "\n" || ch === "\r") && !quoted) { if (ch === "\r" && text[i + 1] === "\n") i++; row.push(cell.trim()); if (row.some((v) => v !== "")) rows.push(row); row = []; cell = ""; }
+      else cell += ch;
+    }
+    row.push(cell.trim()); if (row.some((v) => v !== "")) rows.push(row); return rows;
+  }
+
+  async function handleLeadCsvUpload(file?: File) {
+    if (!file) return; setUploadingCsv(true); setCsvSummary(""); setError("");
+    try {
+      if (!file.name.toLowerCase().endsWith(".csv")) throw new Error("Please choose a .csv file.");
+      if (file.size > 10 * 1024 * 1024) throw new Error("CSV must be 10 MB or smaller.");
+      const parsed = parseLeadCsv(await file.text()); if (parsed.length < 2) throw new Error("The CSV has no data rows.");
+      const headers = parsed[0].map((h) => h.replace(/^\uFEFF/, "").toLowerCase().replace(/[ _-]+/g, "").trim());
+      const findColumn = (...names: string[]) => headers.findIndex((h) => names.includes(h));
+      const ni = findColumn("name", "fullname", "studentname", "leadname"), pi = findColumn("phone", "telephone", "phonenumber", "mobile", "contact"), ei = findColumn("email", "emailaddress"), ci = findColumn("ciunumber", "studentnumber", "studentno", "registrationnumber"), gi = findColumn("program", "programme", "productservice", "course"), si = findColumn("status", "leadstatus");
+      if (ni < 0 || pi < 0) throw new Error("CSV needs Name and Phone columns. Optional: Email, CIU Number, Programme, Status.");
+      const validStatuses = new Set(["new","pending","contacted","called","whatsapped","email_sent","qualified","interested","unqualified","financial","lost","dropped","ineffective","unreachable","no answer"]);
+      const candidates: any[] = []; let invalid = 0;
+      parsed.slice(1).forEach((cells) => { const v = (n: number) => n < 0 ? "" : String(cells[n] || "").trim(); const name = v(ni), phone = v(pi), email = v(ei); if (!name || !phone) { invalid++; return; } const raw = v(si).toLowerCase().replace(/[ -]+/g, "_"); candidates.push({ name, phone, email: email || null, ciu_number: v(ci) || null, product_service: v(gi) || null, status: raw && validStatuses.has(raw) ? raw : "new", follow_up_status: "Pending", next_follow_up_at: null, assigned_to: currentUserId || null }); });
+      if (!candidates.length) throw new Error("No valid leads found. Name and Phone are required.");
+      const existingPhones = new Set(leads.map((l) => (l.phone || "").replace(/\D/g, "")).filter(Boolean)); const existingEmails = new Set(leads.map((l) => (l.email || "").trim().toLowerCase()).filter(Boolean)); const seen = new Set<string>();
+      const fresh = candidates.filter((lead) => { const p = lead.phone.replace(/\D/g, ""), e = (lead.email || "").trim().toLowerCase(); const keys = [p ? "p:" + p : "", e ? "e:" + e : ""].filter(Boolean); if (keys.some((k) => seen.has(k) || (k.startsWith("p:") ? existingPhones.has(k.slice(2)) : existingEmails.has(k.slice(2))))) return false; keys.forEach((k) => seen.add(k)); return true; });
+      if (!fresh.length) { setCsvSummary("No new leads imported. All valid rows matched existing or repeated phone/email details; " + invalid + " invalid row(s)."); return; }
+      for (let i = 0; i < fresh.length; i += 100) { const result = await supabase.from("leads").insert(fresh.slice(i, i + 100)); if (result.error) throw result.error; }
+      await loadLeads(); setCsvSummary("Imported " + fresh.length + " lead(s). Skipped " + (candidates.length - fresh.length) + " duplicate/repeated row(s) and " + invalid + " invalid row(s). Leads are assigned to your account; reassign them after import if needed.");
+    } catch (err) { setError(err instanceof Error ? err.message : "CSV import failed."); } finally { setUploadingCsv(false); }
+  }
+
   function handleView(
     lead: Lead
   ) {
@@ -924,6 +960,14 @@ export default function LeadsPage() {
                 : "Leads"}
             </h1>
 
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 14 }}>
+              <label className="ciu-btn-light" style={{ display: "inline-flex", alignItems: "center", gap: 8, cursor: uploadingCsv ? "wait" : "pointer", opacity: uploadingCsv ? 0.65 : 1 }}>
+                {uploadingCsv ? "Uploading CSV…" : "↑ Upload CSV"}
+                <input type="file" accept=".csv,text/csv" disabled={uploadingCsv} style={{ display: "none" }} onChange={(event) => { const file = event.target.files?.[0]; void handleLeadCsvUpload(file); event.currentTarget.value = ""; }} />
+              </label>
+              <button type="button" className="ciu-btn" onClick={() => setShowAddLead(true)}>+ Add Lead</button>
+            </div>
+            {csvSummary && <p role="status" style={{ marginTop: 10, color: "#166534", fontSize: 13 }}>{csvSummary}</p>}
             <p>
               Manage new prospects,
               identify interest and
