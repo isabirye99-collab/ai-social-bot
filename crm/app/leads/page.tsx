@@ -43,6 +43,7 @@ const displayStatuses = [
   "Ineffective Data",
   "Unreachable",
   "No Answer",
+  "Applied/Admitted",
 ];
 
 const statusMap: Record<string, string> = {
@@ -65,7 +66,7 @@ const statusMap: Record<string, string> = {
   ineffective: "Ineffective Data",
   unreachable: "Unreachable",
   "no answer": "No Answer",
-  converted: "Interested",
+  converted: "Applied/Admitted",
 };
 
 function getDisplayStatus(status: string | null) {
