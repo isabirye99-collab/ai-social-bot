@@ -32,6 +32,9 @@ export default function PartnershipReviewsPage() {
   const [selected,setSelected]=useState<Review|null>(null);
   const [form,setForm]=useState<ScoreForm>(emptyForm);
   const [saving,setSaving]=useState(false);
+  const [followUpDue,setFollowUpDue]=useState("");
+  const [taskBusy,setTaskBusy]=useState(false);
+  const [success,setSuccess]=useState("");
 
   const load=useCallback(async()=>{
     setRefreshing(true);
@@ -59,6 +62,8 @@ export default function PartnershipReviewsPage() {
 
   function openReview(review:Review) {
     setSelected(review);
+    setFollowUpDue("");
+    setSuccess("");
     setForm({
       commitments_score:review.commitments_score==null?"":String(review.commitments_score),
       engagement_score:review.engagement_score==null?"":String(review.engagement_score),
@@ -100,6 +105,36 @@ export default function PartnershipReviewsPage() {
     finally {setSaving(false);}
   }
 
+
+  async function createFollowUpTask() {
+    if (!selected) return;
+    if (!form.next_actions.trim()) { setError("Enter the follow-up action before creating a task."); return; }
+    if (!followUpDue) { setError("Choose a due date for the follow-up task."); return; }
+    setTaskBusy(true); setError(""); setSuccess("");
+    try {
+      const auth = await supabase.auth.getUser();
+      if (auth.error) throw auth.error;
+      if (!auth.data.user) throw new Error("You must be signed in to create a task.");
+      const mou = mouMap.get(selected.mou_id);
+      const { error: taskError } = await supabase.from("tasks").insert({
+        title: "Partnership follow-up: " + (mou?.agreement_title || "MOU review"),
+        description: form.next_actions.trim(),
+        task_type: "other",
+        assigned_to: auth.data.user.id,
+        due_at: new Date(followUpDue + "T09:00:00").toISOString(),
+        status: "pending",
+        priority: "medium",
+        created_by: auth.data.user.id,
+        partnership_mou_id: selected.mou_id,
+        partnership_mou_review_id: selected.id
+      });
+      if (taskError) throw taskError;
+      setSuccess("Follow-up task created and linked to this MOU review.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to create the follow-up task.");
+    } finally { setTaskBusy(false); }
+  }
+
   const activeOpen=reviews.filter(r=>r.review_status!=="completed"&&r.review_status!=="cancelled").length;
   const overdueCount=reviews.filter(r=>r.review_status!=="completed"&&r.review_status!=="cancelled"&&isPast(r.review_due_date)).length;
   const completedCount=reviews.filter(r=>r.review_status==="completed").length;
@@ -107,6 +142,7 @@ export default function PartnershipReviewsPage() {
   return <main className="min-h-screen bg-white px-4 py-6 text-slate-900 sm:px-6 lg:px-8"><div className="mx-auto max-w-7xl space-y-6">
     <header className="flex flex-col justify-between gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-center"><div className="flex items-start gap-3"><div className="mt-1 flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50 text-emerald-800"><ClipboardCheck size={22}/></div><div><a href="/partnerships/mous" className="mb-1 inline-flex items-center gap-1 text-xs font-medium text-emerald-800 hover:underline"><ArrowLeft size={13}/> MOU Register</a><h1 className="text-2xl font-semibold tracking-tight">Quarterly MOU Reviews</h1><p className="mt-1 text-sm text-slate-500">Record performance, evidence, scores and renewal recommendations.</p></div></div><button type="button" onClick={()=>void load()} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"><RefreshCw size={15} className={refreshing?"animate-spin":""}/> Refresh</button></header>
     {error&&<div role="alert" className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><AlertCircle size={18} className="mt-0.5 shrink-0"/><span>{error}</span></div>}
+    {success&&<div role="status" className="flex items-start gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900"><CheckCircle2 size={18} className="mt-0.5 shrink-0"/><span>{success}</span></div>}
     <section className="grid gap-3 sm:grid-cols-3">{[{label:"Open reviews",value:activeOpen},{label:"Overdue reviews",value:overdueCount},{label:"Completed reviews",value:completedCount}].map(x=><div key={x.label} className="rounded-xl border border-slate-200 p-4"><p className="text-sm font-medium text-slate-500">{x.label}</p><p className="mt-2 text-2xl font-semibold">{loading?"—":x.value.toLocaleString()}</p></div>)}</section>
     <section className="overflow-hidden rounded-xl border border-slate-200"><div className="flex flex-col gap-3 border-b border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="font-semibold">Review schedule</h2><p className="mt-1 text-sm text-slate-500">{visible.length.toLocaleString()} review(s)</p></div><div className="flex flex-col gap-2 sm:flex-row"><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search partner or agreement..." className="h-10 rounded-lg border border-slate-300 px-3 text-sm sm:w-64"/><select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)} className="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm"><option value="open">Open reviews</option><option value="overdue">Overdue</option><option value="completed">Completed</option><option value="all">All reviews</option></select></div></div>
     {loading?<div className="p-12 text-center text-sm text-slate-500">Loading review schedule…</div>:visible.length===0?<div className="p-12 text-center"><ClipboardCheck size={28} className="mx-auto text-slate-400"/><h3 className="mt-3 font-semibold">No reviews in this view</h3><p className="mt-1 text-sm text-slate-500">Scheduled quarterly reviews will appear here for active MOUs.</p></div>:<div className="overflow-x-auto"><table className="w-full min-w-[900px] border-collapse text-left"><thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500"><tr><th className="px-5 py-3.5">Partner / MOU</th><th className="px-5 py-3.5">Type</th><th className="px-5 py-3.5">Review period</th><th className="px-5 py-3.5">Due date</th><th className="px-5 py-3.5">Status</th><th className="px-5 py-3.5">Score</th><th className="px-5 py-3.5">Action</th></tr></thead><tbody className="divide-y divide-slate-100 text-sm">{visible.map(r=>{const m=mouMap.get(r.mou_id);const late=r.review_status!=="completed"&&r.review_status!=="cancelled"&&isPast(r.review_due_date);return <tr key={r.id} className="hover:bg-emerald-50/50"><td className="px-5 py-4"><div className="font-medium">{partnerNames.get(m?.partnership_id||"")||"Unknown partner"}</div><div className="mt-1 text-slate-600">{m?.agreement_title||"Agreement"}</div></td><td className="px-5 py-4 capitalize">{m?.agreement_type||"—"}</td><td className="px-5 py-4 text-slate-600">{dateLabel(r.review_period_start)} – {dateLabel(r.review_period_end)}</td><td className="px-5 py-4"><span className={late?"font-semibold text-rose-700":"text-slate-700"}>{dateLabel(r.review_due_date)}</span>{late&&<div className="mt-1 text-xs text-rose-700">Overdue</div>}</td><td className="px-5 py-4"><span className={"inline-flex rounded-full px-2.5 py-1 text-xs font-medium "+(r.review_status==="completed"?"bg-emerald-50 text-emerald-800":late?"bg-rose-50 text-rose-800":"bg-amber-50 text-amber-800")}>{r.review_status.replaceAll("_"," ")}</span></td><td className="px-5 py-4">{r.overall_score==null?"—":String(r.overall_score)+"/100"}</td><td className="px-5 py-4"><button type="button" onClick={()=>openReview(r)} className="rounded-lg border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-900 hover:bg-emerald-50">{r.review_status==="completed"?"View review":"Review MOU"}</button></td></tr>;})}</tbody></table></div>}</section>
@@ -120,6 +156,7 @@ export default function PartnershipReviewsPage() {
     <label className="block text-sm font-medium text-slate-700">Evidence URL<input type="url" value={form.evidence_url} onChange={e=>setForm({...form,evidence_url:e.target.value})} disabled={selected.review_status==="completed"} placeholder="https://…" className="mt-1.5 h-10 w-full rounded-lg border border-slate-300 px-3 disabled:bg-slate-50"/></label>
     <label className="block text-sm font-medium text-slate-700">Renewal recommendation<select value={form.renewal_recommendation} onChange={e=>setForm({...form,renewal_recommendation:e.target.value})} disabled={selected.review_status==="completed"} className="mt-1.5 h-10 w-full rounded-lg border border-slate-300 bg-white px-3 disabled:bg-slate-50"><option value="not_yet_decided">Not yet decided</option><option value="renew">Renew</option><option value="renew_with_changes">Renew with changes</option><option value="improve">Improve before renewal</option><option value="suspend">Suspend</option><option value="discontinue">Discontinue</option></select></label>
     <label className="block text-sm font-medium text-slate-700">Next actions<textarea rows={2} value={form.next_actions} onChange={e=>setForm({...form,next_actions:e.target.value})} disabled={selected.review_status==="completed"} placeholder="Action, owner and target date…" className="mt-1.5 w-full rounded-lg border border-slate-300 p-3 text-sm disabled:bg-slate-50"/></label>
+    {selected.review_status!=="completed"&&<div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-4"><h3 className="text-sm font-semibold text-slate-800">Create CRM follow-up task</h3><p className="mt-1 text-xs text-slate-600">Creates an assigned task linked to this MOU and review in the existing Tasks module.</p><div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end"><label className="block flex-1 text-sm font-medium text-slate-700">Task due date<input type="date" value={followUpDue} onChange={e=>setFollowUpDue(e.target.value)} min={new Date().toISOString().slice(0,10)} className="mt-1.5 h-10 w-full rounded-lg border border-slate-300 bg-white px-3"/></label><button type="button" disabled={taskBusy||!form.next_actions.trim()||!followUpDue} onClick={()=>void createFollowUpTask()} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-emerald-200 bg-white px-4 text-sm font-semibold text-emerald-900 hover:bg-emerald-50 disabled:opacity-50">{taskBusy?"Creating task…":"Create follow-up task"}</button></div></div>}
     {selected.review_status==="completed"&&<p className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-900">This review is completed and read-only.</p>}
     <footer className="flex flex-wrap justify-end gap-2 border-t border-slate-200 pt-4"><button type="button" disabled={saving} onClick={()=>setSelected(null)} className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700">Close</button>{selected.review_status!=="completed"&&<><button type="button" disabled={saving} onClick={()=>void saveReview(false)} className="rounded-lg border border-emerald-200 px-4 py-2.5 text-sm font-semibold text-emerald-900 hover:bg-emerald-50">{saving?"Saving…":"Save progress"}</button><button type="button" disabled={saving} onClick={()=>void saveReview(true)} className="inline-flex items-center gap-2 rounded-lg bg-[#00695c] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#00574f]">{saving?"Saving…":<><CheckCircle2 size={16}/> Complete review</>}</button></>}</footer></div></section></div>}
   </main>;
