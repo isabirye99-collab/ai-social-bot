@@ -71,7 +71,13 @@ export default function AlumniReportsPage() {
         {label:"Pending change requests",value:count(2),note:"All-time requests awaiting review"},
       ]);
       setBreakdown([...channels.entries()].map(([label,value])=>({label,value})).sort((a,b)=>b.value-a.value));
-      const alumniRows: {program:string|null;graduation_year:number|null}[] = [];\n      for (let offset = 0; ; offset += 1000) {\n        const batch = await supabase.from("alumni").select("program,graduation_year").or("duplicate_review_status.is.null,duplicate_review_status.neq.confirmed_duplicate").range(offset, offset + 999);\n        if (batch.error) throw new Error(batch.error.message);\n        alumniRows.push(...((batch.data || []) as {program:string|null;graduation_year:number|null}[]));\n        if (!batch.data || batch.data.length < 1000) break;\n      }
+      const alumniRows: {program:string|null;graduation_year:number|null}[] = [];
+      for (let offset = 0; ; offset += 1000) {
+        const batch = await supabase.from("alumni").select("program,graduation_year").or("duplicate_review_status.is.null,duplicate_review_status.neq.confirmed_duplicate").range(offset, offset + 999);
+        if (batch.error) throw new Error(batch.error.message);
+        alumniRows.push(...((batch.data || []) as {program:string|null;graduation_year:number|null}[]));
+        if (!batch.data || batch.data.length < 1000) break;
+      }
       const programs = new Map<string,number>(); const cohorts = new Map<string,number>();
       alumniRows.forEach(row => { const program = row.program?.trim() || "Programme not recorded"; programs.set(program,(programs.get(program)||0)+1); const cohort = row.graduation_year ? String(row.graduation_year) : "Year not recorded"; cohorts.set(cohort,(cohorts.get(cohort)||0)+1); });
       setProgrammeBreakdown([...programs.entries()].map(([label,value])=>({label,value})).sort((a,b)=>b.value-a.value).slice(0,10));
