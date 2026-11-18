@@ -636,16 +636,25 @@ export default function DashboardPage() {
       isThisMonth(lead.created_at),
     ).length;
 
+    const enrolledLeadIds = new Set(selectedIntakeAdmissions
+      .filter((admission) => normalizeStageName(admission.stage) === "enrolled")
+      .map((admission) => admission.lead_id)
+      .filter(Boolean));
+    const linkedAdmissionLeadIds = new Set(selectedIntakeAdmissions.map((admission) => admission.lead_id).filter(Boolean));
+    const enrolledCohortCount = selectedIntakeLeads.filter((lead) =>
+      enrolledLeadIds.has(lead.id) ||
+      (!linkedAdmissionLeadIds.has(lead.id) && ["enrolled", "acceptance fee paid", "paid acceptance fee"].includes((lead.follow_up_status || lead.status || "").trim().toLowerCase().replace(/[_-]+/g, " ")))
+    ).length;
     const monthlyEnrolled = selectedIntakeAdmissions.filter(
       (admission) =>
         (admission.stage || "").toLowerCase() === "enrolled" &&
         isThisMonth(admission.enrolled_at),
     ).length;
 
-    const conversionRate =
-      newLeads > 0
-        ? (monthlyEnrolled / newLeads) * 100
-        : 0;
+    // This is cohort conversion, not same-month enrolments divided by new leads.
+    const conversionRate = selectedIntakeLeads.length > 0
+      ? (enrolledCohortCount / selectedIntakeLeads.length) * 100
+      : 0;
 
     const pipelineValue = openDeals.reduce(
       (sum, item) =>
@@ -688,57 +697,13 @@ export default function DashboardPage() {
     selectedIntakeTasks,
   ]);
 
-  const funnel = useMemo(() => {
-    const stages = [
-      {
-        label: "Leads",
-        value: selectedIntakeLeads.length,
-        color: "#075442",
-        tint: "#eaf4ef",
-      },
-      {
-        label: "Admitted",
-        value: stats.admittedTotal,
-        color: "#8abf52",
-        tint: "#f3f8e9",
-      },
-      {
-        label: "Enrolled",
-        value: stats.enrolledTotal,
-        color: "#a4d66d",
-        tint: "#f5f9ed",
-      },
-    ];
 
-    const first = Math.max(
-      stages[0].value,
-      1,
-    );
-
-    return stages.map((stage) => ({
-      ...stage,
-      ratio: Math.min(
-        100,
-        (stage.value / first) * 100,
-      ),
-      conversion:
-        stage.value > 0
-          ? Math.round(
-              (stage.value / first) * 100,
-            )
-          : 0,
-    }));
-  }, [
-    selectedIntakeLeads.length,
-    stats.admittedTotal,
-    stats.enrolledTotal,
-  ]);
 
   const pipelineOverview = useMemo(() => {
     const stages = [
       {
         label: "Early pipeline",
-        description: "Open selectedIntakeOpportunities",
+        description: "Open opportunities",
         count: stats.openDeals,
         value: stats.pipelineValue,
       },
@@ -750,7 +715,7 @@ export default function DashboardPage() {
       },
       {
         label: "Enrolled",
-        description: "Successful selectedIntakeAdmissions",
+        description: "Successful admissions",
         count: stats.enrolled,
         value: 0,
       },
@@ -826,6 +791,22 @@ export default function DashboardPage() {
       },
     };
   }, [leads, admissions, selectedIntake, approvedIntakeTargets]);
+
+  const funnel = useMemo(() => {
+    const stages = [
+      { label: "Leads", value: intakeSummary.total, color: "#075442", tint: "#eaf4ef", href: "/leads" },
+      { label: "Interested", value: intakeSummary.interested, color: "#2b8a62", tint: "#edf7f0", href: "/leads" },
+      { label: "Applied", value: intakeSummary.applied, color: "#76ad42", tint: "#f3f8e9", href: "/pipeline" },
+      { label: "Admitted", value: intakeSummary.admitted, color: "#8abf52", tint: "#f3f8e9", href: "/pipeline" },
+      { label: "Enrolled", value: intakeSummary.enrolled, color: "#a4d66d", tint: "#f5f9ed", href: "/customers" },
+    ];
+    const first = Math.max(stages[0].value, 1);
+    return stages.map((stage) => ({
+      ...stage,
+      ratio: Math.min(100, (stage.value / first) * 100),
+      conversion: stage.value > 0 ? Math.round((stage.value / first) * 100) : 0,
+    }));
+  }, [intakeSummary]);
 
   const performance = useMemo(() => {
     const monthLeads = selectedIntakeLeads.filter((lead) =>
