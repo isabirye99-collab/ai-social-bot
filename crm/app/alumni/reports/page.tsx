@@ -27,6 +27,8 @@ export default function AlumniReportsPage() {
   const [endDate, setEndDate] = useState(initial.end);
   const [metrics, setMetrics] = useState<Metric[]>([]);
   const [breakdown, setBreakdown] = useState<{label:string;value:number}[]>([]);
+  const [programmeBreakdown, setProgrammeBreakdown] = useState<{label:string;value:number}[]>([]);
+  const [cohortBreakdown, setCohortBreakdown] = useState<{label:string;value:number}[]>([]);
   const [totalAlumni, setTotalAlumni] = useState(0);
   const [pendingAll, setPendingAll] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -49,6 +51,7 @@ export default function AlumniReportsPage() {
         supabase.from("alumni_event_registrations").select("id",{count:"exact",head:true}).gte("registered_at",from).lt("registered_at",to),
         supabase.from("alumni_event_registrations").select("id",{count:"exact",head:true}).gte("checked_in_at",from).lt("checked_in_at",to),
         supabase.from("alumni_communications").select("id,channel,delivery_status",{count:"exact"}).gte("sent_at",from).lt("sent_at",to).limit(1000),
+        supabase.from("alumni").select("program,graduation_year").or("duplicate_review_status.is.null,duplicate_review_status.neq.confirmed_duplicate").limit(10000),
       ]);
       const failed = requests.find((r:any) => r.error);
       if (failed?.error) throw new Error(failed.error.message);
@@ -68,6 +71,11 @@ export default function AlumniReportsPage() {
         {label:"Pending change requests",value:count(2),note:"All-time requests awaiting review"},
       ]);
       setBreakdown([...channels.entries()].map(([label,value])=>({label,value})).sort((a,b)=>b.value-a.value));
+      const alumniRows = (requests[9].data || []) as {program:string|null;graduation_year:number|null}[];
+      const programs = new Map<string,number>(); const cohorts = new Map<string,number>();
+      alumniRows.forEach(row => { const program = row.program?.trim() || "Programme not recorded"; programs.set(program,(programs.get(program)||0)+1); const cohort = row.graduation_year ? String(row.graduation_year) : "Year not recorded"; cohorts.set(cohort,(cohorts.get(cohort)||0)+1); });
+      setProgrammeBreakdown([...programs.entries()].map(([label,value])=>({label,value})).sort((a,b)=>b.value-a.value).slice(0,10));
+      setCohortBreakdown([...cohorts.entries()].map(([label,value])=>({label,value})).sort((a,b)=>a.label.localeCompare(b.label,undefined,{numeric:true})).slice(-12));
       setRefreshedAt(new Date().toLocaleString());
     } catch (e) { setError(e instanceof Error ? e.message : "Unable to load alumni reports. Check the database permissions and reporting fields."); }
     finally { setLoading(false); }
@@ -106,6 +114,8 @@ export default function AlumniReportsPage() {
     </div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:14}}>
       <section style={card}><h2 style={{margin:"0 0 5px",fontSize:17,fontWeight:850}}>Communication channels</h2><p style={{margin:"0 0 14px",fontSize:12,color:"#718078"}}>Breakdown of communication records with a sent/activity date in the selected period.</p>{loading?<p>Loading…</p>:breakdown.length===0?<p style={{fontSize:12,color:"#819087"}}>No communication entries were logged in this period.</p>:breakdown.map(item=><div key={item.label} style={{display:"flex",justifyContent:"space-between",gap:12,padding:"10px 0",borderBottom:"1px solid #edf1ee",fontSize:13}}><span>{item.label}</span><strong>{item.value.toLocaleString()}</strong></div>)}</section>
+      <section style={card}><h2 style={{margin:"0 0 5px",fontSize:17,fontWeight:850}}>Alumni by programme</h2><p style={{margin:"0 0 12px",fontSize:12,color:"#718078"}}>Top 10 programme groups across current alumni records.</p>{loading?<p>Loading…</p>:programmeBreakdown.length===0?<p style={{fontSize:12,color:"#819087"}}>No programme data available.</p>:programmeBreakdown.map(item=><div key={item.label} style={{display:"flex",justifyContent:"space-between",gap:12,padding:"9px 0",borderBottom:"1px solid #edf1ee",fontSize:12}}><span>{item.label}</span><strong>{item.value.toLocaleString()}</strong></div>)}</section>
+      <section style={card}><h2 style={{margin:"0 0 5px",fontSize:17,fontWeight:850}}>Graduation cohorts</h2><p style={{margin:"0 0 12px",fontSize:12,color:"#718078"}}>Recent cohorts represented in the alumni directory.</p>{loading?<p>Loading…</p>:cohortBreakdown.length===0?<p style={{fontSize:12,color:"#819087"}}>No graduation-year data available.</p>:cohortBreakdown.map(item=><div key={item.label} style={{display:"flex",justifyContent:"space-between",gap:12,padding:"9px 0",borderBottom:"1px solid #edf1ee",fontSize:12}}><span>{item.label}</span><strong>{item.value.toLocaleString()}</strong></div>)}</section>
       <section style={card}><h2 style={{margin:"0 0 8px",fontSize:17,fontWeight:850}}>Reporting notes</h2><ul style={{paddingLeft:18,margin:0,color:"#66766e",fontSize:12,lineHeight:1.9}}><li>Total alumni excludes records marked as confirmed duplicates.</li><li>Submissions count update requests, not unique alumni; one alumnus may submit more than once.</li><li>Approval and rejection counts use the review timestamp.</li><li>Event attendance is based on recorded check-ins.</li><li>Communication counts represent log entries. Delivery and response rates require verified provider delivery and response data.</li></ul></section>
     </div>
     <p style={{fontSize:11,color:"#84928b",marginTop:14}}>{refreshedAt ? "Last refreshed: "+refreshedAt : "Report has not refreshed yet."} {pendingAll>0&&!loading ? pendingAll.toLocaleString()+" change requests are currently pending across all dates." : ""}</p>
