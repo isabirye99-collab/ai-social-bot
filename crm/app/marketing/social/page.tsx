@@ -28,8 +28,11 @@ const PLATFORMS = [
 
 type Platform = (typeof PLATFORMS)[number];
 
+type CampaignOption = { id: string; name: string; };
+
 type SocialPost = {
   id: string;
+  campaign_id?: string | null;
   title: string;
   body: string;
   platforms: string[];
@@ -81,6 +84,8 @@ function isVideo(file: File) {
 
 export default function SocialMediaPage() {
   const [posts, setPosts] = useState<SocialPost[]>([]);
+  const [campaigns, setCampaigns] = useState<CampaignOption[]>([]);
+  const [campaignId, setCampaignId] = useState("");
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [platforms, setPlatforms] = useState<Platform[]>([]);
@@ -102,18 +107,24 @@ export default function SocialMediaPage() {
     setLoading(true);
     setError("");
 
-    const { data, error: loadError } = await supabase
-      .from("social_posts")
-      .select(
-        "id,title,body,platforms,media_urls,status,scheduled_at,created_at,error_message",
-      )
-      .order("created_at", { ascending: false });
+    const [postsResult, campaignsResult] = await Promise.all([
+      supabase.from("social_posts")
+        .select("id,campaign_id,title,body,platforms,media_urls,status,scheduled_at,created_at,error_message")
+        .order("created_at", { ascending: false }),
+      supabase.from("campaigns").select("id,name").order("name", { ascending: true }),
+    ]);
 
-    if (loadError) {
-      setError(loadError.message);
+    if (postsResult.error) {
+      setError(postsResult.error.message);
       setPosts([]);
     } else {
-      setPosts((data ?? []) as SocialPost[]);
+      setPosts((postsResult.data ?? []) as SocialPost[]);
+    }
+    if (campaignsResult.error) {
+      // Posts remain usable even if campaign access is unavailable for this role.
+      setCampaigns([]);
+    } else {
+      setCampaigns((campaignsResult.data ?? []) as CampaignOption[]);
     }
 
     setLoading(false);
@@ -267,6 +278,7 @@ export default function SocialMediaPage() {
       uploadedPaths = await uploadSelectedMedia();
 
       const { error: insertError } = await supabase.from("social_posts").insert({
+        campaign_id: campaignId || null,
         title: title.trim(),
         body: body.trim(),
         platforms,
@@ -285,6 +297,7 @@ export default function SocialMediaPage() {
       }
 
       selectedMedia.forEach((item) => URL.revokeObjectURL(item.previewUrl));
+      setCampaignId("");
       setTitle("");
       setBody("");
       setPlatforms([]);
@@ -453,6 +466,15 @@ export default function SocialMediaPage() {
           </p>
 
           <form onSubmit={createDraft} className="mt-5 space-y-6">
+            <div>
+              <label htmlFor="social-campaign" className="mb-2 block text-sm font-semibold">Linked recruitment campaign (optional)</label>
+              <select id="social-campaign" value={campaignId} onChange={(event) => setCampaignId(event.target.value)} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 outline-none focus:ring-2" style={{ "--tw-ring-color": "#d7eee9" } as React.CSSProperties}>
+                <option value="">No campaign linked</option>
+                {campaigns.map((campaign) => <option key={campaign.id} value={campaign.id}>{campaign.name}</option>)}
+              </select>
+              <p className="mt-1 text-xs text-slate-500">Link this post to a campaign so content activity can be reviewed alongside recruitment results.</p>
+            </div>
+
             <div>
               <label htmlFor="social-title" className="mb-2 block text-sm font-semibold">Post title</label>
               <input
