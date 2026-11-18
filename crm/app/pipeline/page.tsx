@@ -564,6 +564,7 @@ export default function Pipeline() {
     workflowStages,
     selectedStage,
     searchTerm,
+    selectedIntake,
   ]);
 
   async function moveOpportunity(
