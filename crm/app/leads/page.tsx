@@ -696,6 +696,22 @@ export default function LeadsPage() {
     setShowViewModal(true);
   }
 
+  function getLeadProgress(lead: Lead) {
+    const status = (lead.status || "").trim().toLowerCase().replace(/[_-]+/g, " ");
+    const outcome = (lead.follow_up_status || "").trim().toLowerCase();
+    const hasFollowUp = Boolean(outcome && outcome !== "pending");
+    const applied = /applied|application/.test(status);
+    const admitted = /admitted|admission|accepted/.test(status);
+    const enrolled = /enrolled|enrollment|registered/.test(status);
+    return [
+      { label: "Lead captured", done: true },
+      { label: "Follow-up recorded", done: hasFollowUp },
+      { label: "Application", done: applied || admitted || enrolled },
+      { label: "Admitted", done: admitted || enrolled },
+      { label: "Enrolled", done: enrolled },
+    ];
+  }
+
   async function openHistory(
     lead: Lead
   ) {
@@ -1792,6 +1808,24 @@ export default function LeadsPage() {
                     value="Managed from Tasks"
                   />
                 </div>
+
+                <section aria-label="Recruitment progress" style={{ marginTop: 18, padding: 14, border: "1px solid #dce9e0", borderRadius: 10, background: "#fbfdfb" }}>
+                  <h3 style={{ margin: "0 0 5px", color: "#173b2b", fontSize: 14, fontWeight: 800 }}>Recruitment Progress</h3>
+                  <p style={{ margin: "0 0 12px", color: "#64756d", fontSize: 12 }}>Based on this lead's saved status and follow-up outcome.</p>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(105px, 1fr))", gap: 8 }}>
+                    {getLeadProgress(selectedLead).map((step, index) => (
+                      <div key={step.label} style={{ border: `1px solid ${step.done ? "#b8dfc8" : "#e3e9e5"}`, borderRadius: 9, padding: "10px 9px", background: step.done ? "#eaf6ef" : "#fff", minWidth: 0 }}>
+                        <div style={{ fontSize: 10, fontWeight: 850, color: step.done ? "#08704f" : "#819087", marginBottom: 5 }}>{step.done ? "✓ COMPLETE" : index === 1 && !step.done ? "NEXT ACTION" : "NOT RECORDED"}</div>
+                        <div style={{ fontSize: 12, lineHeight: 1.3, fontWeight: 750, color: step.done ? "#174b37" : "#64756d" }}>{step.label}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ marginTop: 12, display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+                    <span style={{ fontSize: 12, color: "#52675c" }}>Saved follow-up outcome:</span>
+                    <strong style={{ fontSize: 12, color: "#00695c" }}>{selectedLead.follow_up_status || "Pending / not recorded"}</strong>
+                    <button type="button" onClick={() => { setShowViewModal(false); openHistory(selectedLead); }} className="ciu-btn-light" style={{ marginLeft: "auto", minHeight: 36, padding: "7px 11px" }}>View follow-up history</button>
+                  </div>
+                </section>
 
                 <div style={{ marginTop: 18, padding: 14, border: "1px solid #dce9e0", borderRadius: 10, background: "#fbfdfb" }}>
                   <h3 style={{ margin: "0 0 10px", color: "#173b2b", fontSize: 14, fontWeight: 800 }}>Move lead to another intake</h3>
