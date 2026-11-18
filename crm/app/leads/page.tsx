@@ -193,6 +193,7 @@ export default function LeadsPage() {
 
   const [currentRole, setCurrentRole] =
     useState("");
+  const [selectedIntake, setSelectedIntake] = useState("2026-11");
 
   useEffect(() => {
     if (selectedLead) {
@@ -329,7 +330,9 @@ export default function LeadsPage() {
     const query =
       search.trim().toLowerCase();
 
+    const [intakeYear, intakeMonth] = selectedIntake.split("-").map(Number);
     return leads.filter((lead) => {
+      if (lead.intake_year !== intakeYear || lead.intake_month !== intakeMonth) return false;
       const displayStatus =
         getDisplayStatus(
           lead.status
@@ -656,11 +659,11 @@ export default function LeadsPage() {
       const parsed = parseLeadCsv(await file.text()); if (parsed.length < 2) throw new Error("The CSV has no data rows.");
       const headers = parsed[0].map((h) => h.replace(/^\uFEFF/, "").toLowerCase().replace(/[ _-]+/g, "").trim());
       const findColumn = (...names: string[]) => headers.findIndex((h) => names.includes(h));
-      const ni = findColumn("name", "fullname", "studentname", "leadname"), pi = findColumn("phone", "telephone", "phonenumber", "mobile", "contact"), ei = findColumn("email", "emailaddress"), ci = findColumn("ciunumber", "studentnumber", "studentno", "registrationnumber"), gi = findColumn("program", "programme", "productservice", "course"), si = findColumn("status", "leadstatus");
+      const ni = findColumn("name", "fullname", "studentname", "leadname"), pi = findColumn("phone", "telephone", "phonenumber", "mobile", "contact"), ei = findColumn("email", "emailaddress"), ci = findColumn("ciunumber", "studentnumber", "studentno", "registrationnumber"), gi = findColumn("program", "programme", "productservice", "course"), si = findColumn("status", "leadstatus"), iyi = findColumn("intakeyear", "recruitmentyear"), imi = findColumn("intakemonth", "recruitmentmonth");
       if (ni < 0 || pi < 0) throw new Error("CSV needs Name and Phone columns. Optional: Email, CIU Number, Programme, Status.");
       const csvLeadStatusMap: Record<string, string> = { new: "new", pending: "new", contacted: "contacted", called: "contacted", whatsapped: "contacted", whatsapp: "contacted", email_sent: "contacted", "no_answer": "contacted", unreachable: "contacted", financial: "contacted", interested: "qualified", qualified: "qualified", unqualified: "unqualified", "not_interested": "unqualified", lost: "lost", dropped: "lost", ineffective: "unqualified" };
       const candidates: any[] = []; let invalid = 0;
-      parsed.slice(1).forEach((cells) => { const v = (n: number) => n < 0 ? "" : String(cells[n] || "").trim(); const name = v(ni), phone = v(pi), email = v(ei); if (!name || !phone) { invalid++; return; } const raw = v(si).toLowerCase().replace(/[ -]+/g, "_"); const programme = v(gi) || null; const normalizedProgramme = (programme || "").trim().toUpperCase(); const isNovember = normalizedProgramme === "PGDME" || normalizedProgramme === "MPH" || normalizedProgramme.startsWith("HEC") || normalizedProgramme.includes("ALLIED HEALTH"); const intakeYear = programme ? (isNovember ? 2026 : 2027) : null; const intakeMonth = programme ? (isNovember ? 11 : 2) : null; candidates.push({ name, phone, email: email || null, ciu_number: v(ci) || null, product_service: programme, intake_year: intakeYear, intake_month: intakeMonth, original_intake_year: intakeYear, original_intake_month: intakeMonth, status: csvLeadStatusMap[raw] || "new", follow_up_status: raw ? raw.replace(/_/g, " ") : "Pending", next_follow_up_at: null, assigned_to: currentUserId || null }); });
+      parsed.slice(1).forEach((cells) => { const v = (n: number) => n < 0 ? "" : String(cells[n] || "").trim(); const name = v(ni), phone = v(pi), email = v(ei); if (!name || !phone) { invalid++; return; } const raw = v(si).toLowerCase().replace(/[ -]+/g, "_"); const programme = v(gi) || null; const normalizedProgramme = (programme || "").trim().toUpperCase(); const isNovember = normalizedProgramme === "PGDME" || normalizedProgramme === "MPH" || normalizedProgramme.startsWith("HEC") || normalizedProgramme.includes("ALLIED HEALTH"); const explicitYear = Number(v(iyi)), explicitMonthRaw = v(imi).toLowerCase(); const monthNames: Record<string, number> = { february: 2, feb: 2, april: 4, apr: 4, august: 8, aug: 8, november: 11, nov: 11 }; const explicitMonth = Number(explicitMonthRaw) || monthNames[explicitMonthRaw] || 0; const defaultYear = isNovember ? 2026 : 2027; const defaultMonth = isNovember ? 11 : 2; const intakeYear = explicitYear >= 2020 && explicitYear <= 2100 ? explicitYear : programme ? defaultYear : null; const intakeMonth = [2,4,8,11].includes(explicitMonth) ? explicitMonth : programme ? defaultMonth : null; candidates.push({ name, phone, email: email || null, ciu_number: v(ci) || null, product_service: programme, intake_year: intakeYear, intake_month: intakeMonth, original_intake_year: intakeYear, original_intake_month: intakeMonth, status: csvLeadStatusMap[raw] || "new", follow_up_status: raw ? raw.replace(/_/g, " ") : "Pending", next_follow_up_at: null, assigned_to: currentUserId || null }); });
       if (!candidates.length) throw new Error("No valid leads found. Name and Phone are required.");
       const existingPhones = new Set(leads.map((l) => (l.phone || "").replace(/\D/g, "")).filter(Boolean)); const existingEmails = new Set(leads.map((l) => (l.email || "").trim().toLowerCase()).filter(Boolean)); const seen = new Set<string>();
       const fresh = candidates.filter((lead) => { const p = lead.phone.replace(/\D/g, ""), e = (lead.email || "").trim().toLowerCase(); const keys = [p ? "p:" + p : "", e ? "e:" + e : ""].filter(Boolean); if (keys.some((k) => seen.has(k) || (k.startsWith("p:") ? existingPhones.has(k.slice(2)) : existingEmails.has(k.slice(2))))) return false; keys.forEach((k) => seen.add(k)); return true; });
@@ -1013,7 +1016,7 @@ export default function LeadsPage() {
                 {uploadingCsv ? "Uploading CSV…" : "↑ Upload CSV"}
                 <input type="file" accept=".csv,text/csv" disabled={uploadingCsv} style={{ display: "none" }} onChange={(event) => { const file = event.target.files?.[0]; void handleLeadCsvUpload(file); event.currentTarget.value = ""; }} />
               </label>
-              <a className="ciu-btn-light" href="data:text/csv;charset=utf-8,Name%2CPhone%2CEmail%2CCIU%20Number%2CProgramme%2CStatus%0AExample%20Student%2C256700000000%2Cstudent%40example.com%2CCIU12345%2CBachelor%20of%20Business%2Cnew" download="ciu-leads-template.csv" style={{ display: "inline-flex", alignItems: "center", textDecoration: "none" }}>Download CSV template</a>
+              <a className="ciu-btn-light" href="data:text/csv;charset=utf-8,Name%2CPhone%2CEmail%2CCIU%20Number%2CProgramme%2CStatus%2CIntake%20Year%2CIntake%20Month%0AExample%20Student%2C256700000000%2Cstudent%40example.com%2CCIU12345%2CBachelor%20of%20Business%2Cnew%2C2027%2C2" download="ciu-leads-template.csv" style={{ display: "inline-flex", alignItems: "center", textDecoration: "none" }}>Download CSV template</a>
               
             </div>
             {csvSummary && <p role="status" style={{ marginTop: 10, color: "#166534", fontSize: 13 }}>{csvSummary}</p>}
@@ -1044,6 +1047,13 @@ export default function LeadsPage() {
             + Add New Lead
           </button>
         </div>
+
+        <section style={{ marginTop: 16, padding: 14, border: "1px solid #dce8df", borderRadius: 12, background: "#fff", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+          <div><strong style={{ color: "#075442", fontSize: 14 }}>Recruitment intake</strong><p style={{ margin: "3px 0 0", color: "#68776f", fontSize: 12 }}>Showing leads assigned to the selected intake. Open a lead to view details or schedule a follow-up in Tasks.</p></div>
+          <select value={selectedIntake} onChange={(event) => setSelectedIntake(event.target.value)} style={{ ...inputStyle, width: "auto", minWidth: 190 }}>
+            <option value="2026-11">November 2026</option><option value="2027-2">February 2027</option><option value="2027-4">April 2027</option><option value="2027-8">August 2027</option><option value="2027-11">November 2027</option><option value="2028-2">February 2028</option>
+          </select>
+        </section>
 
         {/* ERROR */}
         {error && (
