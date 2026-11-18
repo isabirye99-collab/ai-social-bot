@@ -1953,10 +1953,8 @@ const isSalesperson =
         {/* COMPACT TASK STATUS TABS */}
         <nav className="ciu-status-tabs" aria-label="Task status filters" style={{ marginBottom: 14 }}>
           {[
-            { id: "open", label: "Open Tasks", count: stats.active },
             { id: "today", label: "Due Today", count: stats.dueToday },
             { id: "overdue", label: "Overdue", count: stats.overdue },
-            { id: "completed", label: "Completed", count: stats.completed },
             { id: "interested", label: "Interested Leads", count: stats.interestedLeads },
           ].map((tab) => (
             <button key={tab.id} type="button"
@@ -1970,25 +1968,23 @@ const isSalesperson =
 
         {/* LEAD OUTCOME BREAKDOWN */}
         <section aria-labelledby="lead-outcome-heading" style={{ background: "#ffffff", border: "1px solid #dce8e1", borderRadius: 14, padding: 18, marginBottom: 18 }}>
-          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 14 }}>
-            <div>
-              <h2 id="lead-outcome-heading" style={{ margin: 0, color: "#173b30", fontSize: 17, fontWeight: 800 }}>Total Leads & Outcome Breakdown</h2>
-              <p style={{ margin: "4px 0 0", color: "#64756d", fontSize: 12 }}>Counts are based on each lead's saved follow-up outcome, not task counts.</p>
-            </div>
-            <button type="button" onClick={() => { window.location.href = `/leads?intake=${encodeURIComponent(selectedIntake)}&outcome=All%20Leads`; }} aria-label="View all leads for the selected intake" style={{ minWidth: 150, textAlign: "left", border: "1px solid #c7e3d2", borderRadius: 12, background: "#e9f5ee", padding: "10px 16px", cursor: "pointer" }}>
-              <div style={{ color: "#48665a", fontSize: 11, fontWeight: 700 }}>TOTAL LEADS · VIEW</div>
-              <div style={{ color: "#00695c", fontSize: 27, lineHeight: 1.2, fontWeight: 900 }}>{leadOutcomeBreakdown.total.toLocaleString()}</div>
-            </button>
+          <div style={{ marginBottom: 12 }}>
+            <h2 id="lead-outcome-heading" style={{ margin: 0, color: "#173b30", fontSize: 17, fontWeight: 800 }}>Total Leads & Outcome Breakdown</h2>
+            <p style={{ margin: "4px 0 0", color: "#64756d", fontSize: 12 }}>Counts are based on each lead's saved follow-up outcome, not task counts.</p>
           </div>
           <div style={{ display: "flex", flexWrap: "nowrap", gap: 9, overflowX: "auto", paddingBottom: 4, alignItems: "stretch" }}>
+            <button type="button" onClick={() => { window.location.href = `/leads?intake=${encodeURIComponent(selectedIntake)}&outcome=All%20Leads`; }} aria-label="View all leads for the selected intake" style={{ display: "flex", flexDirection: "column", justifyContent: "center", minWidth: 132, flex: "0 0 auto", textAlign: "left", border: "1px solid #c7e3d2", borderRadius: 10, background: "#e9f5ee", padding: "10px 11px", cursor: "pointer" }}>
+              <span style={{ color: "#48665a", fontSize: 11, fontWeight: 700 }}>TOTAL LEADS</span>
+              <strong style={{ color: "#00695c", fontSize: 20, lineHeight: 1.3, fontWeight: 900 }}>{leadOutcomeBreakdown.total.toLocaleString()}</strong>
+            </button>
             {leadOutcomeBreakdown.items.map((item) => (
-              <button key={item.label} type="button" onClick={() => { window.location.href = `/leads?intake=${encodeURIComponent(selectedIntake)}&outcome=${encodeURIComponent(item.label)}`; }} aria-label={`View ${item.count} leads with outcome ${item.label}`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, border: "1px solid #e5ede8", borderRadius: 10, padding: "10px 11px", background: item.count ? "#fbfdfb" : "#ffffff", cursor: "pointer", textAlign: "left", minWidth: 132, color: "inherit" }}>
+              <button key={item.label} type="button" onClick={() => { window.location.href = `/leads?intake=${encodeURIComponent(selectedIntake)}&outcome=${encodeURIComponent(item.label)}`; }} aria-label={`View ${item.count} leads with outcome ${item.label}`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, border: "1px solid #e5ede8", borderRadius: 10, padding: "10px 11px", background: item.count ? "#fbfdfb" : "#ffffff", cursor: "pointer", textAlign: "left", minWidth: 132, flex: "0 0 auto", color: "inherit" }}>
                 <span style={{ color: "#40584e", fontSize: 12, lineHeight: 1.35 }}>{item.label}</span>
                 <strong style={{ color: item.count ? "#00695c" : "#9aa9a1", fontSize: 15, fontVariantNumeric: "tabular-nums" }}>{item.count.toLocaleString()}</strong>
               </button>
             ))}
             {leadOutcomeBreakdown.unrecorded > 0 && (
-              <button type="button" onClick={() => { window.location.href = `/leads?intake=${encodeURIComponent(selectedIntake)}&outcome=${encodeURIComponent("Other / unrecognized outcome")}`; }} aria-label={`View ${leadOutcomeBreakdown.unrecorded} leads with other or unrecognized outcomes`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, border: "1px solid #f0d7a5", borderRadius: 10, padding: "10px 11px", background: "#fffbeb", cursor: "pointer", textAlign: "left", minWidth: 132 }}>
+              <button type="button" onClick={() => { window.location.href = `/leads?intake=${encodeURIComponent(selectedIntake)}&outcome=${encodeURIComponent("Other / unrecognized outcome")}`; }} aria-label={`View ${leadOutcomeBreakdown.unrecorded} leads with other or unrecognized outcomes`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, border: "1px solid #f0d7a5", borderRadius: 10, padding: "10px 11px", background: "#fffbeb", cursor: "pointer", textAlign: "left", minWidth: 132, flex: "0 0 auto" }}>
                 <span style={{ color: "#805b14", fontSize: 12 }}>Other / unrecognized outcome</span>
                 <strong style={{ color: "#805b14", fontSize: 15 }}>{leadOutcomeBreakdown.unrecorded.toLocaleString()}</strong>
               </button>
