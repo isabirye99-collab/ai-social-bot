@@ -3017,6 +3017,35 @@ export default function MarketingPage() {
                     />
                   </div>
 
+                  <div style={{ gridColumn: "1 / -1" }}>
+                    <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 7 }}>Strategy intake</label>
+                    <select value={form.intake_plan_id} onChange={(event) => {
+                      const nextIntakeId = event.target.value;
+                      setForm({ ...form, intake_plan_id: nextIntakeId, activity_id: "" });
+                    }} style={{ width: "100%", height: 42, border: "1px solid #d1d5db", borderRadius: 8, padding: "0 12px", fontSize: 14, background: "#ffffff", boxSizing: "border-box" }}>
+                      <option value="">Not linked to an intake yet</option>
+                      {intakeOptions.map((intake) => {
+                        const plan = strategyPlans.find((item) => item.id === intake.plan_id);
+                        const month = new Date(2000, intake.intake_month - 1, 1).toLocaleDateString("en-UG", { month: "long" });
+                        return <option key={intake.id} value={intake.id}>{plan?.strategy_year ?? "Strategy"} · {month} · {intake.programme}</option>;
+                      })}
+                    </select>
+                    <p style={{ margin: "5px 0 0", fontSize: 11, color: "#64748b" }}>Link this campaign to the intake it is intended to support.</p>
+                  </div>
+
+                  <div style={{ gridColumn: "1 / -1" }}>
+                    <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 7 }}>Strategy activity</label>
+                    <select value={form.activity_id} onChange={(event) => setForm({ ...form, activity_id: event.target.value })} style={{ width: "100%", height: 42, border: "1px solid #d1d5db", borderRadius: 8, padding: "0 12px", fontSize: 14, background: "#ffffff", boxSizing: "border-box" }}>
+                      <option value="">Not linked to an activity yet</option>
+                      {activityOptions.filter((activity) => {
+                        if (!form.intake_plan_id) return true;
+                        const intake = intakeOptions.find((item) => item.id === form.intake_plan_id);
+                        return !intake || activity.plan_id === intake.plan_id;
+                      }).map((activity) => <option key={activity.id} value={activity.id}>{activity.title} · {activity.status.replaceAll("_", " ")}</option>)}
+                    </select>
+                    <p style={{ margin: "5px 0 0", fontSize: 11, color: "#64748b" }}>Choose the approved or planned activity that owns this campaign. Activity options follow the selected intake's annual strategy.</p>
+                  </div>
+
                   <div>
                     <label
                       style={{
