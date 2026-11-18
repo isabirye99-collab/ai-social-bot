@@ -17,6 +17,13 @@ export default function ResetPasswordPage() {
 
   useEffect(() => {
     let active = true;
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!active) return;
+      if ((event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") && session) {
+        setReady(true);
+        setError("");
+      }
+    });
     async function verifyRecoverySession() {
       const { data, error: sessionError } = await supabase.auth.getSession();
       if (!active) return;
@@ -26,14 +33,9 @@ export default function ResetPasswordPage() {
         return;
       }
       setReady(true);
+      setError("");
     }
     void verifyRecoverySession();
-    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!active) return;
-      if ((event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") && session) {
-        setReady(true);
-      }
-    });
     return () => { active = false; listener.subscription.unsubscribe(); };
   }, [supabase]);
 
