@@ -1071,121 +1071,71 @@ export default function LeadsPage() {
       <div className="ciu-page-inner">
 
         {/* HEADER */}
-        <div
-          className="ciu-hero"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 20,
-            flexWrap: "wrap",
-          }}
-        >
-          <div>
-            <div
-              style={{
-                fontSize: 12,
-                fontWeight: 800,
-                color: "#8bc63f",
-                textTransform: "uppercase",
-                letterSpacing: "0.08em",
-                marginBottom: 6,
-              }}
-            >
-              Prospecting
-            </div>
-
-            <h1>
-              {currentRole ===
-              "salesperson"
-                ? "My Leads"
-                : "Leads"}
-            </h1>
-
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 14 }}>
-              <label className="ciu-btn-light" style={{ display: "inline-flex", alignItems: "center", gap: 8, cursor: uploadingCsv ? "wait" : "pointer", opacity: uploadingCsv ? 0.65 : 1 }}>
-                {uploadingCsv ? "Uploading CSV…" : "↑ Upload CSV"}
-                <input type="file" accept=".csv,text/csv" disabled={uploadingCsv} style={{ display: "none" }} onChange={(event) => { const file = event.target.files?.[0]; void handleLeadCsvUpload(file); event.currentTarget.value = ""; }} />
-              </label>
-              <a className="ciu-btn-light" href="data:text/csv;charset=utf-8,Name%2CPhone%2CEmail%2CCIU%20Number%2CProgramme%2CStatus%2CIntake%20Year%2CIntake%20Month%0AExample%20Student%2C256700000000%2Cstudent%40example.com%2CCIU12345%2CBachelor%20of%20Business%2Cnew%2C2027%2C2" download="ciu-leads-template.csv" style={{ display: "inline-flex", alignItems: "center", textDecoration: "none" }}>Download CSV template</a>
-              
-            </div>
-            {csvSummary && <p role="status" style={{ marginTop: 10, color: "#166534", fontSize: 13 }}>{csvSummary}</p>}
-            <p>
-              Manage new prospects,
-              identify interest and
-              qualify students for the
-              admissions Pipeline.
-            </p>
+        <div className="ciu-hero leads-hero">
+          <div className="leads-hero-copy">
+            <div className="leads-eyebrow">Prospecting</div>
+            <h1>{currentRole === "salesperson" ? "My Leads" : "Leads"}</h1>
+            <p>Manage prospects, record interest and qualify students for the admissions pipeline.</p>
           </div>
-
-          <button
-            type="button"
-            onClick={() => {
-              if (selectedIntake !== "unassigned") {
-                const [year, month] = selectedIntake.split("-");
-                setNewLead((current) => ({ ...current, intake_year: current.intake_year || year, intake_month: current.intake_month || month }));
-              }
-              setShowAddLead(true);
-            }}
-            className="ciu-btn"
-            style={{
-              visibility: "visible",
-              opacity: 1,
-              minWidth: 150,
-              height: 44,
-              fontSize: 14,
-              fontWeight: 800,
-              whiteSpace: "nowrap",
-            }}
-          >
-            + Add New Lead
-          </button>
-          <button
-            type="button"
-            onClick={loadLeads}
-            className="ciu-btn-light"
-            disabled={loading}
-            style={{ height: 44, fontSize: 14, fontWeight: 800, whiteSpace: "nowrap" }}
-          >
-            {loading ? "Refreshing..." : "Refresh"}
-          </button>
+          <div className="leads-hero-actions">
+            <label className="ciu-btn-light leads-action-button" style={{ cursor: uploadingCsv ? "wait" : "pointer", opacity: uploadingCsv ? 0.65 : 1 }}>
+              {uploadingCsv ? "Uploading CSV…" : "↑ Upload CSV"}
+              <input type="file" accept=".csv,text/csv" disabled={uploadingCsv} style={{ display: "none" }} onChange={(event) => { const file = event.target.files?.[0]; void handleLeadCsvUpload(file); event.currentTarget.value = ""; }} />
+            </label>
+            <a className="ciu-btn-light leads-action-button" href="data:text/csv;charset=utf-8,Name%2CPhone%2CEmail%2CCIU%20Number%2CProgramme%2CStatus%2CIntake%20Year%2CIntake%20Month%0AExample%20Student%2C256700000000%2Cstudent%40example.com%2CCIU12345%2CBachelor%20of%20Business%2Cnew%2C2027%2C2" download="ciu-leads-template.csv">Download CSV template</a>
+            <button type="button" onClick={() => { if (selectedIntake !== "unassigned") { const [year, month] = selectedIntake.split("-"); setNewLead((current) => ({ ...current, intake_year: current.intake_year || year, intake_month: current.intake_month || month })); } setShowAddLead(true); }} className="ciu-btn leads-action-button leads-add-button">+ Add New Lead</button>
+            <button type="button" onClick={loadLeads} className="ciu-btn-light leads-action-button" disabled={loading}>{loading ? "Refreshing..." : "↻ Refresh"}</button>
+          </div>
+          {csvSummary && <p role="status" style={{ marginTop: 10, color: "#166534", fontSize: 13 }}>{csvSummary}</p>}
         </div>
 
-        <section style={{ marginTop: 16, padding: 14, border: "1px solid #dce8df", borderRadius: 12, background: "#fff", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-          <div><strong style={{ color: "#075442", fontSize: 14 }}>Recruitment intake</strong><p style={{ margin: "3px 0 0", color: "#68776f", fontSize: 12 }}>Showing leads assigned to the selected intake. Open a lead to view details or schedule a follow-up in Tasks.</p></div>
-          <select value={selectedIntake} onChange={(event) => setSelectedIntake(event.target.value)} style={{ ...inputStyle, width: "auto", minWidth: 190 }}>
+        <section className="leads-intake-bar">
+          <div>
+            <strong>Recruitment intake</strong>
+            <p>Showing leads assigned to the selected intake.</p>
+          </div>
+          <select aria-label="Recruitment intake" value={selectedIntake} onChange={(event) => setSelectedIntake(event.target.value)} style={{ ...inputStyle, width: "auto", minWidth: 190 }}>
             <option value="unassigned">Needs intake assignment</option><option value="2026-11">November 2026</option><option value="2027-2">February 2027</option><option value="2027-4">April 2027</option><option value="2027-8">August 2027</option><option value="2027-11">November 2027</option><option value="2028-2">February 2028</option>
           </select>
         </section>
 
         {/* LEAD OUTCOME BREAKDOWN */}
-        <section aria-labelledby="lead-outcome-heading" style={{ background: "#ffffff", border: "1px solid #dce8e1", borderRadius: 14, padding: 18, marginTop: 16 }}>
-          <div style={{ marginBottom: 12 }}>
-            <h2 id="lead-outcome-heading" style={{ margin: 0, color: "#173b30", fontSize: 17, fontWeight: 800 }}>Total Leads & Outcome Breakdown</h2>
-            <p style={{ margin: "4px 0 0", color: "#64756d", fontSize: 12 }}>Counts are based on each lead's saved follow-up outcome for the selected intake. Select an outcome to filter the lead list below.</p>
+        <section aria-labelledby="lead-outcome-heading" className="lead-outcomes-panel">
+          <div className="lead-outcomes-heading">
+            <div>
+              <h2 id="lead-outcome-heading">Recruitment progress</h2>
+              <p>Select a stage to filter the lead records below.</p>
+            </div>
+            <button type="button" onClick={() => setOutcomeFilter("")} aria-pressed={!outcomeFilter} className={`lead-outcomes-total ${!outcomeFilter ? "lead-outcomes-total-active" : ""}`}>{leadOutcomeBreakdown.total.toLocaleString()} leads</button>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(125px, 1fr))", gap: 7, alignItems: "stretch", width: "100%" }}>
-            <button type="button" onClick={() => setOutcomeFilter("")} aria-label="Show all leads for the selected intake" aria-pressed={!outcomeFilter} style={{ appearance: "none", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, minWidth: 0, minHeight: 42, padding: "6px 8px", border: !outcomeFilter ? "1px solid #00695c" : "1px solid #d8e5df", borderRadius: 10, background: !outcomeFilter ? "#00695c" : "#ffffff", color: !outcomeFilter ? "#ffffff" : "#48635b", fontFamily: "inherit", fontSize: 10, fontWeight: 800, lineHeight: 1.25, textAlign: "left", cursor: "pointer" }}>
-              <span>TOTAL LEADS</span>
-              <strong style={{ display: "grid", placeItems: "center", flexShrink: 0, minWidth: 22, height: 22, padding: "0 5px", borderRadius: 999, background: !outcomeFilter ? "rgba(255,255,255,.18)" : "#edf3f0", color: !outcomeFilter ? "#ffffff" : "#5f756c", fontSize: 10, fontVariantNumeric: "tabular-nums" }}>{leadOutcomeBreakdown.total.toLocaleString()}</strong>
-            </button>
-            {leadOutcomeBreakdown.items.map((item) => {
+          <div className="lead-outcomes-primary">
+            {leadOutcomeBreakdown.items.filter((item) => ["Pending", "Interested", "Applied", "Application Submitted", "Admitted", "Enrolled"].includes(item.label)).map((item) => {
               const active = outcomeFilter === item.label;
               return (
-                <button key={item.label} type="button" onClick={() => setOutcomeFilter(active ? "" : item.label)} aria-pressed={active} aria-label={`Filter to ${item.count} leads with outcome ${item.label}`} style={{ appearance: "none", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, minWidth: 0, minHeight: 42, padding: "6px 8px", border: active ? "1px solid #00695c" : "1px solid #d8e5df", borderRadius: 10, background: active ? "#00695c" : "#ffffff", color: active ? "#ffffff" : "#48635b", fontFamily: "inherit", fontSize: 10, fontWeight: 800, lineHeight: 1.25, textAlign: "left", cursor: "pointer" }}>
-                  <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>{item.label}</span>
-                  <strong style={{ display: "grid", placeItems: "center", flexShrink: 0, minWidth: 22, height: 22, padding: "0 5px", borderRadius: 999, background: active ? "rgba(255,255,255,.18)" : "#edf3f0", color: active ? "#ffffff" : item.count ? "#5f756c" : "#9aa9a1", fontSize: 10, fontVariantNumeric: "tabular-nums" }}>{item.count.toLocaleString()}</strong>
+                <button key={item.label} type="button" onClick={() => setOutcomeFilter(active ? "" : item.label)} aria-pressed={active} aria-label={`Filter to ${item.count} leads with outcome ${item.label}`} className={`lead-outcome-chip ${active ? "lead-outcome-chip-active" : ""}`}>
+                  <span>{item.label}</span><strong>{item.count.toLocaleString()}</strong>
                 </button>
               );
             })}
-            {leadOutcomeBreakdown.unrecorded > 0 && (
-              <button type="button" onClick={() => setOutcomeFilter(outcomeFilter === "Other / unrecognized outcome" ? "" : "Other / unrecognized outcome")} aria-pressed={outcomeFilter === "Other / unrecognized outcome"} aria-label={`Filter to ${leadOutcomeBreakdown.unrecorded} leads with other or unrecognized outcomes`} style={{ appearance: "none", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, minWidth: 0, minHeight: 42, padding: "6px 8px", border: outcomeFilter === "Other / unrecognized outcome" ? "1px solid #00695c" : "1px solid #d8e5df", borderRadius: 10, background: outcomeFilter === "Other / unrecognized outcome" ? "#00695c" : "#ffffff", color: outcomeFilter === "Other / unrecognized outcome" ? "#ffffff" : "#48635b", fontFamily: "inherit", fontSize: 10, fontWeight: 800, lineHeight: 1.25, textAlign: "left", cursor: "pointer" }}>
-                <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>Other / unrecognized outcome</span>
-                <strong style={{ display: "grid", placeItems: "center", flexShrink: 0, minWidth: 22, height: 22, padding: "0 5px", borderRadius: 999, background: outcomeFilter === "Other / unrecognized outcome" ? "rgba(255,255,255,.18)" : "#edf3f0", color: outcomeFilter === "Other / unrecognized outcome" ? "#ffffff" : "#5f756c", fontSize: 10, fontVariantNumeric: "tabular-nums" }}>{leadOutcomeBreakdown.unrecorded.toLocaleString()}</strong>
-              </button>
-            )}
           </div>
+          <details className="lead-outcomes-secondary" open={["Paid Application Fee", "Acceptance Fee Paid", "Paid Acceptance Fee", "Other / unrecognized outcome"].includes(outcomeFilter)}>
+            <summary>Payment and other follow-up outcomes <span>Expand for more filters</span></summary>
+            <div className="lead-outcomes-secondary-grid">
+              {leadOutcomeBreakdown.items.filter((item) => !["Pending", "Interested", "Applied", "Application Submitted", "Admitted", "Enrolled"].includes(item.label)).map((item) => {
+                const active = outcomeFilter === item.label;
+                return (
+                  <button key={item.label} type="button" onClick={() => setOutcomeFilter(active ? "" : item.label)} aria-pressed={active} aria-label={`Filter to ${item.count} leads with outcome ${item.label}`} className={`lead-outcome-chip ${active ? "lead-outcome-chip-active" : ""}`}>
+                    <span>{item.label}</span><strong>{item.count.toLocaleString()}</strong>
+                  </button>
+                );
+              })}
+              {leadOutcomeBreakdown.unrecorded > 0 && (
+                <button type="button" onClick={() => setOutcomeFilter(outcomeFilter === "Other / unrecognized outcome" ? "" : "Other / unrecognized outcome")} aria-pressed={outcomeFilter === "Other / unrecognized outcome"} className={`lead-outcome-chip lead-outcome-chip-warning ${outcomeFilter === "Other / unrecognized outcome" ? "lead-outcome-chip-active" : ""}`}>
+                  <span>Other / unrecognized outcome</span><strong>{leadOutcomeBreakdown.unrecorded.toLocaleString()}</strong>
+                </button>
+              )}
+            </div>
+          </details>
         </section>
 
         {/* ERROR */}
@@ -2274,6 +2224,44 @@ export default function LeadsPage() {
 
         {/* RESPONSIVE STYLES */}
         <style jsx>{`
+          .leads-hero { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+          .leads-hero-copy { flex:1 1 250px; min-width:220px; }
+          .leads-eyebrow { margin-bottom:5px; color:#8bc63f; font-size:11px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+          .leads-hero-copy h1 { margin:0; }
+          .leads-hero-copy p { margin:6px 0 0; color:#64756d; font-size:13px; }
+          .leads-hero-actions { display:flex; align-items:center; justify-content:flex-end; gap:8px; flex:0 1 auto; flex-wrap:wrap; }
+          .leads-action-button { min-height:40px; height:40px; padding:0 12px; display:inline-flex; align-items:center; justify-content:center; white-space:nowrap; font-size:12px; font-weight:750; text-decoration:none; }
+          .leads-add-button { background:#00695c; }
+          .leads-intake-bar { display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; margin-top:12px; padding:12px 16px; border:1px solid #dce8df; border-radius:12px; background:#fff; }
+          .leads-intake-bar strong { color:#075442; font-size:13px; }
+          .leads-intake-bar p { margin:3px 0 0; color:#68776f; font-size:12px; }
+          .lead-outcomes-panel { margin-top:12px; padding:15px; border:1px solid #dce8e1; border-radius:14px; background:#fff; }
+          .lead-outcomes-heading { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:12px; }
+          .lead-outcomes-heading h2 { margin:0; color:#173b30; font-size:15px; font-weight:800; }
+          .lead-outcomes-heading p { margin:3px 0 0; color:#64756d; font-size:12px; }
+          .lead-outcomes-total { flex-shrink:0; padding:6px 10px; border:1px solid #d8e5df; border-radius:999px; background:#f7fbf9; color:#075442; font-family:inherit; font-size:12px; font-weight:800; cursor:pointer; }
+          .lead-outcomes-total-active { background:#00695c; border-color:#00695c; color:#fff; }
+          .lead-outcomes-primary { display:grid; grid-template-columns:repeat(auto-fit,minmax(125px,1fr)); gap:7px; }
+          .lead-outcome-chip { appearance:none; display:flex; align-items:center; justify-content:space-between; gap:7px; min-width:0; min-height:40px; padding:6px 8px; border:1px solid #d8e5df; border-radius:10px; background:#fff; color:#48635b; font-family:inherit; font-size:10px; font-weight:750; line-height:1.25; text-align:left; cursor:pointer; }
+          .lead-outcome-chip span { min-width:0; overflow-wrap:anywhere; }
+          .lead-outcome-chip strong { display:grid; place-items:center; flex-shrink:0; min-width:22px; height:22px; padding:0 5px; border-radius:999px; background:#edf3f0; color:#5f756c; font-size:10px; font-variant-numeric:tabular-nums; }
+          .lead-outcome-chip-active { border-color:#00695c; background:#00695c; color:#fff; }
+          .lead-outcome-chip-active strong { background:rgba(255,255,255,.18); color:#fff; }
+          .lead-outcomes-secondary { margin-top:10px; border-top:1px solid #edf2ee; padding-top:9px; }
+          .lead-outcomes-secondary summary { display:flex; align-items:center; justify-content:space-between; gap:10px; color:#48635b; font-size:12px; font-weight:750; cursor:pointer; }
+          .lead-outcomes-secondary summary span { color:#7a8a82; font-size:11px; font-weight:500; }
+          .lead-outcomes-secondary-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(125px,1fr)); gap:7px; margin-top:10px; }
+          .lead-outcome-chip-warning { border-color:#f0d7a5; background:#fffbeb; color:#805b14; }
+          .lead-outcome-chip-warning strong { background:#fef3c7; color:#805b14; }
+          @media (max-width: 700px) {
+            .leads-hero-actions { justify-content:flex-start; width:100%; }
+            .leads-action-button { min-height:38px; height:38px; font-size:11px; }
+            .leads-intake-bar { align-items:stretch; }
+            .leads-intake-bar select { width:100% !important; }
+            .lead-outcomes-primary { grid-template-columns:repeat(2,minmax(0,1fr)); }
+            .lead-outcomes-secondary-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+          }
+
           @media (max-width: 1000px) {
             .ciu-kpi-grid {
               grid-template-columns: repeat(
