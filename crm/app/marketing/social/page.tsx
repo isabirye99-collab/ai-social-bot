@@ -710,6 +710,11 @@ export default function SocialMediaPage() {
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
                       <h3 className="font-bold">{post.title}</h3>
+                      {post.campaign_id && (
+                        <p className="mt-1 text-xs font-semibold" style={{ color: "var(--ciu-primary, #00695c)" }}>
+                          Campaign: {campaigns.find((campaign) => campaign.id === post.campaign_id)?.name || "Linked campaign"}
+                        </p>
+                      )}
                       <p className="mt-2 whitespace-pre-wrap text-sm text-slate-600">{post.body || "No caption added."}</p>
                       <div className="mt-3 flex flex-wrap gap-2">
                         {(post.platforms ?? []).map((platform) => (
