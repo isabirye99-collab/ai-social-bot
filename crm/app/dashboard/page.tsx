@@ -766,7 +766,6 @@ export default function DashboardPage() {
     const stageName = (value: string | null) => normalizeStageName(value);
     const stageCount = (stages: string[], fallback: string[]) => {
       const linkedIds = new Set(cohortAdmissions.filter((item) => stages.includes(stageName(item.stage))).map((item) => item.lead_id).filter(Boolean));
-      const linkedLeadIds = new Set(cohortAdmissions.map((item) => item.lead_id).filter(Boolean));
       return intakeLeads.filter((lead) => linkedIds.has(lead.id) || fallback.includes(outcome(lead))).length;
     };
     const applied = stageCount(["applied", "application submitted", "paid application fee", "application fee paid", "admitted", "enrolled"], ["applied", "application submitted", "paid application fee", "application fee paid", "admitted", "enrolled", "converted"]);
