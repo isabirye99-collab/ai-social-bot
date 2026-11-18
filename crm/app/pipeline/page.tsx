@@ -1684,18 +1684,18 @@ export default function Pipeline() {
       <style jsx>{`
         .pipeline-stage-tabs-wrap {
           width: 100%;
-          overflow-x: auto;
+          overflow-x: visible;
           overflow-y: hidden;
           padding-bottom: 3px;
-          -webkit-overflow-scrolling: touch;
         }
 
         .pipeline-stage-tabs {
-          display: flex;
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(125px, 1fr));
           align-items: stretch;
-          gap: 8px;
-          width: max-content;
-          min-width: 100%;
+          gap: 7px;
+          width: 100%;
+          min-width: 0;
         }
 
         .pipeline-stage-tab {
@@ -1704,17 +1704,19 @@ export default function Pipeline() {
           border-radius: 12px;
           background: #ffffff;
           color: #48635b;
-          min-height: 52px;
-          padding: 8px 14px;
+          min-height: 44px;
+          min-width: 0;
+          padding: 6px 8px;
           display: flex;
           align-items: center;
           justify-content: center;
-          gap: 10px;
+          gap: 6px;
           font-family: inherit;
-          font-size: 12px;
+          font-size: 10px;
           font-weight: 800;
           cursor: pointer;
-          white-space: nowrap;
+          white-space: normal;
+          line-height: 1.25;
           transition:
             background 0.15s ease,
             border-color 0.15s ease,
@@ -1730,11 +1732,11 @@ export default function Pipeline() {
         }
 
         .pipeline-stage-tab strong {
-          min-width: 27px;
-          height: 27px;
+          min-width: 22px;
+          height: 22px;
           display: grid;
           place-items: center;
-          padding: 0 7px;
+          padding: 0 5px;
           border-radius: 999px;
           background: #edf3f0;
           color: #5f756c;
@@ -2036,10 +2038,16 @@ export default function Pipeline() {
             bottom: 20px !important;
           }
 
+          .pipeline-stage-tabs {
+            grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+            gap: 6px;
+          }
+
           .pipeline-stage-tab {
-            min-height: 48px;
-            padding: 7px 11px;
-            font-size: 11px;
+            min-height: 40px;
+            padding: 5px 6px;
+            font-size: 10px;
+            gap: 5px;
           }
 
           .ciu-card-head {
@@ -2057,12 +2065,15 @@ export default function Pipeline() {
         }
 
         /* Pipeline visual refinement */
-        .pipeline-stage-tabs { gap: 7px; }
+        .pipeline-stage-tabs {
+          grid-template-columns: repeat(auto-fit, minmax(125px, 1fr));
+          gap: 7px;
+        }
         .pipeline-stage-tab {
-          min-height: 48px;
-          padding: 7px 12px;
+          min-height: 42px;
+          padding: 6px 7px;
           border-radius: 10px;
-          font-size: 11px;
+          font-size: 10px;
           box-shadow: none;
         }
         .pipeline-stage-tab-active {
