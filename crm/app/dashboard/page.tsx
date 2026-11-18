@@ -1034,10 +1034,11 @@ export default function DashboardPage() {
           <div>
             <p className="text-[10px] font-extrabold uppercase tracking-[0.15em] text-[#658075]">Recruitment by intake</p>
             <h2 className="mt-1 text-xl font-black tracking-tight text-[#075442]">Intake performance</h2>
-            <p className="mt-1 text-xs text-[#68776f]">Lead records are counted by their assigned intake. Transfers retain the original intake history.</p>
+            <p className="mt-1 text-xs text-[#68776f]">Cohort outcomes follow leads assigned to this intake. Conversion is cumulative through the reporting date; only approved strategy targets are shown.</p>
           </div>
           <label className="grid gap-1 text-xs font-bold text-[#40584e]">Select intake
             <select value={selectedIntake} onChange={(event) => setSelectedIntake(event.target.value)} className="min-w-[190px] rounded-xl border border-[#cfded4] bg-white px-3 py-2.5 text-sm font-semibold text-[#173b2b]">
+              <option value="all">All intakes</option>
               <option value="unassigned">Needs intake assignment</option><option value="2026-11">November 2026</option>
               <option value="2027-2">February 2027</option>
               <option value="2027-4">April 2027</option>
@@ -1049,18 +1050,25 @@ export default function DashboardPage() {
         </div>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
           {[
-            { label: "Leads", value: intakeSummary.total },
-            { label: "Interested", value: intakeSummary.interested },
-            { label: "Applied", value: intakeSummary.applied },
-            { label: "Admitted", value: intakeSummary.admitted },
-            { label: "Enrolled", value: intakeSummary.enrolled },
+            { label: "Leads", value: intakeSummary.total, target: null, conversion: 100, href: "/leads" },
+            { label: "Interested", value: intakeSummary.interested, target: null, conversion: intakeSummary.conversion.interested, href: "/leads" },
+            { label: "Applications", value: intakeSummary.applied, target: intakeSummary.targets?.applications ?? null, conversion: intakeSummary.conversion.applied, href: "/pipeline" },
+            { label: "Admitted", value: intakeSummary.admitted, target: intakeSummary.targets?.admissions ?? null, conversion: intakeSummary.conversion.admitted, href: "/pipeline" },
+            { label: "Enrolled", value: intakeSummary.enrolled, target: intakeSummary.targets?.registrations ?? null, conversion: intakeSummary.conversion.enrolled, href: "/customers" },
           ].map((item) => (
-            <div key={item.label} className="rounded-xl border border-[#e2ebe5] bg-[#fbfdfb] p-3">
+            <Link key={item.label} href={item.href} className="rounded-xl border border-[#e2ebe5] bg-[#fbfdfb] p-3 transition hover:border-[#9acb86] hover:bg-white">
               <p className="text-xs font-semibold text-[#68776f]">{item.label}</p>
               <p className="mt-1 text-2xl font-black tabular-nums text-[#075442]">{item.value.toLocaleString()}</p>
-            </div>
+              <p className="mt-1 text-[11px] font-semibold text-[#68776f]">
+                {item.target === null ? "Target not set" : "Target " + item.target.toLocaleString() + " · " + (item.target > 0 ? Math.round(item.value / item.target * 100) + "% achieved" : "—")}
+              </p>
+              <p className="mt-1 text-[10px] text-[#7a8a81]">{item.conversion === null ? "Cohort conversion pending" : Math.round(item.conversion) + "% of cohort"}</p>
+            </Link>
           ))}
         </div>
+        <p className="mt-2 text-[11px] text-[#68776f]">
+          Reporting window: selected intake cohort through {new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}. Conversion uses the selected cohort as denominator, not same-month lead and enrolment totals.
+        </p>
         <div className="mt-4 grid gap-4 lg:grid-cols-[1.3fr_.7fr]">
           <div className="rounded-xl bg-[#f6faf6] p-3">
             <h3 className="text-xs font-extrabold text-[#345647]">Top programmes in this intake</h3>
