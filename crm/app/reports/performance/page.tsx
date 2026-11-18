@@ -152,6 +152,7 @@ export default function ReportsPage() {
   const [viewerRole, setViewerRole] = useState("");
   const [viewerModules, setViewerModules] = useState<CrmModule[]>([]);
   const [individualView, setIndividualView] = useState(false);
+  const [selectedStaffId, setSelectedStaffId] = useState("");
   const [leads, setLeads] = useState<Lead[]>([]);
   const [admissions, setAdmissions] = useState<Admission[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -250,9 +251,11 @@ export default function ReportsPage() {
       }
 
       const canViewTeam = ["manager", "admin", "super_admin"].includes(role);
-      const requestedIndividualView = typeof window !== "undefined" &&
-        new URLSearchParams(window.location.search).get("view") === "individual";
+      const searchParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : new URLSearchParams();
+      const requestedIndividualView = searchParams.get("view") === "individual";
       const isIndividualView = requestedIndividualView || !canViewTeam;
+      const requestedStaffId = canViewTeam && requestedIndividualView ? (searchParams.get("staffId") || user.id) : user.id;
+      setSelectedStaffId(requestedStaffId);
       setIndividualView(isIndividualView);
       setViewerModules(effectiveModules);
       setViewerRole(role);
@@ -265,7 +268,7 @@ export default function ReportsPage() {
         .select("id,full_name,role,module_permissions")
         .eq("is_active", true)
         .order("full_name");
-      if (isIndividualView) profilesQuery.eq("id", user.id);
+      if (isIndividualView && !canViewTeam) profilesQuery.eq("id", user.id);
 
       let leadsQuery = supabase
         .from("leads")
@@ -277,9 +280,9 @@ export default function ReportsPage() {
         .from("tasks")
         .select("id,assigned_to,task_type,status,completed_at,created_at");
       if (isIndividualView) {
-        leadsQuery = leadsQuery.eq("assigned_to", user.id);
-        admissionsQuery = admissionsQuery.eq("assigned_to", user.id);
-        tasksQuery = tasksQuery.eq("assigned_to", user.id);
+        leadsQuery = leadsQuery.eq("assigned_to", requestedStaffId);
+        admissionsQuery = admissionsQuery.eq("assigned_to", requestedStaffId);
+        tasksQuery = tasksQuery.eq("assigned_to", requestedStaffId);
       }
       if (!effectiveModules.includes("leads")) leadsQuery = leadsQuery.limit(0);
       if (!effectiveModules.includes("leads") && !effectiveModules.includes("pipeline")) admissionsQuery = admissionsQuery.limit(0);
@@ -324,9 +327,10 @@ export default function ReportsPage() {
       });
 
       const ownProfile = ((p.data || []) as Profile[]).find((profile) => profile.id === user.id);
+      const selectedProfile = ((p.data || []) as Profile[]).find((profile) => profile.id === requestedStaffId);
       setProfiles(
-        canViewTeam && !isIndividualView
-          ? eligibleProfiles
+        canViewTeam
+          ? (isIndividualView ? (selectedProfile ? [selectedProfile] : []) : eligibleProfiles)
           : ownProfile ? [ownProfile] : []
       );
 
@@ -718,6 +722,21 @@ export default function ReportsPage() {
             </div>
 
             <div className="report-controls">
+              {individualView && ["manager", "admin", "super_admin"].includes(viewerRole) && (
+                <select
+                  aria-label="Select staff member for individual report"
+                  value={selectedStaffId}
+                  onChange={(event) => {
+                    const next = new URL(window.location.href);
+                    next.searchParams.set("view", "individual");
+                    next.searchParams.set("staffId", event.target.value);
+                    window.location.href = next.toString();
+                  }}
+                  className="report-select"
+                >
+                  {profiles.map((person) => <option key={person.id} value={person.id}>{person.full_name || "Unnamed staff member"}</option>)}
+                </select>
+              )}
               <select
                 value={period}
                 onChange={(event) =>
