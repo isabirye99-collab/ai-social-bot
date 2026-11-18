@@ -1345,7 +1345,7 @@ export default function MarketingPage() {
                 fontWeight: 700,
               }}
             >
-              Marketing
+              Campaigns
             </h1>
 
             <p
