@@ -185,8 +185,6 @@ export default function PartnershipsPage() {
       setPerformanceAvailable(false);
     } else {
       setPerformanceAvailable(true);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
       const reviewRows = reviewsResult.data || [];
       const allocationRows = allocationsResult.data || [];
       setPerformanceStats({
@@ -382,7 +380,7 @@ export default function PartnershipsPage() {
             { label: "Active MOUs", value: performanceStats.activeMous, detail: `${performanceStats.totalMous} agreements recorded` },
             { label: "MOU commitments", value: performanceStats.commitments, detail: "Targets and deliverables tracked" },
             { label: "Overdue reviews", value: performanceStats.overdueReviews, detail: "Reviews needing follow-up" },
-            { label: "Scholarship awards", value: performanceStats.plannedAwards, detail: "Approved or open awards" },
+            { label: "Approved scholarship awards", value: performanceStats.plannedAwards, detail: "Awards in approved or open allocations" },
             { label: "Scholarship recipients", value: performanceStats.recipients, detail: "Students recorded against awards" },
           ].map((item) => (
             <a key={item.label} href="/partnerships/mous/performance" className="group rounded-xl border border-slate-200 bg-white p-4 transition hover:border-emerald-300 hover:bg-emerald-50/40 focus:outline-none focus:ring-2 focus:ring-emerald-600">
