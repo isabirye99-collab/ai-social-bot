@@ -699,7 +699,7 @@ export default function ReportsPage() {
               </h1>
 
               <p>
-                {["manager", "admin", "super_admin"].includes(viewerRole) ? "Track sales performance, alumni engagement and partnership relationships in one place." : "Review your activity alongside alumni and partnership relationship metrics."}
+                {!individualView && ["manager", "admin", "super_admin"].includes(viewerRole) ? "Track recruitment, admissions and authorised team performance in one place." : "Review your own recruitment, follow-up and task activity for the selected period."}
               </p>
             </div>
 
@@ -771,7 +771,7 @@ export default function ReportsPage() {
           <div>
             <span className="period-label">
               {periodLabel(period)}{" "}
-              {["manager", "admin", "super_admin"].includes(viewerRole) ? "Team Performance" : "My Performance"}
+              {!individualView && ["manager", "admin", "super_admin"].includes(viewerRole) ? "Team Performance" : "My Performance"}
             </span>
 
             <strong>
@@ -782,7 +782,7 @@ export default function ReportsPage() {
           </div>
 
           <div className="period-meta">
-            {["manager", "admin", "super_admin"].includes(viewerRole) ? `${report.rows.length} sales and alumni relations staff` : "Your individual performance report"}
+            {!individualView && ["manager", "admin", "super_admin"].includes(viewerRole) ? `${report.rows.length} staff in this report` : "Your individual performance report"}
           </div>
         </section>
 
