@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useIntakeSelection } from "@/lib/use-intake-selection";
 import { useRouter } from "next/navigation";
 
 type Period = "day" | "week" | "month";
@@ -136,7 +137,7 @@ function formatDate(value: Date) {
 export default function ReportsPage() {
   const router = useRouter();
   const [period, setPeriod] = useState<Period>("month");
-  const [selectedIntake, setSelectedIntake] = useState("2026-11");
+  const [selectedIntake, setSelectedIntake] = useIntakeSelection();
 
   const [selectedDate, setSelectedDate] = useState(() => {
     const today = new Date();
