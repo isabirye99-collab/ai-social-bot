@@ -150,7 +150,6 @@ export default function ReportsPage() {
 
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [viewerRole, setViewerRole] = useState("");
-  const [viewerModules, setViewerModules] = useState<CrmModule[]>([]);
   const [individualView, setIndividualView] = useState(false);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [admissions, setAdmissions] = useState<Admission[]>([]);
@@ -289,7 +288,6 @@ export default function ReportsPage() {
       const isIndividualView = typeof window !== "undefined" &&
         new URLSearchParams(window.location.search).get("view") === "individual";
       setIndividualView(isIndividualView);
-      setViewerModules(effectiveModules);
       setViewerRole(role);
 
       const eligibleProfiles = ((p.data || []) as Profile[]).filter((profile) => {
@@ -755,6 +753,16 @@ export default function ReportsPage() {
           </div>
         )}
 
+        <nav aria-label="Report sections" className="report-section-nav">
+          <a href="#intake-report">Intake</a>
+          {viewerModules.includes("strategy") && <a href="#strategy-report">Strategy</a>}
+          <a href="#admissions-funnel">Admissions funnel</a>
+          <a href="#team-activity">Team activity</a>
+          {viewerModules.includes("alumni") && !individualView && <a href="#alumni-report">Alumni</a>}
+          {viewerModules.includes("partnerships") && !individualView && <a href="#partnerships-report">Partnerships</a>}
+          <a href="#staff-performance">{individualView ? "My performance" : "Staff performance"}</a>
+        </nav>
+
         <section className="period-banner">
           <div>
             <span className="period-label">
@@ -774,7 +782,7 @@ export default function ReportsPage() {
           </div>
         </section>
 
-        <section style={{ marginBottom: 22, padding: 20, border: "1px solid #dce8df", borderRadius: 16, background: "#fff", boxShadow: "0 4px 18px rgba(20,50,40,.035)" }}>
+        <section id="intake-report" style={{ marginBottom: 22, padding: 20, border: "1px solid #dce8df", borderRadius: 16, background: "#fff", boxShadow: "0 4px 18px rgba(20,50,40,.035)" }}>
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 14 }}>
             <div>
               <div className="report-eyebrow">INTAKE REPORTING</div>
@@ -843,7 +851,7 @@ export default function ReportsPage() {
             <div className="rounded-lg border border-slate-100 bg-slate-50/70 p-3"><div className="flex items-center justify-between gap-2"><span className="text-xs font-medium text-slate-600">Leads recorded</span><span className="text-xs text-slate-500">YTD</span></div><p className="mt-2 text-xl font-semibold tracking-tight text-slate-900">{strategyOverview.leads.toLocaleString()}</p><p className="mt-2 text-[11px] text-slate-500">Created during {strategyOverview.year}</p></div>
           </div>}
         </section>
-        <section className="report-main-grid">
+        <section id="admissions-funnel" className="report-main-grid">
           <div className="ciu-card">
             <div className="ciu-card-head report-card-head">
               <div>
@@ -1076,7 +1084,7 @@ export default function ReportsPage() {
           </div>
         </section>
 
-        <section className="report-visual-grid">
+        <section id="team-activity" className="report-visual-grid">
           <div className="ciu-card report-chart-card">
             <div className="ciu-card-head report-card-head"><div><h2>Activity by Team</h2><span>Logged contact activities during the selected period.</span></div></div>
             <div className="team-activity-chart">
@@ -1096,7 +1104,7 @@ export default function ReportsPage() {
             </div>
           </div>
         </section>
-        <section className="ciu-card report-table-card">
+        <section id="alumni-report" className="ciu-card report-table-card">
           <div className="ciu-card-head report-card-head"><div><h2>Alumni Relations Activity</h2><span>Contact and follow-up activity for Alumni Relations staff in the selected period.</span></div></div>
           <div className="report-table-scroll"><table className="report-table">
             <thead><tr><th>Staff Member</th><th>Contact activities</th><th>Calls</th><th>Emails</th><th>WhatsApp</th><th>Meetings</th><th>Tasks done</th></tr></thead>
@@ -1104,7 +1112,7 @@ export default function ReportsPage() {
           </table></div>
           <p style={{ padding: "0 18px 14px", color: "#64748b", fontSize: 12 }}>Contact activities are counted from call, WhatsApp and email tasks. They are logged activities, not a deduplicated count of unique people.</p>
         </section>
-        <section className="ciu-card report-table-card">
+        <section id="partnerships-report" className="ciu-card report-table-card">
           <div className="ciu-card-head report-card-head"><div><h2>Partnerships Activity</h2><span>Contact and follow-up activity for staff responsible for partnerships in the selected period.</span></div></div>
           <div className="report-table-scroll"><table className="report-table">
             <thead><tr><th>Staff Member</th><th>Contact activities</th><th>Calls</th><th>Emails</th><th>WhatsApp</th><th>Meetings</th><th>Tasks done</th></tr></thead>
@@ -1117,7 +1125,7 @@ export default function ReportsPage() {
           <div className="ciu-card-head report-card-head">
             <div>
               <h2>
-                {"Sales Team Performance"}
+                {individualView ? "My Performance Details" : "Sales Team Performance"}
               </h2>
 
               <span>
@@ -1742,6 +1750,10 @@ export default function ReportsPage() {
           font-size: 16px;
         }
 
+        .report-section-nav { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 16px; padding: 9px; position: sticky; top: 8px; z-index: 5; border: 1px solid #e1eae4; border-radius: 12px; background: rgba(255,255,255,.94); box-shadow: 0 4px 16px rgba(20,50,40,.035); backdrop-filter: blur(8px); }
+        .report-section-nav a { display: inline-flex; align-items: center; padding: 8px 11px; border-radius: 8px; background: #f1f7f2; color: #17634e; text-decoration: none; font-size: 11px; font-weight: 800; }
+        .report-section-nav a:hover { background: #dcefe1; }
+        #intake-report, #admissions-funnel, #team-activity, #alumni-report, #partnerships-report, #staff-performance { scroll-margin-top: 80px; }
         .report-table-card {
           margin-bottom: 12px;
         }
