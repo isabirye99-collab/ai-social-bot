@@ -499,8 +499,14 @@ export default function DashboardPage() {
       applied: [
         "application",
         "application started",
+        "paid application fee",
+        "application fee paid",
         "admitted",
         "admission",
+        "acceptance paid",
+        "acceptance fee paid",
+        "paid acceptance fee",
+        "enrolled",
       ],
 
       "paid application fee": [
@@ -557,7 +563,7 @@ export default function DashboardPage() {
         item.status !== "lost",
     );
 
-    const admittedStages = ["Applied", "Application Submitted", "Admitted", "Paid Application Fee"];
+    const admittedStages = ["Admitted", "Paid Acceptance Fee", "Enrolled"];
     const applied = selectedIntakeOpportunities.filter((item) => opportunityIsInStage(item, "Applied")); 
     const admittedTotal = selectedIntakeOpportunities.filter((item) => admittedStages.some((stage) => opportunityIsInStage(item, stage))).length;
 
@@ -576,7 +582,7 @@ export default function DashboardPage() {
     );
 
     const enrolledOpportunities = selectedIntakeOpportunities.filter((item) =>
-      (opportunityIsInStage(item, "Enrolled") || opportunityIsInStage(item, "Paid Acceptance Fee")) &&
+      opportunityIsInStage(item, "Enrolled") &&
       (item.status === "won" || item.status === "open")
     );
     const enrolledTotal = enrolledOpportunities.length;
