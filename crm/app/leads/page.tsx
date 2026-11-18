@@ -1790,10 +1790,8 @@ export default function LeadsPage() {
                     try {
                       const { data: { user } } = await supabase.auth.getUser();
                       if (!user) throw new Error("Please sign in again.");
-                      const { error: updateError } = await supabase.from("leads").update({ intake_year: nextYear, intake_month: nextMonth, original_intake_year: selectedLead.original_intake_year ?? selectedLead.intake_year ?? nextYear, original_intake_month: selectedLead.original_intake_month ?? selectedLead.intake_month ?? nextMonth, intake_changed_at: new Date().toISOString(), intake_changed_by: user.id, updated_at: new Date().toISOString() }).eq("id", selectedLead.id);
-                      if (updateError) throw updateError;
-                      const { error: historyError } = await supabase.from("lead_intake_history").insert({ lead_id: selectedLead.id, previous_intake_year: selectedLead.intake_year ?? null, previous_intake_month: selectedLead.intake_month ?? null, new_intake_year: nextYear, new_intake_month: nextMonth, reason: intakeChangeReason.trim() || null, changed_by: user.id });
-                      if (historyError) throw historyError;
+                      const { error: transferError } = await supabase.rpc("move_lead_to_intake", { p_lead_id: selectedLead.id, p_new_intake_year: nextYear, p_new_intake_month: nextMonth, p_reason: intakeChangeReason.trim() || null });
+                      if (transferError) throw transferError;
                       const updatedLead = { ...selectedLead, intake_year: nextYear, intake_month: nextMonth, original_intake_year: selectedLead.original_intake_year ?? selectedLead.intake_year ?? nextYear, original_intake_month: selectedLead.original_intake_month ?? selectedLead.intake_month ?? nextMonth };
                       setSelectedLead(updatedLead);
                       setLeads((current) => current.map((lead) => lead.id === updatedLead.id ? updatedLead : lead));
