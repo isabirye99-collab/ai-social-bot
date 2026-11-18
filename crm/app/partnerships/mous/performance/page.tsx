@@ -66,7 +66,6 @@ export default function MouPerformancePage() {
 
   const partnerNames = useMemo(() => new Map(partners.map(partner => [partner.id, partner.name])), [partners]);
   const mouById = useMemo(() => new Map(mous.map(mou => [mou.id, mou])), [mous]);
-  const allocationById = useMemo(() => new Map(allocations.map(allocation => [allocation.id, allocation])), [allocations]);
   const activeMous = mous.filter(mou => mou.agreement_status === "active");
   const dueReviews = reviews.filter(review => review.review_status !== "completed" && isOverdue(review.review_due_date));
   const expiringMous = activeMous.filter(mou => {
