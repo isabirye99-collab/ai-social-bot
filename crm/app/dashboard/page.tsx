@@ -805,7 +805,7 @@ export default function DashboardPage() {
       { label: "Interested", value: intakeSummary.interested, color: "#8bc63f", tint: "#f1f8e8", href: "/leads" },
       { label: "Applied", value: intakeSummary.applied, color: "#075442", tint: "#eaf4ef", href: "/pipeline" },
       { label: "Admitted", value: intakeSummary.admitted, color: "#8bc63f", tint: "#f1f8e8", href: "/pipeline" },
-      { label: "Enrolled", value: intakeSummary.enrolled, color: "#075442", tint: "#eaf4ef", href: "/customers" },
+      { label: "Enrolled", value: intakeSummary.enrolled, color: "#075442", tint: "#eaf4ef", href: "/pipeline" },
     ];
     const first = Math.max(stages[0].value, 1);
     return stages.map((stage) => ({
@@ -920,7 +920,7 @@ export default function DashboardPage() {
       description:
         "Successful admissions",
       value: stats.enrolled,
-      href: "/customers",
+      href: "/pipeline",
       icon: "student",
       tone: "dark",
     },
@@ -1308,7 +1308,7 @@ export default function DashboardPage() {
             <div className="space-y-5">
               {pipelineOverview.map(
                 (stage, index) => (
-                  <Link key={stage.label} href={stage.label === "Enrolled" ? "/customers" : "/pipeline"} className="ciu-dashboard-link block rounded-lg px-2 py-1 -mx-2">
+                  <Link key={stage.label} href="/pipeline" className="ciu-dashboard-link block rounded-lg px-2 py-1 -mx-2">
                     <div className="mb-2 flex items-center justify-between">
                       <div>
                         <p className="text-[11px] font-bold text-[#34433b]">
@@ -1462,7 +1462,7 @@ export default function DashboardPage() {
                 return (
                   <Link
                     key={bar.label}
-                    href={bar.label === "Enrolled" ? "/customers" : "/leads"}
+                    href={bar.label === "Enrolled" ? "/pipeline" : "/leads"}
                     aria-label="View chart records"
                     className="ciu-dashboard-link flex h-full flex-1 flex-col justify-end rounded-t-lg"
                   >
@@ -1504,7 +1504,7 @@ export default function DashboardPage() {
                 </p>
               </Link>
 
-              <Link href="/customers" className="ciu-dashboard-link block rounded-xl border border-[#e8eeea] px-3 py-3">
+              <Link href="/pipeline" className="ciu-dashboard-link block rounded-xl border border-[#e8eeea] px-3 py-3">
                 <p className="text-[9px] font-bold uppercase tracking-wide text-[#8a9791]">
                   Enrolment rate
                 </p>
