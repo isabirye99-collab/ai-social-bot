@@ -992,8 +992,7 @@ export default function DashboardPage() {
           </h1>
 
           <p className="mt-1 max-w-xl text-sm leading-6 text-[#5f7068]">
-            Admissions, recruitment and business
-            performance at a glance.
+            {profile?.role === "salesperson" ? "Your recruitment targets, cohort progress and follow-ups at a glance." : "Institutional recruitment targets, cohort progress and performance at a glance."}
           </p>
         </div>
 
@@ -1132,7 +1131,7 @@ export default function DashboardPage() {
               </p>
 
               <h2 className="mt-1 text-base font-black tracking-[-0.02em] text-[#17211b]">
-                Admissions Funnel
+                Recruitment Funnel
               </h2>
             </div>
 
