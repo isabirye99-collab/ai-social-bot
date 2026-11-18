@@ -293,8 +293,10 @@ export default function ReportsPage() {
       });
 
       const canViewTeam = ["manager", "admin", "super_admin"].includes(role);
+      const individualOnly = typeof window !== "undefined" &&
+        new URLSearchParams(window.location.search).get("view") === "individual";
       setProfiles(
-        canViewTeam
+        canViewTeam && !individualOnly
           ? eligibleProfiles
           : eligibleProfiles.filter((profile) => profile.id === user.id)
       );
