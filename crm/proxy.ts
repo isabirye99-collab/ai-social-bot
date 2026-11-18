@@ -50,7 +50,12 @@ export async function updateSession(request: NextRequest) {
   // Prospective students must be able to open campaign lead-capture links
   // without having a CRM staff account. Student registration accepts only
   // inserts for an existing secondary school through restrictive table RLS.
-  if (pathname === "/lead-capture" || pathname.startsWith("/lead-capture/") || pathname === "/school-student-registration" || pathname.startsWith("/school-student-registration/")) {
+  if (
+    pathname === "/lead-capture" || pathname.startsWith("/lead-capture/") ||
+    pathname === "/school-student-registration" || pathname.startsWith("/school-student-registration/") ||
+    pathname === "/forgot-password" || pathname.startsWith("/forgot-password/") ||
+    pathname === "/reset-password" || pathname.startsWith("/reset-password/")
+  ) {
     return NextResponse.next({ request });
   }
 
