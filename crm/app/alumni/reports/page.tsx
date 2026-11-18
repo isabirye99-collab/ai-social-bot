@@ -51,7 +51,6 @@ export default function AlumniReportsPage() {
         supabase.from("alumni_event_registrations").select("id",{count:"exact",head:true}).gte("registered_at",from).lt("registered_at",to),
         supabase.from("alumni_event_registrations").select("id",{count:"exact",head:true}).gte("checked_in_at",from).lt("checked_in_at",to),
         supabase.from("alumni_communications").select("id,channel,delivery_status",{count:"exact"}).gte("sent_at",from).lt("sent_at",to).limit(1000),
-        Promise.resolve({data:null,error:null}),
       ]);
       const failed = requests.find((r:any) => r.error);
       if (failed?.error) throw new Error(failed.error.message);
