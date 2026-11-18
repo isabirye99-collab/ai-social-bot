@@ -323,7 +323,6 @@ export default function ReportsPage() {
         return isSalesperson || isAlumniRelations || isPartnerships;
       });
 
-      const canViewTeam = ["manager", "admin", "super_admin"].includes(role);
       const ownProfile = ((p.data || []) as Profile[]).find((profile) => profile.id === user.id);
       setProfiles(
         canViewTeam && !isIndividualView
