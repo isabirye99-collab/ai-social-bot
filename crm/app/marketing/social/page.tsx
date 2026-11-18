@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import MarketingSectionTabs from "@/components/MarketingSectionTabs";
 
 const supabase = createClient();
 const STORAGE_BUCKET = "social-media";
@@ -415,7 +414,6 @@ export default function SocialMediaPage() {
       style={{ background: "transparent", "--ciu-primary": "var(--ciu-primary, #00695c)", "--ciu-lime": "var(--ciu-secondary, #8bc63f)" } as React.CSSProperties}
     >
       <div className="mx-auto max-w-7xl space-y-6">
-        <MarketingSectionTabs />
         <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="ciu-social-hub-title text-3xl font-bold tracking-tight" style={{ color: "var(--ciu-primary, #00695c)" }}>Social Media Hub</h1>
