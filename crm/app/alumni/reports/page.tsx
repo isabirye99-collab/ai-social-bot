@@ -38,10 +38,9 @@ export default function AlumniReportsPage() {
     setLoading(true); setError("");
     const from = new Date(startDate + "T00:00:00").toISOString();
     const to = new Date(new Date(endDate + "T00:00:00").getTime() + 86400000).toISOString();
-    const inRange = (query: any, column: string) => query.gte(column, from).lt(column, to);
     try {
       const requests = await Promise.all([
-        supabase.from("alumni").select("id", {count:"exact",head:true}).neq("duplicate_review_status","confirmed_duplicate"),
+        supabase.from("alumni").select("id", {count:"exact",head:true}).or("duplicate_review_status.is.null,duplicate_review_status.neq.confirmed_duplicate"),
         supabase.from("alumni_profile_updates").select("id",{count:"exact",head:true}).gte("created_at",from).lt("created_at",to),
         supabase.from("alumni_profile_updates").select("id",{count:"exact",head:true}).eq("review_status","pending"),
         supabase.from("alumni_profile_updates").select("id",{count:"exact",head:true}).eq("review_status","approved").gte("reviewed_at",from).lt("reviewed_at",to),
@@ -65,7 +64,7 @@ export default function AlumniReportsPage() {
         {label:"Newly verified alumni",value:count(5),note:"Verification date falls in this period"},
         {label:"Event registrations",value:count(6),note:"Registrations created during this period"},
         {label:"Event attendance",value:count(7),note:"Recorded check-ins during this period"},
-        {label:"Communications logged",value:count(8),note:"Outreach log entries, not necessarily messages sent by the CRM"},
+        {label:"Communications logged",value:count(8),note:"Communication records with an activity date; not proof of delivery"},
         {label:"Pending change requests",value:count(2),note:"All-time requests awaiting review"},
       ]);
       setBreakdown([...channels.entries()].map(([label,value])=>({label,value})).sort((a,b)=>b.value-a.value));
@@ -106,7 +105,7 @@ export default function AlumniReportsPage() {
       {metrics.map(m=><div key={m.label} style={card}><div style={{fontSize:12,fontWeight:750,color:"#66766e"}}>{m.label}</div><div style={{fontSize:30,fontWeight:850,marginTop:8,color:"#173d34"}}>{loading?"—":m.value.toLocaleString()}</div><div style={{fontSize:11,color:"#84928b",marginTop:5,lineHeight:1.5}}>{m.note}</div></div>)}
     </div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:14}}>
-      <section style={card}><h2 style={{margin:"0 0 5px",fontSize:17,fontWeight:850}}>Communication channels</h2><p style={{margin:"0 0 14px",fontSize:12,color:"#718078"}}>Breakdown of communication records logged in the selected period.</p>{loading?<p>Loading…</p>:breakdown.length===0?<p style={{fontSize:12,color:"#819087"}}>No communication entries were logged in this period.</p>:breakdown.map(item=><div key={item.label} style={{display:"flex",justifyContent:"space-between",gap:12,padding:"10px 0",borderBottom:"1px solid #edf1ee",fontSize:13}}><span>{item.label}</span><strong>{item.value.toLocaleString()}</strong></div>)}</section>
+      <section style={card}><h2 style={{margin:"0 0 5px",fontSize:17,fontWeight:850}}>Communication channels</h2><p style={{margin:"0 0 14px",fontSize:12,color:"#718078"}}>Breakdown of communication records with a sent/activity date in the selected period.</p>{loading?<p>Loading…</p>:breakdown.length===0?<p style={{fontSize:12,color:"#819087"}}>No communication entries were logged in this period.</p>:breakdown.map(item=><div key={item.label} style={{display:"flex",justifyContent:"space-between",gap:12,padding:"10px 0",borderBottom:"1px solid #edf1ee",fontSize:13}}><span>{item.label}</span><strong>{item.value.toLocaleString()}</strong></div>)}</section>
       <section style={card}><h2 style={{margin:"0 0 8px",fontSize:17,fontWeight:850}}>Reporting notes</h2><ul style={{paddingLeft:18,margin:0,color:"#66766e",fontSize:12,lineHeight:1.9}}><li>Total alumni excludes records marked as confirmed duplicates.</li><li>Submissions count update requests, not unique alumni; one alumnus may submit more than once.</li><li>Approval and rejection counts use the review timestamp.</li><li>Event attendance is based on recorded check-ins.</li><li>Communication counts represent log entries. Delivery and response rates require verified provider delivery and response data.</li></ul></section>
     </div>
     <p style={{fontSize:11,color:"#84928b",marginTop:14}}>{refreshedAt ? "Last refreshed: "+refreshedAt : "Report has not refreshed yet."} {pendingAll>0&&!loading ? pendingAll.toLocaleString()+" change requests are currently pending across all dates." : ""}</p>
