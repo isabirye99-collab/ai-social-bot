@@ -149,6 +149,7 @@ export default function ReportsPage() {
   });
 
   const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [staffOptions, setStaffOptions] = useState<Profile[]>([]);
   const [viewerRole, setViewerRole] = useState("");
   const [viewerModules, setViewerModules] = useState<CrmModule[]>([]);
   const [individualView, setIndividualView] = useState(false);
@@ -327,6 +328,7 @@ export default function ReportsPage() {
       });
 
       const ownProfile = ((p.data || []) as Profile[]).find((profile) => profile.id === user.id);
+      setStaffOptions(canViewTeam ? eligibleProfiles : []);
       const selectedProfile = ((p.data || []) as Profile[]).find((profile) => profile.id === requestedStaffId);
       setProfiles(
         canViewTeam
@@ -734,7 +736,7 @@ export default function ReportsPage() {
                   }}
                   className="report-select"
                 >
-                  {profiles.map((person) => <option key={person.id} value={person.id}>{person.full_name || "Unnamed staff member"}</option>)}
+                  {staffOptions.map((person) => <option key={person.id} value={person.id}>{person.full_name || "Unnamed staff member"}</option>)}
                 </select>
               )}
               <select
