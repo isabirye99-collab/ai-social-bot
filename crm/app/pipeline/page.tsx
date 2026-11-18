@@ -484,6 +484,18 @@ export default function Pipeline() {
     );
   }
 
+  const intakeLeads = useMemo(() => {
+    const [year, month] = selectedIntake.split("-").map(Number);
+    return leads.filter((lead) => selectedIntake === "unassigned"
+      ? !lead.intake_year || !lead.intake_month
+      : lead.intake_year === year && lead.intake_month === month);
+  }, [leads, selectedIntake]);
+
+  const intakeOpportunities = useMemo(() => {
+    const intakeLeadIds = new Set(intakeLeads.map((lead) => lead.id));
+    return opportunities.filter((opportunity) => Boolean(opportunity.lead_id && intakeLeadIds.has(opportunity.lead_id)));
+  }, [opportunities, intakeLeads]);
+
   const stageCounts = useMemo(() => {
     const counts: Record<
       string,
@@ -1167,9 +1179,9 @@ export default function Pipeline() {
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3" style={{ marginTop: 18 }}>
           {[
-            { label: "Interested", count: leads.filter((lead) => ["interested", "qualified"].includes((lead.status || "").trim().toLowerCase().replace(/[_-]+/g, " "))).length, hint: "Interested or qualified leads" },
-            { label: "Admitted", count: opportunities.filter((opportunity) => { const stage = getStageForOpportunity(opportunity)?.name || ""; return ["Applied", "Application Submitted", "Admitted", "Paid Application Fee"].includes(stage); }).length, hint: "Applications through admission and application fee" },
-            { label: "Enrolled", count: opportunities.filter((opportunity) => ["Enrolled", "Paid Acceptance Fee"].includes(getStageForOpportunity(opportunity)?.name || "") && ["won", "open"].includes(opportunity.status)).length, hint: "Successful admissions" },
+            { label: "Interested", count: intakeLeads.filter((lead) => ["interested", "qualified"].includes((lead.status || "").trim().toLowerCase().replace(/[_-]+/g, " "))).length, hint: "Interested or qualified leads" },
+            { label: "Admitted", count: intakeOpportunities.filter((opportunity) => { const stage = getStageForOpportunity(opportunity)?.name || ""; return ["Applied", "Application Submitted", "Admitted", "Paid Application Fee"].includes(stage); }).length, hint: "Applications through admission and application fee" },
+            { label: "Enrolled", count: intakeOpportunities.filter((opportunity) => ["Enrolled", "Paid Acceptance Fee"].includes(getStageForOpportunity(opportunity)?.name || "") && ["won", "open"].includes(opportunity.status)).length, hint: "Successful admissions" },
           ].map((metric) => (
             <div key={metric.label} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{metric.label}</p>
