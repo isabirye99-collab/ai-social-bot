@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useIntakeSelection } from "@/lib/use-intake-selection";
 import { useRouter } from "next/navigation";
+import { ALL_CRM_MODULES, getEffectiveModules, type CrmModule } from "@/lib/permissions";
 
 type Period = "day" | "week" | "month";
 
@@ -149,6 +150,8 @@ export default function ReportsPage() {
 
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [viewerRole, setViewerRole] = useState("");
+  const [viewerModules, setViewerModules] = useState<CrmModule[]>([]);
+  const [individualView, setIndividualView] = useState(false);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [admissions, setAdmissions] = useState<Admission[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -274,13 +277,19 @@ export default function ReportsPage() {
 
       const role = String(currentProfile.data?.role || "").trim().toLowerCase().replace(/[ -]/g, "_");
       const currentModules = Array.isArray(currentProfile.data?.module_permissions)
-        ? currentProfile.data.module_permissions
+        ? currentProfile.data.module_permissions.filter((module): module is CrmModule => ALL_CRM_MODULES.includes(module as CrmModule))
         : null;
-      const recognisedReportRole = ["super_admin", "admin", "manager", "salesperson", "marketing", "alumni_relations", "alumni_coordinator", "alumni_officer"].includes(role);
-      if (!recognisedReportRole && !currentModules?.includes("reports")) {
+      const effectiveModules = currentModules === null
+        ? getEffectiveModules(role)
+        : role === "super_admin" ? getEffectiveModules(role) : currentModules;
+      if (!effectiveModules.includes("reports")) {
         router.replace("/dashboard");
         return;
       }
+      const isIndividualView = typeof window !== "undefined" &&
+        new URLSearchParams(window.location.search).get("view") === "individual";
+      setIndividualView(isIndividualView);
+      setViewerModules(effectiveModules);
       setViewerRole(role);
 
       const eligibleProfiles = ((p.data || []) as Profile[]).filter((profile) => {
@@ -297,18 +306,25 @@ export default function ReportsPage() {
       });
 
       const canViewTeam = ["manager", "admin", "super_admin"].includes(role);
-      const individualOnly = typeof window !== "undefined" &&
-        new URLSearchParams(window.location.search).get("view") === "individual";
+      const ownProfile = ((p.data || []) as Profile[]).find((profile) => profile.id === user.id);
       setProfiles(
-        canViewTeam && !individualOnly
+        canViewTeam && !isIndividualView
           ? eligibleProfiles
-          : eligibleProfiles.filter((profile) => profile.id === user.id)
+          : ownProfile ? [ownProfile] : []
       );
 
       setLeads((l.data || []) as Lead[]);
       setAdmissions((a.data || []) as Admission[]);
       setTasks((t.data || []) as Task[]);
-      setRelationshipMetrics({ alumniTotal: relationshipResults[0].count || 0, alumniVerified: relationshipResults[1].count || 0, alumniEmployed: relationshipResults[2].count || 0, partnershipsTotal: relationshipResults[3].count || 0, partnershipsActive: relationshipResults[4].count || 0, partnershipsPipeline: relationshipResults[5].count || 0, partnershipsRenewalWatch: relationshipResults[6].count || 0 });
+      setRelationshipMetrics({
+        alumniTotal: isIndividualView || !effectiveModules.includes("alumni") ? 0 : relationshipResults[0].count || 0,
+        alumniVerified: isIndividualView || !effectiveModules.includes("alumni") ? 0 : relationshipResults[1].count || 0,
+        alumniEmployed: isIndividualView || !effectiveModules.includes("alumni") ? 0 : relationshipResults[2].count || 0,
+        partnershipsTotal: isIndividualView || !effectiveModules.includes("partnerships") ? 0 : relationshipResults[3].count || 0,
+        partnershipsActive: isIndividualView || !effectiveModules.includes("partnerships") ? 0 : relationshipResults[4].count || 0,
+        partnershipsPipeline: isIndividualView || !effectiveModules.includes("partnerships") ? 0 : relationshipResults[5].count || 0,
+        partnershipsRenewalWatch: isIndividualView || !effectiveModules.includes("partnerships") ? 0 : relationshipResults[6].count || 0
+      });
     } catch (err) {
       setError(
         err instanceof Error
@@ -331,7 +347,7 @@ export default function ReportsPage() {
     const end = getEnd(period, selectedDate);
 
     const rows: ReportRow[] = profiles
-      .filter((profile) => !["admin", "super_admin"].includes((profile.role || "").toLowerCase()))
+      .filter((profile) => individualView || !["admin", "super_admin"].includes((profile.role || "").toLowerCase()))
       .map((profile) => {
         const staffLeads = leads.filter(
           (lead) =>
