@@ -98,7 +98,7 @@ export default function ReportsPage() {
       </div>
       <div style={{ background: "#f3f9f5", border: "1px solid #dfede3", borderRadius: 12, padding: 18 }}>
         <div style={{ fontSize: 12, color: "#60766a", lineHeight: 1.6 }}>{canViewTeam ? "Your role allows access to team-level reporting." : "Organisation-wide reporting is restricted to authorised management roles."}</div>
-        {canViewTeam && canViewReports ? <Link href="/reports/performance" style={{ ...styles.button, marginTop: 14 }}>Open general report <span aria-hidden="true">→</span></Link> : <div style={{ marginTop: 13, fontSize: 11, fontWeight: 800, color: "#7a8981" }}>Management permission required</div>}
+        {canViewTeam && canViewReports ? <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 14 }}><Link href="/reports/performance" style={{ ...styles.button, marginTop: 0 }}>Open general report <span aria-hidden="true">→</span></Link><Link href="/reports/intake" style={{ ...styles.button, marginTop: 0, background: "#fff", color: "#176849", border: "1px solid #cfe2d4" }}>Open intake report <span aria-hidden="true">→</span></Link></div> : <div style={{ marginTop: 13, fontSize: 11, fontWeight: 800, color: "#7a8981" }}>Management permission required</div>}
       </div>
     </section>}
 
