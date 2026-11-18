@@ -363,7 +363,7 @@ export default function CustomersPage() {
       const [intakeYear, intakeMonth] = selectedIntake.split("-").map(Number);
       const customerIntakeYear = customer.intake_year ?? lead?.intake_year ?? null;
       const customerIntakeMonth = customer.intake_month ?? lead?.intake_month ?? null;
-      if (customerIntakeYear !== intakeYear || customerIntakeMonth !== intakeMonth) return false;
+      if (selectedIntake === "unassigned" ? Boolean(customerIntakeYear && customerIntakeMonth) : (customerIntakeYear !== intakeYear || customerIntakeMonth !== intakeMonth)) return false;
 
       const searchableText = [
         customer.full_names,
@@ -753,7 +753,7 @@ export default function CustomersPage() {
         <section style={{ marginTop: 16, marginBottom: 14, padding: 14, border: "1px solid #dce8df", borderRadius: 12, background: "#fff", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
           <div><strong style={{ color: "#075442", fontSize: 14 }}>Recruitment intake</strong><p style={{ margin: "3px 0 0", color: "#68776f", fontSize: 12 }}>Enrolled students are matched to the intake of their linked lead.</p></div>
           <select value={selectedIntake} onChange={(event) => setSelectedIntake(event.target.value)} style={{ border: "1px solid #cfded4", borderRadius: 9, padding: "10px 12px", fontSize: 13, background: "#fff", color: "#173b2b" }}>
-            <option value="2026-11">November 2026</option><option value="2027-2">February 2027</option><option value="2027-4">April 2027</option><option value="2027-8">August 2027</option><option value="2027-11">November 2027</option><option value="2028-2">February 2028</option>
+            <option value="unassigned">Needs intake assignment</option><option value="2026-11">November 2026</option><option value="2027-2">February 2027</option><option value="2027-4">April 2027</option><option value="2027-8">August 2027</option><option value="2027-11">November 2027</option><option value="2028-2">February 2028</option>
           </select>
         </section>
 
