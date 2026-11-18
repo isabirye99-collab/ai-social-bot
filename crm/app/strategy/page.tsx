@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -971,7 +973,7 @@ export default function StrategyPlanningPage() {
       <section aria-labelledby="planning-workspaces-heading" className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-white to-emerald-50/60 p-4 shadow-sm sm:p-5">
         <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
           <div><h2 id="planning-workspaces-heading" className="text-base font-semibold text-slate-900">Planning workspaces</h2><p className="mt-1 text-xs text-slate-600">Choose an area to open only the register you need. Your data and workflows stay in place.</p></div>
-          <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-emerald-800 ring-1 ring-emerald-100">6 workspaces</span>
+          <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-emerald-800 ring-1 ring-emerald-100">8 workspaces</span>
         </div>
         <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
           {sections.map(([title, description], index) => {
@@ -983,6 +985,14 @@ export default function StrategyPlanningPage() {
               <span className="min-w-0 flex-1"><span className="block text-sm font-semibold">{title}</span><span className={`mt-1 block text-xs leading-5 ${selected ? "text-emerald-50" : "text-slate-500"}`}>{description}</span><span className={`mt-2 block text-[11px] font-semibold ${selected ? "text-white" : "text-emerald-800"}`}>{selected ? "Currently open ✓" : "Open workspace →"}</span></span>
             </button>;
           })}
+          <Link href="/marketing" className="group flex min-h-[88px] items-start gap-3 rounded-xl border border-slate-200 bg-white p-3 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-emerald-50 text-xs font-bold text-emerald-800 group-hover:bg-emerald-100">07</span>
+            <span className="min-w-0 flex-1"><span className="block text-sm font-semibold text-slate-900">Campaigns</span><span className="mt-1 block text-xs leading-5 text-slate-500">Plan and track recruitment campaigns, budgets, lead sources and campaign outcomes.</span><span className="mt-2 block text-[11px] font-semibold text-emerald-800">Open workspace →</span></span>
+          </Link>
+          <Link href="/marketing/social" className="group flex min-h-[88px] items-start gap-3 rounded-xl border border-slate-200 bg-white p-3 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-emerald-50 text-xs font-bold text-emerald-800 group-hover:bg-emerald-100">08</span>
+            <span className="min-w-0 flex-1"><span className="block text-sm font-semibold text-slate-900">Social Media Hub</span><span className="mt-1 block text-xs leading-5 text-slate-500">Prepare content, attach media, request manager approval and manage publishing schedules.</span><span className="mt-2 block text-[11px] font-semibold text-emerald-800">Open workspace →</span></span>
+          </Link>
         </div>
       </section>
 
