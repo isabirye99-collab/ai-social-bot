@@ -379,26 +379,11 @@ export default function LeadsPage() {
     schools,
   ]);
 
-  const activeLeads = leads.filter(
-    (lead) =>
-      !statusIsClosed(
-        lead.status
-      )
-  ).length;
-
-  const interestedLeads =
-    leads.filter((lead) =>
-      statusIsQualified(
-        lead.status
-      )
-    ).length;
-
-  const closedLeads =
-    leads.filter((lead) =>
-      statusIsClosed(
-        lead.status
-      )
-    ).length;
+  const [intakeYearForStats, intakeMonthForStats] = selectedIntake.split("-").map(Number);
+  const intakeLeads = leads.filter((lead) => lead.intake_year === intakeYearForStats && lead.intake_month === intakeMonthForStats);
+  const activeLeads = intakeLeads.filter((lead) => !statusIsClosed(lead.status)).length;
+  const interestedLeads = intakeLeads.filter((lead) => statusIsQualified(lead.status)).length;
+  const closedLeads = intakeLeads.filter((lead) => statusIsClosed(lead.status)).length;
 
   async function handleAddLead(
     event: React.FormEvent
@@ -1030,8 +1015,10 @@ export default function LeadsPage() {
 
           <button
             type="button"
-            onClick={() =>
-              setShowAddLead(true)
+            onClick={() => {
+              const [year, month] = selectedIntake.split("-");
+              setNewLead((current) => ({ ...current, intake_year: current.intake_year || year, intake_month: current.intake_month || month }));
+              setShowAddLead(true);
             }
             className="ciu-btn"
             style={{
@@ -1091,8 +1078,8 @@ export default function LeadsPage() {
                 ? "My Leads"
                 : "Total Leads"
             }
-            value={leads.length}
-            description="Current CRM records"
+            value={intakeLeads.length}
+            description="Selected intake"
             type="total"
           />
 
