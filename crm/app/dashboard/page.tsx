@@ -758,24 +758,48 @@ export default function DashboardPage() {
   const intakeSummary = useMemo(() => {
     const [yearText, monthText] = selectedIntake.split("-");
     const year = Number(yearText), month = Number(monthText);
-    const intakeLeads = leads.filter((lead) => selectedIntake === "unassigned" ? (!lead.intake_year || !lead.intake_month) : (lead.intake_year === year && lead.intake_month === month));
+    const intakeLeads = selectedIntake === "all" ? leads : selectedIntake === "unassigned"
+      ? leads.filter((lead) => !lead.intake_year || !lead.intake_month)
+      : leads.filter((lead) => lead.intake_year === year && lead.intake_month === month);
     const outcome = (lead: Lead) => (lead.follow_up_status || lead.status || "").trim().toLowerCase().replace(/[ _-]+/g, " ");
-    const count = (values: string[]) => intakeLeads.filter((lead) => values.includes(outcome(lead))).length;
+    const outcomes = intakeLeads.map(outcome);
+    const count = (values: string[]) => outcomes.filter((value) => values.includes(value)).length;
     const programmes = new Map<string, number>();
     intakeLeads.forEach((lead) => {
       const programme = (lead.product_service || "Programme not recorded").trim() || "Programme not recorded";
       programmes.set(programme, (programmes.get(programme) || 0) + 1);
     });
-    return {
-      year, month, total: intakeLeads.length,
-      interested: count(["interested", "qualified"]),
-      applied: count(["applied", "application submitted", "paid application fee", "applied/admitted", "converted"]),
-      admitted: count(["admitted", "paid application fee", "application submitted"]),
-      enrolled: count(["enrolled", "paid acceptance fee", "acceptance fee paid"]),
-      programmes: [...programmes.entries()].sort((a,b) => b[1] - a[1]).slice(0, 5),
-      needsIntake: leads.filter((lead) => !lead.intake_year || !lead.intake_month).length,
+    const cohortAdmissions = selectedIntake === "all" ? admissions : selectedIntake === "unassigned"
+      ? admissions.filter((item) => !item.intake_year || !item.intake_month)
+      : admissions.filter((item) => item.intake_year === year && item.intake_month === month);
+    const stageName = (value: string | null) => normalizeStageName(value);
+    const stageCount = (stages: string[], fallback: string[]) => {
+      const linkedIds = new Set(cohortAdmissions.filter((item) => stages.includes(stageName(item.stage))).map((item) => item.lead_id).filter(Boolean));
+      const linkedLeadIds = new Set(cohortAdmissions.map((item) => item.lead_id).filter(Boolean));
+      return intakeLeads.filter((lead) => linkedIds.has(lead.id) || (!linkedLeadIds.has(lead.id) && fallback.includes(outcome(lead)))).length;
     };
-  }, [leads, selectedIntake]);
+    const applied = stageCount(["applied", "application submitted", "paid application fee", "application fee paid", "admitted", "enrolled"], ["applied", "application submitted", "paid application fee", "application fee paid", "admitted", "enrolled", "converted"]);
+    const admitted = stageCount(["admitted", "enrolled"], ["admitted", "enrolled"]);
+    const enrolled = stageCount(["enrolled"], ["enrolled"]);
+    const targets = selectedIntake === "all" || selectedIntake === "unassigned" ? []
+      : approvedIntakeTargets.filter((target) => target.strategy_year === year && target.intake_month === month);
+    const allProgrammes = targets.find((target) => normalizeStageName(target.programme) === "all programmes");
+    const targetValue = (key: "target_applications" | "target_admissions" | "target_registrations") =>
+      allProgrammes ? allProgrammes[key] : targets.reduce((total, target) => total + target[key], 0);
+    const interested = count(["interested", "qualified"]);
+    return {
+      year, month, total: intakeLeads.length, interested, applied, admitted, enrolled,
+      programmes: [...programmes.entries()].sort((left, right) => right[1] - left[1]).slice(0, 5),
+      needsIntake: leads.filter((lead) => !lead.intake_year || !lead.intake_month).length,
+      targets: targets.length ? { applications: targetValue("target_applications"), admissions: targetValue("target_admissions"), registrations: targetValue("target_registrations") } : null,
+      conversion: {
+        interested: intakeLeads.length ? interested / intakeLeads.length * 100 : null,
+        applied: intakeLeads.length ? applied / intakeLeads.length * 100 : null,
+        admitted: intakeLeads.length ? admitted / intakeLeads.length * 100 : null,
+        enrolled: intakeLeads.length ? enrolled / intakeLeads.length * 100 : null,
+      },
+    };
+  }, [leads, admissions, selectedIntake, approvedIntakeTargets]);
 
   const performance = useMemo(() => {
     const monthLeads = leads.filter((lead) =>
