@@ -66,7 +66,11 @@ export default function ModuleReportPage() {
         if (!auth.user) { router.replace("/login"); return; }
         const { data, error: profileError } = await supabase.from("profiles").select("id,full_name,role,module_permissions").eq("id", auth.user.id).maybeSingle();
         if (profileError) throw profileError;
-        if (active) setProfile(data as Profile | null);
+        if (!data) {
+          if (active) { setError("Your CRM profile could not be found. Please contact an administrator."); setLoading(false); }
+          return;
+        }
+        if (active) setProfile(data as Profile);
       } catch (e) { if (active) { setError(e instanceof Error ? e.message : "Unable to verify your report access."); setLoading(false); } }
     }
     void loadProfile();
