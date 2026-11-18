@@ -39,6 +39,8 @@ type Task = {
   completed_at: string | null;
   created_at: string;
   updated_at: string;
+  intake_year?: number | null;
+  intake_month?: number | null;
 };
 
 type Profile = {
@@ -481,7 +483,7 @@ const isSalesperson =
       let tasksQuery = supabase
         .from("tasks")
         .select(
-          "id,title,description,task_type,lead_id,opportunity_id,assigned_to,due_at,status,completed_at,created_at,updated_at"
+          "id,title,description,task_type,lead_id,opportunity_id,assigned_to,due_at,status,completed_at,created_at,updated_at,intake_year,intake_month"
         )
         .order("due_at", {
           ascending: true,
@@ -692,7 +694,9 @@ const isSalesperson =
         const lead = getLead(task);
         const staff = getStaff(task);
         const [intakeYear, intakeMonth] = selectedIntake.split("-").map(Number);
-        if (!lead || lead.intake_year !== intakeYear || lead.intake_month !== intakeMonth) return false;
+        const taskIntakeYear = task.intake_year ?? lead?.intake_year ?? null;
+        const taskIntakeMonth = task.intake_month ?? lead?.intake_month ?? null;
+        if (taskIntakeYear !== intakeYear || taskIntakeMonth !== intakeMonth) return false;
 
         if (
           query &&
@@ -991,6 +995,8 @@ const isSalesperson =
               ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
               : null,
         status: form.status,
+        intake_year: linkedLeadId ? (leads.find((lead) => lead.id === linkedLeadId)?.intake_year ?? Number(selectedIntake.split("-")[0])) : Number(selectedIntake.split("-")[0]),
+        intake_month: linkedLeadId ? (leads.find((lead) => lead.id === linkedLeadId)?.intake_month ?? Number(selectedIntake.split("-")[1])) : Number(selectedIntake.split("-")[1]),
         updated_at: new Date().toISOString(),
       };
 
@@ -1640,6 +1646,8 @@ const isSalesperson =
               dateValue
             ).toISOString(),
           status: "pending",
+          intake_year: lead.intake_year ?? Number(selectedIntake.split("-")[0]),
+          intake_month: lead.intake_month ?? Number(selectedIntake.split("-")[1]),
           created_by:
             currentUserId,
         });
@@ -3452,7 +3460,7 @@ const isSalesperson =
                       No student
                     </option>
 
-                    {leads.map(
+                    {leads.filter((lead) => lead.intake_year === Number(selectedIntake.split("-")[0]) && lead.intake_month === Number(selectedIntake.split("-")[1])).map(
                       (lead) => (
                         <option
                           key={
