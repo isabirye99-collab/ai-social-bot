@@ -37,6 +37,7 @@ type Task = {
   assigned_to: string | null;
   due_at: string | null;
   status: string;
+  priority?: "high" | "medium" | "low" | null;
   completed_at: string | null;
   created_at: string;
   updated_at: string;
@@ -96,6 +97,7 @@ type TaskForm = {
   assigned_to: string;
   due_at: string;
   status: TaskStatus;
+  priority: "high" | "medium" | "low";
 };
 
 const TASK_TYPES: TaskType[] = [
@@ -119,6 +121,9 @@ function taskTypeLabel(type: string): string {
     default: return "Other";
   }
 }
+
+const TASK_PRIORITIES = ["high", "medium", "low"] as const;
+type TaskPriority = (typeof TASK_PRIORITIES)[number];
 
 const TASK_STATUSES: TaskStatus[] = [
   "pending",
@@ -165,6 +170,7 @@ const EMPTY_FORM: TaskForm = {
   assigned_to: "",
   due_at: "",
   status: "pending",
+  priority: "medium",
 };
 
 function formatDate(value: string | null) {
@@ -389,6 +395,8 @@ export default function TasksPage() {
     useState<Task | null>(null);
 const [openActionsTaskId, setOpenActionsTaskId] =
     useState<string | null>(null);
+  const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   const [form, setForm] =
     useState<TaskForm>(EMPTY_FORM);
@@ -484,7 +492,7 @@ const isSalesperson =
       let tasksQuery = supabase
         .from("tasks")
         .select(
-          "id,title,description,task_type,lead_id,opportunity_id,assigned_to,due_at,status,completed_at,created_at,updated_at,intake_year,intake_month"
+          "id,title,description,task_type,lead_id,opportunity_id,assigned_to,due_at,status,priority,completed_at,created_at,updated_at,intake_year,intake_month"
         )
         .order("due_at", {
           ascending: true,
@@ -691,6 +699,35 @@ const isSalesperson =
     };
   }, [tasks, leads, selectedIntake]);
 
+  const performanceSummary = useMemo(() => {
+    const [intakeYear, intakeMonth] = selectedIntake.split("-").map(Number);
+    const scoped = tasks.filter((task) => {
+      const lead = leads.find((item) => item.id === task.lead_id);
+      const year = task.intake_year ?? lead?.intake_year ?? null;
+      const month = task.intake_month ?? lead?.intake_month ?? null;
+      return selectedIntake === "unassigned" ? !year || !month : year === intakeYear && month === intakeMonth;
+    }).filter((task) => !isClosedLead(leads.find((lead) => lead.id === task.lead_id)));
+    const visible = currentRole === "salesperson" ? scoped.filter((task) => task.assigned_to === currentUserId) : scoped;
+    const now = new Date();
+    const dueThisMonth = visible.filter((task) => {
+      if (!task.due_at) return false;
+      const due = new Date(task.due_at);
+      return due.getFullYear() === now.getFullYear() && due.getMonth() === now.getMonth();
+    });
+    const completedToday = visible.filter((task) => task.status === "completed" && task.completed_at && isToday(task.completed_at)).length;
+    const overdue = visible.filter((task) => isOverdue(task)).length;
+    const completedDueThisMonth = dueThisMonth.filter((task) => task.status === "completed").length;
+    return {
+      outstanding: visible.filter(isActiveTask).length,
+      overdue,
+      completedToday,
+      dueThisMonth: dueThisMonth.length,
+      completedDueThisMonth,
+      completionRate: dueThisMonth.length ? Math.round((completedDueThisMonth / dueThisMonth.length) * 100) : null,
+      isManager: currentRole !== "salesperson",
+    };
+  }, [tasks, leads, selectedIntake, currentRole, currentUserId]);
+
   const filteredTasks = useMemo(() => {
     const query = search
       .trim()
@@ -886,6 +923,7 @@ const isSalesperson =
         )
           ? task.status
           : "pending") as TaskStatus,
+      priority: TASK_PRIORITIES.includes(task.priority as TaskPriority) ? task.priority as TaskPriority : "medium",
     });
 
     setShowTaskModal(true);
@@ -1008,6 +1046,7 @@ const isSalesperson =
               ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
               : null,
         status: form.status,
+        priority: form.priority,
         intake_year: linkedLeadId ? (leads.find((lead) => lead.id === linkedLeadId)?.intake_year ?? (selectedIntake === "unassigned" ? null : Number(selectedIntake.split("-")[0]))) : (selectedIntake === "unassigned" ? null : Number(selectedIntake.split("-")[0])),
         intake_month: linkedLeadId ? (leads.find((lead) => lead.id === linkedLeadId)?.intake_month ?? (selectedIntake === "unassigned" ? null : Number(selectedIntake.split("-")[1]))) : (selectedIntake === "unassigned" ? null : Number(selectedIntake.split("-")[1])),
         updated_at: new Date().toISOString(),
@@ -1224,6 +1263,46 @@ const isSalesperson =
       task,
       "completed"
     );
+  };
+
+  const runBulkAction = async (action: "assign" | "reschedule" | "priority") => {
+    const selected = filteredTasks.filter((task) => selectedTaskIds.includes(task.id));
+    if (!selected.length) { setError("Select at least one task first."); return; }
+    let patch: Record<string, unknown> = {};
+    if (action === "assign") {
+      const choices = profiles.filter((profile) => profile.is_active !== false && profile.role === "salesperson");
+      const choiceText = choices.map((profile) => `${profile.id} = ${profile.full_name || "Unnamed staff"}`).join("\\n");
+      const assigneeId = window.prompt(`Enter the staff ID to assign ${selected.length} task(s) to, or leave blank to unassign.\\n${choiceText}`);
+      if (assigneeId === null) return;
+      const normalized = assigneeId.trim();
+      if (normalized && !choices.some((profile) => profile.id === normalized)) { setError("Choose a valid active staff ID from the list."); return; }
+      patch = { assigned_to: normalized || null };
+    } else if (action === "reschedule") {
+      const date = window.prompt("Enter the new due date and time (YYYY-MM-DD HH:mm), or leave blank to remove the due date.");
+      if (date === null) return;
+      if (date.trim()) {
+        const parsed = new Date(date.trim().replace(" ", "T"));
+        if (Number.isNaN(parsed.getTime())) { setError("Enter a valid date and time, for example 2026-11-20 14:30."); return; }
+        patch = { due_at: parsed.toISOString() };
+      } else patch = { due_at: null };
+    } else {
+      const priority = window.prompt("Set priority: high, medium or low.", "medium");
+      if (priority === null) return;
+      const normalized = priority.trim().toLowerCase();
+      if (!TASK_PRIORITIES.includes(normalized as TaskPriority)) { setError("Priority must be high, medium or low."); return; }
+      patch = { priority: normalized };
+    }
+    if (!window.confirm(`Apply this change to ${selected.length} selected task(s)?`)) return;
+    try {
+      setBulkBusy(true); setError(""); setSuccess("");
+      const { error: updateError } = await supabase.from("tasks").update({ ...patch, updated_at: new Date().toISOString() }).in("id", selected.map((task) => task.id));
+      if (updateError) throw updateError;
+      setSelectedTaskIds([]);
+      setSuccess(`Updated ${selected.length} task(s) successfully.`);
+      await loadAll();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Bulk update failed.");
+    } finally { setBulkBusy(false); }
   };
 
   const deleteTask = async (
@@ -1831,8 +1910,8 @@ const isSalesperson =
     alignItems: "center",
     gap: "20px",
     flexWrap: "wrap",
-    marginBottom: "20px",
-    padding: "22px 24px",
+    marginBottom: "12px",
+    padding: "14px 18px",
     background: "#ffffff",
     border: "1px solid #e0e7e3",
     borderLeft: "3px solid #006b59",
@@ -1909,7 +1988,7 @@ const isSalesperson =
     }}
   />
 </div>
-<section style={{ marginBottom: 16, padding: 14, border: "1px solid #dce8df", borderRadius: 12, background: "#fff", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+<section style={{ marginBottom: 10, padding: 10, border: "1px solid #dce8df", borderRadius: 12, background: "#fff", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
   <div><strong style={{ color: "#075442", fontSize: 14 }}>Recruitment intake</strong><p style={{ margin: "3px 0 0", color: "#68776f", fontSize: 12 }}>Tasks and follow-up leads are filtered to this intake.</p></div>
   <select value={selectedIntake} onChange={(event) => setSelectedIntake(event.target.value)} style={{ border: "1px solid #cfded4", borderRadius: 9, padding: "10px 12px", fontSize: 13, background: "#fff", color: "#173b2b" }}>
     <option value="unassigned">Needs intake assignment</option><option value="2026-11">November 2026</option><option value="2027-2">February 2027</option><option value="2027-4">April 2027</option><option value="2027-8">August 2027</option><option value="2027-11">November 2027</option><option value="2028-2">February 2028</option>
@@ -1951,7 +2030,7 @@ const isSalesperson =
         )}
 
         {/* COMPACT TASK STATUS TABS */}
-        <nav className="ciu-status-tabs" aria-label="Task status filters" style={{ marginBottom: 14 }}>
+        <nav className="ciu-status-tabs" aria-label="Task status filters" style={{ marginBottom: 10 }}>
           {[
             { id: "today", label: "Due Today", count: stats.dueToday },
             { id: "overdue", label: "Overdue", count: stats.overdue },
@@ -1966,6 +2045,22 @@ const isSalesperson =
           ))}
         </nav>
 
+        {/* ROLE-SPECIFIC PERFORMANCE SUMMARY */}
+        <section aria-label="Task performance summary" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(145px, 1fr))", gap: 8, marginBottom: 10 }}>
+          {[
+            { label: performanceSummary.isManager ? "Team outstanding" : "My outstanding", value: performanceSummary.outstanding },
+            { label: performanceSummary.isManager ? "Team overdue" : "My overdue", value: performanceSummary.overdue },
+            { label: performanceSummary.isManager ? "Team completed today" : "Completed today", value: performanceSummary.completedToday },
+            { label: "Due this month completed", value: performanceSummary.completionRate === null ? "—" : `${performanceSummary.completionRate}%`, note: performanceSummary.dueThisMonth ? `${performanceSummary.completedDueThisMonth} of ${performanceSummary.dueThisMonth} tasks due this month` : "No tasks due this month" },
+          ].map((metric) => (
+            <div key={metric.label} style={{ background: "#ffffff", border: "1px solid #dce8df", borderRadius: 10, padding: "9px 11px", minWidth: 0 }}>
+              <div style={{ fontSize: 11, color: "#64756b", fontWeight: 650 }}>{metric.label}</div>
+              <div style={{ marginTop: 3, fontSize: 21, lineHeight: 1.2, fontWeight: 800, color: metric.label.toLowerCase().includes("overdue") && Number(metric.value) > 0 ? "#b42318" : "#075442" }}>{metric.value}</div>
+              {"note" in metric && <div style={{ marginTop: 3, fontSize: 10, color: "#64748b" }}>{metric.note}</div>}
+            </div>
+          ))}
+        </section>
+
         {/* FILTER BAR */}
         <div
           style={{
@@ -1973,8 +2068,8 @@ const isSalesperson =
             border:
               "1px solid #e5e7eb",
             borderRadius: "14px",
-            padding: "16px",
-            marginBottom: "18px",
+            padding: "10px",
+            marginBottom: "10px",
           }}
         >
           <div
@@ -2168,7 +2263,7 @@ const isSalesperson =
           <div
             style={{
               padding:
-                "17px 18px",
+                "10px 14px",
               borderBottom:
                 "1px solid #e5e7eb",
               display: "flex",
@@ -2228,6 +2323,15 @@ const isSalesperson =
             </button>
           </div>
 
+          {selectedTaskIds.length > 0 && (
+            <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, padding: "9px 12px", borderBottom: "1px solid #e5eee8", background: "#f4faf6" }}>
+              <strong style={{ fontSize: 12, color: "#075442" }}>{selectedTaskIds.filter((id) => filteredTasks.some((task) => task.id === id)).length} selected</strong>
+              <button type="button" disabled={bulkBusy} onClick={() => void runBulkAction("assign")} style={{ border: "1px solid #b8d4c5", background: "#fff", borderRadius: 7, padding: "6px 9px", color: "#075442", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Reassign</button>
+              <button type="button" disabled={bulkBusy} onClick={() => void runBulkAction("reschedule")} style={{ border: "1px solid #b8d4c5", background: "#fff", borderRadius: 7, padding: "6px 9px", color: "#075442", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Reschedule</button>
+              <button type="button" disabled={bulkBusy} onClick={() => void runBulkAction("priority")} style={{ border: "1px solid #b8d4c5", background: "#fff", borderRadius: 7, padding: "6px 9px", color: "#075442", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Set priority</button>
+              <button type="button" onClick={() => setSelectedTaskIds([])} style={{ border: "none", background: "transparent", color: "#64748b", fontSize: 11, cursor: "pointer" }}>Clear selection</button>
+            </div>
+          )}
           {loading ? (
             <div
               style={{
@@ -2355,7 +2459,7 @@ const isSalesperson =
   style={{
     width: "100%",
     borderCollapse: "collapse",
-    minWidth: "1050px",
+    minWidth: "1120px",
   }}
 >
                 <thead>
@@ -2365,10 +2469,14 @@ const isSalesperson =
                         "#f8fafc",
                     }}
                   >
+                    <th style={{ padding: "8px 10px", textAlign: "left", borderBottom: "1px solid #e5e7eb", width: 34 }}>
+                      <input type="checkbox" aria-label="Select all visible tasks" checked={filteredTasks.length > 0 && filteredTasks.every((task) => selectedTaskIds.includes(task.id))} onChange={(event) => setSelectedTaskIds(event.target.checked ? Array.from(new Set([...selectedTaskIds, ...filteredTasks.map((task) => task.id)])) : selectedTaskIds.filter((id) => !filteredTasks.some((task) => task.id === id)))} />
+                    </th>
                     {[
                       "TASK",
                       "STUDENT",
                       "TYPE",
+                      "PRIORITY",
                       "DUE",
                       "STATUS",
                       "ASSIGNED TO",
@@ -2381,7 +2489,7 @@ const isSalesperson =
                           }
                           style={{
                             padding:
-                              "12px 16px",
+                              "8px 10px",
                             textAlign:
                               heading ===
                               "ACTIONS"
@@ -2448,6 +2556,9 @@ const isSalesperson =
                             cursor: "pointer",
                           }}
                         >
+                          <td style={{ padding: "8px 10px", verticalAlign: "top", width: 34 }}>
+                            <input type="checkbox" aria-label={`Select task ${task.title}`} checked={selectedTaskIds.includes(task.id)} onChange={(event) => setSelectedTaskIds((current) => event.target.checked ? Array.from(new Set([...current, task.id])) : current.filter((id) => id !== task.id))} />
+                          </td>
                           {/* TASK */}
                           <td
                             style={{
@@ -2479,9 +2590,8 @@ const isSalesperson =
                                     task.status !==
                                     "completed"
                                   ) {
-                                    markComplete(
-                                      task
-                                    );
+                                    if (task.lead_id) openOutcome(task);
+                                    else markComplete(task);
                                   }
                                 }}
                                 style={{
@@ -2591,7 +2701,7 @@ const isSalesperson =
                           {/* STUDENT */}
                           <td
                             style={{
-                              padding: "15px 16px",
+                              padding: "8px 10px",
                               verticalAlign: "top",
                             }}
                           >
@@ -2714,6 +2824,15 @@ const isSalesperson =
                                 taskTypeLabel(task.task_type)
                               }
                             </span>
+                          </td>
+
+                          {/* PRIORITY */}
+                          <td style={{ padding: "8px 10px", verticalAlign: "top" }}>
+                            {(() => {
+                              const priority = task.priority || (overdue ? "high" : isToday(task.due_at) ? "high" : task.status === "in_progress" ? "medium" : "low");
+                              const colors = priority === "high" ? { bg: "#fff1f0", fg: "#b42318" } : priority === "medium" ? { bg: "#fff7e6", fg: "#9a6700" } : { bg: "#edf7f0", fg: "#176b45" };
+                              return <span style={{ display: "inline-flex", padding: "4px 7px", borderRadius: 999, background: colors.bg, color: colors.fg, fontSize: 10, fontWeight: 750, textTransform: "capitalize" }}>{priority}</span>;
+                            })()}
                           </td>
 
                           {/* DUE */}
@@ -3637,6 +3756,12 @@ const isSalesperson =
                   />
                 </div>
 
+                <div>
+                  <label style={{ display: "block", marginBottom: "6px", fontSize: "12px", fontWeight: 700, color: "#374151" }}>Priority</label>
+                  <select value={form.priority} onChange={(event) => setForm((current) => ({ ...current, priority: event.target.value as TaskPriority }))} style={{ width: "100%", boxSizing: "border-box", border: "1px solid #d1d5db", borderRadius: "9px", padding: "10px 12px", fontSize: "13px", background: "#ffffff" }}>
+                    {TASK_PRIORITIES.map((priority) => <option key={priority} value={priority}>{priority.charAt(0).toUpperCase() + priority.slice(1)}</option>)}
+                  </select>
+                </div>
                 <div
                   style={{
                     gridColumn:
