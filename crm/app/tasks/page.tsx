@@ -659,7 +659,13 @@ const isSalesperson =
   };
 
   const stats = useMemo(() => {
-    const active = tasks.filter((task) =>
+    const [intakeYear, intakeMonth] = selectedIntake.split("-").map(Number);
+    const scopedTasks = tasks.filter((task) => {
+      const lead = getLead(task);
+      return (task.intake_year ?? lead?.intake_year) === intakeYear && (task.intake_month ?? lead?.intake_month) === intakeMonth;
+    });
+    const scopedLeads = leads.filter((lead) => lead.intake_year === intakeYear && lead.intake_month === intakeMonth);
+    const active = scopedTasks.filter((task) =>
       isActiveTask(task) && !isClosedLead(getLead(task))
     );
 
@@ -671,7 +677,7 @@ const isSalesperson =
       (task) => isToday(task.due_at)
     ).length;
 
-    const completed = tasks.filter(
+    const completed = scopedTasks.filter(
       (task) =>
         task.status === "completed"
     ).length;
@@ -680,9 +686,9 @@ const isSalesperson =
       overdue,
       dueToday,
       completed,
-      interestedLeads: leads.filter(isInterestedLead).length,
+      interestedLeads: scopedLeads.filter(isInterestedLead).length,
     };
-  }, [tasks, leads]);
+  }, [tasks, leads, selectedIntake]);
 
   const filteredTasks = useMemo(() => {
     const query = search
@@ -792,7 +798,9 @@ const isSalesperson =
     const counts = new Map<string, number>();
     OUTCOMES.forEach((outcome) => counts.set(normalize(outcome), 0));
     let unrecorded = 0;
-    leads.forEach((lead) => {
+    const [intakeYear, intakeMonth] = selectedIntake.split("-").map(Number);
+    const scopedLeads = leads.filter((lead) => lead.intake_year === intakeYear && lead.intake_month === intakeMonth);
+    scopedLeads.forEach((lead) => {
       const outcome = normalize(lead.follow_up_status);
       if (!outcome || outcome === "pending") {
         counts.set("pending", (counts.get("pending") || 0) + 1);
@@ -803,7 +811,7 @@ const isSalesperson =
       }
     });
     return {
-      total: leads.length,
+      total: scopedLeads.length,
       items: [
         { label: "Pending", count: counts.get("pending") || 0 },
         ...OUTCOMES.map((outcome) => ({
@@ -813,7 +821,7 @@ const isSalesperson =
       ],
       unrecorded,
     };
-  }, [leads]);
+  }, [leads, selectedIntake]);
 
   const openNewTask = (
     lead?: Lead | null
