@@ -770,8 +770,8 @@ export default function ReportsPage() {
           {viewerModules.includes("strategy") && <a href="#strategy-report">Strategy</a>}
           <a href="#admissions-funnel">Admissions funnel</a>
           <a href="#team-activity">Team activity</a>
-          {viewerModules.includes("alumni") && !individualView && <a href="#alumni-report">Alumni</a>}
-          {viewerModules.includes("partnerships") && !individualView && <a href="#partnerships-report">Partnerships</a>}
+          {viewerModules.includes("alumni") && <a href="#alumni-report">Alumni</a>}
+          {viewerModules.includes("partnerships") && <a href="#partnerships-report">Partnerships</a>}
           <a href="#staff-performance">{individualView ? "My performance" : "Staff performance"}</a>
         </nav>
 
@@ -1104,7 +1104,7 @@ export default function ReportsPage() {
 
         <section id="team-activity" className="report-visual-grid">
           <div className="ciu-card report-chart-card">
-            <div className="ciu-card-head report-card-head"><div><h2>Activity by Team</h2><span>Logged contact activities during the selected period.</span></div></div>
+            <div className="ciu-card-head report-card-head"><div><h2>{individualView ? "My Activity" : "Activity by Team"}</h2><span>Logged contact activities during the selected period.</span></div></div>
             <div className="team-activity-chart">
               <div className="team-activity-row"><div className="team-activity-label"><strong>Alumni Relations</strong><span>{alumniRows.reduce((sum, row) => sum + row.contactActivities, 0).toLocaleString()} activities</span></div><div className="team-activity-track"><span className="team-activity-fill team-alumni" style={{ width: String(Math.min(100, alumniRows.reduce((sum, row) => sum + row.contactActivities, 0) / Math.max(1, report.rows.reduce((sum, row) => sum + row.contactActivities, 0)) * 100)) + "%" }} /></div><div className="team-activity-detail">Calls {alumniRows.reduce((sum, row) => sum + row.calls, 0)} · Emails {alumniRows.reduce((sum, row) => sum + row.emails, 0)} · WhatsApp {alumniRows.reduce((sum, row) => sum + row.whatsapp, 0)} · Meetings {alumniRows.reduce((sum, row) => sum + row.meetings, 0)}</div></div>
               <div className="team-activity-row"><div className="team-activity-label"><strong>Partnerships</strong><span>{partnershipRows.reduce((sum, row) => sum + row.contactActivities, 0).toLocaleString()} activities</span></div><div className="team-activity-track"><span className="team-activity-fill team-partnerships" style={{ width: String(Math.min(100, partnershipRows.reduce((sum, row) => sum + row.contactActivities, 0) / Math.max(1, report.rows.reduce((sum, row) => sum + row.contactActivities, 0)) * 100)) + "%" }} /></div><div className="team-activity-detail">Calls {partnershipRows.reduce((sum, row) => sum + row.calls, 0)} · Emails {partnershipRows.reduce((sum, row) => sum + row.emails, 0)} · WhatsApp {partnershipRows.reduce((sum, row) => sum + row.whatsapp, 0)} · Meetings {partnershipRows.reduce((sum, row) => sum + row.meetings, 0)}</div></div>
@@ -1122,9 +1122,9 @@ export default function ReportsPage() {
             </div>
           </div>
         </section>
-        {viewerModules.includes("alumni") && !individualView && (
+        {viewerModules.includes("alumni") && (
 <section id="alumni-report" className="ciu-card report-table-card">
-          <div className="ciu-card-head report-card-head"><div><h2>Alumni Relations Activity</h2><span>Contact and follow-up activity for Alumni Relations staff in the selected period.</span></div></div>
+          <div className="ciu-card-head report-card-head"><div><h2>{individualView ? "My Alumni Activity" : "Alumni Relations Activity"}</h2><span>Contact and follow-up activity for Alumni Relations staff in the selected period.</span></div></div>
           <div className="report-table-scroll"><table className="report-table">
             <thead><tr><th>Staff Member</th><th>Contact activities</th><th>Calls</th><th>Emails</th><th>WhatsApp</th><th>Meetings</th><th>Tasks done</th></tr></thead>
             <tbody>{alumniRows.length ? alumniRows.map((row) => <tr key={row.id}><td><div className="staff-cell"><div className="staff-avatar">{row.name.split(" ").map((part) => part.charAt(0)).join("").slice(0, 2).toUpperCase()}</div><strong>{row.name}</strong></div></td><td><strong>{row.contactActivities}</strong></td><td>{row.calls}</td><td>{row.emails}</td><td>{row.whatsapp}</td><td>{row.meetings}</td><td>{row.completedTasks}</td></tr>) : <tr><td colSpan={7}>No Alumni Relations activity recorded for this period.</td></tr>}</tbody>
@@ -1132,9 +1132,9 @@ export default function ReportsPage() {
           <p style={{ padding: "0 18px 14px", color: "#64748b", fontSize: 12 }}>Contact activities are counted from call, WhatsApp and email tasks. They are logged activities, not a deduplicated count of unique people.</p>
         </section>
 )}
-        {viewerModules.includes("partnerships") && !individualView && (
+        {viewerModules.includes("partnerships") && (
 <section id="partnerships-report" className="ciu-card report-table-card">
-          <div className="ciu-card-head report-card-head"><div><h2>Partnerships Activity</h2><span>Contact and follow-up activity for staff responsible for partnerships in the selected period.</span></div></div>
+          <div className="ciu-card-head report-card-head"><div><h2>{individualView ? "My Partnerships Activity" : "Partnerships Activity"}</h2><span>Contact and follow-up activity for staff responsible for partnerships in the selected period.</span></div></div>
           <div className="report-table-scroll"><table className="report-table">
             <thead><tr><th>Staff Member</th><th>Contact activities</th><th>Calls</th><th>Emails</th><th>WhatsApp</th><th>Meetings</th><th>Tasks done</th></tr></thead>
             <tbody>{partnershipRows.length ? partnershipRows.map((row) => <tr key={row.id}><td><div className="staff-cell"><div className="staff-avatar">{row.name.split(" ").map((part) => part.charAt(0)).join("").slice(0, 2).toUpperCase()}</div><strong>{row.name}</strong></div></td><td><strong>{row.contactActivities}</strong></td><td>{row.calls}</td><td>{row.emails}</td><td>{row.whatsapp}</td><td>{row.meetings}</td><td>{row.completedTasks}</td></tr>) : <tr><td colSpan={7}>No Partnerships activity recorded for this period.</td></tr>}</tbody>
