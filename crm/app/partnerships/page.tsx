@@ -336,6 +336,7 @@ export default function PartnershipsPage() {
           </div>
           <div className="flex flex-wrap gap-2">
             <button type="button" onClick={() => { setFileError(""); setEditingRecord(null); setContactForm({ name: "", primary_contact_name: "", primary_contact_email: "", primary_contact_phone: "", category: "", status: "prospect", notes: "" }); setShowAddContact(true); }} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-[#00695c] bg-white px-4 text-sm font-semibold text-[#00695c] hover:bg-emerald-50"><Users size={16} /> Add Contact</button>
+            <a href="/partnerships/mous" className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 text-sm font-semibold text-emerald-900 hover:bg-emerald-100"><Handshake size={16} /> MOU Register</a>
             <button type="button" onClick={downloadTemplate} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
               <Download size={16} /> CSV template
             </button>
