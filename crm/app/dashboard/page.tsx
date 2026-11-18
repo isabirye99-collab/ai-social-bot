@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { useIntakeSelection } from "@/lib/use-intake-selection";
 import type { CrmRole } from "@/lib/permissions";
 
 type Lead = {
@@ -263,7 +264,7 @@ export default function DashboardPage() {
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [leads, setLeads] = useState<Lead[]>([]);
-  const [selectedIntake, setSelectedIntake] = useState("2026-11");
+  const [selectedIntake, setSelectedIntake] = useIntakeSelection();
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [pipelineStages, setPipelineStages] = useState<
     PipelineStage[]
