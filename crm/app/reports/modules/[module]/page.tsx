@@ -46,8 +46,8 @@ export default function ModuleReportPage() {
     if (!config || !profile || !modules.includes(config.permission)) return;
     setLoading(true); setError("");
     try {
-      let query = supabase.from(config.table).select(config.columns.join(",")).gte(config.dateColumn, fromDate + "T00:00:00").lte(config.dateColumn, toDate + "T23:59:59").order(config.dateColumn, { ascending: false }).limit(1000);
-      if (moduleKey === "strategy") query = supabase.from(config.table).select(config.columns.join(",")).gte("strategy_year", Number(fromDate.slice(0, 4))).lte("strategy_year", Number(toDate.slice(0, 4))).order("strategy_year", { ascending: false }).limit(1000);
+      let query = (supabase as any).from(config.table).select(config.columns.join(",")).gte(config.dateColumn, fromDate + "T00:00:00").lte(config.dateColumn, toDate + "T23:59:59").order(config.dateColumn, { ascending: false }).limit(1000);
+      if (moduleKey === "strategy") query = (supabase as any).from(config.table).select(config.columns.join(",")).gte("strategy_year", Number(fromDate.slice(0, 4))).lte("strategy_year", Number(toDate.slice(0, 4))).order("strategy_year", { ascending: false }).limit(1000);
       const { data, error: queryError } = await query;
       if (queryError) throw queryError;
       setRecords((data || []) as ReportRecord[]);
