@@ -769,10 +769,10 @@ export default function ReportsPage() {
         )}
 
         <nav aria-label="Report sections" className="report-section-nav">
-          <a href="#intake-report">Intake</a>
+          {viewerModules.includes("leads") && <a href="#intake-report">Intake</a>}
           {viewerModules.includes("strategy") && <a href="#strategy-report">Strategy</a>}
-          <a href="#admissions-funnel">Admissions funnel</a>
-          <a href="#team-activity">Team activity</a>
+          {(viewerModules.includes("leads") || viewerModules.includes("pipeline")) && <a href="#admissions-funnel">Admissions funnel</a>}
+          {(viewerModules.includes("leads") || viewerModules.includes("tasks") || viewerModules.includes("engagement")) && <a href="#team-activity">{individualView ? "My activity" : "Team activity"}</a>}
           {viewerModules.includes("alumni") && <a href="#alumni-report">Alumni</a>}
           {viewerModules.includes("partnerships") && <a href="#partnerships-report">Partnerships</a>}
           <a href="#staff-performance">{individualView ? "My performance" : "Staff performance"}</a>
@@ -872,7 +872,8 @@ export default function ReportsPage() {
           </div>}
         </section>
 )}
-        <section id="admissions-funnel" className="report-main-grid">
+        {(viewerModules.includes("leads") || viewerModules.includes("pipeline")) && (
+<section id="admissions-funnel" className="report-main-grid">
           <div className="ciu-card">
             <div className="ciu-card-head report-card-head">
               <div>
@@ -1104,8 +1105,10 @@ export default function ReportsPage() {
             </div>
           </div>
         </section>
+)}
 
-        <section id="team-activity" className="report-visual-grid">
+        {(viewerModules.includes("leads") || viewerModules.includes("tasks") || viewerModules.includes("engagement")) && (
+<section id="team-activity" className="report-visual-grid">
           <div className="ciu-card report-chart-card">
             <div className="ciu-card-head report-card-head"><div><h2>{individualView ? "My Activity" : "Activity by Team"}</h2><span>Logged contact activities during the selected period.</span></div></div>
             <div className="team-activity-chart">
@@ -1125,6 +1128,7 @@ export default function ReportsPage() {
             </div>
           </div>
         </section>
+)}
         {viewerModules.includes("alumni") && (
 <section id="alumni-report" className="ciu-card report-table-card">
           <div className="ciu-card-head report-card-head"><div><h2>{individualView ? "My Alumni Activity" : "Alumni Relations Activity"}</h2><span>Contact and follow-up activity for Alumni Relations staff in the selected period.</span></div></div>
@@ -1146,7 +1150,8 @@ export default function ReportsPage() {
         </section>
 )}
 
-        <section className="ciu-card report-table-card">
+        {(viewerModules.includes("leads") || viewerModules.includes("pipeline") || viewerModules.includes("tasks") || viewerModules.includes("engagement")) && (
+<section className="ciu-card report-table-card">
           <div className="ciu-card-head report-card-head">
             <div>
               <h2>
@@ -1316,6 +1321,7 @@ export default function ReportsPage() {
             </table>
           </div>
         </section>
+)}
 
         <div className="report-note">
           <strong>Reporting note:</strong> Activity
