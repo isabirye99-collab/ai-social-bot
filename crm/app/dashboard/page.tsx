@@ -46,6 +46,8 @@ type Task = {
   assigned_to: string | null;
   due_at: string | null;
   status: string | null;
+  intake_year?: number | null;
+  intake_month?: number | null;
 };
 
 type Profile = {
@@ -363,7 +365,7 @@ export default function DashboardPage() {
       const tasksQuery = assignedFilter(
         supabase
           .from("tasks")
-          .select("id,assigned_to,due_at,status"),
+          .select("id,assigned_to,due_at,status,intake_year,intake_month"),
       );
 
       const admissionsQuery = assignedFilter(
@@ -522,32 +524,56 @@ export default function DashboardPage() {
     return aliases[expected]?.includes(actual) ?? false;
   }
 
+  const selectedIntakeParts = selectedIntake === "unassigned" || selectedIntake === "all"
+    ? null
+    : selectedIntake.split("-").map(Number);
+  const selectedIntakeLeads = useMemo(() => leads.filter((lead) => {
+    if (selectedIntake === "unassigned") return !lead.intake_year || !lead.intake_month;
+    if (selectedIntake === "all") return true;
+    return lead.intake_year === selectedIntakeParts?.[0] && lead.intake_month === selectedIntakeParts?.[1];
+  }), [leads, selectedIntake, selectedIntakeParts?.[0], selectedIntakeParts?.[1]]);
+  const selectedLeadIds = useMemo(() => new Set(selectedIntakeLeads.map((lead) => lead.id)), [selectedIntakeLeads]);
+  const selectedIntakeAdmissions = useMemo(() => admissions.filter((item) => {
+    if (selectedIntake === "unassigned") return !item.intake_year || !item.intake_month;
+    if (selectedIntake === "all") return true;
+    return item.intake_year === selectedIntakeParts?.[0] && item.intake_month === selectedIntakeParts?.[1];
+  }), [admissions, selectedIntake, selectedIntakeParts?.[0], selectedIntakeParts?.[1]]);
+  const selectedIntakeTasks = useMemo(() => tasks.filter((task) => {
+    if (selectedIntake === "unassigned") return !task.intake_year || !task.intake_month;
+    if (selectedIntake === "all") return true;
+    return task.intake_year === selectedIntakeParts?.[0] && task.intake_month === selectedIntakeParts?.[1];
+  }), [tasks, selectedIntake, selectedIntakeParts?.[0], selectedIntakeParts?.[1]]);
+  const selectedIntakeOpportunities = useMemo(() => opportunities.filter((item) => {
+    if (selectedIntake === "all") return true;
+    return Boolean(item.lead_id && selectedLeadIds.has(item.lead_id));
+  }), [opportunities, selectedIntake, selectedLeadIds]);
+
   const stats = useMemo(() => {
-    const openDeals = opportunities.filter(
+    const openDeals = selectedIntakeOpportunities.filter(
       (item) =>
         item.status !== "closed" &&
         item.status !== "lost",
     );
 
     const admittedStages = ["Applied", "Application Submitted", "Admitted", "Paid Application Fee"];
-    const applied = opportunities.filter((item) => opportunityIsInStage(item, "Applied")); 
-    const admittedTotal = opportunities.filter((item) => admittedStages.some((stage) => opportunityIsInStage(item, stage))).length;
+    const applied = selectedIntakeOpportunities.filter((item) => opportunityIsInStage(item, "Applied")); 
+    const admittedTotal = selectedIntakeOpportunities.filter((item) => admittedStages.some((stage) => opportunityIsInStage(item, stage))).length;
 
-    const applicationFeePaid = opportunities.filter((item) =>
+    const applicationFeePaid = selectedIntakeOpportunities.filter((item) =>
       opportunityIsInStage(
         item,
         "Paid Application Fee",
       ),
     );
 
-    const acceptanceFeePaid = opportunities.filter((item) =>
+    const acceptanceFeePaid = selectedIntakeOpportunities.filter((item) =>
       opportunityIsInStage(
         item,
         "Paid Acceptance Fee",
       ),
     );
 
-    const enrolledOpportunities = opportunities.filter((item) =>
+    const enrolledOpportunities = selectedIntakeOpportunities.filter((item) =>
       (opportunityIsInStage(item, "Enrolled") || opportunityIsInStage(item, "Paid Acceptance Fee")) &&
       (item.status === "won" || item.status === "open")
     );
@@ -567,7 +593,7 @@ export default function DashboardPage() {
       0,
     );
 
-    const followUpsDue = leads.filter((lead) => {
+    const followUpsDue = selectedIntakeLeads.filter((lead) => {
       if (!lead.next_follow_up_at) {
         return false;
       }
@@ -578,39 +604,39 @@ export default function DashboardPage() {
       );
     }).length;
 
-    const tasksToday = tasks.filter(
+    const tasksToday = selectedIntakeTasks.filter(
       (task) =>
         sameDay(task.due_at) &&
         task.status !== "completed" &&
         task.status !== "done",
     ).length;
 
-    const interested = leads.filter((lead) => {
+    const interested = selectedIntakeLeads.filter((lead) => {
       const status = (lead.status || "").trim().toLowerCase().replace(/[_-]+/g, " ");
       return ["qualified", "interested"].includes(status);
     }).length;
 
-    const dropped = leads.filter((lead) => {
+    const dropped = selectedIntakeLeads.filter((lead) => {
       const status = (lead.status || "").trim().toLowerCase().replace(/[_-]+/g, " ");
       return ["dropped", "lost", "disqualified", "closed lost", "not interested"].includes(status);
     }).length;
 
     // Every lead belongs to exactly one dashboard bucket: interested, dropped or in progress.
-    const inProgress = Math.max(0, leads.length - interested - dropped);
+    const inProgress = Math.max(0, selectedIntakeLeads.length - interested - dropped);
 
     const enrolled = enrolledOpportunities.length;
 
-    const completedTasks = tasks.filter(
+    const completedTasks = selectedIntakeTasks.filter(
       (task) =>
         task.status === "completed" ||
         task.status === "done",
     ).length;
 
-    const newLeads = leads.filter((lead) =>
+    const newLeads = selectedIntakeLeads.filter((lead) =>
       isThisMonth(lead.created_at),
     ).length;
 
-    const monthlyEnrolled = admissions.filter(
+    const monthlyEnrolled = selectedIntakeAdmissions.filter(
       (admission) =>
         (admission.stage || "").toLowerCase() === "enrolled" &&
         isThisMonth(admission.enrolled_at),
@@ -656,17 +682,17 @@ export default function DashboardPage() {
       monthlyEnrolled,
     };
   }, [
-    leads,
-    opportunities,
+    selectedIntakeLeads,
+    selectedIntakeOpportunities,
     pipelineStages,
-    tasks,
+    selectedIntakeTasks,
   ]);
 
   const funnel = useMemo(() => {
     const stages = [
       {
         label: "Leads",
-        value: leads.length,
+        value: selectedIntakeLeads.length,
         color: "#075442",
         tint: "#eaf4ef",
       },
@@ -703,7 +729,7 @@ export default function DashboardPage() {
           : 0,
     }));
   }, [
-    leads.length,
+    selectedIntakeLeads.length,
     stats.admittedTotal,
     stats.enrolledTotal,
   ]);
@@ -712,7 +738,7 @@ export default function DashboardPage() {
     const stages = [
       {
         label: "Early pipeline",
-        description: "Open opportunities",
+        description: "Open selectedIntakeOpportunities",
         count: stats.openDeals,
         value: stats.pipelineValue,
       },
@@ -724,7 +750,7 @@ export default function DashboardPage() {
       },
       {
         label: "Enrolled",
-        description: "Successful admissions",
+        description: "Successful selectedIntakeAdmissions",
         count: stats.enrolled,
         value: 0,
       },
@@ -802,31 +828,31 @@ export default function DashboardPage() {
   }, [leads, admissions, selectedIntake, approvedIntakeTargets]);
 
   const performance = useMemo(() => {
-    const monthLeads = leads.filter((lead) =>
+    const monthLeads = selectedIntakeLeads.filter((lead) =>
       isThisMonth(lead.created_at),
     ).length;
 
-    const monthInterested = leads.filter(
+    const monthInterested = selectedIntakeLeads.filter(
       (lead) =>
         isThisMonth(lead.created_at) &&
         (lead.status === "qualified" ||
           lead.status === "interested"),
     ).length;
 
-    const monthEnrolled = admissions.filter(
+    const monthEnrolled = selectedIntakeAdmissions.filter(
       (admission) =>
         (admission.stage || "").toLowerCase() === "enrolled" &&
         isThisMonth(admission.enrolled_at),
     ).length;
 
     return {
-      leads: monthLeads,
+      selectedIntakeLeads: monthLeads,
       interested: monthInterested,
       enrolled: monthEnrolled,
     };
   }, [
-    leads,
-    admissions,
+    selectedIntakeLeads,
+    selectedIntakeAdmissions,
     opportunities,
     pipelineStages,
   ]);
@@ -836,7 +862,7 @@ export default function DashboardPage() {
     return Array.from({ length: 6 }, (_, index) => {
       const monthDate = new Date(now.getFullYear(), now.getMonth() - (5 - index), 1);
       const nextMonth = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 1);
-      const count = leads.filter((lead) => {
+      const count = selectedIntakeLeads.filter((lead) => {
         const created = new Date(lead.created_at);
         return created >= monthDate && created < nextMonth;
       }).length;
@@ -845,14 +871,14 @@ export default function DashboardPage() {
         count,
       };
     });
-  }, [leads]);
+  }, [selectedIntakeLeads]);
 
   const upcomingFollowUps = useMemo(
-    () => leads
+    () => selectedIntakeLeads
       .filter((lead) => lead.next_follow_up_at && new Date(lead.next_follow_up_at).getTime() >= Date.now())
       .sort((a, b) => new Date(a.next_follow_up_at as string).getTime() - new Date(b.next_follow_up_at as string).getTime())
       .slice(0, 5),
-    [leads],
+    [selectedIntakeLeads],
   );
 
   const focusItems = [
@@ -1038,7 +1064,6 @@ export default function DashboardPage() {
           </div>
           <label className="grid gap-1 text-xs font-bold text-[#40584e]">Select intake
             <select value={selectedIntake} onChange={(event) => setSelectedIntake(event.target.value)} className="min-w-[190px] rounded-xl border border-[#cfded4] bg-white px-3 py-2.5 text-sm font-semibold text-[#173b2b]">
-              <option value="all">All intakes</option>
               <option value="unassigned">Needs intake assignment</option><option value="2026-11">November 2026</option>
               <option value="2027-2">February 2027</option>
               <option value="2027-4">April 2027</option>
