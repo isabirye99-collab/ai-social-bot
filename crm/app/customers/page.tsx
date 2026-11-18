@@ -39,6 +39,8 @@ type Lead = {
   phone: string | null;
   email: string | null;
   feedback: string | null;
+  intake_year?: number | null;
+  intake_month?: number | null;
 };
 
 type Profile = {
@@ -145,6 +147,7 @@ export default function CustomersPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] =
     useState("All Enrolled Students");
+  const [selectedIntake, setSelectedIntake] = useState("2026-11");
 
   const [selectedCustomer, setSelectedCustomer] =
     useState<Customer | null>(null);
@@ -269,7 +272,7 @@ export default function CustomersPage() {
         } = await supabase
           .from("leads")
           .select(
-            "id, name, phone, email, feedback",
+            "id, name, phone, email, feedback, intake_year, intake_month",
           )
           .in("id", leadIds);
 
@@ -352,6 +355,8 @@ export default function CustomersPage() {
       const lead = customer.lead_id
         ? leads[customer.lead_id]
         : null;
+      const [intakeYear, intakeMonth] = selectedIntake.split("-").map(Number);
+      if (!lead || lead.intake_year !== intakeYear || lead.intake_month !== intakeMonth) return false;
 
       const searchableText = [
         customer.full_names,
@@ -388,6 +393,7 @@ export default function CustomersPage() {
     leads,
     search,
     statusFilter,
+    selectedIntake,
   ]);
 
   const totalCustomers =
@@ -736,6 +742,13 @@ export default function CustomersPage() {
             {error}
           </div>
         )}
+
+        <section style={{ marginTop: 16, marginBottom: 14, padding: 14, border: "1px solid #dce8df", borderRadius: 12, background: "#fff", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+          <div><strong style={{ color: "#075442", fontSize: 14 }}>Recruitment intake</strong><p style={{ margin: "3px 0 0", color: "#68776f", fontSize: 12 }}>Enrolled students are matched to the intake of their linked lead.</p></div>
+          <select value={selectedIntake} onChange={(event) => setSelectedIntake(event.target.value)} style={{ border: "1px solid #cfded4", borderRadius: 9, padding: "10px 12px", fontSize: 13, background: "#fff", color: "#173b2b" }}>
+            <option value="2026-11">November 2026</option><option value="2027-2">February 2027</option><option value="2027-4">April 2027</option><option value="2027-8">August 2027</option><option value="2027-11">November 2027</option><option value="2028-2">February 2028</option>
+          </select>
+        </section>
 
         {/* COMPACT CUSTOMER STATUS TABS */}
         <nav className="ciu-status-tabs" aria-label="Customer stages" style={{ marginTop: 14, marginBottom: 14 }}>
