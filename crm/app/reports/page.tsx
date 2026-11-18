@@ -54,7 +54,11 @@ export default function ReportsPage() {
   }, [router, supabase]);
 
   const role = String(profile?.role || "").trim().toLowerCase().replace(/[ -]/g, "_");
-  const modules = useMemo(() => {\n    const effective = getEffectiveModules(role, profile?.module_permissions);\n    if (effective.length || ["super_admin", "admin", "manager", "salesperson", "marketing", "finance", "viewer"].includes(role)) return effective;\n    return (profile?.module_permissions || []).filter((module): module is CrmModule => ALL_CRM_MODULES.includes(module as CrmModule));\n  }, [role, profile?.module_permissions]);
+  const modules = useMemo(() => {
+    const effective = getEffectiveModules(role, profile?.module_permissions);
+    if (effective.length || ["super_admin", "admin", "manager", "salesperson", "marketing", "finance", "viewer"].includes(role)) return effective;
+    return (profile?.module_permissions || []).filter((module): module is CrmModule => ALL_CRM_MODULES.includes(module as CrmModule));
+  }, [role, profile?.module_permissions]);
   const canViewTeam = ["super_admin", "admin", "manager"].includes(role);
   const canViewReports = modules.includes("reports");
   const allowedModules = moduleReports.filter(item => modules.includes(item.module));
