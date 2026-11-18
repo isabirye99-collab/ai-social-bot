@@ -277,6 +277,9 @@ export default function ReportsPage() {
         admissionsQuery = admissionsQuery.eq("assigned_to", user.id);
         tasksQuery = tasksQuery.eq("assigned_to", user.id);
       }
+      if (!effectiveModules.includes("leads")) leadsQuery = leadsQuery.limit(0);
+      if (!effectiveModules.includes("leads") && !effectiveModules.includes("pipeline")) admissionsQuery = admissionsQuery.limit(0);
+      if (!effectiveModules.includes("tasks")) tasksQuery = tasksQuery.limit(0);
 
       const emptyCount = { count: 0, error: null };
       const alumniQueries = !isIndividualView && effectiveModules.includes("alumni")
