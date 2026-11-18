@@ -12,7 +12,7 @@ type ModuleConfig = { title: string; description: string; table: string; permiss
 
 const configs: Record<string, ModuleConfig> = {
   leads: { title: "Lead & Recruitment Report", description: "Lead records created in the selected reporting period.", table: "leads", permission: "leads", columns: ["id", "created_at", "status", "assigned_to", "product_service"], dateColumn: "created_at", statusColumn: "status" },
-  tasks: { title: "Tasks & Productivity Report", description: "Task creation, ownership and completion status for the selected period.", table: "tasks", permission: "tasks", columns: ["id", "created_at", "status", "assigned_to", "task_type", "completed_at"], dateColumn: "created_at", statusColumn: "status" },
+  tasks: { title: "Tasks & Productivity Report", description: "Task creation, ownership and completion status for the selected period.", table: "tasks", permission: "tasks", columns: ["id", "created_at", "title", "status", "assigned_to", "task_type", "completed_at"], dateColumn: "created_at", statusColumn: "status" },
   partnerships: { title: "Partnerships Report", description: "Partner records and relationship status.", table: "partnerships", permission: "partnerships", columns: ["id", "created_at", "name", "category", "status"], dateColumn: "created_at", statusColumn: "status" },
   alumni: { title: "Alumni Relations Report", description: "Alumni profile records and verification status.", table: "alumni", permission: "alumni", columns: ["id", "created_at", "full_name", "program", "graduation_year", "verification_status", "employment_status"], dateColumn: "created_at", statusColumn: "verification_status" },
   pipeline: { title: "Admissions Pipeline Report", description: "Admissions records and their current stage.", table: "admissions", permission: "pipeline", columns: ["id", "created_at", "stage", "assigned_to", "lead_id"], dateColumn: "created_at", statusColumn: "stage" },
@@ -21,7 +21,7 @@ const configs: Record<string, ModuleConfig> = {
   marketing: { title: "Marketing Activity Report", description: "Campaigns, channels, dates and recorded campaign budgets.", table: "campaigns", permission: "marketing", columns: ["id", "name", "channel", "start_date", "end_date", "budget", "currency", "created_at"], dateColumn: "created_at" },
 };
 const supabase = createClient();
-const titles: Record<string, string> = { id: "Record ID", created_at: "Created", updated_at: "Last Updated", status: "Status", assigned_to: "Assigned To", product_service: "Programme / Product", task_type: "Task Type", completed_at: "Completed", name: "Name", category: "Category", full_name: "Alumnus", program: "Programme", graduation_year: "Graduation Year", verification_status: "Verification", employment_status: "Employment", stage: "Stage", lead_id: "Lead ID", strategy_year: "Strategy Year", channel: "Channel", start_date: "Campaign Start", end_date: "Campaign End", budget: "Budget", currency: "Currency" };
+const titles: Record<string, string> = { id: "Record ID", created_at: "Created", updated_at: "Last Updated", title: "Task", status: "Status", assigned_to: "Assigned To", product_service: "Programme / Product", task_type: "Task Type", completed_at: "Completed", name: "Name", category: "Category", full_name: "Alumnus", program: "Programme", graduation_year: "Graduation Year", verification_status: "Verification", employment_status: "Employment", stage: "Stage", lead_id: "Lead ID", strategy_year: "Strategy Year", channel: "Channel", start_date: "Campaign Start", end_date: "Campaign End", budget: "Budget", currency: "Currency" };
 function csvCell(value: unknown) { const text = value == null ? "" : String(value); return '"' + text.replace(/"/g, '""') + '"'; }
 function day(value: Date) { return value.toISOString().slice(0, 10); }
 
@@ -46,8 +46,11 @@ export default function ModuleReportPage() {
     if (!config || !profile || !modules.includes(config.permission)) return;
     setLoading(true); setError("");
     try {
+      const role = String(profile.role || "").trim().toLowerCase().replace(/[ -]/g, "_");
+      const canViewTeam = ["super_admin", "admin", "manager"].includes(role);
       let query = (supabase as any).from(config.table).select(config.columns.join(",")).gte(config.dateColumn, fromDate + "T00:00:00").lte(config.dateColumn, toDate + "T23:59:59").order(config.dateColumn, { ascending: false }).limit(1000);
       if (moduleKey === "strategy") query = (supabase as any).from(config.table).select(config.columns.join(",")).gte("strategy_year", Number(fromDate.slice(0, 4))).lte("strategy_year", Number(toDate.slice(0, 4))).order("strategy_year", { ascending: false }).limit(1000);
+      if (!canViewTeam && config.columns.includes("assigned_to")) query = query.eq("assigned_to", profile.id);
       const { data, error: queryError } = await query;
       if (queryError) throw queryError;
       setRecords((data || []) as ReportRecord[]);
