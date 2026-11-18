@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import MarketingSectionTabs from "@/components/MarketingSectionTabs";
 
 type Campaign = {
   id: string;
@@ -1319,8 +1318,7 @@ export default function MarketingPage() {
         }}
       >
         <div style={{ marginBottom: 24 }}>
-          <MarketingSectionTabs />
-        </div>
+          </div>
 
         {/* HEADER */}
         <div
