@@ -661,26 +661,26 @@ const isSalesperson =
 
   const stats = useMemo(() => {
     const [intakeYear, intakeMonth] = selectedIntake.split("-").map(Number);
-    const scopedTasks = tasks.filter((task) => {
+    const matchesSelectedIntake = (task: Task) => {
       const lead = getLead(task);
-      return (task.intake_year ?? lead?.intake_year) === intakeYear && (task.intake_month ?? lead?.intake_month) === intakeMonth;
-    });
-    const scopedLeads = leads.filter((lead) => selectedIntake === "unassigned" ? (!lead.intake_year || !lead.intake_month) : (lead.intake_year === intakeYear && lead.intake_month === intakeMonth));
-    const active = scopedTasks.filter((task) =>
-      isActiveTask(task) && !isClosedLead(getLead(task))
+      const taskYear = task.intake_year ?? lead?.intake_year ?? null;
+      const taskMonth = task.intake_month ?? lead?.intake_month ?? null;
+      return selectedIntake === "unassigned"
+        ? !taskYear || !taskMonth
+        : taskYear === intakeYear && taskMonth === intakeMonth;
+    };
+    const scopedLeads = leads.filter((lead) =>
+      selectedIntake === "unassigned"
+        ? !lead.intake_year || !lead.intake_month
+        : lead.intake_year === intakeYear && lead.intake_month === intakeMonth
     );
-
-    const overdue = active.filter(
-      isOverdue
-    ).length;
-
-    const dueToday = active.filter(
-      (task) => isToday(task.due_at)
-    ).length;
-
-    const completed = scopedTasks.filter(
-      (task) =>
-        task.status === "completed"
+    const active = tasks.filter((task) =>
+      matchesSelectedIntake(task) && isActiveTask(task) && !isClosedLead(getLead(task))
+    );
+    const overdue = active.filter(isOverdue).length;
+    const dueToday = active.filter((task) => isToday(task.due_at)).length;
+    const completed = tasks.filter((task) =>
+      matchesSelectedIntake(task) && task.status === "completed"
     ).length;
     return {
       active: active.length,
