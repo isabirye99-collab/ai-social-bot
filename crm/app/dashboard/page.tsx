@@ -736,7 +736,7 @@ export default function DashboardPage() {
   const intakeSummary = useMemo(() => {
     const [yearText, monthText] = selectedIntake.split("-");
     const year = Number(yearText), month = Number(monthText);
-    const intakeLeads = leads.filter((lead) => lead.intake_year === year && lead.intake_month === month);
+    const intakeLeads = leads.filter((lead) => selectedIntake === "unassigned" ? (!lead.intake_year || !lead.intake_month) : (lead.intake_year === year && lead.intake_month === month));
     const outcome = (lead: Lead) => (lead.follow_up_status || lead.status || "").trim().toLowerCase().replace(/[ _-]+/g, " ");
     const count = (values: string[]) => intakeLeads.filter((lead) => values.includes(outcome(lead))).length;
     const programmes = new Map<string, number>();
@@ -992,7 +992,7 @@ export default function DashboardPage() {
           </div>
           <label className="grid gap-1 text-xs font-bold text-[#40584e]">Select intake
             <select value={selectedIntake} onChange={(event) => setSelectedIntake(event.target.value)} className="min-w-[190px] rounded-xl border border-[#cfded4] bg-white px-3 py-2.5 text-sm font-semibold text-[#173b2b]">
-              <option value="2026-11">November 2026</option>
+              <option value="unassigned">Needs intake assignment</option><option value="2026-11">November 2026</option>
               <option value="2027-2">February 2027</option>
               <option value="2027-4">April 2027</option>
               <option value="2027-8">August 2027</option>
