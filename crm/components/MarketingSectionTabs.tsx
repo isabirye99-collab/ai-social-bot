@@ -26,7 +26,7 @@ export default function MarketingSectionTabs() {
 
   return (
     <nav
-      aria-label="Marketing sections"
+      aria-label="Campaign execution workspaces"
       className="grid grid-cols-1 gap-3 sm:grid-cols-2"
     >
       {sections.map((section) => (
