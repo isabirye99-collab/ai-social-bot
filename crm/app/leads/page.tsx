@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useIntakeSelection } from "@/lib/use-intake-selection";
 
 type Lead = {
   id: string;
@@ -193,7 +194,7 @@ export default function LeadsPage() {
 
   const [currentRole, setCurrentRole] =
     useState("");
-  const [selectedIntake, setSelectedIntake] = useState("2026-11");
+  const [selectedIntake, setSelectedIntake] = useIntakeSelection();
 
   useEffect(() => {
     if (selectedLead) {
