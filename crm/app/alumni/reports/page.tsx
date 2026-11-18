@@ -47,11 +47,11 @@ export default function AlumniReportsPage() {
         supabase.from("alumni_profile_updates").select("id",{count:"exact",head:true}).eq("review_status","pending"),
         supabase.from("alumni_profile_updates").select("id",{count:"exact",head:true}).eq("review_status","approved").gte("reviewed_at",from).lt("reviewed_at",to),
         supabase.from("alumni_profile_updates").select("id",{count:"exact",head:true}).eq("review_status","rejected").gte("reviewed_at",from).lt("reviewed_at",to),
-        supabase.from("alumni").select("id",{count:"exact",head:true}).eq("verification_status","verified").gte("last_verified_at",from).lt("last_verified_at",to).neq("duplicate_review_status","confirmed_duplicate"),
+        supabase.from("alumni").select("id",{count:"exact",head:true}).eq("verification_status","verified").gte("last_verified_at",from).lt("last_verified_at",to).or("duplicate_review_status.is.null,duplicate_review_status.neq.confirmed_duplicate"),
         supabase.from("alumni_event_registrations").select("id",{count:"exact",head:true}).gte("registered_at",from).lt("registered_at",to),
         supabase.from("alumni_event_registrations").select("id",{count:"exact",head:true}).gte("checked_in_at",from).lt("checked_in_at",to),
         supabase.from("alumni_communications").select("id,channel,delivery_status",{count:"exact"}).gte("sent_at",from).lt("sent_at",to).limit(1000),
-        supabase.from("alumni").select("program,graduation_year").or("duplicate_review_status.is.null,duplicate_review_status.neq.confirmed_duplicate").limit(10000),
+        Promise.resolve({data:null,error:null}),
       ]);
       const failed = requests.find((r:any) => r.error);
       if (failed?.error) throw new Error(failed.error.message);
@@ -71,7 +71,7 @@ export default function AlumniReportsPage() {
         {label:"Pending change requests",value:count(2),note:"All-time requests awaiting review"},
       ]);
       setBreakdown([...channels.entries()].map(([label,value])=>({label,value})).sort((a,b)=>b.value-a.value));
-      const alumniRows = (requests[9].data || []) as {program:string|null;graduation_year:number|null}[];
+      const alumniRows: {program:string|null;graduation_year:number|null}[] = [];\n      for (let offset = 0; ; offset += 1000) {\n        const batch = await supabase.from("alumni").select("program,graduation_year").or("duplicate_review_status.is.null,duplicate_review_status.neq.confirmed_duplicate").range(offset, offset + 999);\n        if (batch.error) throw new Error(batch.error.message);\n        alumniRows.push(...((batch.data || []) as {program:string|null;graduation_year:number|null}[]));\n        if (!batch.data || batch.data.length < 1000) break;\n      }
       const programs = new Map<string,number>(); const cohorts = new Map<string,number>();
       alumniRows.forEach(row => { const program = row.program?.trim() || "Programme not recorded"; programs.set(program,(programs.get(program)||0)+1); const cohort = row.graduation_year ? String(row.graduation_year) : "Year not recorded"; cohorts.set(cohort,(cohorts.get(cohort)||0)+1); });
       setProgrammeBreakdown([...programs.entries()].map(([label,value])=>({label,value})).sort((a,b)=>b.value-a.value).slice(0,10));
@@ -88,7 +88,7 @@ export default function AlumniReportsPage() {
     if (value !== "custom") { const range = rangeFor(value); setStartDate(range.start); setEndDate(range.end); }
   }
   function exportCsv() {
-    const rows = [["CIU Alumni Report", "Value", "Notes"],["Report period", startDate + " to " + endDate, ""],["Total alumni records",totalAlumni,"Excludes confirmed duplicate records"],...metrics.map(m=>[m.label,m.value,m.note]),["Communication channel breakdown","",""],...breakdown.map(x=>[x.label,x.value,"Logged communication entries"])];
+    const rows = [["CIU Alumni Report", "Value", "Notes"],["Report period", startDate + " to " + endDate, ""],["Total alumni records",totalAlumni,"Excludes confirmed duplicate records"],...metrics.map(m=>[m.label,m.value,m.note]),["Communication channel breakdown","",""],...breakdown.map(x=>[x.label,x.value,"Communication entries"]),["Programme distribution","","All current alumni records"],...programmeBreakdown.map(x=>[x.label,x.value,"Alumni records by programme"]),["Graduation cohort distribution","","All current alumni records"],...cohortBreakdown.map(x=>[x.label,x.value,"Alumni records by graduation year"])];
     const csv = rows.map(row=>row.map(csvCell).join(",")).join("\r\n");
     const url = URL.createObjectURL(new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8;"}));
     const a = document.createElement("a"); a.href=url; a.download="ciu-alumni-report-"+startDate+"-to-"+endDate+".csv"; a.click(); URL.revokeObjectURL(url);
