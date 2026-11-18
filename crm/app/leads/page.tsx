@@ -333,7 +333,7 @@ export default function LeadsPage() {
 
     const [intakeYear, intakeMonth] = selectedIntake.split("-").map(Number);
     return leads.filter((lead) => {
-      if (lead.intake_year !== intakeYear || lead.intake_month !== intakeMonth) return false;
+      if (selectedIntake === "unassigned" ? Boolean(lead.intake_year && lead.intake_month) : (lead.intake_year !== intakeYear || lead.intake_month !== intakeMonth)) return false;
       const displayStatus =
         getDisplayStatus(
           lead.status
@@ -378,6 +378,7 @@ export default function LeadsPage() {
     statusFilter,
     programFilter,
     schools,
+    selectedIntake,
   ]);
 
   const [intakeYearForStats, intakeMonthForStats] = selectedIntake.split("-").map(Number);
@@ -1039,7 +1040,7 @@ export default function LeadsPage() {
         <section style={{ marginTop: 16, padding: 14, border: "1px solid #dce8df", borderRadius: 12, background: "#fff", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
           <div><strong style={{ color: "#075442", fontSize: 14 }}>Recruitment intake</strong><p style={{ margin: "3px 0 0", color: "#68776f", fontSize: 12 }}>Showing leads assigned to the selected intake. Open a lead to view details or schedule a follow-up in Tasks.</p></div>
           <select value={selectedIntake} onChange={(event) => setSelectedIntake(event.target.value)} style={{ ...inputStyle, width: "auto", minWidth: 190 }}>
-            <option value="2026-11">November 2026</option><option value="2027-2">February 2027</option><option value="2027-4">April 2027</option><option value="2027-8">August 2027</option><option value="2027-11">November 2027</option><option value="2028-2">February 2028</option>
+            <option value="unassigned">Needs intake assignment</option><option value="2026-11">November 2026</option><option value="2027-2">February 2027</option><option value="2027-4">April 2027</option><option value="2027-8">August 2027</option><option value="2027-11">November 2027</option><option value="2028-2">February 2028</option>
           </select>
         </section>
 
