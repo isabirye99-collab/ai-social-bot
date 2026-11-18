@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useIntakeSelection } from "@/lib/use-intake-selection";
 
 const supabase = createClient();
 
@@ -376,7 +377,7 @@ export default function TasksPage() {
     useState("all");
   const [assignedFilter, setAssignedFilter] =
     useState("all");
-  const [selectedIntake, setSelectedIntake] = useState("2026-11");
+  const [selectedIntake, setSelectedIntake] = useIntakeSelection();
 
   const [showTaskModal, setShowTaskModal] =
     useState(false);
