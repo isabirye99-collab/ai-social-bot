@@ -792,10 +792,13 @@ const isSalesperson =
     });
     return {
       total: leads.length,
-      items: OUTCOMES.map((outcome) => ({
-        label: outcome,
-        count: counts.get(normalize(outcome)) || 0,
-      })),
+      items: [
+        { label: "Pending", count: counts.get("pending") || 0 },
+        ...OUTCOMES.map((outcome) => ({
+          label: outcome,
+          count: counts.get(normalize(outcome)) || 0,
+        })),
+      ],
       unrecorded,
     };
   }, [leads]);
