@@ -18,6 +18,9 @@ type Lead = {
   assigned_to: string | null;
   status: string | null;
   follow_up_status: string | null;
+  intake_year?: number | null;
+  intake_month?: number | null;
+  product_service?: string | null;
   converted_at: string | null;
   created_at: string | null;
 };
@@ -133,6 +136,7 @@ function formatDate(value: Date) {
 export default function ReportsPage() {
   const router = useRouter();
   const [period, setPeriod] = useState<Period>("month");
+  const [selectedIntake, setSelectedIntake] = useState("2026-11");
 
   const [selectedDate, setSelectedDate] = useState(() => {
     const today = new Date();
@@ -230,7 +234,7 @@ export default function ReportsPage() {
 
       const leadsQuery = supabase
         .from("leads")
-        .select("id,assigned_to,status,follow_up_status,converted_at,created_at");
+        .select("id,assigned_to,status,follow_up_status,converted_at,created_at,intake_year,intake_month,product_service");
 
       const admissionsQuery = supabase
         .from("admissions")
@@ -626,6 +630,18 @@ export default function ReportsPage() {
     URL.revokeObjectURL(url);
   }
 
+  const [intakeYearText, intakeMonthText] = selectedIntake.split("-");
+  const intakeYear = Number(intakeYearText), intakeMonth = Number(intakeMonthText);
+  const intakeReportLeads = leads.filter((lead) => lead.intake_year === intakeYear && lead.intake_month === intakeMonth);
+  const normalizeIntakeOutcome = (lead: Lead) => (lead.follow_up_status || lead.status || "").trim().toLowerCase().replace(/[ _-]+/g, " ");
+  const intakeReportCounts = {
+    total: intakeReportLeads.length,
+    interested: intakeReportLeads.filter((lead) => ["interested","qualified"].includes(normalizeIntakeOutcome(lead))).length,
+    applied: intakeReportLeads.filter((lead) => ["applied","application submitted","paid application fee","applied/admitted","converted"].includes(normalizeIntakeOutcome(lead))).length,
+    admitted: intakeReportLeads.filter((lead) => ["admitted","paid application fee","application submitted"].includes(normalizeIntakeOutcome(lead))).length,
+    enrolled: intakeReportLeads.filter((lead) => ["enrolled","paid acceptance fee","acceptance fee paid"].includes(normalizeIntakeOutcome(lead))).length,
+  };
+
   if (loading) {
     return (
       <main className="ciu-page">
@@ -732,6 +748,35 @@ export default function ReportsPage() {
 
           <div className="period-meta">
             {["manager", "admin", "super_admin"].includes(viewerRole) ? `${report.rows.length} sales and alumni relations staff` : "Your individual performance report"}
+          </div>
+        </section>
+
+        <section style={{ marginBottom: 22, padding: 20, border: "1px solid #dce8df", borderRadius: 16, background: "#fff", boxShadow: "0 4px 18px rgba(20,50,40,.035)" }}>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 14 }}>
+            <div>
+              <div className="report-eyebrow">INTAKE REPORTING</div>
+              <h2 style={{ margin: "5px 0", color: "#075442", fontSize: 20, fontWeight: 850 }}>Recruitment by intake</h2>
+              <p style={{ margin: 0, color: "#68776f", fontSize: 12 }}>These figures follow each lead's current intake assignment. The original intake remains in the transfer history.</p>
+            </div>
+            <label style={{ display: "grid", gap: 5, color: "#40584e", fontSize: 12, fontWeight: 700 }}>Select intake
+              <select value={selectedIntake} onChange={(event) => setSelectedIntake(event.target.value)} className="report-select">
+                <option value="2026-11">November 2026</option>
+                <option value="2027-2">February 2027</option>
+                <option value="2027-4">April 2027</option>
+                <option value="2027-8">August 2027</option>
+                <option value="2027-11">November 2027</option>
+                <option value="2028-2">February 2028</option>
+              </select>
+            </label>
+          </div>
+          <div className="report-kpis" style={{ marginTop: 16, gridTemplateColumns: "repeat(auto-fit,minmax(130px,1fr))" }}>
+            {[
+              ["Leads", intakeReportCounts.total],
+              ["Interested", intakeReportCounts.interested],
+              ["Applied", intakeReportCounts.applied],
+              ["Admitted", intakeReportCounts.admitted],
+              ["Enrolled", intakeReportCounts.enrolled],
+            ].map(([label, value]) => <div key={String(label)} className="report-kpi"><span className="kpi-label">{label}</span><strong>{Number(value).toLocaleString()}</strong><small>Current intake assignment</small></div>)}
           </div>
         </section>
 
