@@ -252,6 +252,9 @@ export default function ReportsPage() {
       setIndividualView(isIndividualView);
       setViewerModules(effectiveModules);
       setViewerRole(role);
+      if (!isIndividualView && effectiveModules.includes("strategy")) {
+        void loadStrategyOverview();
+      }
 
       const profilesQuery = supabase
         .from("profiles")
