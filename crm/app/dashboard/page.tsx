@@ -644,7 +644,7 @@ export default function DashboardPage() {
       .filter(Boolean));
     const enrolledCohortCount = selectedIntakeLeads.filter((lead) =>
       enrolledLeadIds.has(lead.id) ||
-      ["enrolled", "acceptance fee paid", "paid acceptance fee"].includes((lead.follow_up_status || lead.status || "").trim().toLowerCase().replace(/[_-]+/g, " "))
+      ["enrolled"].includes((lead.follow_up_status || lead.status || "").trim().toLowerCase().replace(/[_-]+/g, " "))
     ).length;
     const monthlyEnrolled = selectedIntakeAdmissions.filter(
       (admission) =>
@@ -770,8 +770,8 @@ export default function DashboardPage() {
       const linkedIds = new Set(cohortAdmissions.filter((item) => stages.includes(stageName(item.stage))).map((item) => item.lead_id).filter(Boolean));
       return intakeLeads.filter((lead) => linkedIds.has(lead.id) || fallback.includes(outcome(lead))).length;
     };
-    const applied = stageCount(["applied", "application submitted", "paid application fee", "application fee paid", "admitted", "enrolled"], ["applied", "application submitted", "paid application fee", "application fee paid", "admitted", "enrolled", "converted"]);
-    const admitted = stageCount(["admitted", "enrolled"], ["admitted", "enrolled"]);
+    const applied = stageCount(["applied", "application submitted", "paid application fee", "application fee paid", "acceptance paid", "acceptance fee paid", "paid acceptance fee", "admitted", "enrolled"], ["applied", "application submitted", "paid application fee", "application fee paid", "acceptance paid", "acceptance fee paid", "paid acceptance fee", "admitted", "enrolled", "converted"]);
+    const admitted = stageCount(["admitted", "acceptance paid", "acceptance fee paid", "paid acceptance fee", "enrolled"], ["admitted", "acceptance paid", "acceptance fee paid", "paid acceptance fee", "enrolled"]);
     const enrolled = stageCount(["enrolled"], ["enrolled"]);
     const targets = selectedIntake === "all" || selectedIntake === "unassigned" ? []
       : approvedIntakeTargets.filter((target) => target.strategy_year === year && target.intake_month === month);
