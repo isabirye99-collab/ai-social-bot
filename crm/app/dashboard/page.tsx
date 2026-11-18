@@ -640,10 +640,9 @@ export default function DashboardPage() {
       .filter((admission) => normalizeStageName(admission.stage) === "enrolled")
       .map((admission) => admission.lead_id)
       .filter(Boolean));
-    const linkedAdmissionLeadIds = new Set(selectedIntakeAdmissions.map((admission) => admission.lead_id).filter(Boolean));
     const enrolledCohortCount = selectedIntakeLeads.filter((lead) =>
       enrolledLeadIds.has(lead.id) ||
-      (!linkedAdmissionLeadIds.has(lead.id) && ["enrolled", "acceptance fee paid", "paid acceptance fee"].includes((lead.follow_up_status || lead.status || "").trim().toLowerCase().replace(/[_-]+/g, " ")))
+      ["enrolled", "acceptance fee paid", "paid acceptance fee"].includes((lead.follow_up_status || lead.status || "").trim().toLowerCase().replace(/[_-]+/g, " "))
     ).length;
     const monthlyEnrolled = selectedIntakeAdmissions.filter(
       (admission) =>
@@ -768,7 +767,7 @@ export default function DashboardPage() {
     const stageCount = (stages: string[], fallback: string[]) => {
       const linkedIds = new Set(cohortAdmissions.filter((item) => stages.includes(stageName(item.stage))).map((item) => item.lead_id).filter(Boolean));
       const linkedLeadIds = new Set(cohortAdmissions.map((item) => item.lead_id).filter(Boolean));
-      return intakeLeads.filter((lead) => linkedIds.has(lead.id) || (!linkedLeadIds.has(lead.id) && fallback.includes(outcome(lead)))).length;
+      return intakeLeads.filter((lead) => linkedIds.has(lead.id) || fallback.includes(outcome(lead))).length;
     };
     const applied = stageCount(["applied", "application submitted", "paid application fee", "application fee paid", "admitted", "enrolled"], ["applied", "application submitted", "paid application fee", "application fee paid", "admitted", "enrolled", "converted"]);
     const admitted = stageCount(["admitted", "enrolled"], ["admitted", "enrolled"]);
