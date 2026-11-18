@@ -194,6 +194,13 @@ export default function LeadsPage() {
   const [currentRole, setCurrentRole] =
     useState("");
 
+  useEffect(() => {
+    if (selectedLead) {
+      setIntakeDraftYear(String(selectedLead.intake_year || 2027));
+      setIntakeDraftMonth(String(selectedLead.intake_month || 2));
+    }
+  }, [selectedLead]);
+
   async function loadLeads() {
     try {
       setLoading(true);
@@ -653,7 +660,7 @@ export default function LeadsPage() {
       if (ni < 0 || pi < 0) throw new Error("CSV needs Name and Phone columns. Optional: Email, CIU Number, Programme, Status.");
       const csvLeadStatusMap: Record<string, string> = { new: "new", pending: "new", contacted: "contacted", called: "contacted", whatsapped: "contacted", whatsapp: "contacted", email_sent: "contacted", "no_answer": "contacted", unreachable: "contacted", financial: "contacted", interested: "qualified", qualified: "qualified", unqualified: "unqualified", "not_interested": "unqualified", lost: "lost", dropped: "lost", ineffective: "unqualified" };
       const candidates: any[] = []; let invalid = 0;
-      parsed.slice(1).forEach((cells) => { const v = (n: number) => n < 0 ? "" : String(cells[n] || "").trim(); const name = v(ni), phone = v(pi), email = v(ei); if (!name || !phone) { invalid++; return; } const raw = v(si).toLowerCase().replace(/[ -]+/g, "_"); candidates.push({ name, phone, email: email || null, ciu_number: v(ci) || null, product_service: v(gi) || null, status: csvLeadStatusMap[raw] || "new", follow_up_status: raw ? raw.replace(/_/g, " ") : "Pending", next_follow_up_at: null, assigned_to: currentUserId || null }); });
+      parsed.slice(1).forEach((cells) => { const v = (n: number) => n < 0 ? "" : String(cells[n] || "").trim(); const name = v(ni), phone = v(pi), email = v(ei); if (!name || !phone) { invalid++; return; } const raw = v(si).toLowerCase().replace(/[ -]+/g, "_"); const programme = v(gi) || null; const normalizedProgramme = (programme || "").trim().toUpperCase(); const isNovember = normalizedProgramme === "PGDME" || normalizedProgramme === "MPH" || normalizedProgramme.startsWith("HEC") || normalizedProgramme.includes("ALLIED HEALTH"); const intakeYear = programme ? (isNovember ? 2026 : 2027) : null; const intakeMonth = programme ? (isNovember ? 11 : 2) : null; candidates.push({ name, phone, email: email || null, ciu_number: v(ci) || null, product_service: programme, intake_year: intakeYear, intake_month: intakeMonth, original_intake_year: intakeYear, original_intake_month: intakeMonth, status: csvLeadStatusMap[raw] || "new", follow_up_status: raw ? raw.replace(/_/g, " ") : "Pending", next_follow_up_at: null, assigned_to: currentUserId || null }); });
       if (!candidates.length) throw new Error("No valid leads found. Name and Phone are required.");
       const existingPhones = new Set(leads.map((l) => (l.phone || "").replace(/\D/g, "")).filter(Boolean)); const existingEmails = new Set(leads.map((l) => (l.email || "").trim().toLowerCase()).filter(Boolean)); const seen = new Set<string>();
       const fresh = candidates.filter((lead) => { const p = lead.phone.replace(/\D/g, ""), e = (lead.email || "").trim().toLowerCase(); const keys = [p ? "p:" + p : "", e ? "e:" + e : ""].filter(Boolean); if (keys.some((k) => seen.has(k) || (k.startsWith("p:") ? existingPhones.has(k.slice(2)) : existingEmails.has(k.slice(2))))) return false; keys.forEach((k) => seen.add(k)); return true; });
