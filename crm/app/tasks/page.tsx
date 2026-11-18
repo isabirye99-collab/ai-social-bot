@@ -1975,23 +1975,23 @@ const isSalesperson =
               <h2 id="lead-outcome-heading" style={{ margin: 0, color: "#173b30", fontSize: 17, fontWeight: 800 }}>Total Leads & Outcome Breakdown</h2>
               <p style={{ margin: "4px 0 0", color: "#64756d", fontSize: 12 }}>Counts are based on each lead's saved follow-up outcome, not task counts.</p>
             </div>
-            <div style={{ minWidth: 150, borderRadius: 12, background: "#e9f5ee", padding: "10px 16px" }}>
-              <div style={{ color: "#48665a", fontSize: 11, fontWeight: 700 }}>TOTAL LEADS</div>
+            <button type="button" onClick={() => { window.location.href = `/leads?intake=${encodeURIComponent(selectedIntake)}&outcome=All%20Leads`; }} aria-label="View all leads for the selected intake" style={{ minWidth: 150, textAlign: "left", border: "1px solid #c7e3d2", borderRadius: 12, background: "#e9f5ee", padding: "10px 16px", cursor: "pointer" }}>
+              <div style={{ color: "#48665a", fontSize: 11, fontWeight: 700 }}>TOTAL LEADS · VIEW</div>
               <div style={{ color: "#00695c", fontSize: 27, lineHeight: 1.2, fontWeight: 900 }}>{leadOutcomeBreakdown.total.toLocaleString()}</div>
-            </div>
+            </button>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(145px, 1fr))", gap: 9 }}>
+          <div style={{ display: "flex", flexWrap: "nowrap", gap: 9, overflowX: "auto", paddingBottom: 4, alignItems: "stretch" }}>
             {leadOutcomeBreakdown.items.map((item) => (
-              <div key={item.label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, border: "1px solid #e5ede8", borderRadius: 10, padding: "10px 11px", background: item.count ? "#fbfdfb" : "#ffffff" }}>
+              <button key={item.label} type="button" onClick={() => { window.location.href = `/leads?intake=${encodeURIComponent(selectedIntake)}&outcome=${encodeURIComponent(item.label)}`; }} aria-label={`View ${item.count} leads with outcome ${item.label}`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, border: "1px solid #e5ede8", borderRadius: 10, padding: "10px 11px", background: item.count ? "#fbfdfb" : "#ffffff", cursor: "pointer", textAlign: "left", minWidth: 132, color: "inherit" }}>
                 <span style={{ color: "#40584e", fontSize: 12, lineHeight: 1.35 }}>{item.label}</span>
                 <strong style={{ color: item.count ? "#00695c" : "#9aa9a1", fontSize: 15, fontVariantNumeric: "tabular-nums" }}>{item.count.toLocaleString()}</strong>
-              </div>
+              </button>
             ))}
             {leadOutcomeBreakdown.unrecorded > 0 && (
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, border: "1px solid #f0d7a5", borderRadius: 10, padding: "10px 11px", background: "#fffbeb" }}>
+              <button type="button" onClick={() => { window.location.href = `/leads?intake=${encodeURIComponent(selectedIntake)}&outcome=${encodeURIComponent("Other / unrecognized outcome")}`; }} aria-label={`View ${leadOutcomeBreakdown.unrecorded} leads with other or unrecognized outcomes`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, border: "1px solid #f0d7a5", borderRadius: 10, padding: "10px 11px", background: "#fffbeb", cursor: "pointer", textAlign: "left", minWidth: 132 }}>
                 <span style={{ color: "#805b14", fontSize: 12 }}>Other / unrecognized outcome</span>
                 <strong style={{ color: "#805b14", fontSize: 15 }}>{leadOutcomeBreakdown.unrecorded.toLocaleString()}</strong>
-              </div>
+              </button>
             )}
           </div>
         </section>
