@@ -183,6 +183,8 @@ export default function Pipeline() {
   const [currentProfile, setCurrentProfile] =
     useState<Profile | null>(null);
 
+  const [teamProfiles, setTeamProfiles] = useState<Profile[]>([]);
+
   const [loading, setLoading] =
     useState(true);
 
@@ -210,6 +212,16 @@ export default function Pipeline() {
     currentProfile?.role === "admin" ||
     currentProfile?.role === "super_admin" ||
     currentProfile?.role === "manager";
+
+  function getAssignedPerson(opportunity: Opportunity, lead?: Lead | null) {
+    const assignedId = opportunity.assigned_to || lead?.assigned_to;
+    if (!assignedId) return "Unassigned";
+    const profile = teamProfiles.find((person) => person.id === assignedId);
+    if (profile?.full_name?.trim()) return profile.full_name.trim();
+    // If a legacy record stores a display name rather than a profile UUID, preserve it.
+    if (!/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(assignedId)) return assignedId;
+    return "Assigned staff member";
+  }
 
   async function loadPipeline(
     isRefresh = false,
@@ -348,6 +360,15 @@ export default function Pipeline() {
       setLeads(
         (leadData as Lead[]) || [],
       );
+
+      // Resolve assignment IDs to readable staff names for the Assigned To column.
+      const { data: teamProfileData, error: teamProfileError } = await supabase
+        .from("profiles")
+        .select("id, full_name, role, is_active");
+      if (teamProfileError) {
+        console.warn("Could not load staff names for pipeline assignments:", teamProfileError);
+      }
+      setTeamProfiles((teamProfileData as Profile[]) || []);
     } catch (error) {
       console.error(
         "Pipeline loading error:",
@@ -1178,20 +1199,6 @@ export default function Pipeline() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3" style={{ marginTop: 18 }}>
-          {[
-            { label: "Interested", count: intakeLeads.filter((lead) => ["interested", "qualified"].includes((lead.status || "").trim().toLowerCase().replace(/[_-]+/g, " "))).length, hint: "Interested or qualified leads" },
-            { label: "Admitted", count: intakeOpportunities.filter((opportunity) => { const stage = getStageForOpportunity(opportunity)?.name || ""; return ["Applied", "Application Submitted", "Admitted", "Paid Application Fee"].includes(stage); }).length, hint: "Applications through admission and application fee" },
-            { label: "Enrolled", count: intakeOpportunities.filter((opportunity) => ["Enrolled", "Paid Acceptance Fee"].includes(getStageForOpportunity(opportunity)?.name || "") && ["won", "open"].includes(opportunity.status)).length, hint: "Successful admissions" },
-          ].map((metric) => (
-            <div key={metric.label} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{metric.label}</p>
-              <p className="mt-2 text-2xl font-extrabold text-emerald-900">{metric.count.toLocaleString()}</p>
-              <p className="mt-1 text-xs text-slate-500">{metric.hint}</p>
-            </div>
-          ))}
-        </div>
-
         <div
           className="pipeline-stage-tabs-wrap"
           style={{
@@ -1534,8 +1541,7 @@ export default function Pipeline() {
 
                             <td>
                               <span className="assigned-cell">
-                                {deal.assigned_to ||
-                                  "Unassigned"}
+                                {getAssignedPerson(deal, getLead(deal))}
                               </span>
                             </td>
 
