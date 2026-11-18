@@ -135,6 +135,8 @@ function displayDate(value: string) {
 
 export default function PartnershipsPage() {
   const [records, setRecords] = useState<Partnership[]>([]);
+  const [performanceStats, setPerformanceStats] = useState({ activeMous: 0, totalMous: 0, commitments: 0, overdueReviews: 0, plannedAwards: 0, recipients: 0 });
+  const [performanceAvailable, setPerformanceAvailable] = useState(true);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
@@ -167,6 +169,33 @@ export default function PartnershipsPage() {
     } else {
       setFileError("");
       setRecords((data || []) as Partnership[]);
+    }
+
+    // Keep the high-level performance indicators visible on the main Partnerships dashboard.
+    const [mousResult, commitmentsResult, reviewsResult, allocationsResult, recipientsResult] = await Promise.all([
+      supabase.from("partnership_mous").select("id,agreement_status"),
+      supabase.from("partnership_mou_commitments").select("id"),
+      supabase.from("partnership_mou_reviews").select("id,review_due_date,review_status").in("review_status", ["scheduled", "in_progress", "overdue"]),
+      supabase.from("partnership_scholarship_allocations").select("id,number_of_awards,allocation_status"),
+      supabase.from("partnership_scholarship_recipients").select("id"),
+    ]);
+    const performanceError = [mousResult, commitmentsResult, reviewsResult, allocationsResult, recipientsResult].find(result => result.error)?.error;
+    if (performanceError) {
+      setPerformanceAvailable(false);
+    } else {
+      setPerformanceAvailable(true);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const reviewRows = reviewsResult.data || [];
+      const allocationRows = allocationsResult.data || [];
+      setPerformanceStats({
+        activeMous: (mousResult.data || []).filter(row => row.agreement_status === "active").length,
+        totalMous: (mousResult.data || []).length,
+        commitments: (commitmentsResult.data || []).length,
+        overdueReviews: reviewRows.filter(row => row.review_status !== "completed" && row.review_due_date && new Date(row.review_due_date + "T23:59:59").getTime() < Date.now()).length,
+        plannedAwards: allocationRows.filter(row => ["approved", "open", "fully_allocated"].includes(row.allocation_status)).reduce((sum, row) => sum + Number(row.number_of_awards || 0), 0),
+        recipients: (recipientsResult.data || []).length,
+      });
     }
     setLoading(false);
     setRefreshing(false);
@@ -345,6 +374,28 @@ export default function PartnershipsPage() {
             </button>
           </div>
         </header>
+
+        <section aria-label="Partnership performance overview" className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          {[
+            { label: "Active MOUs", value: performanceStats.activeMous, detail: `${performanceStats.totalMous} agreements recorded` },
+            { label: "MOU commitments", value: performanceStats.commitments, detail: "Targets and deliverables tracked" },
+            { label: "Overdue reviews", value: performanceStats.overdueReviews, detail: "Reviews needing follow-up" },
+            { label: "Scholarship awards", value: performanceStats.plannedAwards, detail: "Approved or open awards" },
+            { label: "Scholarship recipients", value: performanceStats.recipients, detail: "Students recorded against awards" },
+          ].map((item) => (
+            <a key={item.label} href="/partnerships/mous/performance" className="group rounded-xl border border-slate-200 bg-white p-4 transition hover:border-emerald-300 hover:bg-emerald-50/40 focus:outline-none focus:ring-2 focus:ring-emerald-600">
+              <div className="text-sm font-medium text-slate-500">{item.label}</div>
+              <div className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">{loading ? "—" : performanceAvailable ? item.value.toLocaleString() : "—"}</div>
+              <div className="mt-1 text-xs text-slate-500">{performanceAvailable ? item.detail : "Performance data unavailable — open dashboard to review"}</div>
+            </a>
+          ))}
+        </section>
+        {!performanceAvailable && (
+          <div className="flex flex-col gap-2 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between">
+            <span>MOU and scholarship performance indicators could not be loaded. Open the performance dashboard for details.</span>
+            <a href="/partnerships/mous/performance" className="font-semibold underline">Open performance dashboard</a>
+          </div>
+        )}
 
         <nav className="ciu-status-tabs" aria-label="Partnership status filters" style={{ marginBottom: 14 }}>
           {[
