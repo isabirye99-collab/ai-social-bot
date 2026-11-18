@@ -12,6 +12,9 @@ type Lead = {
   product_service: string | null;
   assigned_to: string | null;
   status: string | null;
+  follow_up_status?: string | null;
+  intake_year?: number | null;
+  intake_month?: number | null;
   next_follow_up_at: string | null;
   created_at: string;
 };
@@ -260,6 +263,7 @@ export default function DashboardPage() {
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [selectedIntake, setSelectedIntake] = useState("2026-11");
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [pipelineStages, setPipelineStages] = useState<
     PipelineStage[]
@@ -322,7 +326,7 @@ export default function DashboardPage() {
         supabase
           .from("leads")
           .select(
-            "id,ciu_number,name,product_service,assigned_to,status,next_follow_up_at,created_at",
+            "id,ciu_number,name,product_service,assigned_to,status,follow_up_status,intake_year,intake_month,next_follow_up_at,created_at",
           ),
       );
 
@@ -728,6 +732,28 @@ export default function DashboardPage() {
     stats.enrolled,
   ]);
 
+  const intakeSummary = useMemo(() => {
+    const [yearText, monthText] = selectedIntake.split("-");
+    const year = Number(yearText), month = Number(monthText);
+    const intakeLeads = leads.filter((lead) => lead.intake_year === year && lead.intake_month === month);
+    const outcome = (lead: Lead) => (lead.follow_up_status || lead.status || "").trim().toLowerCase().replace(/[ _-]+/g, " ");
+    const count = (values: string[]) => intakeLeads.filter((lead) => values.includes(outcome(lead))).length;
+    const programmes = new Map<string, number>();
+    intakeLeads.forEach((lead) => {
+      const programme = (lead.product_service || "Programme not recorded").trim() || "Programme not recorded";
+      programmes.set(programme, (programmes.get(programme) || 0) + 1);
+    });
+    return {
+      year, month, total: intakeLeads.length,
+      interested: count(["interested", "qualified"]),
+      applied: count(["applied", "application submitted", "paid application fee", "applied/admitted", "converted"]),
+      admitted: count(["admitted", "paid application fee", "application submitted"]),
+      enrolled: count(["enrolled", "paid acceptance fee", "acceptance fee paid"]),
+      programmes: [...programmes.entries()].sort((a,b) => b[1] - a[1]).slice(0, 5),
+      needsIntake: leads.filter((lead) => !lead.intake_year || !lead.intake_month).length,
+    };
+  }, [leads, selectedIntake]);
+
   const performance = useMemo(() => {
     const monthLeads = leads.filter((lead) =>
       isThisMonth(lead.created_at),
@@ -955,6 +981,51 @@ export default function DashboardPage() {
           </button>
         </div>
       </header>
+
+      <section className="mb-5 rounded-2xl border border-[#dce8df] bg-white p-5 shadow-[0_4px_18px_rgba(20,50,40,.035)]">
+        <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
+          <div>
+            <p className="text-[10px] font-extrabold uppercase tracking-[0.15em] text-[#658075]">Recruitment by intake</p>
+            <h2 className="mt-1 text-xl font-black tracking-tight text-[#075442]">Intake performance</h2>
+            <p className="mt-1 text-xs text-[#68776f]">Lead records are counted by their assigned intake. Transfers retain the original intake history.</p>
+          </div>
+          <label className="grid gap-1 text-xs font-bold text-[#40584e]">Select intake
+            <select value={selectedIntake} onChange={(event) => setSelectedIntake(event.target.value)} className="min-w-[190px] rounded-xl border border-[#cfded4] bg-white px-3 py-2.5 text-sm font-semibold text-[#173b2b]">
+              <option value="2026-11">November 2026</option>
+              <option value="2027-2">February 2027</option>
+              <option value="2027-4">April 2027</option>
+              <option value="2027-8">August 2027</option>
+              <option value="2027-11">November 2027</option>
+              <option value="2028-2">February 2028</option>
+            </select>
+          </label>
+        </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          {[
+            { label: "Leads", value: intakeSummary.total },
+            { label: "Interested", value: intakeSummary.interested },
+            { label: "Applied", value: intakeSummary.applied },
+            { label: "Admitted", value: intakeSummary.admitted },
+            { label: "Enrolled", value: intakeSummary.enrolled },
+          ].map((item) => (
+            <div key={item.label} className="rounded-xl border border-[#e2ebe5] bg-[#fbfdfb] p-3">
+              <p className="text-xs font-semibold text-[#68776f]">{item.label}</p>
+              <p className="mt-1 text-2xl font-black tabular-nums text-[#075442]">{item.value.toLocaleString()}</p>
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 grid gap-4 lg:grid-cols-[1.3fr_.7fr]">
+          <div className="rounded-xl bg-[#f6faf6] p-3">
+            <h3 className="text-xs font-extrabold text-[#345647]">Top programmes in this intake</h3>
+            {intakeSummary.programmes.length ? <div className="mt-2 grid gap-2">{intakeSummary.programmes.map(([programme, count]) => <div key={programme} className="flex items-center justify-between gap-3 text-xs"><span className="truncate text-[#40584e]">{programme}</span><strong className="tabular-nums text-[#075442]">{count}</strong></div>)}</div> : <p className="mt-2 text-xs text-[#718078]">No leads assigned to this intake yet.</p>}
+          </div>
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+            <h3 className="text-xs font-extrabold text-amber-900">Data requiring attention</h3>
+            <p className="mt-2 text-sm leading-5 text-amber-900">{intakeSummary.needsIntake.toLocaleString()} lead(s) have no intake assigned because their programme information needs review.</p>
+            <Link href="/leads" className="mt-2 inline-flex text-xs font-extrabold text-emerald-800 hover:underline">Review leads →</Link>
+          </div>
+        </div>
+      </section>
 
       {/* =====================================================
           ERROR
