@@ -31,6 +31,8 @@ type Customer = {
   notes: string | null;
   created_at: string;
   updated_at: string;
+  intake_year?: number | null;
+  intake_month?: number | null;
 };
 
 type Lead = {
@@ -230,7 +232,9 @@ export default function CustomersPage() {
           last_contact,
           notes,
           created_at,
-          updated_at
+          updated_at,
+          intake_year,
+          intake_month
           `,
         )
         .eq("stage", ACTIVE_STAGE)
@@ -356,7 +360,9 @@ export default function CustomersPage() {
         ? leads[customer.lead_id]
         : null;
       const [intakeYear, intakeMonth] = selectedIntake.split("-").map(Number);
-      if (!lead || lead.intake_year !== intakeYear || lead.intake_month !== intakeMonth) return false;
+      const customerIntakeYear = customer.intake_year ?? lead?.intake_year ?? null;
+      const customerIntakeMonth = customer.intake_month ?? lead?.intake_month ?? null;
+      if (customerIntakeYear !== intakeYear || customerIntakeMonth !== intakeMonth) return false;
 
       const searchableText = [
         customer.full_names,
