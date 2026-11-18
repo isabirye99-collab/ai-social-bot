@@ -2031,22 +2031,6 @@ const isSalesperson =
           </div>
         )}
 
-        {/* COMPACT TASK STATUS TABS */}
-        <nav className="ciu-status-tabs" aria-label="Task status filters" style={{ marginBottom: 10 }}>
-          {[
-            { id: "today", label: "Due Today", count: stats.dueToday },
-            { id: "overdue", label: "Overdue", count: stats.overdue },
-            { id: "interested", label: "Interested Leads", count: stats.interestedLeads },
-          ].map((tab) => (
-            <button key={tab.id} type="button"
-              onClick={() => { setQuickTaskFilter(tab.id); setStatusFilter("all"); }}
-              className={quickTaskFilter === tab.id ? "ciu-status-tab is-active" : "ciu-status-tab"}
-              aria-pressed={quickTaskFilter === tab.id}>
-              <span>{tab.label}</span><span className="ciu-status-count">{tab.count.toLocaleString()}</span>
-            </button>
-          ))}
-        </nav>
-
         {/* ROLE-SPECIFIC PERFORMANCE SUMMARY */}
         <section aria-label="Task performance summary" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(145px, 1fr))", gap: 8, marginBottom: 10 }}>
           {[
