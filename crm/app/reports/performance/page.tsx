@@ -793,13 +793,13 @@ export default function ReportsPage() {
         )}
 
         <nav aria-label="Report sections" className="report-section-nav">
-          {viewerModules.includes("leads") && <a href="#intake-report">Intake</a>}
-          {viewerModules.includes("strategy") && !individualView && <a href="#strategy-report">Strategy</a>}
-          {(viewerModules.includes("leads") || viewerModules.includes("pipeline")) && <a href="#admissions-funnel">Admissions funnel</a>}
-          {(viewerModules.includes("leads") || viewerModules.includes("tasks") || viewerModules.includes("engagement")) && <a href="#team-activity">{individualView ? "My activity" : "Team activity"}</a>}
-          {viewerModules.includes("alumni") && <a href="#alumni-report">Alumni</a>}
-          {viewerModules.includes("partnerships") && <a href="#partnerships-report">Partnerships</a>}
-          <a href="#staff-performance">{individualView ? "My performance" : "Staff performance"}</a>
+          {viewerModules.includes("leads") && <a href="/reports/intake">Intake report</a>}
+          {viewerModules.includes("strategy") && !individualView && <a href="/reports/modules/strategy">Strategy report</a>}
+          {(viewerModules.includes("leads") || viewerModules.includes("pipeline")) && <a href="/reports/modules/pipeline">Admissions funnel</a>}
+          {(viewerModules.includes("leads") || viewerModules.includes("tasks") || viewerModules.includes("engagement")) && <a href="/reports/modules/tasks">{individualView ? "My activity" : "Team activity"}</a>}
+          {viewerModules.includes("alumni") && <a href="/reports/modules/alumni">Alumni report</a>}
+          {viewerModules.includes("partnerships") && <a href="/reports/modules/partnerships">Partnerships report</a>}
+          <a href="/reports/performance?view=individual">{individualView ? "My performance" : "Individual staff report"}</a>
         </nav>
 
         <section className="period-banner">
