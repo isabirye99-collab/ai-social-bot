@@ -1026,6 +1026,11 @@ export default function DashboardPage() {
             <Link href="/leads" className="mt-2 inline-flex text-xs font-extrabold text-emerald-800 hover:underline">Review leads →</Link>
           </div>
         </div>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Link href="/leads" className="inline-flex items-center rounded-xl bg-[#00695c] px-4 py-2.5 text-xs font-extrabold text-white transition hover:bg-[#075442]">Open leads for this intake ↗</Link>
+          <Link href="/tasks" className="inline-flex items-center rounded-xl border border-[#cfded4] bg-white px-4 py-2.5 text-xs font-extrabold text-[#075442] transition hover:bg-[#f6faf6]">Open follow-up tasks ↗</Link>
+          <Link href="/reports" className="inline-flex items-center rounded-xl border border-[#cfded4] bg-white px-4 py-2.5 text-xs font-extrabold text-[#075442] transition hover:bg-[#f6faf6]">View intake reports ↗</Link>
+        </div>
       </section>
 
       {/* =====================================================
