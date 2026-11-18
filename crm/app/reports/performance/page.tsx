@@ -162,8 +162,12 @@ export default function ReportsPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
 
-  async function loadStrategyOverview() {
+  async function loadStrategyOverview(allowedModules: CrmModule[]) {
     const year = new Date().getFullYear();
+    if (!allowedModules.includes("leads") && !allowedModules.includes("pipeline")) {
+      setStrategyOverview((current) => ({ ...current, year, available: false, planFound: false }));
+      return;
+    }
     const yearStart = `${year}-01-01T00:00:00.000Z`;
     const nextYearStart = `${year + 1}-01-01T00:00:00.000Z`;
     try {
@@ -253,7 +257,7 @@ export default function ReportsPage() {
       setViewerModules(effectiveModules);
       setViewerRole(role);
       if (!isIndividualView && effectiveModules.includes("strategy")) {
-        void loadStrategyOverview();
+        void loadStrategyOverview(effectiveModules);
       }
 
       const profilesQuery = supabase
