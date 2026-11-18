@@ -9,6 +9,7 @@ import {
   useState,
 } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useIntakeSelection } from "@/lib/use-intake-selection";
 
 type Customer = {
   id: string;
@@ -149,7 +150,7 @@ export default function CustomersPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] =
     useState("All Enrolled Students");
-  const [selectedIntake, setSelectedIntake] = useState("2026-11");
+  const [selectedIntake, setSelectedIntake] = useIntakeSelection();
 
   const [selectedCustomer, setSelectedCustomer] =
     useState<Customer | null>(null);
