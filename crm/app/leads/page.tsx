@@ -18,6 +18,10 @@ type Lead = {
   organization_id?: string | null;
   contact_id?: string | null;
   school_id?: string | null;
+  intake_year?: number | null;
+  intake_month?: number | null;
+  original_intake_year?: number | null;
+  original_intake_month?: number | null;
 };
 
 type SchoolOption = { id: string; school_name: string; district: string | null };
@@ -151,6 +155,10 @@ export default function LeadsPage() {
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedLead, setSelectedLead] =
     useState<Lead | null>(null);
+  const [intakeDraftYear, setIntakeDraftYear] = useState("2027");
+  const [intakeDraftMonth, setIntakeDraftMonth] = useState("2");
+  const [intakeChangeReason, setIntakeChangeReason] = useState("");
+  const [savingIntake, setSavingIntake] = useState(false);
 
   const [showHistoryModal, setShowHistoryModal] =
     useState(false);
@@ -175,6 +183,8 @@ export default function LeadsPage() {
     phone: "",
     email: "",
     product_service: "",
+    intake_year: "",
+    intake_month: "",
     status: "new",
   });
 
@@ -239,7 +249,11 @@ export default function LeadsPage() {
           created_at,
           organization_id,
           contact_id,
-          school_id
+          school_id,
+          intake_year,
+          intake_month,
+          original_intake_year,
+          original_intake_month
         `)
         .order("created_at", {
           ascending: false,
@@ -553,6 +567,11 @@ export default function LeadsPage() {
             newLead.product_service.trim() ||
             null,
 
+          intake_year: newLead.intake_year ? Number(newLead.intake_year) : null,
+          intake_month: newLead.intake_month ? Number(newLead.intake_month) : null,
+          original_intake_year: newLead.intake_year ? Number(newLead.intake_year) : null,
+          original_intake_month: newLead.intake_month ? Number(newLead.intake_month) : null,
+
           school_id: newLead.school_id || null,
 
           status:
@@ -579,6 +598,8 @@ export default function LeadsPage() {
         phone: "",
         email: "",
         product_service: "",
+        intake_year: "",
+        intake_month: "",
         status: "new",
       });
 
@@ -1706,6 +1727,14 @@ export default function LeadsPage() {
                       selectedLead.product_service
                     }
                   />
+                  <DetailItem
+                    label="Original intake"
+                    value={selectedLead.original_intake_month && selectedLead.original_intake_year ? `${({2:"February",4:"April",8:"August",11:"November"} as Record<number,string>)[selectedLead.original_intake_month]} ${selectedLead.original_intake_year}` : "Not recorded"}
+                  />
+                  <DetailItem
+                    label="Current intake"
+                    value={selectedLead.intake_month && selectedLead.intake_year ? `${({2:"February",4:"April",8:"August",11:"November"} as Record<number,string>)[selectedLead.intake_month]} ${selectedLead.intake_year}` : "Needs intake assignment"}
+                  />
 
                   <DetailItem
                     label="Status"
@@ -1725,6 +1754,50 @@ export default function LeadsPage() {
                     label="Follow-up"
                     value="Managed from Tasks"
                   />
+                </div>
+
+                <div style={{ marginTop: 18, padding: 14, border: "1px solid #dce9e0", borderRadius: 10, background: "#fbfdfb" }}>
+                  <h3 style={{ margin: "0 0 10px", color: "#173b2b", fontSize: 14, fontWeight: 800 }}>Move lead to another intake</h3>
+                  <div className="ciu-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                    <div>
+                      <label style={labelStyle}>New intake</label>
+                      <select value={`${intakeDraftYear}-${intakeDraftMonth}`} onChange={(event) => { const [year, month] = event.target.value.split("-"); setIntakeDraftYear(year); setIntakeDraftMonth(month); }} style={inputStyle}>
+                        <option value="2026-11">November 2026</option>
+                        <option value="2027-2">February 2027</option>
+                        <option value="2027-4">April 2027</option>
+                        <option value="2027-8">August 2027</option>
+                        <option value="2027-11">November 2027</option>
+                        <option value="2028-2">February 2028</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Reason for transfer</label>
+                      <input value={intakeChangeReason} onChange={(event) => setIntakeChangeReason(event.target.value)} placeholder="e.g. student deferred" style={inputStyle} />
+                    </div>
+                  </div>
+                  <button type="button" disabled={savingIntake || !selectedLead} onClick={async () => {
+                    if (!selectedLead) return;
+                    const nextYear = Number(intakeDraftYear), nextMonth = Number(intakeDraftMonth);
+                    if (selectedLead.intake_year === nextYear && selectedLead.intake_month === nextMonth) { alert("This lead is already assigned to that intake."); return; }
+                    setSavingIntake(true);
+                    try {
+                      const { data: { user } } = await supabase.auth.getUser();
+                      if (!user) throw new Error("Please sign in again.");
+                      const { error: updateError } = await supabase.from("leads").update({ intake_year: nextYear, intake_month: nextMonth, original_intake_year: selectedLead.original_intake_year ?? selectedLead.intake_year ?? nextYear, original_intake_month: selectedLead.original_intake_month ?? selectedLead.intake_month ?? nextMonth, intake_changed_at: new Date().toISOString(), intake_changed_by: user.id, updated_at: new Date().toISOString() }).eq("id", selectedLead.id);
+                      if (updateError) throw updateError;
+                      const { error: historyError } = await supabase.from("lead_intake_history").insert({ lead_id: selectedLead.id, previous_intake_year: selectedLead.intake_year ?? null, previous_intake_month: selectedLead.intake_month ?? null, new_intake_year: nextYear, new_intake_month: nextMonth, reason: intakeChangeReason.trim() || null, changed_by: user.id });
+                      if (historyError) throw historyError;
+                      const updatedLead = { ...selectedLead, intake_year: nextYear, intake_month: nextMonth, original_intake_year: selectedLead.original_intake_year ?? selectedLead.intake_year ?? nextYear, original_intake_month: selectedLead.original_intake_month ?? selectedLead.intake_month ?? nextMonth };
+                      setSelectedLead(updatedLead);
+                      setLeads((current) => current.map((lead) => lead.id === updatedLead.id ? updatedLead : lead));
+                      setIntakeChangeReason("");
+                      alert("Lead intake updated and transfer history recorded.");
+                    } catch (e) {
+                      alert(e instanceof Error ? e.message : "Could not update intake.");
+                    } finally { setSavingIntake(false); }
+                  }} style={{ marginTop: 12, border: 0, borderRadius: 8, background: "#00695c", color: "#fff", padding: "10px 14px", fontWeight: 800, cursor: "pointer", opacity: savingIntake ? .6 : 1 }}>
+                    {savingIntake ? "Saving…" : "Save intake transfer"}
+                  </button>
                 </div>
 
                 <div
@@ -2023,18 +2096,34 @@ export default function LeadsPage() {
 
                   <FormField
                     label="Programme"
-                    value={
-                      newLead.product_service
-                    }
-                    onChange={(value) =>
+                    value={newLead.product_service}
+                    onChange={(value) => {
+                      const normalized = value.trim().toUpperCase();
+                      const isNovember = normalized === "PGDME" || normalized === "MPH" || normalized.startsWith("HEC") || normalized.includes("ALLIED HEALTH");
                       setNewLead({
                         ...newLead,
-                        product_service:
-                          value,
-                      })
-                    }
+                        product_service: value,
+                        intake_year: isNovember ? "2026" : (value.trim() ? "2027" : ""),
+                        intake_month: isNovember ? "11" : (value.trim() ? "2" : ""),
+                      });
+                    }}
                     placeholder="Programme / course"
                   />
+                  <div>
+                    <label style={labelStyle}>Recruitment intake *</label>
+                    <select required value={newLead.intake_year && newLead.intake_month ? `${newLead.intake_year}-${newLead.intake_month}` : ""} onChange={(event) => {
+                      const [year, month] = event.target.value ? event.target.value.split("-") : ["", ""];
+                      setNewLead({ ...newLead, intake_year: year, intake_month: month });
+                    }} style={inputStyle}>
+                      <option value="">Select intake</option>
+                      <option value="2026-11">November 2026</option>
+                      <option value="2027-2">February 2027</option>
+                      <option value="2027-4">April 2027</option>
+                      <option value="2027-8">August 2027</option>
+                      <option value="2027-11">November 2027</option>
+                      <option value="2028-2">February 2028</option>
+                    </select>
+                  </div>
 
                   <div>
                     <label style={labelStyle}>School (optional)</label>
