@@ -799,9 +799,7 @@ const isSalesperson =
     const counts = new Map<string, number>();
     OUTCOMES.forEach((outcome) => counts.set(normalize(outcome), 0));
     let unrecorded = 0;
-    const [intakeYear, intakeMonth] = selectedIntake.split("-").map(Number);
-    const scopedLeads = leads.filter((lead) => lead.intake_year === intakeYear && lead.intake_month === intakeMonth);
-    scopedLeads.forEach((lead) => {
+    leads.forEach((lead) => {
       const outcome = normalize(lead.follow_up_status);
       if (!outcome || outcome === "pending") {
         counts.set("pending", (counts.get("pending") || 0) + 1);
@@ -812,7 +810,7 @@ const isSalesperson =
       }
     });
     return {
-      total: scopedLeads.length,
+      total: leads.length,
       items: [
         { label: "Pending", count: counts.get("pending") || 0 },
         ...OUTCOMES.map((outcome) => ({
@@ -822,7 +820,7 @@ const isSalesperson =
       ],
       unrecorded,
     };
-  }, [leads, selectedIntake]);
+  }, [leads]);
 
   const openNewTask = (
     lead?: Lead | null
