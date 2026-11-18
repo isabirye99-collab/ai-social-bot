@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useIntakeSelection } from "@/lib/use-intake-selection";
 
 type PipelineStage = {
   id: string;
@@ -22,6 +23,8 @@ type Lead = {
   contact_id: string | null;
   assigned_to: string | null;
   status?: string | null;
+  intake_year?: number | null;
+  intake_month?: number | null;
 };
 
 type Opportunity = {
@@ -198,6 +201,8 @@ export default function Pipeline() {
   const [searchTerm, setSearchTerm] =
     useState("");
 
+  const [selectedIntake, setSelectedIntake] = useIntakeSelection();
+
   const isSalesperson =
     currentProfile?.role === "salesperson";
 
@@ -289,7 +294,7 @@ export default function Pipeline() {
         supabase
           .from("leads")
           .select(
-            "id, ciu_number, name, phone, email, product_service, contact_id, assigned_to, status",
+            "id, ciu_number, name, phone, email, product_service, contact_id, assigned_to, status, intake_year, intake_month",
           )
           .order("name", {
             ascending: true,
@@ -440,6 +445,13 @@ export default function Pipeline() {
   ) {
     return opportunities.filter(
       (opportunity) => {
+        const lead = leads.find((item) => item.id === opportunity.lead_id);
+        const [intakeYear, intakeMonth] = selectedIntake.split("-").map(Number);
+        const matchesIntake = selectedIntake === "unassigned"
+          ? Boolean(lead && (!lead.intake_year || !lead.intake_month))
+          : Boolean(lead && lead.intake_year === intakeYear && lead.intake_month === intakeMonth);
+        if (!matchesIntake) return false;
+
         const currentStage =
           getStageForOpportunity(
             opportunity,
@@ -492,6 +504,8 @@ export default function Pipeline() {
     opportunities,
     stages,
     workflowStages,
+    leads,
+    selectedIntake,
   ]);
 
   const selectedStudents = useMemo(() => {
@@ -1093,6 +1107,19 @@ export default function Pipeline() {
               the students currently at that
               stage.
             </p>
+          </div>
+
+          <div style={{ display: "grid", gap: 5, minWidth: 190 }}>
+            <label htmlFor="pipeline-intake-select" style={{ fontSize: 12, fontWeight: 800, color: "#40584e" }}>Recruitment intake</label>
+            <select id="pipeline-intake-select" value={selectedIntake} onChange={(event) => setSelectedIntake(event.target.value)} style={{ minHeight: 42, border: "1px solid #cbded3", borderRadius: 10, padding: "9px 12px", background: "#fff", color: "#173b30", fontWeight: 700 }}>
+              <option value="unassigned">Needs intake assignment</option>
+              <option value="2026-11">November 2026</option>
+              <option value="2027-2">February 2027</option>
+              <option value="2027-4">April 2027</option>
+              <option value="2027-8">August 2027</option>
+              <option value="2027-11">November 2027</option>
+              <option value="2028-2">February 2028</option>
+            </select>
           </div>
 
           <button
