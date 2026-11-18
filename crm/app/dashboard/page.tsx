@@ -837,7 +837,7 @@ export default function DashboardPage() {
       // Keep both names during the dashboard refactor so older chart references
       // and the explicit cohort naming remain type-safe.
       leads: monthLeads,
-      selectedIntakeLeads: monthLeads,
+      leads: monthLeads,
       interested: monthInterested,
       enrolled: monthEnrolled,
     };
