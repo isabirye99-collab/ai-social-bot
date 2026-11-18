@@ -278,6 +278,9 @@ export default function Login() {
               <label htmlFor="password">Password</label>
               <input id="password" type="password" autoComplete="current-password" placeholder="Enter your password" required value={password} onChange={(event) => setPassword(event.target.value)} />
             </div>
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: -8, marginBottom: 18 }}>
+              <a href="/forgot-password" style={{ color: primaryColor, fontSize: 13, fontWeight: 700, textDecoration: "none" }}>Forgot password?</a>
+            </div>
             {errorMessage && <div role="alert" className="ciu-login-error">{errorMessage}</div>}
             <button type="submit" disabled={loading} className="ciu-login-submit">
               {loading ? "Signing you in..." : "Sign in securely"}
