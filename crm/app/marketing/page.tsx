@@ -15,7 +15,13 @@ type Campaign = {
   notes: string | null;
   created_by: string | null;
   created_at: string | null;
+  intake_plan_id?: string | null;
+  activity_id?: string | null;
 };
+
+type IntakeOption = { id: string; plan_id: string; intake_month: number; cycle: string | null; programme: string; };
+type StrategyPlanOption = { id: string; strategy_year: number; title: string; };
+type ActivityOption = { id: string; plan_id: string; title: string; activity_type: string | null; status: string; };
 
 type CampaignLead = {
   campaign_id: string;
@@ -189,6 +195,9 @@ export default function MarketingPage() {
   const [campaignLeads, setCampaignLeads] = useState<CampaignLead[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [intakeOptions, setIntakeOptions] = useState<IntakeOption[]>([]);
+  const [strategyPlans, setStrategyPlans] = useState<StrategyPlanOption[]>([]);
+  const [activityOptions, setActivityOptions] = useState<ActivityOption[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -225,6 +234,8 @@ export default function MarketingPage() {
     currency: "UGX",
     notes: "",
     created_by: "",
+    intake_plan_id: "",
+    activity_id: "",
   });
 
   const loadMarketing = async () => {
@@ -238,6 +249,9 @@ export default function MarketingPage() {
         profilesResult,
         opportunitiesResult,
         pipelineStagesResult,
+        intakeOptionsResult,
+        strategyPlansResult,
+        activityOptionsResult,
       ] = await Promise.all([
         supabase
           .from("campaigns")
@@ -252,7 +266,9 @@ export default function MarketingPage() {
               currency,
               notes,
               created_by,
-              created_at
+              created_at,
+              intake_plan_id,
+              activity_id
             `
           )
           .order("created_at", {
@@ -303,6 +319,16 @@ export default function MarketingPage() {
           .from("pipeline_stages")
           .select("id,name,position,is_won,is_lost")
           .order("position", { ascending: true }),
+
+        supabase.from("strategy_intake_plans")
+          .select("id,plan_id,intake_month,cycle,programme")
+          .order("intake_month", { ascending: true }),
+        supabase.from("strategy_plans")
+          .select("id,strategy_year,title")
+          .order("strategy_year", { ascending: false }),
+        supabase.from("strategy_activities")
+          .select("id,plan_id,title,activity_type,status")
+          .order("title", { ascending: true }),
       ]);
 
       if (campaignsResult.error) {
@@ -363,6 +389,9 @@ export default function MarketingPage() {
       setProfiles(
         (profilesResult.data || []) as Profile[]
       );
+      setIntakeOptions((intakeOptionsResult.data || []) as IntakeOption[]);
+      setStrategyPlans((strategyPlansResult.data || []) as StrategyPlanOption[]);
+      setActivityOptions((activityOptionsResult.data || []) as ActivityOption[]);
     } catch (err) {
       console.error(
         "Marketing loading error:",
@@ -399,6 +428,8 @@ export default function MarketingPage() {
       currency: "UGX",
       notes: "",
       created_by: "",
+      intake_plan_id: "",
+      activity_id: "",
     });
 
     setEditingCampaign(null);
@@ -431,6 +462,8 @@ export default function MarketingPage() {
       currency: campaign.currency || "UGX",
       notes: campaign.notes || "",
       created_by: campaign.created_by || "",
+      intake_plan_id: campaign.intake_plan_id || "",
+      activity_id: campaign.activity_id || "",
     });
 
     setShowCampaignModal(true);
@@ -479,6 +512,8 @@ export default function MarketingPage() {
         currency: form.currency.trim() || "UGX",
         notes: form.notes.trim() || null,
         created_by: form.created_by || null,
+        intake_plan_id: form.intake_plan_id || null,
+        activity_id: form.activity_id || null,
       };
 
       if (editingCampaign) {
