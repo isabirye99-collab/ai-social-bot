@@ -1165,21 +1165,24 @@ export default function LeadsPage() {
             <h2 id="lead-outcome-heading" style={{ margin: 0, color: "#173b30", fontSize: 17, fontWeight: 800 }}>Total Leads & Outcome Breakdown</h2>
             <p style={{ margin: "4px 0 0", color: "#64756d", fontSize: 12 }}>Counts are based on each lead's saved follow-up outcome for the selected intake. Select an outcome to filter the lead list below.</p>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(112px, 1fr))", gap: 7, alignItems: "stretch", width: "100%" }}>
-            <button type="button" onClick={() => setOutcomeFilter("")} aria-label="Show all leads for the selected intake" style={{ display: "flex", flexDirection: "column", justifyContent: "center", minWidth: 0, minHeight: 48, textAlign: "left", border: !outcomeFilter ? "2px solid #16816d" : "1px solid #c7e3d2", borderRadius: 9, background: !outcomeFilter ? "#e9f5ee" : "#ffffff", padding: "7px 8px", cursor: "pointer" }}>
-              <span style={{ color: "#48665a", fontSize: 9, fontWeight: 700 }}>TOTAL LEADS</span>
-              <strong style={{ color: "#00695c", fontSize: 17, lineHeight: 1.2, fontWeight: 900 }}>{leadOutcomeBreakdown.total.toLocaleString()}</strong>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(125px, 1fr))", gap: 7, alignItems: "stretch", width: "100%" }}>
+            <button type="button" onClick={() => setOutcomeFilter("")} aria-label="Show all leads for the selected intake" aria-pressed={!outcomeFilter} style={{ appearance: "none", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, minWidth: 0, minHeight: 42, padding: "6px 8px", border: !outcomeFilter ? "1px solid #00695c" : "1px solid #d8e5df", borderRadius: 10, background: !outcomeFilter ? "#00695c" : "#ffffff", color: !outcomeFilter ? "#ffffff" : "#48635b", fontFamily: "inherit", fontSize: 10, fontWeight: 800, lineHeight: 1.25, textAlign: "left", cursor: "pointer" }}>
+              <span>TOTAL LEADS</span>
+              <strong style={{ display: "grid", placeItems: "center", flexShrink: 0, minWidth: 22, height: 22, padding: "0 5px", borderRadius: 999, background: !outcomeFilter ? "rgba(255,255,255,.18)" : "#edf3f0", color: !outcomeFilter ? "#ffffff" : "#5f756c", fontSize: 10, fontVariantNumeric: "tabular-nums" }}>{leadOutcomeBreakdown.total.toLocaleString()}</strong>
             </button>
-            {leadOutcomeBreakdown.items.map((item) => (
-              <button key={item.label} type="button" onClick={() => setOutcomeFilter(outcomeFilter === item.label ? "" : item.label)} aria-pressed={outcomeFilter === item.label} aria-label={`Filter to ${item.count} leads with outcome ${item.label}`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 5, border: outcomeFilter === item.label ? "2px solid #16816d" : "1px solid #e5ede8", borderRadius: 9, padding: "7px 8px", background: outcomeFilter === item.label ? "#e9f5ee" : item.count ? "#fbfdfb" : "#ffffff", cursor: "pointer", textAlign: "left", minWidth: 0, minHeight: 48, color: "inherit" }}>
-                <span style={{ color: "#40584e", fontSize: 10, lineHeight: 1.2, overflowWrap: "anywhere" }}>{item.label}</span>
-                <strong style={{ color: item.count ? "#00695c" : "#9aa9a1", fontSize: 13, fontVariantNumeric: "tabular-nums" }}>{item.count.toLocaleString()}</strong>
-              </button>
-            ))}
+            {leadOutcomeBreakdown.items.map((item) => {
+              const active = outcomeFilter === item.label;
+              return (
+                <button key={item.label} type="button" onClick={() => setOutcomeFilter(active ? "" : item.label)} aria-pressed={active} aria-label={`Filter to ${item.count} leads with outcome ${item.label}`} style={{ appearance: "none", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, minWidth: 0, minHeight: 42, padding: "6px 8px", border: active ? "1px solid #00695c" : "1px solid #d8e5df", borderRadius: 10, background: active ? "#00695c" : "#ffffff", color: active ? "#ffffff" : "#48635b", fontFamily: "inherit", fontSize: 10, fontWeight: 800, lineHeight: 1.25, textAlign: "left", cursor: "pointer" }}>
+                  <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>{item.label}</span>
+                  <strong style={{ display: "grid", placeItems: "center", flexShrink: 0, minWidth: 22, height: 22, padding: "0 5px", borderRadius: 999, background: active ? "rgba(255,255,255,.18)" : "#edf3f0", color: active ? "#ffffff" : item.count ? "#5f756c" : "#9aa9a1", fontSize: 10, fontVariantNumeric: "tabular-nums" }}>{item.count.toLocaleString()}</strong>
+                </button>
+              );
+            })}
             {leadOutcomeBreakdown.unrecorded > 0 && (
-              <button type="button" onClick={() => setOutcomeFilter(outcomeFilter === "Other / unrecognized outcome" ? "" : "Other / unrecognized outcome")} aria-pressed={outcomeFilter === "Other / unrecognized outcome"} aria-label={`Filter to ${leadOutcomeBreakdown.unrecorded} leads with other or unrecognized outcomes`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 5, border: outcomeFilter === "Other / unrecognized outcome" ? "2px solid #b7791f" : "1px solid #f0d7a5", borderRadius: 9, padding: "7px 8px", background: "#fffbeb", cursor: "pointer", textAlign: "left", minWidth: 0, minHeight: 48 }}>
-                <span style={{ color: "#805b14", fontSize: 10, lineHeight: 1.2, overflowWrap: "anywhere" }}>Other / unrecognized outcome</span>
-                <strong style={{ color: "#805b14", fontSize: 13 }}>{leadOutcomeBreakdown.unrecorded.toLocaleString()}</strong>
+              <button type="button" onClick={() => setOutcomeFilter(outcomeFilter === "Other / unrecognized outcome" ? "" : "Other / unrecognized outcome")} aria-pressed={outcomeFilter === "Other / unrecognized outcome"} aria-label={`Filter to ${leadOutcomeBreakdown.unrecorded} leads with other or unrecognized outcomes`} style={{ appearance: "none", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, minWidth: 0, minHeight: 42, padding: "6px 8px", border: outcomeFilter === "Other / unrecognized outcome" ? "1px solid #00695c" : "1px solid #d8e5df", borderRadius: 10, background: outcomeFilter === "Other / unrecognized outcome" ? "#00695c" : "#ffffff", color: outcomeFilter === "Other / unrecognized outcome" ? "#ffffff" : "#48635b", fontFamily: "inherit", fontSize: 10, fontWeight: 800, lineHeight: 1.25, textAlign: "left", cursor: "pointer" }}>
+                <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>Other / unrecognized outcome</span>
+                <strong style={{ display: "grid", placeItems: "center", flexShrink: 0, minWidth: 22, height: 22, padding: "0 5px", borderRadius: 999, background: outcomeFilter === "Other / unrecognized outcome" ? "rgba(255,255,255,.18)" : "#edf3f0", color: outcomeFilter === "Other / unrecognized outcome" ? "#ffffff" : "#5f756c", fontSize: 10, fontVariantNumeric: "tabular-nums" }}>{leadOutcomeBreakdown.unrecorded.toLocaleString()}</strong>
               </button>
             )}
           </div>
