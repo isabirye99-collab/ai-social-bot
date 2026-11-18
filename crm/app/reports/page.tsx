@@ -633,7 +633,7 @@ export default function ReportsPage() {
 
   const [intakeYearText, intakeMonthText] = selectedIntake.split("-");
   const intakeYear = Number(intakeYearText), intakeMonth = Number(intakeMonthText);
-  const intakeReportLeads = leads.filter((lead) => lead.intake_year === intakeYear && lead.intake_month === intakeMonth);
+  const intakeReportLeads = leads.filter((lead) => selectedIntake === "unassigned" ? (!lead.intake_year || !lead.intake_month) : (lead.intake_year === intakeYear && lead.intake_month === intakeMonth));
   const normalizeIntakeOutcome = (lead: Lead) => (lead.follow_up_status || lead.status || "").trim().toLowerCase().replace(/[ _-]+/g, " ");
   const intakeReportCounts = {
     total: intakeReportLeads.length,
@@ -761,7 +761,7 @@ export default function ReportsPage() {
             </div>
             <label style={{ display: "grid", gap: 5, color: "#40584e", fontSize: 12, fontWeight: 700 }}>Select intake
               <select value={selectedIntake} onChange={(event) => setSelectedIntake(event.target.value)} className="report-select">
-                <option value="2026-11">November 2026</option>
+                <option value="unassigned">Needs intake assignment</option><option value="2026-11">November 2026</option>
                 <option value="2027-2">February 2027</option>
                 <option value="2027-4">April 2027</option>
                 <option value="2027-8">August 2027</option>
