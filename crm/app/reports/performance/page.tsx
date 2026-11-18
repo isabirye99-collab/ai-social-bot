@@ -150,6 +150,7 @@ export default function ReportsPage() {
 
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [viewerRole, setViewerRole] = useState("");
+  const [viewerModules, setViewerModules] = useState<CrmModule[]>([]);
   const [individualView, setIndividualView] = useState(false);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [admissions, setAdmissions] = useState<Admission[]>([]);
@@ -288,6 +289,7 @@ export default function ReportsPage() {
       const isIndividualView = typeof window !== "undefined" &&
         new URLSearchParams(window.location.search).get("view") === "individual";
       setIndividualView(isIndividualView);
+      setViewerModules(effectiveModules);
       setViewerRole(role);
 
       const eligibleProfiles = ((p.data || []) as Profile[]).filter((profile) => {
@@ -1104,7 +1106,8 @@ export default function ReportsPage() {
             </div>
           </div>
         </section>
-        <section id="alumni-report" className="ciu-card report-table-card">
+        {viewerModules.includes("alumni") && !individualView && (
+<section id="alumni-report" className="ciu-card report-table-card">
           <div className="ciu-card-head report-card-head"><div><h2>Alumni Relations Activity</h2><span>Contact and follow-up activity for Alumni Relations staff in the selected period.</span></div></div>
           <div className="report-table-scroll"><table className="report-table">
             <thead><tr><th>Staff Member</th><th>Contact activities</th><th>Calls</th><th>Emails</th><th>WhatsApp</th><th>Meetings</th><th>Tasks done</th></tr></thead>
@@ -1112,7 +1115,9 @@ export default function ReportsPage() {
           </table></div>
           <p style={{ padding: "0 18px 14px", color: "#64748b", fontSize: 12 }}>Contact activities are counted from call, WhatsApp and email tasks. They are logged activities, not a deduplicated count of unique people.</p>
         </section>
-        <section id="partnerships-report" className="ciu-card report-table-card">
+)}
+        {viewerModules.includes("partnerships") && !individualView && (
+<section id="partnerships-report" className="ciu-card report-table-card">
           <div className="ciu-card-head report-card-head"><div><h2>Partnerships Activity</h2><span>Contact and follow-up activity for staff responsible for partnerships in the selected period.</span></div></div>
           <div className="report-table-scroll"><table className="report-table">
             <thead><tr><th>Staff Member</th><th>Contact activities</th><th>Calls</th><th>Emails</th><th>WhatsApp</th><th>Meetings</th><th>Tasks done</th></tr></thead>
@@ -1120,6 +1125,7 @@ export default function ReportsPage() {
           </table></div>
           <p style={{ padding: "0 18px 14px", color: "#64748b", fontSize: 12 }}>Contact activities are counted from call, WhatsApp and email tasks. They are logged activities, not a deduplicated count of unique people.</p>
         </section>
+)}
 
         <section className="ciu-card report-table-card">
           <div className="ciu-card-head report-card-head">
