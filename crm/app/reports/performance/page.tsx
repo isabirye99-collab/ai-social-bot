@@ -223,7 +223,7 @@ export default function ReportsPage() {
 
       const currentProfileQuery = supabase
         .from("profiles")
-        .select("id,role")
+        .select("id,role,module_permissions")
         .eq("id", user.id)
         .maybeSingle();
 
@@ -273,7 +273,11 @@ export default function ReportsPage() {
       }
 
       const role = String(currentProfile.data?.role || "").trim().toLowerCase().replace(/[ -]/g, "_");
-      if (!["super_admin", "admin", "manager", "salesperson", "marketing", "alumni_relations", "alumni_coordinator", "alumni_officer"].includes(role)) {
+      const currentModules = Array.isArray(currentProfile.data?.module_permissions)
+        ? currentProfile.data.module_permissions
+        : null;
+      const recognisedReportRole = ["super_admin", "admin", "manager", "salesperson", "marketing", "alumni_relations", "alumni_coordinator", "alumni_officer"].includes(role);
+      if (!recognisedReportRole && !currentModules?.includes("reports")) {
         router.replace("/dashboard");
         return;
       }
