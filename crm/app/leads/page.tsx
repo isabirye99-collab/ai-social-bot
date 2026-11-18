@@ -1141,6 +1141,15 @@ export default function LeadsPage() {
           >
             + Add New Lead
           </button>
+          <button
+            type="button"
+            onClick={loadLeads}
+            className="ciu-btn-light"
+            disabled={loading}
+            style={{ height: 44, fontSize: 14, fontWeight: 800, whiteSpace: "nowrap" }}
+          >
+            {loading ? "Refreshing..." : "Refresh"}
+          </button>
         </div>
 
         <section style={{ marginTop: 16, padding: 14, border: "1px solid #dce8df", borderRadius: 12, background: "#fff", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
@@ -1194,145 +1203,6 @@ export default function LeadsPage() {
           </div>
         )}
 
-        {/* KPI SECTION */}
-        <div
-          className="ciu-kpi-grid"
-          style={{
-            display: "grid",
-            gridTemplateColumns:
-              "repeat(4, minmax(0, 1fr))",
-            gap: 16,
-            marginTop: 20,
-          }}
-        >
-          <KpiCard
-            label={
-              currentRole ===
-              "salesperson"
-                ? "My Leads"
-                : "Total Leads"
-            }
-            value={intakeLeads.length}
-            description="Selected intake"
-            type="total"
-          />
-
-          <KpiCard
-            label="Active Prospects"
-            value={activeLeads}
-            description="Current CRM records"
-            type="active"
-          />
-
-          <KpiCard
-            label="Interested"
-            value={interestedLeads}
-            description="Current CRM records"
-            type="interested"
-          />
-
-          <KpiCard
-            label="Closed / Unqualified"
-            value={closedLeads}
-            description="Current CRM records"
-            type="closed"
-          />
-        </div>
-
-        {/* WORKFLOW STRIP */}
-        <div
-          className="ciu-strip"
-          style={{
-            marginTop: 18,
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 15,
-              flexWrap: "wrap",
-            }}
-          >
-            <div>
-              <strong>
-                Lead workflow
-              </strong>
-
-              <div
-                style={{
-                  marginTop: 4,
-                }}
-              >
-                <span>
-                  Prospect → Contact →
-                  Interested → Pipeline
-                </span>
-              </div>
-            </div>
-
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                flexWrap: "wrap",
-              }}
-            >
-              {[
-                "Pending",
-                "Called",
-                "Interested",
-                "Pipeline",
-              ].map(
-                (step, index) => (
-                  <div
-                    key={step}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                    }}
-                  >
-                    <span
-                      style={{
-                        padding:
-                          "6px 10px",
-                        borderRadius:
-                          999,
-                        background:
-                          "#ffffff",
-                        border:
-                          "1px solid #d7e6df",
-                        color:
-                          "#36564e",
-                        fontSize: 11,
-                        fontWeight: 750,
-                      }}
-                    >
-                      {step}
-                    </span>
-
-                    {index <
-                      3 && (
-                      <span
-                        style={{
-                          color:
-                            "#9aaca5",
-                          fontSize: 12,
-                        }}
-                      >
-                        →
-                      </span>
-                    )}
-                  </div>
-                )
-              )}
-            </div>
-          </div>
-        </div>
-
         {/* FILTERS */}
         <div
           className="ciu-card"
@@ -1352,16 +1222,6 @@ export default function LeadsPage() {
               </span>
             </div>
 
-            <button
-              type="button"
-              onClick={loadLeads}
-              className="ciu-btn-light"
-              disabled={loading}
-            >
-              {loading
-                ? "Refreshing..."
-                : "Refresh"}
-            </button>
           </div>
 
           <div
