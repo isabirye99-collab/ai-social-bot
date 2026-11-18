@@ -665,7 +665,7 @@ const isSalesperson =
       const lead = getLead(task);
       return (task.intake_year ?? lead?.intake_year) === intakeYear && (task.intake_month ?? lead?.intake_month) === intakeMonth;
     });
-    const scopedLeads = leads.filter((lead) => lead.intake_year === intakeYear && lead.intake_month === intakeMonth);
+    const scopedLeads = leads.filter((lead) => selectedIntake === "unassigned" ? (!lead.intake_year || !lead.intake_month) : (lead.intake_year === intakeYear && lead.intake_month === intakeMonth));
     const active = scopedTasks.filter((task) =>
       isActiveTask(task) && !isClosedLead(getLead(task))
     );
@@ -942,10 +942,10 @@ const isSalesperson =
           phone: walkInPhone.trim() || null,
           email: walkInEmail.trim() || null,
           product_service: walkInProgramme.trim() || null,
-          intake_year: Number(selectedIntake.split("-")[0]),
-          intake_month: Number(selectedIntake.split("-")[1]),
-          original_intake_year: Number(selectedIntake.split("-")[0]),
-          original_intake_month: Number(selectedIntake.split("-")[1]),
+          intake_year: selectedIntake === "unassigned" ? null : Number(selectedIntake.split("-")[0]),
+          intake_month: selectedIntake === "unassigned" ? null : Number(selectedIntake.split("-")[1]),
+          original_intake_year: selectedIntake === "unassigned" ? null : Number(selectedIntake.split("-")[0]),
+          original_intake_month: selectedIntake === "unassigned" ? null : Number(selectedIntake.split("-")[1]),
           location: "Walk-in",
           status: "new",
           assigned_to: linkedAssigneeId,
@@ -1004,8 +1004,8 @@ const isSalesperson =
               ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
               : null,
         status: form.status,
-        intake_year: linkedLeadId ? (leads.find((lead) => lead.id === linkedLeadId)?.intake_year ?? Number(selectedIntake.split("-")[0])) : Number(selectedIntake.split("-")[0]),
-        intake_month: linkedLeadId ? (leads.find((lead) => lead.id === linkedLeadId)?.intake_month ?? Number(selectedIntake.split("-")[1])) : Number(selectedIntake.split("-")[1]),
+        intake_year: linkedLeadId ? (leads.find((lead) => lead.id === linkedLeadId)?.intake_year ?? (selectedIntake === "unassigned" ? null : Number(selectedIntake.split("-")[0]))) : (selectedIntake === "unassigned" ? null : Number(selectedIntake.split("-")[0])),
+        intake_month: linkedLeadId ? (leads.find((lead) => lead.id === linkedLeadId)?.intake_month ?? (selectedIntake === "unassigned" ? null : Number(selectedIntake.split("-")[1]))) : (selectedIntake === "unassigned" ? null : Number(selectedIntake.split("-")[1])),
         updated_at: new Date().toISOString(),
       };
 
@@ -1655,8 +1655,8 @@ const isSalesperson =
               dateValue
             ).toISOString(),
           status: "pending",
-          intake_year: lead.intake_year ?? Number(selectedIntake.split("-")[0]),
-          intake_month: lead.intake_month ?? Number(selectedIntake.split("-")[1]),
+          intake_year: lead.intake_year ?? (selectedIntake === "unassigned" ? null : Number(selectedIntake.split("-")[0])),
+          intake_month: lead.intake_month ?? (selectedIntake === "unassigned" ? null : Number(selectedIntake.split("-")[1])),
           created_by:
             currentUserId,
         });
