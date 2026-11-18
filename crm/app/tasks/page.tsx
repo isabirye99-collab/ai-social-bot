@@ -660,30 +660,36 @@ const isSalesperson =
   };
 
   const stats = useMemo(() => {
-    const active = tasks.filter((task) =>
-      isActiveTask(task) && !isClosedLead(getLead(task))
+    const [intakeYear, intakeMonth] = selectedIntake.split("-").map(Number);
+    const matchesSelectedIntake = (task: Task) => {
+      const lead = getLead(task);
+      const taskYear = task.intake_year ?? lead?.intake_year ?? null;
+      const taskMonth = task.intake_month ?? lead?.intake_month ?? null;
+      return selectedIntake === "unassigned"
+        ? !taskYear || !taskMonth
+        : taskYear === intakeYear && taskMonth === intakeMonth;
+    };
+    const scopedLeads = leads.filter((lead) =>
+      selectedIntake === "unassigned"
+        ? !lead.intake_year || !lead.intake_month
+        : lead.intake_year === intakeYear && lead.intake_month === intakeMonth
     );
-
-    const overdue = active.filter(
-      isOverdue
-    ).length;
-
-    const dueToday = active.filter(
-      (task) => isToday(task.due_at)
-    ).length;
-
-    const completed = tasks.filter(
-      (task) =>
-        task.status === "completed"
+    const active = tasks.filter((task) =>
+      matchesSelectedIntake(task) && isActiveTask(task) && !isClosedLead(getLead(task))
+    );
+    const overdue = active.filter(isOverdue).length;
+    const dueToday = active.filter((task) => isToday(task.due_at)).length;
+    const completed = tasks.filter((task) =>
+      matchesSelectedIntake(task) && task.status === "completed"
     ).length;
     return {
       active: active.length,
       overdue,
       dueToday,
       completed,
-      interestedLeads: leads.filter(isInterestedLead).length,
+      interestedLeads: scopedLeads.filter(isInterestedLead).length,
     };
-  }, [tasks, leads]);
+  }, [tasks, leads, selectedIntake]);
 
   const filteredTasks = useMemo(() => {
     const query = search
@@ -793,7 +799,13 @@ const isSalesperson =
     const counts = new Map<string, number>();
     OUTCOMES.forEach((outcome) => counts.set(normalize(outcome), 0));
     let unrecorded = 0;
-    leads.forEach((lead) => {
+    const [intakeYear, intakeMonth] = selectedIntake.split("-").map(Number);
+    const scopedLeads = leads.filter((lead) =>
+      selectedIntake === "unassigned"
+        ? !lead.intake_year || !lead.intake_month
+        : lead.intake_year === intakeYear && lead.intake_month === intakeMonth
+    );
+    scopedLeads.forEach((lead) => {
       const outcome = normalize(lead.follow_up_status);
       if (!outcome || outcome === "pending") {
         counts.set("pending", (counts.get("pending") || 0) + 1);
@@ -804,7 +816,7 @@ const isSalesperson =
       }
     });
     return {
-      total: leads.length,
+      total: scopedLeads.length,
       items: [
         { label: "Pending", count: counts.get("pending") || 0 },
         ...OUTCOMES.map((outcome) => ({
@@ -814,7 +826,7 @@ const isSalesperson =
       ],
       unrecorded,
     };
-  }, [leads]);
+  }, [leads, selectedIntake]);
 
   const openNewTask = (
     lead?: Lead | null
