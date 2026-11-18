@@ -54,6 +54,25 @@ const displayStatuses = [
   "Applied/Admitted",
 ];
 
+const OUTCOMES = [
+  "Interested",
+  "Applied",
+  "Application Submitted",
+  "Admitted",
+  "Paid Application Fee",
+  "Acceptance Fee Paid",
+  "Paid Acceptance Fee",
+  "Enrolled",
+  "Follow up later",
+  "Not interested",
+  "Financial issues",
+  "Lost Leads",
+  "No Answer",
+  "Unreachable",
+  "Wrong Number",
+  "Dropped",
+];
+
 const statusMap: Record<string, string> = {
   new: "Pending",
   pending: "Pending",
@@ -413,6 +432,41 @@ export default function LeadsPage() {
     selectedIntake,
     outcomeFilter,
   ]);
+
+  const leadOutcomeBreakdown = useMemo(() => {
+    const normalize = (value: string | null | undefined) =>
+      (value || "").trim().toLowerCase().replace(/[ _-]+/g, " ");
+    const counts = new Map<string, number>();
+    OUTCOMES.forEach((outcome) => counts.set(normalize(outcome), 0));
+    let unrecorded = 0;
+    const [intakeYear, intakeMonth] = selectedIntake.split("-").map(Number);
+    const scopedLeads = leads.filter((lead) =>
+      selectedIntake === "unassigned"
+        ? !lead.intake_year || !lead.intake_month
+        : lead.intake_year === intakeYear && lead.intake_month === intakeMonth
+    );
+    scopedLeads.forEach((lead) => {
+      const outcome = normalize(lead.follow_up_status);
+      if (!outcome || outcome === "pending") {
+        counts.set("pending", (counts.get("pending") || 0) + 1);
+      } else if (counts.has(outcome)) {
+        counts.set(outcome, (counts.get(outcome) || 0) + 1);
+      } else {
+        unrecorded += 1;
+      }
+    });
+    return {
+      total: scopedLeads.length,
+      items: [
+        { label: "Pending", count: counts.get("pending") || 0 },
+        ...OUTCOMES.map((outcome) => ({
+          label: outcome,
+          count: counts.get(normalize(outcome)) || 0,
+        })),
+      ],
+      unrecorded,
+    };
+  }, [leads, selectedIntake]);
 
   const [intakeYearForStats, intakeMonthForStats] = selectedIntake.split("-").map(Number);
   const intakeLeads = leads.filter((lead) => lead.intake_year === intakeYearForStats && lead.intake_month === intakeMonthForStats);
@@ -1094,6 +1148,32 @@ export default function LeadsPage() {
           <select value={selectedIntake} onChange={(event) => setSelectedIntake(event.target.value)} style={{ ...inputStyle, width: "auto", minWidth: 190 }}>
             <option value="unassigned">Needs intake assignment</option><option value="2026-11">November 2026</option><option value="2027-2">February 2027</option><option value="2027-4">April 2027</option><option value="2027-8">August 2027</option><option value="2027-11">November 2027</option><option value="2028-2">February 2028</option>
           </select>
+        </section>
+
+        {/* LEAD OUTCOME BREAKDOWN */}
+        <section aria-labelledby="lead-outcome-heading" style={{ background: "#ffffff", border: "1px solid #dce8e1", borderRadius: 14, padding: 18, marginTop: 16 }}>
+          <div style={{ marginBottom: 12 }}>
+            <h2 id="lead-outcome-heading" style={{ margin: 0, color: "#173b30", fontSize: 17, fontWeight: 800 }}>Total Leads & Outcome Breakdown</h2>
+            <p style={{ margin: "4px 0 0", color: "#64756d", fontSize: 12 }}>Counts are based on each lead's saved follow-up outcome for the selected intake. Select an outcome to filter the lead list below.</p>
+          </div>
+          <div style={{ display: "flex", flexWrap: "nowrap", gap: 9, overflowX: "auto", paddingBottom: 4, alignItems: "stretch" }}>
+            <button type="button" onClick={() => setOutcomeFilter("")} aria-label="Show all leads for the selected intake" style={{ display: "flex", flexDirection: "column", justifyContent: "center", minWidth: 132, flex: "0 0 auto", textAlign: "left", border: !outcomeFilter ? "2px solid #16816d" : "1px solid #c7e3d2", borderRadius: 10, background: !outcomeFilter ? "#e9f5ee" : "#ffffff", padding: "10px 11px", cursor: "pointer" }}>
+              <span style={{ color: "#48665a", fontSize: 11, fontWeight: 700 }}>TOTAL LEADS</span>
+              <strong style={{ color: "#00695c", fontSize: 20, lineHeight: 1.3, fontWeight: 900 }}>{leadOutcomeBreakdown.total.toLocaleString()}</strong>
+            </button>
+            {leadOutcomeBreakdown.items.map((item) => (
+              <button key={item.label} type="button" onClick={() => setOutcomeFilter(outcomeFilter === item.label ? "" : item.label)} aria-pressed={outcomeFilter === item.label} aria-label={`Filter to ${item.count} leads with outcome ${item.label}`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, border: outcomeFilter === item.label ? "2px solid #16816d" : "1px solid #e5ede8", borderRadius: 10, padding: "10px 11px", background: outcomeFilter === item.label ? "#e9f5ee" : item.count ? "#fbfdfb" : "#ffffff", cursor: "pointer", textAlign: "left", minWidth: 132, flex: "0 0 auto", color: "inherit" }}>
+                <span style={{ color: "#40584e", fontSize: 12, lineHeight: 1.35 }}>{item.label}</span>
+                <strong style={{ color: item.count ? "#00695c" : "#9aa9a1", fontSize: 15, fontVariantNumeric: "tabular-nums" }}>{item.count.toLocaleString()}</strong>
+              </button>
+            ))}
+            {leadOutcomeBreakdown.unrecorded > 0 && (
+              <button type="button" onClick={() => setOutcomeFilter(outcomeFilter === "Other / unrecognized outcome" ? "" : "Other / unrecognized outcome")} aria-pressed={outcomeFilter === "Other / unrecognized outcome"} aria-label={`Filter to ${leadOutcomeBreakdown.unrecorded} leads with other or unrecognized outcomes`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, border: outcomeFilter === "Other / unrecognized outcome" ? "2px solid #b7791f" : "1px solid #f0d7a5", borderRadius: 10, padding: "10px 11px", background: "#fffbeb", cursor: "pointer", textAlign: "left", minWidth: 132, flex: "0 0 auto" }}>
+                <span style={{ color: "#805b14", fontSize: 12 }}>Other / unrecognized outcome</span>
+                <strong style={{ color: "#805b14", fontSize: 15 }}>{leadOutcomeBreakdown.unrecorded.toLocaleString()}</strong>
+              </button>
+            )}
+          </div>
         </section>
 
         {/* ERROR */}
