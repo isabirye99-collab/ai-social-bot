@@ -145,6 +145,7 @@ export default function LeadsPage() {
   const [error, setError] = useState("");
 
   const [search, setSearch] = useState("");
+  const [outcomeFilter, setOutcomeFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [programFilter, setProgramFilter] = useState("All");
 
@@ -311,8 +312,26 @@ export default function LeadsPage() {
   }
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const intake = params.get("intake");
+    const outcome = params.get("outcome");
+    if (intake && ["unassigned", "2026-11", "2027-2", "2027-4", "2027-8", "2027-11", "2028-2"].includes(intake)) {
+      setSelectedIntake(intake);
+    }
+    if (outcome) setOutcomeFilter(outcome);
     loadLeads();
   }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const leadId = params.get("leadId");
+    if (!leadId || !leads.length) return;
+    const match = leads.find((lead) => lead.id === leadId);
+    if (match) {
+      setSelectedLead(match);
+      setShowViewModal(true);
+    }
+  }, [leads]);
 
   const programs = useMemo(() => {
     const values = leads
@@ -361,15 +380,24 @@ export default function LeadsPage() {
         statusFilter === "All" ||
         displayStatus === statusFilter;
 
-      const matchesProgram =
-        programFilter === "All" ||
-        (lead.product_service || "") ===
-          programFilter;
+      const normalizeOutcome = (value: string | null | undefined) =>
+        (value || "").trim().toLowerCase().replace(/[ _-]+/g, " ");
+      const savedOutcome = normalizeOutcome(lead.follow_up_status);
+      const expectedOutcome = normalizeOutcome(outcomeFilter);
+      const matchesOutcome =
+        !outcomeFilter ||
+        outcomeFilter === "All Leads" ||
+        (outcomeFilter === "Other / unrecognized outcome"
+          ? Boolean(savedOutcome && savedOutcome !== "pending" && !["interested", "follow up", "follow up later", "applied", "admitted", "enrolled", "not interested", "dropped", "no answer", "unreachable"].includes(savedOutcome))
+          : outcomeFilter === "Pending"
+            ? !savedOutcome || savedOutcome === "pending"
+            : savedOutcome === expectedOutcome);
 
       return (
         matchesSearch &&
         matchesStatus &&
-        matchesProgram
+        matchesProgram &&
+        matchesOutcome
       );
     });
   }, [
@@ -379,6 +407,7 @@ export default function LeadsPage() {
     programFilter,
     schools,
     selectedIntake,
+    outcomeFilter,
   ]);
 
   const [intakeYearForStats, intakeMonthForStats] = selectedIntake.split("-").map(Number);
