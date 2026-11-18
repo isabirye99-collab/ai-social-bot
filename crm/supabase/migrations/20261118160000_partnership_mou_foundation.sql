@@ -1,5 +1,19 @@
 -- CIU CRM Partnerships: MOU lifecycle, commitments, quarterly reviews and scholarships.
 -- Additive migration: existing partnership records are preserved.
+create table if not exists public.partnerships (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  primary_contact_name text,
+  primary_contact_email text,
+  primary_contact_phone text,
+  category text,
+  status text not null default 'prospect',
+  notes text,
+  created_by uuid references public.profiles(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists public.partnership_mous (
   id uuid primary key default gen_random_uuid(),
   partnership_id uuid not null references public.partnerships(id) on delete cascade,
