@@ -106,7 +106,7 @@ export default function ReportsPage() {
       </div>
       <div style={{ background: "#f5f8fd", border: "1px solid #e0e8f5", borderRadius: 12, padding: 18 }}>
         <div style={{ fontSize: 12, color: "#60718a", lineHeight: 1.6 }}>{canViewTeam ? "Your report includes team performance and individual staff breakdowns." : "Your report is limited to your own activity and records available to your account."}</div>
-        {canViewReports ? <Link href="/reports/performance" style={{ ...styles.button, marginTop: 14, background: "#315a8b" }}>Open individual report <span aria-hidden="true">→</span></Link> : <div style={{ marginTop: 13, fontSize: 11, fontWeight: 800, color: "#7a8981" }}>Reports permission required</div>}
+        {canViewReports ? <Link href="/reports/performance?view=individual" style={{ ...styles.button, marginTop: 14, background: "#315a8b" }}>Open individual report <span aria-hidden="true">→</span></Link> : <div style={{ marginTop: 13, fontSize: 11, fontWeight: 800, color: "#7a8981" }}>Reports permission required</div>}
       </div>
     </section>
 
