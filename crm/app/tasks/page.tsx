@@ -774,6 +774,32 @@ const isSalesperson =
     });
   }, [leads, search]);
 
+  const leadOutcomeBreakdown = useMemo(() => {
+    const normalize = (value: string | null | undefined) =>
+      (value || "").trim().toLowerCase().replace(/[ _-]+/g, " ");
+    const counts = new Map<string, number>();
+    OUTCOMES.forEach((outcome) => counts.set(normalize(outcome), 0));
+    let unrecorded = 0;
+    leads.forEach((lead) => {
+      const outcome = normalize(lead.follow_up_status);
+      if (!outcome || outcome === "pending") {
+        counts.set("pending", (counts.get("pending") || 0) + 1);
+      } else if (counts.has(outcome)) {
+        counts.set(outcome, (counts.get(outcome) || 0) + 1);
+      } else {
+        unrecorded += 1;
+      }
+    });
+    return {
+      total: leads.length,
+      items: OUTCOMES.map((outcome) => ({
+        label: outcome,
+        count: counts.get(normalize(outcome)) || 0,
+      })),
+      unrecorded,
+    };
+  }, [leads]);
+
   const openNewTask = (
     lead?: Lead | null
   ) => {
@@ -1899,6 +1925,34 @@ const isSalesperson =
             </button>
           ))}
         </nav>
+
+        {/* LEAD OUTCOME BREAKDOWN */}
+        <section aria-labelledby="lead-outcome-heading" style={{ background: "#ffffff", border: "1px solid #dce8e1", borderRadius: 14, padding: 18, marginBottom: 18 }}>
+          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 14 }}>
+            <div>
+              <h2 id="lead-outcome-heading" style={{ margin: 0, color: "#173b30", fontSize: 17, fontWeight: 800 }}>Total Leads & Outcome Breakdown</h2>
+              <p style={{ margin: "4px 0 0", color: "#64756d", fontSize: 12 }}>Counts are based on each lead's saved follow-up outcome, not task counts.</p>
+            </div>
+            <div style={{ minWidth: 150, borderRadius: 12, background: "#e9f5ee", padding: "10px 16px" }}>
+              <div style={{ color: "#48665a", fontSize: 11, fontWeight: 700 }}>TOTAL LEADS</div>
+              <div style={{ color: "#00695c", fontSize: 27, lineHeight: 1.2, fontWeight: 900 }}>{leadOutcomeBreakdown.total.toLocaleString()}</div>
+            </div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(145px, 1fr))", gap: 9 }}>
+            {leadOutcomeBreakdown.items.map((item) => (
+              <div key={item.label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, border: "1px solid #e5ede8", borderRadius: 10, padding: "10px 11px", background: item.count ? "#fbfdfb" : "#ffffff" }}>
+                <span style={{ color: "#40584e", fontSize: 12, lineHeight: 1.35 }}>{item.label}</span>
+                <strong style={{ color: item.count ? "#00695c" : "#9aa9a1", fontSize: 15, fontVariantNumeric: "tabular-nums" }}>{item.count.toLocaleString()}</strong>
+              </div>
+            ))}
+            {leadOutcomeBreakdown.unrecorded > 0 && (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, border: "1px solid #f0d7a5", borderRadius: 10, padding: "10px 11px", background: "#fffbeb" }}>
+                <span style={{ color: "#805b14", fontSize: 12 }}>Other / unrecognized outcome</span>
+                <strong style={{ color: "#805b14", fontSize: 15 }}>{leadOutcomeBreakdown.unrecorded.toLocaleString()}</strong>
+              </div>
+            )}
+          </div>
+        </section>
 
         {/* FILTER BAR */}
         <div
