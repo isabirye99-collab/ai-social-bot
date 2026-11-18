@@ -6,7 +6,7 @@ set search_path = public, pg_temp
 as $$
 begin
   if new.agreement_status = 'active' then
-    if new.last_reviewed_on is distinct from old.last_reviewed_on and new.last_reviewed_on is not null then
+    if tg_op = 'UPDATE' and new.last_reviewed_on is distinct from old.last_reviewed_on and new.last_reviewed_on is not null then
       new.next_review_due := new.last_reviewed_on + make_interval(months => new.review_frequency_months);
     elsif new.next_review_due is null or
       (tg_op = 'UPDATE' and old.agreement_status is distinct from 'active') then
