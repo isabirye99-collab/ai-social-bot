@@ -380,6 +380,10 @@ export default function LeadsPage() {
         statusFilter === "All" ||
         displayStatus === statusFilter;
 
+      const matchesProgram =
+        programFilter === "All" ||
+        (lead.product_service || "") === programFilter;
+
       const normalizeOutcome = (value: string | null | undefined) =>
         (value || "").trim().toLowerCase().replace(/[ _-]+/g, " ");
       const savedOutcome = normalizeOutcome(lead.follow_up_status);
