@@ -802,10 +802,10 @@ export default function DashboardPage() {
   const funnel = useMemo(() => {
     const stages = [
       { label: "Leads", value: intakeSummary.total, color: "#075442", tint: "#eaf4ef", href: "/leads" },
-      { label: "Interested", value: intakeSummary.interested, color: "#2b8a62", tint: "#edf7f0", href: "/leads" },
-      { label: "Applied", value: intakeSummary.applied, color: "#76ad42", tint: "#f3f8e9", href: "/pipeline" },
-      { label: "Admitted", value: intakeSummary.admitted, color: "#8abf52", tint: "#f3f8e9", href: "/pipeline" },
-      { label: "Enrolled", value: intakeSummary.enrolled, color: "#a4d66d", tint: "#f5f9ed", href: "/customers" },
+      { label: "Interested", value: intakeSummary.interested, color: "#8bc63f", tint: "#f1f8e8", href: "/leads" },
+      { label: "Applied", value: intakeSummary.applied, color: "#075442", tint: "#eaf4ef", href: "/pipeline" },
+      { label: "Admitted", value: intakeSummary.admitted, color: "#8bc63f", tint: "#f1f8e8", href: "/pipeline" },
+      { label: "Enrolled", value: intakeSummary.enrolled, color: "#075442", tint: "#eaf4ef", href: "/customers" },
     ];
     const first = Math.max(stages[0].value, 1);
     return stages.map((stage) => ({
@@ -1045,63 +1045,6 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <section className="mb-5 rounded-2xl border border-[#dce8df] bg-white p-5 shadow-[0_4px_18px_rgba(20,50,40,.035)]">
-        <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
-          <div>
-            <p className="text-[10px] font-extrabold uppercase tracking-[0.15em] text-[#658075]">Recruitment by intake</p>
-            <h2 className="mt-1 text-xl font-black tracking-tight text-[#075442]">Intake performance</h2>
-            <p className="mt-1 text-xs text-[#68776f]">Cohort outcomes follow leads assigned to this intake. Conversion is cumulative through the reporting date; only approved strategy targets are shown.</p>
-          </div>
-          <label className="grid gap-1 text-xs font-bold text-[#40584e]">Select intake
-            <select value={selectedIntake} onChange={(event) => setSelectedIntake(event.target.value)} className="min-w-[190px] rounded-xl border border-[#cfded4] bg-white px-3 py-2.5 text-sm font-semibold text-[#173b2b]">
-              <option value="unassigned">Needs intake assignment</option><option value="2026-11">November 2026</option>
-              <option value="2027-2">February 2027</option>
-              <option value="2027-4">April 2027</option>
-              <option value="2027-8">August 2027</option>
-              <option value="2027-11">November 2027</option>
-              <option value="2028-2">February 2028</option>
-            </select>
-          </label>
-        </div>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-          {[
-            { label: "Leads", value: intakeSummary.total, target: null, conversion: intakeSummary.total ? 100 : null, href: "/leads" },
-            { label: "Interested", value: intakeSummary.interested, target: null, conversion: intakeSummary.conversion.interested, href: "/leads" },
-            { label: "Applications", value: intakeSummary.applied, target: intakeSummary.targets?.applications ?? null, conversion: intakeSummary.conversion.applied, href: "/pipeline" },
-            { label: "Admitted", value: intakeSummary.admitted, target: intakeSummary.targets?.admissions ?? null, conversion: intakeSummary.conversion.admitted, href: "/pipeline" },
-            { label: "Enrolled", value: intakeSummary.enrolled, target: intakeSummary.targets?.registrations ?? null, conversion: intakeSummary.conversion.enrolled, href: "/customers" },
-          ].map((item) => (
-            <Link key={item.label} href={item.href} className="rounded-xl border border-[#e2ebe5] bg-[#fbfdfb] p-3 transition hover:border-[#9acb86] hover:bg-white">
-              <p className="text-xs font-semibold text-[#68776f]">{item.label}</p>
-              <p className="mt-1 text-2xl font-black tabular-nums text-[#075442]">{item.value.toLocaleString()}</p>
-              <p className="mt-1 text-[11px] font-semibold text-[#68776f]">
-                {!targetLookupAvailable ? "Targets unavailable" : item.target === null ? "Target not set" : "Target " + item.target.toLocaleString() + " · " + (item.target > 0 ? Math.round(item.value / item.target * 100) + "% achieved" : "—")}
-              </p>
-              <p className="mt-1 text-[10px] text-[#7a8a81]">{item.conversion === null ? "Cohort conversion pending" : Math.round(item.conversion) + "% of cohort"}</p>
-            </Link>
-          ))}
-        </div>
-        <p className="mt-2 text-[11px] text-[#68776f]">
-          Reporting window: selected intake cohort through {new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}. Conversion uses the selected cohort as denominator, not same-month lead and enrolment totals.
-        </p>
-        <div className="mt-4 grid gap-4 lg:grid-cols-[1.3fr_.7fr]">
-          <div className="rounded-xl bg-[#f6faf6] p-3">
-            <h3 className="text-xs font-extrabold text-[#345647]">Top programmes in this intake</h3>
-            {intakeSummary.programmes.length ? <div className="mt-2 grid gap-2">{intakeSummary.programmes.map(([programme, count]) => <div key={programme} className="flex items-center justify-between gap-3 text-xs"><span className="truncate text-[#40584e]">{programme}</span><strong className="tabular-nums text-[#075442]">{count}</strong></div>)}</div> : <p className="mt-2 text-xs text-[#718078]">No leads assigned to this intake yet.</p>}
-          </div>
-          <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
-            <h3 className="text-xs font-extrabold text-amber-900">Data requiring attention</h3>
-            <p className="mt-2 text-sm leading-5 text-amber-900">{intakeSummary.needsIntake.toLocaleString()} lead(s) have no intake assigned because their programme information needs review.</p>
-            <Link href="/leads" className="mt-2 inline-flex text-xs font-extrabold text-emerald-800 hover:underline">Review leads →</Link>
-          </div>
-        </div>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Link href="/leads" className="inline-flex items-center rounded-xl bg-[#00695c] px-4 py-2.5 text-xs font-extrabold text-white transition hover:bg-[#075442]">Open leads for this intake ↗</Link>
-          <Link href="/tasks" className="inline-flex items-center rounded-xl border border-[#cfded4] bg-white px-4 py-2.5 text-xs font-extrabold text-[#075442] transition hover:bg-[#f6faf6]">Open follow-up tasks ↗</Link>
-          <Link href="/reports" className="inline-flex items-center rounded-xl border border-[#cfded4] bg-white px-4 py-2.5 text-xs font-extrabold text-[#075442] transition hover:bg-[#f6faf6]">View intake reports ↗</Link>
-        </div>
-      </section>
-
       {/* =====================================================
           ERROR
       ===================================================== */}
@@ -1144,17 +1087,27 @@ export default function DashboardPage() {
               </h2>
             </div>
 
-            <Link
-              href="/pipeline"
-              className="inline-flex items-center gap-1 text-[10px] font-bold text-[#075442] hover:text-[#5f8e2b]"
-            >
-              View pipeline
-
-              <Icon
-                name="arrow"
-                size={12}
-              />
-            </Link>
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="grid gap-1 text-[10px] font-bold text-[#40584e]">
+                <span className="sr-only">Select intake</span>
+                <select value={selectedIntake} onChange={(event) => setSelectedIntake(event.target.value)} aria-label="Select recruitment intake" className="min-w-[170px] rounded-lg border border-[#cfded4] bg-white px-3 py-2 text-xs font-semibold text-[#173b2b]">
+                  <option value="unassigned">Needs intake assignment</option>
+                  <option value="2026-11">November 2026</option>
+                  <option value="2027-2">February 2027</option>
+                  <option value="2027-4">April 2027</option>
+                  <option value="2027-8">August 2027</option>
+                  <option value="2027-11">November 2027</option>
+                  <option value="2028-2">February 2028</option>
+                </select>
+              </label>
+              <Link
+                href="/pipeline"
+                className="inline-flex items-center gap-1 text-[10px] font-bold text-[#075442] hover:text-[#5f8e2b]"
+              >
+                View pipeline
+                <Icon name="arrow" size={12} />
+              </Link>
+            </div>
           </div>
 
           <div className="p-5">
