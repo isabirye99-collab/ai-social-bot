@@ -280,7 +280,9 @@ export default function ReportsPage() {
         ? currentProfile.data.module_permissions.filter((module): module is CrmModule => ALL_CRM_MODULES.includes(module as CrmModule))
         : null;
       const effectiveModules = currentModules === null
-        ? getEffectiveModules(role)
+        ? (["alumni_relations", "alumni_coordinator", "alumni_officer"].includes(role)
+            ? ["reports", "alumni"] as CrmModule[]
+            : getEffectiveModules(role))
         : role === "super_admin" ? getEffectiveModules(role) : currentModules;
       if (!effectiveModules.includes("reports")) {
         router.replace("/dashboard");
@@ -784,7 +786,8 @@ export default function ReportsPage() {
           </div>
         </section>
 
-        <section id="intake-report" style={{ marginBottom: 22, padding: 20, border: "1px solid #dce8df", borderRadius: 16, background: "#fff", boxShadow: "0 4px 18px rgba(20,50,40,.035)" }}>
+        {viewerModules.includes("leads") && (
+<section id="intake-report" style={{ marginBottom: 22, padding: 20, border: "1px solid #dce8df", borderRadius: 16, background: "#fff", boxShadow: "0 4px 18px rgba(20,50,40,.035)" }}>
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 14 }}>
             <div>
               <div className="report-eyebrow">INTAKE REPORTING</div>
@@ -812,6 +815,7 @@ export default function ReportsPage() {
             ].map(([label, value]) => <div key={String(label)} className="report-kpi"><span className="kpi-label">{label}</span><strong>{Number(value).toLocaleString()}</strong><small>Current intake assignment</small></div>)}
           </div>
         </section>
+)}
 
         <section className="report-kpis report-overview-kpis" aria-label="CRM performance overview">
           <div role="link" tabIndex={0} aria-label="Open Alumni module" onClick={() => router.push("/alumni")} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); router.push("/alumni"); } }} className="report-kpi report-kpi-primary cursor-pointer transition-all duration-200 hover:-translate-y-1 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"><span className="kpi-label">Alumni</span><strong>{relationshipMetrics.alumniTotal.toLocaleString()}</strong><small>{relationshipMetrics.alumniVerified.toLocaleString()} verified profiles · Open module ↗</small></div>
@@ -819,7 +823,8 @@ export default function ReportsPage() {
           <div role="link" tabIndex={0} aria-label="Open Customers module" onClick={() => router.push("/customers")} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); router.push("/customers"); } }} className="report-kpi report-kpi-conversion cursor-pointer transition-all duration-200 hover:-translate-y-1 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"><span className="kpi-label">Sales · Enrolments</span><strong>{salesRows.reduce((sum, row) => sum + row.enrolled, 0).toLocaleString()}</strong><small>Enrolments recorded for this period · Open customers ↗</small></div>
           <div role="link" tabIndex={0} aria-label="Open Call Centre Tasks" onClick={() => router.push("/tasks")} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); router.push("/tasks"); } }} className="report-kpi report-kpi-contacts cursor-pointer transition-all duration-200 hover:-translate-y-1 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"><span className="kpi-label">Contact Activities</span><strong>{report.rows.reduce((sum, row) => sum + row.contactActivities, 0).toLocaleString()}</strong><small>Calls, emails, WhatsApp and meetings · Open tasks ↗</small></div>
         </section>
-        <section className="mb-4 flex flex-col gap-3 rounded-xl border border-emerald-100 bg-gradient-to-r from-white to-emerald-50/70 p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md sm:flex-row sm:items-center sm:justify-between" aria-label="Strategy and planning reports">
+        {viewerModules.includes("strategy") && !individualView && (
+<section id="strategy-report" className="mb-4 flex flex-col gap-3 rounded-xl border border-emerald-100 bg-gradient-to-r from-white to-emerald-50/70 p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md sm:flex-row sm:items-center sm:justify-between" aria-label="Strategy and planning reports">
           <div className="flex items-start gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-800" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5"><path strokeLinecap="round" strokeLinejoin="round" d="M4 19V5m0 14h16M8 15v-4m4 4V7m4 8v-6m4 10V9" /></svg>
@@ -831,7 +836,9 @@ export default function ReportsPage() {
           </div>
           <button type="button" onClick={() => router.push("/strategy")} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-emerald-800 px-4 py-2.5 text-xs font-semibold text-white transition-all duration-200 hover:bg-emerald-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2">Open Strategy <span aria-hidden="true">↗</span></button>
         </section>
-        <section className="mb-5 rounded-xl border border-slate-200 bg-white p-4 shadow-sm" aria-label="Annual strategy target performance">
+)}
+        {viewerModules.includes("strategy") && !individualView && (
+<section className="mb-5 rounded-xl border border-slate-200 bg-white p-4 shadow-sm" aria-label="Annual strategy target performance">
           <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
             <div><h2 className="text-sm font-semibold text-slate-900">Annual Recruitment Targets · {strategyOverview.year}</h2><p className="mt-1 text-xs text-slate-500">Live CRM outcomes compared with targets in the current annual strategy plan.</p></div>
             <button type="button" onClick={() => router.push("/strategy")} className="rounded-lg border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-800 transition hover:bg-emerald-50">Manage targets ↗</button>
@@ -853,6 +860,7 @@ export default function ReportsPage() {
             <div className="rounded-lg border border-slate-100 bg-slate-50/70 p-3"><div className="flex items-center justify-between gap-2"><span className="text-xs font-medium text-slate-600">Leads recorded</span><span className="text-xs text-slate-500">YTD</span></div><p className="mt-2 text-xl font-semibold tracking-tight text-slate-900">{strategyOverview.leads.toLocaleString()}</p><p className="mt-2 text-[11px] text-slate-500">Created during {strategyOverview.year}</p></div>
           </div>}
         </section>
+)}
         <section id="admissions-funnel" className="report-main-grid">
           <div className="ciu-card">
             <div className="ciu-card-head report-card-head">
