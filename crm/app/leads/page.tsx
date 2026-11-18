@@ -1023,7 +1023,7 @@ export default function LeadsPage() {
                 setNewLead((current) => ({ ...current, intake_year: current.intake_year || year, intake_month: current.intake_month || month }));
               }
               setShowAddLead(true);
-            }
+            }}
             className="ciu-btn"
             style={{
               visibility: "visible",
