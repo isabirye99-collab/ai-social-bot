@@ -770,7 +770,7 @@ export default function ReportsPage() {
 
         <nav aria-label="Report sections" className="report-section-nav">
           {viewerModules.includes("leads") && <a href="#intake-report">Intake</a>}
-          {viewerModules.includes("strategy") && <a href="#strategy-report">Strategy</a>}
+          {viewerModules.includes("strategy") && !individualView && <a href="#strategy-report">Strategy</a>}
           {(viewerModules.includes("leads") || viewerModules.includes("pipeline")) && <a href="#admissions-funnel">Admissions funnel</a>}
           {(viewerModules.includes("leads") || viewerModules.includes("tasks") || viewerModules.includes("engagement")) && <a href="#team-activity">{individualView ? "My activity" : "Team activity"}</a>}
           {viewerModules.includes("alumni") && <a href="#alumni-report">Alumni</a>}
@@ -1151,7 +1151,7 @@ export default function ReportsPage() {
 )}
 
         {(viewerModules.includes("leads") || viewerModules.includes("pipeline") || viewerModules.includes("tasks") || viewerModules.includes("engagement")) && (
-<section className="ciu-card report-table-card">
+<section id="staff-performance" className="ciu-card report-table-card">
           <div className="ciu-card-head report-card-head">
             <div>
               <h2>
