@@ -3239,6 +3239,32 @@ const isSalesperson =
                 </div>
 
                 <div>
+                  <label style={{ display: "block", marginBottom: "6px", fontSize: "12px", fontWeight: 700, color: "#374151" }}>Recruitment Intake</label>
+                  <select
+                    value={selectedIntake}
+                    onChange={(event) => {
+                      const nextIntake = event.target.value;
+                      setSelectedIntake(nextIntake);
+                      const [year, month] = nextIntake.split("-").map(Number);
+                      const currentLead = leads.find((lead) => lead.id === form.lead_id);
+                      if (currentLead && (nextIntake === "unassigned" ? Boolean(currentLead.intake_year && currentLead.intake_month) : (currentLead.intake_year !== year || currentLead.intake_month !== month))) {
+                        setForm((current) => ({ ...current, lead_id: "", opportunity_id: "" }));
+                      }
+                    }}
+                    style={{ width: "100%", border: "1px solid #d1d5db", borderRadius: "9px", padding: "11px 12px", fontSize: "13px", background: "#ffffff" }}
+                  >
+                    <option value="unassigned">Needs intake assignment</option>
+                    <option value="2026-11">November 2026</option>
+                    <option value="2027-2">February 2027</option>
+                    <option value="2027-4">April 2027</option>
+                    <option value="2027-8">August 2027</option>
+                    <option value="2027-11">November 2027</option>
+                    <option value="2028-2">February 2028</option>
+                  </select>
+                  <p style={{ marginTop: 5, color: "#68776f", fontSize: 11 }}>The task is recorded against this intake.</p>
+                </div>
+
+                <div>
                   <label
                     style={{
                       display:
