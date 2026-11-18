@@ -22,6 +22,7 @@ type Lead = {
 
 type Opportunity = {
   id: string;
+  lead_id?: string | null;
   assigned_to: string | null;
   value: number | null;
   status: string | null;
@@ -281,8 +282,9 @@ export default function DashboardPage() {
   >([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [admissions, setAdmissions] = useState<
-    { id: string; assigned_to: string | null; stage: string | null; enrolled_at: string | null }[]
+    { id: string; lead_id: string | null; assigned_to: string | null; stage: string | null; enrolled_at: string | null; intake_year: number | null; intake_month: number | null }[]
   >([]);
+  const [approvedIntakeTargets, setApprovedIntakeTargets] = useState<IntakeTarget[]>([]);
   const [alumniCounts, setAlumniCounts] = useState({ total: 0, verified: 0 });
   const [partnershipRecords, setPartnershipRecords] = useState<{ id: string; status: string | null; category: string | null }[]>([]);
   const [alumniReportAvailable, setAlumniReportAvailable] = useState(true);
@@ -345,7 +347,7 @@ export default function DashboardPage() {
         supabase
           .from("opportunities")
           .select(
-            "id,assigned_to,value,status,probability,stage_id,created_at,updated_at",
+            "id,lead_id,assigned_to,value,status,probability,stage_id,created_at,updated_at",
           ),
       );
 
@@ -367,8 +369,14 @@ export default function DashboardPage() {
       const admissionsQuery = assignedFilter(
         supabase
           .from("admissions")
-          .select("id,assigned_to,stage,enrolled_at"),
+          .select("id,lead_id,assigned_to,stage,enrolled_at,intake_year,intake_month"),
       );
+
+      // Recruitment targets are sourced only from approved strategy plans.
+      const approvedTargetsQuery = supabase
+        .from("strategy_intake_plans")
+        .select("intake_month,programme,target_applications,target_admissions,target_registrations,strategy_plans!inner(strategy_year,status)")
+        .eq("strategy_plans.status", "approved");
 
       // Optional dashboard summaries: these must not block core admissions metrics.
       // Use exact server-side counts: PostgREST limits returned rows by default,
@@ -383,6 +391,7 @@ export default function DashboardPage() {
         pipelineStagesResult,
         tasksResult,
         admissionsResult,
+        approvedTargetsResult,
         alumniTotalResult,
         alumniVerifiedResult,
         partnershipsResult,
@@ -392,6 +401,7 @@ export default function DashboardPage() {
         pipelineStagesQuery,
         tasksQuery,
         admissionsQuery,
+        approvedTargetsQuery,
         alumniTotalQuery,
         alumniVerifiedQuery,
         partnershipsQuery,
@@ -428,7 +438,9 @@ export default function DashboardPage() {
       );
 
       setTasks((tasksResult.data || []) as Task[]);
-      setAdmissions(admissionsResult.data || []);
+      setAdmissions((admissionsResult.data || []) as { id: string; lead_id: string | null; assigned_to: string | null; stage: string | null; enrolled_at: string | null; intake_year: number | null; intake_month: number | null }[]);
+      const targetRows = (approvedTargetsResult.data || []) as unknown as Array<{ intake_month: number; programme: string; target_applications: number; target_admissions: number; target_registrations: number; strategy_plans: { strategy_year: number; status: string } }>;
+      setApprovedIntakeTargets(approvedTargetsResult.error ? [] : targetRows.map((row) => ({ intake_month: Number(row.intake_month), programme: row.programme || "", target_applications: Number(row.target_applications) || 0, target_admissions: Number(row.target_admissions) || 0, target_registrations: Number(row.target_registrations) || 0, strategy_year: Number(row.strategy_plans?.strategy_year) || 0, plan_status: row.strategy_plans?.status || "" })));
       setAlumniReportAvailable(!alumniTotalResult.error && !alumniVerifiedResult.error);
       setPartnershipReportAvailable(!partnershipsResult.error);
       setAlumniCounts({
