@@ -60,6 +60,8 @@ type Lead = {
   feedback: string | null;
   follow_up_status: string | null;
   next_follow_up_at: string | null;
+  intake_year?: number | null;
+  intake_month?: number | null;
 };
 
 type Opportunity = {
@@ -372,6 +374,7 @@ export default function TasksPage() {
     useState("all");
   const [assignedFilter, setAssignedFilter] =
     useState("all");
+  const [selectedIntake, setSelectedIntake] = useState("2026-11");
 
   const [showTaskModal, setShowTaskModal] =
     useState(false);
@@ -488,7 +491,7 @@ const isSalesperson =
       let leadsQuery = supabase
         .from("leads")
         .select(
-          "id,name,ciu_number,phone,email,product_service,status,assigned_to,feedback,follow_up_status,next_follow_up_at"
+          "id,name,ciu_number,phone,email,product_service,status,assigned_to,feedback,follow_up_status,next_follow_up_at,intake_year,intake_month"
         )
         .order("name", {
           ascending: true,
@@ -688,6 +691,8 @@ const isSalesperson =
       .filter((task) => {
         const lead = getLead(task);
         const staff = getStaff(task);
+        const [intakeYear, intakeMonth] = selectedIntake.split("-").map(Number);
+        if (!lead || lead.intake_year !== intakeYear || lead.intake_month !== intakeMonth) return false;
 
         if (
           query &&
@@ -762,17 +767,20 @@ const isSalesperson =
     quickTaskFilter,
     typeFilter,
     assignedFilter,
+    selectedIntake,
   ]);
 
   const interestedLeads = useMemo(() => {
     const query = search.trim().toLowerCase();
+    const [intakeYear, intakeMonth] = selectedIntake.split("-").map(Number);
     return leads.filter((lead) => {
+      if (lead.intake_year !== intakeYear || lead.intake_month !== intakeMonth) return false;
       if (!isInterestedLead(lead)) return false;
       if (!query) return true;
       return [lead.name, lead.ciu_number, lead.phone, lead.email, lead.product_service]
         .filter(Boolean).join(" ").toLowerCase().includes(query);
     });
-  }, [leads, search]);
+  }, [leads, search, selectedIntake]);
 
   const leadOutcomeBreakdown = useMemo(() => {
     const normalize = (value: string | null | undefined) =>
@@ -921,6 +929,10 @@ const isSalesperson =
           phone: walkInPhone.trim() || null,
           email: walkInEmail.trim() || null,
           product_service: walkInProgramme.trim() || null,
+          intake_year: Number(selectedIntake.split("-")[0]),
+          intake_month: Number(selectedIntake.split("-")[1]),
+          original_intake_year: Number(selectedIntake.split("-")[0]),
+          original_intake_month: Number(selectedIntake.split("-")[1]),
           location: "Walk-in",
           status: "new",
           assigned_to: linkedAssigneeId,
@@ -1876,6 +1888,12 @@ const isSalesperson =
     }}
   />
 </div>
+<section style={{ marginBottom: 16, padding: 14, border: "1px solid #dce8df", borderRadius: 12, background: "#fff", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+  <div><strong style={{ color: "#075442", fontSize: 14 }}>Recruitment intake</strong><p style={{ margin: "3px 0 0", color: "#68776f", fontSize: 12 }}>Tasks and follow-up leads are filtered to this intake.</p></div>
+  <select value={selectedIntake} onChange={(event) => setSelectedIntake(event.target.value)} style={{ border: "1px solid #cfded4", borderRadius: 9, padding: "10px 12px", fontSize: 13, background: "#fff", color: "#173b2b" }}>
+    <option value="2026-11">November 2026</option><option value="2027-2">February 2027</option><option value="2027-4">April 2027</option><option value="2027-8">August 2027</option><option value="2027-11">November 2027</option><option value="2028-2">February 2028</option>
+  </select>
+</section>
 {/* ALERTS */}
         {error && (
           <div
