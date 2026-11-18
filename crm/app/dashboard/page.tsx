@@ -834,7 +834,7 @@ export default function DashboardPage() {
     ).length;
 
     return {
-      selectedIntakeLeads: monthLeads,
+      leads: monthLeads,
       interested: monthInterested,
       enrolled: monthEnrolled,
     };
