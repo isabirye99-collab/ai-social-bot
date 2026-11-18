@@ -10,14 +10,14 @@ type Profile = { id: string; full_name: string | null; role: string | null; modu
 type ReportCard = { title: string; description: string; href: string; module: CrmModule; tag: string; icon: string };
 
 const moduleReports: ReportCard[] = [
-  { title: "Lead & recruitment", description: "Lead volume, follow-ups, conversion and recruitment pipeline.", href: "/leads", module: "leads", tag: "Recruitment", icon: "↗" },
-  { title: "Tasks & productivity", description: "Assigned work, completed activities and follow-up workload.", href: "/tasks", module: "tasks", tag: "Productivity", icon: "✓" },
-  { title: "Marketing activity", description: "Campaigns, outreach activity and marketing performance.", href: "/marketing", module: "marketing", tag: "Marketing", icon: "◉" },
-  { title: "Strategy & intake", description: "Intake targets, planned activities, budgets and outcomes.", href: "/strategy", module: "strategy", tag: "Planning", icon: "◎" },
-  { title: "Alumni relations", description: "Alumni profiles, verification, engagement and cohort reporting.", href: "/alumni/reports", module: "alumni", tag: "Relationships", icon: "♧" },
-  { title: "Partnerships", description: "Partner pipeline, active relationships and renewal follow-up.", href: "/partnerships", module: "partnerships", tag: "Relationships", icon: "◇" },
-  { title: "Customer records", description: "Customer records and relationship activity.", href: "/customers", module: "customers", tag: "Records", icon: "○" },
-  { title: "Admissions pipeline", description: "Admissions stages and progress through the recruitment journey.", href: "/pipeline", module: "pipeline", tag: "Admissions", icon: "⌁" },
+  { title: "Lead & recruitment", description: "Lead volume, follow-ups, conversion and recruitment pipeline.", href: "/reports/modules/leads", module: "leads", tag: "Recruitment", icon: "↗" },
+  { title: "Tasks & productivity", description: "Assigned work, completed activities and follow-up workload.", href: "/reports/modules/tasks", module: "tasks", tag: "Productivity", icon: "✓" },
+  { title: "Marketing activity", description: "Campaigns, outreach activity and marketing performance.", href: "/reports/modules/marketing", module: "marketing", tag: "Marketing", icon: "◉" },
+  { title: "Strategy & intake", description: "Intake targets, planned activities, budgets and outcomes.", href: "/reports/modules/strategy", module: "strategy", tag: "Planning", icon: "◎" },
+  { title: "Alumni relations", description: "Alumni profiles, verification, engagement and cohort reporting.", href: "/reports/modules/alumni", module: "alumni", tag: "Relationships", icon: "♧" },
+  { title: "Partnerships", description: "Partner pipeline, active relationships and renewal follow-up.", href: "/reports/modules/partnerships", module: "partnerships", tag: "Relationships", icon: "◇" },
+  { title: "Customer records", description: "Customer records and relationship activity.", href: "/reports/modules/customers", module: "customers", tag: "Records", icon: "○" },
+  { title: "Admissions pipeline", description: "Admissions stages and progress through the recruitment journey.", href: "/reports/modules/pipeline", module: "pipeline", tag: "Admissions", icon: "⌁" },
 ];
 
 const styles: Record<string, React.CSSProperties> = {
@@ -89,7 +89,7 @@ export default function ReportsPage() {
       <div style={{ fontSize: 11, color: "#73837a" }}>Reports shown here follow your assigned CRM permissions.</div>
     </div>
 
-    <section aria-label="General reports" style={{ ...styles.panel, padding: "20px clamp(16px,2.5vw,26px)", marginBottom: 18, display: "grid", gridTemplateColumns: "minmax(0,1.4fr) minmax(220px,.6fr)", gap: 20, alignItems: "center" }}>
+    {canViewTeam && canViewReports && <section aria-label="General reports" style={{ ...styles.panel, padding: "20px clamp(16px,2.5vw,26px)", marginBottom: 18, display: "grid", gridTemplateColumns: "minmax(0,1.4fr) minmax(220px,.6fr)", gap: 20, alignItems: "center" }}>
       <div>
         <div style={{ display: "inline-flex", alignItems: "center", borderRadius: 20, padding: "5px 9px", background: "#e6f5eb", color: "#176849", fontSize: 10, fontWeight: 850, letterSpacing: .7 }}>01 · GENERAL REPORTS</div>
         <h3 style={{ margin: "12px 0 6px", fontSize: 19, fontWeight: 850 }}>Organisation & team performance</h3>
@@ -100,9 +100,9 @@ export default function ReportsPage() {
         <div style={{ fontSize: 12, color: "#60766a", lineHeight: 1.6 }}>{canViewTeam ? "Your role allows access to team-level reporting." : "Organisation-wide reporting is restricted to authorised management roles."}</div>
         {canViewTeam && canViewReports ? <Link href="/reports/performance" style={{ ...styles.button, marginTop: 14 }}>Open general report <span aria-hidden="true">→</span></Link> : <div style={{ marginTop: 13, fontSize: 11, fontWeight: 800, color: "#7a8981" }}>Management permission required</div>}
       </div>
-    </section>
+    </section>}
 
-    <section aria-label="Individual reports" style={{ ...styles.panel, padding: "20px clamp(16px,2.5vw,26px)", marginBottom: 22, display: "grid", gridTemplateColumns: "minmax(0,1.4fr) minmax(220px,.6fr)", gap: 20, alignItems: "center" }}>
+    {canViewReports && <section aria-label="Individual reports" style={{ ...styles.panel, padding: "20px clamp(16px,2.5vw,26px)", marginBottom: 22, display: "grid", gridTemplateColumns: "minmax(0,1.4fr) minmax(220px,.6fr)", gap: 20, alignItems: "center" }}>
       <div>
         <div style={{ display: "inline-flex", alignItems: "center", borderRadius: 20, padding: "5px 9px", background: "#e9f0fb", color: "#315a8b", fontSize: 10, fontWeight: 850, letterSpacing: .7 }}>02 · INDIVIDUAL REPORTS</div>
         <h3 style={{ margin: "12px 0 6px", fontSize: 19, fontWeight: 850 }}>My activity & results</h3>
@@ -112,7 +112,7 @@ export default function ReportsPage() {
         <div style={{ fontSize: 12, color: "#60718a", lineHeight: 1.6 }}>{canViewTeam ? "Your report includes team performance and individual staff breakdowns." : "Your report is limited to your own activity and records available to your account."}</div>
         {canViewReports ? <Link href="/reports/performance?view=individual" style={{ ...styles.button, marginTop: 14, background: "#315a8b" }}>Open individual report <span aria-hidden="true">→</span></Link> : <div style={{ marginTop: 13, fontSize: 11, fontWeight: 800, color: "#7a8981" }}>Reports permission required</div>}
       </div>
-    </section>
+    </section>}
 
     <div style={{ marginBottom: 13 }}><div style={{ color: "#16715b", fontSize: 10, letterSpacing: 1.5, fontWeight: 850 }}>03 · MODULE REPORTS</div><h2 style={{ margin: "5px 0 4px", fontSize: 21, fontWeight: 850 }}>Reports by work area</h2><p style={{ margin: 0, fontSize: 12, color: "#718078" }}>Open a module you have been granted access to. Modules without permission are not listed.</p></div>
     {allowedModules.length ? <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,245px),1fr))", gap: 13 }}>
