@@ -1256,13 +1256,12 @@ const isSalesperson =
     }
   };
 
-  const markComplete = async (
-    task: Task
-  ) => {
-    await updateTaskStatus(
-      task,
-      "completed"
-    );
+  const markComplete = async (task: Task) => {
+    if (task.lead_id) {
+      openOutcome(task);
+      return;
+    }
+    await updateTaskStatus(task, "completed");
   };
 
   const runBulkAction = async (action: "assign" | "reschedule" | "priority") => {
@@ -1270,13 +1269,16 @@ const isSalesperson =
     if (!selected.length) { setError("Select at least one task first."); return; }
     let patch: Record<string, unknown> = {};
     if (action === "assign") {
+      if (isSalesperson) { setError("Only managers can reassign tasks in bulk."); return; }
       const choices = profiles.filter((profile) => profile.is_active !== false && profile.role === "salesperson");
-      const choiceText = choices.map((profile) => `${profile.id} = ${profile.full_name || "Unnamed staff"}`).join("\\n");
-      const assigneeId = window.prompt(`Enter the staff ID to assign ${selected.length} task(s) to, or leave blank to unassign.\\n${choiceText}`);
-      if (assigneeId === null) return;
-      const normalized = assigneeId.trim();
-      if (normalized && !choices.some((profile) => profile.id === normalized)) { setError("Choose a valid active staff ID from the list."); return; }
-      patch = { assigned_to: normalized || null };
+      const choiceText = choices.map((profile, index) => `${index + 1}. ${profile.full_name || "Unnamed staff"}`).join("\\n");
+      const selectedNumber = window.prompt(`Enter the staff number to assign ${selected.length} task(s) to, or leave blank to unassign.\\n${choiceText}`);
+      if (selectedNumber === null) return;
+      const normalized = selectedNumber.trim();
+      if (normalized && !/^\\d+$/.test(normalized)) { setError("Enter one of the numbered staff options."); return; }
+      const chosenProfile = normalized ? choices[Number(normalized) - 1] : null;
+      if (normalized && !chosenProfile) { setError("Choose a valid staff number from the list."); return; }
+      patch = { assigned_to: chosenProfile?.id || null };
     } else if (action === "reschedule") {
       const date = window.prompt("Enter the new due date and time (YYYY-MM-DD HH:mm), or leave blank to remove the due date.");
       if (date === null) return;
@@ -2562,8 +2564,7 @@ const isSalesperson =
                           {/* TASK */}
                           <td
                             style={{
-                              padding:
-                                "15px 16px",
+                              padding: "8px 10px",
                               verticalAlign:
                                 "top",
                             }}
@@ -2796,8 +2797,7 @@ const isSalesperson =
                           {/* TYPE */}
                           <td
                             style={{
-                              padding:
-                                "15px 16px",
+                              padding: "8px 10px",
                               verticalAlign:
                                 "top",
                             }}
@@ -2838,8 +2838,7 @@ const isSalesperson =
                           {/* DUE */}
                           <td
                             style={{
-                              padding:
-                                "15px 16px",
+                              padding: "8px 10px",
                               verticalAlign:
                                 "top",
                             }}
@@ -2888,8 +2887,7 @@ const isSalesperson =
                           {/* STATUS */}
                           <td
                             style={{
-                              padding:
-                                "15px 16px",
+                              padding: "8px 10px",
                               verticalAlign:
                                 "top",
                             }}
@@ -2954,8 +2952,7 @@ const isSalesperson =
                           {/* ASSIGNED */}
                           <td
                             style={{
-                              padding:
-                                "15px 16px",
+                              padding: "8px 10px",
                               verticalAlign:
                                 "top",
                               fontSize:
@@ -2972,7 +2969,7 @@ const isSalesperson =
 {/* ACTIONS */}
 <td
   style={{
-    padding: "15px 16px",
+    padding: "8px 10px",
     verticalAlign: "top",
     textAlign: "right",
     position: "relative",
