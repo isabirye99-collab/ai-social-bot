@@ -21,7 +21,7 @@ const configs: Record<string, ModuleConfig> = {
   marketing: { title: "Marketing Activity Report", description: "Campaigns, channels, dates and recorded campaign budgets.", table: "campaigns", permission: "marketing", columns: ["id", "name", "channel", "start_date", "end_date", "budget", "currency", "created_at"], dateColumn: "created_at" },
 };
 const supabase = createClient();
-const titles: Record<string, string> = { id: "Record ID", created_at: "Created", updated_at: "Last Updated", title: "Task", status: "Status", assigned_to: "Assigned To", product_service: "Programme / Product", task_type: "Task Type", completed_at: "Completed", name: "Name", category: "Category", full_name: "Alumnus", program: "Programme", graduation_year: "Graduation Year", verification_status: "Verification", employment_status: "Employment", stage: "Stage", lead_id: "Lead ID", strategy_year: "Strategy Year", channel: "Channel", start_date: "Campaign Start", end_date: "Campaign End", budget: "Budget", currency: "Currency" };
+const titles: Record<string, string> = { id: "Reference", created_at: "Created", updated_at: "Last Updated", title: "Task", status: "Status", assigned_to: "Assigned To", product_service: "Programme / Product", task_type: "Task Type", completed_at: "Completed", name: "Name", category: "Category", full_name: "Alumnus", program: "Programme", graduation_year: "Graduation Year", verification_status: "Verification", employment_status: "Employment", stage: "Stage", lead_id: "Lead", strategy_year: "Strategy Year", channel: "Channel", start_date: "Campaign Start", end_date: "Campaign End", budget: "Budget", currency: "Currency" };
 function csvCell(value: unknown) { const text = value == null ? "" : String(value); return '"' + text.replace(/"/g, '""') + '"'; }
 function day(value: Date) { return value.toISOString().slice(0, 10); }
 
@@ -32,6 +32,8 @@ export default function ModuleReportPage() {
   const config = configs[moduleKey];
   const [profile, setProfile] = useState<Profile | null>(null);
   const [records, setRecords] = useState<ReportRecord[]>([]);
+  const [staffNames, setStaffNames] = useState<Record<string, string>>({});
+  const [leadNames, setLeadNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [fromDate, setFromDate] = useState(() => day(new Date(new Date().getFullYear(), new Date().getMonth(), 1)));
@@ -53,7 +55,16 @@ export default function ModuleReportPage() {
       if (!canViewTeam && config.columns.includes("assigned_to")) query = query.eq("assigned_to", profile.id);
       const { data, error: queryError } = await query;
       if (queryError) throw queryError;
-      setRecords((data || []) as ReportRecord[]);
+      const rows = (data || []) as ReportRecord[];
+      const staffIds = [...new Set(rows.map(row => row.assigned_to).filter((value): value is string => typeof value === "string" && value.length > 0))];
+      const leadIds = [...new Set(rows.map(row => row.lead_id).filter((value): value is string => typeof value === "string" && value.length > 0))];
+      const [staffResult, leadResult] = await Promise.all([
+        staffIds.length ? supabase.from("profiles").select("id,full_name").in("id", staffIds) : Promise.resolve({ data: [], error: null }),
+        leadIds.length ? supabase.from("leads").select("id,full_name").in("id", leadIds) : Promise.resolve({ data: [], error: null }),
+      ]);
+      setStaffNames(Object.fromEntries((staffResult.data || []).map((item: any) => [item.id, item.full_name || "Unnamed staff member"])));
+      setLeadNames(Object.fromEntries((leadResult.data || []).map((item: any) => [item.id, item.full_name || "Lead name unavailable"])));
+      setRecords(rows);
     } catch (e) { setRecords([]); setError(e instanceof Error ? e.message : "Unable to load this report. Check module access and database permissions."); }
     finally { setLoading(false); }
   }, [config, profile, modules, fromDate, toDate, moduleKey]);
@@ -82,9 +93,17 @@ export default function ModuleReportPage() {
     for (const record of records) { const status = config?.statusColumn ? String(record[config.statusColumn] || "Not set") : "All records"; counts[status] = (counts[status] || 0) + 1; }
     return Object.entries(counts).sort((a, b) => b[1] - a[1]);
   }, [records, config]);
+  function displayValue(record: ReportRecord, col: string) {
+    const value = record[col];
+    if (col === "assigned_to" && typeof value === "string") return staffNames[value] || "Unassigned / staff unavailable";
+    if (col === "lead_id" && typeof value === "string") return leadNames[value] || "Lead name unavailable";
+    if (col === "id" && typeof value === "string") return value.length > 12 ? value.slice(-8).toUpperCase() : value;
+    if (value == null || value === "") return "—";
+    return String(value);
+  }
   function exportCsv() {
     if (!config) return;
-    const csv = [config.columns.map(c => titles[c] || c).map(csvCell).join(","), ...records.map(record => config.columns.map(c => csvCell(record[c])).join(","))].join("\r\n");
+    const csv = [config.columns.map(c => titles[c] || c).map(csvCell).join(","), ...records.map(record => config.columns.map(c => csvCell(displayValue(record, c))).join(","))].join("\r\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
     const a = document.createElement("a"); a.href = url; a.download = "ciu-" + moduleKey + "-report-" + fromDate + "-to-" + toDate + ".csv"; a.click(); URL.revokeObjectURL(url);
   }
@@ -105,7 +124,7 @@ export default function ModuleReportPage() {
       {statusCounts.slice(0, 3).map(([status, count]) => <div key={status} style={panel}><div style={{ color: "#718078", fontSize: 11, fontWeight: 800, textTransform: "uppercase" }}>{status}</div><div style={{ fontSize: 25, fontWeight: 850, marginTop: 7 }}>{count.toLocaleString()}</div></div>)}
     </section>
     <section style={{ ...panel, padding: 0, overflow: "hidden" }}><div style={{ padding: 16, borderBottom: "1px solid #e5eee8", display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}><strong style={{ fontSize: 14 }}>Report records</strong><span style={{ fontSize: 11, color: "#718078" }}>{fromDate} – {toDate}</span></div>
-      {loading ? <div style={{ padding: 24, color: "#718078" }}>Loading report records…</div> : records.length ? <div style={{ overflowX: "auto" }}><table style={{ borderCollapse: "collapse", width: "100%", minWidth: 650, fontSize: 12 }}><thead><tr>{config.columns.map(col => <th key={col} style={{ textAlign: "left", padding: 12, background: "#f3f8f4", color: "#526d60", whiteSpace: "nowrap" }}>{titles[col] || col}</th>)}</tr></thead><tbody>{records.map((record, index) => <tr key={String(record.id ?? index)}>{config.columns.map(col => <td key={col} style={{ padding: 12, borderTop: "1px solid #edf2ee", whiteSpace: "nowrap" }}>{record[col] == null ? "—" : String(record[col])}</td>)}</tr>)}</tbody></table></div> : <div style={{ padding: 24, color: "#718078" }}>No records were found for this period. If you expected data, check the selected dates and your database access.</div>}
+      {loading ? <div style={{ padding: 24, color: "#718078" }}>Loading report records…</div> : records.length ? <div style={{ overflowX: "auto" }}><table style={{ borderCollapse: "collapse", width: "100%", minWidth: 650, fontSize: 12 }}><thead><tr>{config.columns.map(col => <th key={col} style={{ textAlign: "left", padding: 12, background: "#f3f8f4", color: "#526d60", whiteSpace: "nowrap" }}>{titles[col] || col}</th>)}</tr></thead><tbody>{records.map((record, index) => <tr key={String(record.id ?? index)}>{config.columns.map(col => <td key={col} style={{ padding: 12, borderTop: "1px solid #edf2ee", whiteSpace: "nowrap" }}>{displayValue(record, col)}</td>)}</tr>)}</tbody></table></div> : <div style={{ padding: 24, color: "#718078" }}>No records were found for this period. If you expected data, check the selected dates and your database access.</div>}
     </section>
     <p style={{ color: "#7a8981", fontSize: 10, lineHeight: 1.6, marginTop: 12 }}>This report shows up to 1,000 records and reflects the permissions enforced by your account and database policies. Export includes the records currently loaded.</p>
   </main>;
