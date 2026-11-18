@@ -388,7 +388,7 @@ export default function LeadsPage() {
         !outcomeFilter ||
         outcomeFilter === "All Leads" ||
         (outcomeFilter === "Other / unrecognized outcome"
-          ? Boolean(savedOutcome && savedOutcome !== "pending" && !["interested", "follow up", "follow up later", "applied", "admitted", "enrolled", "not interested", "dropped", "no answer", "unreachable"].includes(savedOutcome))
+          ? Boolean(savedOutcome && savedOutcome !== "pending" && !["interested", "applied", "application submitted", "admitted", "paid application fee", "acceptance fee paid", "paid acceptance fee", "enrolled", "follow up later", "not interested", "financial issues", "lost leads", "no answer", "unreachable", "wrong number", "dropped"].includes(savedOutcome))
           : outcomeFilter === "Pending"
             ? !savedOutcome || savedOutcome === "pending"
             : savedOutcome === expectedOutcome);
@@ -698,11 +698,12 @@ export default function LeadsPage() {
 
   function getLeadProgress(lead: Lead) {
     const status = (lead.status || "").trim().toLowerCase().replace(/[_-]+/g, " ");
-    const outcome = (lead.follow_up_status || "").trim().toLowerCase();
+    const outcome = (lead.follow_up_status || "").trim().toLowerCase().replace(/[_-]+/g, " ");
+    const progressText = `${status} ${outcome}`;
     const hasFollowUp = Boolean(outcome && outcome !== "pending");
-    const applied = /applied|application/.test(status);
-    const admitted = /admitted|admission|accepted/.test(status);
-    const enrolled = /enrolled|enrollment|registered/.test(status);
+    const applied = /applied|application/.test(progressText);
+    const admitted = /admitted|admission|accepted/.test(progressText);
+    const enrolled = /enrolled|enrollment|registered/.test(progressText);
     return [
       { label: "Lead captured", done: true },
       { label: "Follow-up recorded", done: hasFollowUp },
