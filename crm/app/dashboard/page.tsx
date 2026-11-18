@@ -53,6 +53,16 @@ type Profile = {
   role: CrmRole | null;
 };
 
+type IntakeTarget = {
+  intake_month: number;
+  programme: string;
+  target_applications: number;
+  target_admissions: number;
+  target_registrations: number;
+  strategy_year: number;
+  plan_status: string;
+};
+
 function sameDay(
   dateValue: string | null | undefined,
   reference = new Date(),
