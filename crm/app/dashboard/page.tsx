@@ -695,6 +695,7 @@ export default function DashboardPage() {
     selectedIntakeOpportunities,
     pipelineStages,
     selectedIntakeTasks,
+    selectedIntakeAdmissions,
   ]);
 
 
@@ -1154,7 +1155,7 @@ export default function DashboardPage() {
                 (stage, index) => (
                   <Link
                     key={stage.label}
-                    href={stage.label === "Leads" ? "/leads" : "/pipeline"}
+                    href={stage.href}
                     aria-label="Open admission stage records"
                     className="ciu-dashboard-link ciu-funnel-stage relative block min-w-0 overflow-hidden rounded-xl border border-[#e0e9e2] p-3"
                     style={{ background: stage.tint }}
