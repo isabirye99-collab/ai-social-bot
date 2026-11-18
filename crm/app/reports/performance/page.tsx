@@ -224,60 +224,16 @@ export default function ReportsPage() {
         throw new Error("You are not signed in.");
       }
 
-      const currentProfileQuery = supabase
+      const { data: currentProfile, error: currentProfileError } = await supabase
         .from("profiles")
         .select("id,role,module_permissions")
         .eq("id", user.id)
         .maybeSingle();
+      if (currentProfileError) throw new Error(currentProfileError.message);
 
-      const profilesQuery = supabase
-        .from("profiles")
-        .select("id,full_name,role,module_permissions")
-        .eq("is_active", true)
-        .order("full_name");
-
-      const leadsQuery = supabase
-        .from("leads")
-        .select("id,assigned_to,status,follow_up_status,converted_at,created_at,intake_year,intake_month,product_service");
-
-      const admissionsQuery = supabase
-        .from("admissions")
-        .select("id,lead_id,assigned_to,stage,created_at");
-
-      const tasksQuery = supabase
-        .from("tasks")
-        .select(
-          "id,assigned_to,task_type,status,completed_at,created_at"
-        );
-
-      const relationshipQueries = Promise.all([
-        supabase.from("alumni").select("id", { count: "exact", head: true }),
-        supabase.from("alumni").select("id", { count: "exact", head: true }).eq("verification_status", "verified"),
-        supabase.from("alumni").select("id", { count: "exact", head: true }).eq("employment_status", "employed"),
-        supabase.from("partnerships").select("id", { count: "exact", head: true }),
-        supabase.from("partnerships").select("id", { count: "exact", head: true }).eq("status", "active"),
-        supabase.from("partnerships").select("id", { count: "exact", head: true }).in("status", ["prospect", "engaging", "negotiation"]),
-        supabase.from("partnerships").select("id", { count: "exact", head: true }).gte("end_date", new Date().toISOString().slice(0, 10)).lte("end_date", (() => { const d = new Date(); d.setDate(d.getDate() + 90); return d.toISOString().slice(0, 10); })()),
-      ]);
-
-      const [currentProfile, p, l, a, t, relationshipResults] = await Promise.all([
-        currentProfileQuery,
-        profilesQuery,
-        leadsQuery,
-        admissionsQuery,
-        tasksQuery,
-        relationshipQueries,
-      ]);
-
-      const failed = [currentProfile, p, l, a, t, ...relationshipResults].find((result) => result.error);
-
-      if (failed?.error) {
-        throw new Error(failed.error.message);
-      }
-
-      const role = String(currentProfile.data?.role || "").trim().toLowerCase().replace(/[ -]/g, "_");
-      const currentModules = Array.isArray(currentProfile.data?.module_permissions)
-        ? currentProfile.data.module_permissions.filter((module): module is CrmModule => ALL_CRM_MODULES.includes(module as CrmModule))
+      const role = String(currentProfile?.role || "").trim().toLowerCase().replace(/[ -]/g, "_");
+      const currentModules = Array.isArray(currentProfile?.module_permissions)
+        ? currentProfile.module_permissions.filter((module): module is CrmModule => ALL_CRM_MODULES.includes(module as CrmModule))
         : null;
       const effectiveModules = currentModules === null
         ? (["alumni_relations", "alumni_coordinator", "alumni_officer"].includes(role)
@@ -288,11 +244,61 @@ export default function ReportsPage() {
         router.replace("/dashboard");
         return;
       }
-      const isIndividualView = typeof window !== "undefined" &&
+
+      const canViewTeam = ["manager", "admin", "super_admin"].includes(role);
+      const requestedIndividualView = typeof window !== "undefined" &&
         new URLSearchParams(window.location.search).get("view") === "individual";
+      const isIndividualView = requestedIndividualView || !canViewTeam;
       setIndividualView(isIndividualView);
       setViewerModules(effectiveModules);
       setViewerRole(role);
+
+      const profilesQuery = supabase
+        .from("profiles")
+        .select("id,full_name,role,module_permissions")
+        .eq("is_active", true)
+        .order("full_name");
+      if (isIndividualView) profilesQuery.eq("id", user.id);
+
+      let leadsQuery = supabase
+        .from("leads")
+        .select("id,assigned_to,status,follow_up_status,converted_at,created_at,intake_year,intake_month,product_service");
+      let admissionsQuery = supabase
+        .from("admissions")
+        .select("id,lead_id,assigned_to,stage,created_at");
+      let tasksQuery = supabase
+        .from("tasks")
+        .select("id,assigned_to,task_type,status,completed_at,created_at");
+      if (isIndividualView) {
+        leadsQuery = leadsQuery.eq("assigned_to", user.id);
+        admissionsQuery = admissionsQuery.eq("assigned_to", user.id);
+        tasksQuery = tasksQuery.eq("assigned_to", user.id);
+      }
+
+      const emptyCount = { count: 0, error: null };
+      const alumniQueries = !isIndividualView && effectiveModules.includes("alumni")
+        ? Promise.all([
+            supabase.from("alumni").select("id", { count: "exact", head: true }),
+            supabase.from("alumni").select("id", { count: "exact", head: true }).eq("verification_status", "verified"),
+            supabase.from("alumni").select("id", { count: "exact", head: true }).eq("employment_status", "employed"),
+          ])
+        : Promise.resolve([emptyCount, emptyCount, emptyCount]);
+      const partnershipsQueries = !isIndividualView && effectiveModules.includes("partnerships")
+        ? Promise.all([
+            supabase.from("partnerships").select("id", { count: "exact", head: true }),
+            supabase.from("partnerships").select("id", { count: "exact", head: true }).eq("status", "active"),
+            supabase.from("partnerships").select("id", { count: "exact", head: true }).in("status", ["prospect", "engaging", "negotiation"]),
+            supabase.from("partnerships").select("id", { count: "exact", head: true }).gte("end_date", new Date().toISOString().slice(0, 10)).lte("end_date", (() => { const d = new Date(); d.setDate(d.getDate() + 90); return d.toISOString().slice(0, 10); })()),
+          ])
+        : Promise.resolve([emptyCount, emptyCount, emptyCount, emptyCount]);
+
+      const [p, l, a, t, alumniResults, partnershipsResults] = await Promise.all([
+        profilesQuery, leadsQuery, admissionsQuery, tasksQuery, alumniQueries, partnershipsQueries,
+      ]);
+      const allResults = [p, l, a, t, ...alumniResults, ...partnershipsResults];
+      const failed = allResults.find((result) => result.error);
+      if (failed?.error) throw new Error(failed.error.message);
+      const relationshipResults = [...alumniResults, ...partnershipsResults];
 
       const eligibleProfiles = ((p.data || []) as Profile[]).filter((profile) => {
         const profileRole = String(profile.role || "").trim().toLowerCase().replace(/[ -]/g, "_");
@@ -340,8 +346,7 @@ export default function ReportsPage() {
   }
 
   useEffect(() => {
-    loadReport();
-    void loadStrategyOverview();
+    void loadReport();
   }, []);
 
   const report = useMemo(() => {
@@ -739,7 +744,7 @@ export default function ReportsPage() {
                 type="button"
                 onClick={async () => {
                   setRefreshing(true);
-                  await Promise.all([loadReport(), loadStrategyOverview()]);
+                  await loadReport();
                 }}
                 disabled={refreshing}
                 className="report-refresh"
