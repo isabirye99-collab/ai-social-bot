@@ -287,6 +287,7 @@ export default function DashboardPage() {
     { id: string; lead_id: string | null; assigned_to: string | null; stage: string | null; enrolled_at: string | null; intake_year: number | null; intake_month: number | null }[]
   >([]);
   const [approvedIntakeTargets, setApprovedIntakeTargets] = useState<IntakeTarget[]>([]);
+  const [targetLookupAvailable, setTargetLookupAvailable] = useState(true);
   const [alumniCounts, setAlumniCounts] = useState({ total: 0, verified: 0 });
   const [partnershipRecords, setPartnershipRecords] = useState<{ id: string; status: string | null; category: string | null }[]>([]);
   const [alumniReportAvailable, setAlumniReportAvailable] = useState(true);
@@ -442,6 +443,7 @@ export default function DashboardPage() {
       setTasks((tasksResult.data || []) as Task[]);
       setAdmissions((admissionsResult.data || []) as { id: string; lead_id: string | null; assigned_to: string | null; stage: string | null; enrolled_at: string | null; intake_year: number | null; intake_month: number | null }[]);
       const targetRows = (approvedTargetsResult.data || []) as unknown as Array<{ intake_month: number; programme: string; target_applications: number; target_admissions: number; target_registrations: number; strategy_plans: { strategy_year: number; status: string } }>;
+      setTargetLookupAvailable(!approvedTargetsResult.error);
       setApprovedIntakeTargets(approvedTargetsResult.error ? [] : targetRows.map((row) => ({ intake_month: Number(row.intake_month), programme: row.programme || "", target_applications: Number(row.target_applications) || 0, target_admissions: Number(row.target_admissions) || 0, target_registrations: Number(row.target_registrations) || 0, strategy_year: Number(row.strategy_plans?.strategy_year) || 0, plan_status: row.strategy_plans?.status || "" })));
       setAlumniReportAvailable(!alumniTotalResult.error && !alumniVerifiedResult.error);
       setPartnershipReportAvailable(!partnershipsResult.error);
@@ -1055,7 +1057,7 @@ export default function DashboardPage() {
         </div>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
           {[
-            { label: "Leads", value: intakeSummary.total, target: null, conversion: 100, href: "/leads" },
+            { label: "Leads", value: intakeSummary.total, target: null, conversion: intakeSummary.total ? 100 : null, href: "/leads" },
             { label: "Interested", value: intakeSummary.interested, target: null, conversion: intakeSummary.conversion.interested, href: "/leads" },
             { label: "Applications", value: intakeSummary.applied, target: intakeSummary.targets?.applications ?? null, conversion: intakeSummary.conversion.applied, href: "/pipeline" },
             { label: "Admitted", value: intakeSummary.admitted, target: intakeSummary.targets?.admissions ?? null, conversion: intakeSummary.conversion.admitted, href: "/pipeline" },
@@ -1065,7 +1067,7 @@ export default function DashboardPage() {
               <p className="text-xs font-semibold text-[#68776f]">{item.label}</p>
               <p className="mt-1 text-2xl font-black tabular-nums text-[#075442]">{item.value.toLocaleString()}</p>
               <p className="mt-1 text-[11px] font-semibold text-[#68776f]">
-                {item.target === null ? "Target not set" : "Target " + item.target.toLocaleString() + " · " + (item.target > 0 ? Math.round(item.value / item.target * 100) + "% achieved" : "—")}
+                {!targetLookupAvailable ? "Targets unavailable" : item.target === null ? "Target not set" : "Target " + item.target.toLocaleString() + " · " + (item.target > 0 ? Math.round(item.value / item.target * 100) + "% achieved" : "—")}
               </p>
               <p className="mt-1 text-[10px] text-[#7a8a81]">{item.conversion === null ? "Cohort conversion pending" : Math.round(item.conversion) + "% of cohort"}</p>
             </Link>
