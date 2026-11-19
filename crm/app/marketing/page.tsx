@@ -1450,11 +1450,10 @@ export default function MarketingPage() {
           <Link href="/marketing/social" className="ciu-workspace-tab">
             <span className="ciu-workspace-tab-icon">▤</span><span><strong>Social Media Hub</strong><small>Content, approvals and publishing calendar</small></span>
           </Link>
-        </nav>
-
           <Link href="/strategy" className="ciu-workspace-tab">
             <span className="ciu-workspace-tab-icon">◎</span><span><strong>Strategy Planning</strong><small>Intake plans, activities and budgets</small></span>
           </Link>
+        </nav>
 
         {/* ERROR */}
         {error && (
