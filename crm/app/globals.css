@@ -4492,3 +4492,207 @@ button, input, select, textarea {
   .ciu-workspace-tab { padding: 11px 12px; }
   .ciu-social-hub-page > .ciu-social-hub-content > header { padding: 16px; }
 }
+
+
+/* =========================================================
+   Campaigns + Social Hub — replacement visual system
+   This section supersedes legacy page-specific presentation.
+   Business logic, data and workflows remain untouched.
+========================================================= */
+.ciu-marketing-page,
+.ciu-social-hub-page {
+  padding: 28px 30px 40px !important;
+  background: #f5f8f6 !important;
+  color: #1c2c25 !important;
+  font-family: Inter, "Segoe UI", Arial, sans-serif !important;
+}
+.ciu-marketing-page > div,
+.ciu-social-hub-content {
+  max-width: 1440px !important;
+  margin: 0 auto !important;
+}
+.ciu-marketing-hero {
+  align-items: flex-start !important;
+  padding: 22px 24px !important;
+  margin-bottom: 18px !important;
+  border: 1px solid #dfe8e2 !important;
+  border-left: 4px solid #006b59 !important;
+  border-radius: 12px !important;
+  background: #fff !important;
+}
+.ciu-marketing-hero h1,
+.ciu-social-hub-title {
+  margin: 0 !important;
+  color: #17483b !important;
+  font-size: 26px !important;
+  font-weight: 750 !important;
+  line-height: 1.25 !important;
+  letter-spacing: -.45px !important;
+}
+.ciu-marketing-hero p {
+  margin-top: 7px !important;
+  color: #68776f !important;
+  font-size: 13px !important;
+  line-height: 1.6 !important;
+}
+.ciu-marketing-page button,
+.ciu-social-hub-page button {
+  transition: background-color .15s ease, border-color .15s ease, box-shadow .15s ease !important;
+}
+.ciu-marketing-page button:not(.ciu-status-tab):not(.ciu-workspace-tab),
+.ciu-social-hub-page button {
+  border-radius: 8px;
+}
+.ciu-marketing-page [style*="border-radius: 12px"],
+.ciu-marketing-page [style*="borderRadius: 12"],
+.ciu-social-hub-page section,
+.ciu-social-hub-page article {
+  border-radius: 12px !important;
+}
+.ciu-marketing-page [style*="background: rgb(255, 255, 255)"],
+.ciu-marketing-page [style*="background: #ffffff"],
+.ciu-social-hub-page section,
+.ciu-social-hub-page article {
+  box-shadow: 0 2px 8px rgba(20, 48, 34, .035) !important;
+}
+.ciu-marketing-page input,
+.ciu-marketing-page select,
+.ciu-marketing-page textarea,
+.ciu-social-hub-page input,
+.ciu-social-hub-page select,
+.ciu-social-hub-page textarea {
+  min-height: 40px;
+  border-color: #d7e2db !important;
+  border-radius: 8px !important;
+  color: #25382e !important;
+  box-shadow: none !important;
+}
+.ciu-marketing-page textarea,
+.ciu-social-hub-page textarea { min-height: 100px; }
+.ciu-marketing-page input:focus,
+.ciu-marketing-page select:focus,
+.ciu-marketing-page textarea:focus,
+.ciu-social-hub-page input:focus,
+.ciu-social-hub-page select:focus,
+.ciu-social-hub-page textarea:focus {
+  border-color: #76a991 !important;
+  outline: 3px solid rgba(0, 107, 89, .10) !important;
+}
+.ciu-workspace-tabs {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 10px !important;
+  margin: 0 0 22px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+.ciu-workspace-tab {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  min-height: 68px !important;
+  padding: 14px 16px !important;
+  border: 1px solid #dfe8e2 !important;
+  border-radius: 11px !important;
+  background: #fff !important;
+  color: #35483d !important;
+  text-decoration: none !important;
+}
+.ciu-workspace-tab:hover {
+  border-color: #9bbca9 !important;
+  background: #fbfdfb !important;
+}
+.ciu-workspace-tab.is-active {
+  border-color: #8fb6a0 !important;
+  background: #edf6f0 !important;
+  box-shadow: inset 3px 0 0 #006b59 !important;
+  color: #17483b !important;
+}
+.ciu-workspace-tab-icon {
+  display: grid !important;
+  place-items: center !important;
+  width: 38px !important;
+  height: 38px !important;
+  flex: 0 0 38px !important;
+  border-radius: 9px !important;
+  background: #e9f3ed !important;
+  color: #006b59 !important;
+  font-size: 18px !important;
+}
+.ciu-workspace-tab strong {
+  display: block !important;
+  font-size: 13px !important;
+  font-weight: 750 !important;
+}
+.ciu-workspace-tab small {
+  display: block !important;
+  margin-top: 3px !important;
+  color: #718077 !important;
+  font-size: 11px !important;
+  line-height: 1.4 !important;
+}
+.ciu-status-tabs {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 7px !important;
+  padding: 5px !important;
+  border: 1px solid #e1e9e4 !important;
+  border-radius: 10px !important;
+  background: #fff !important;
+}
+.ciu-status-tab {
+  min-height: 36px !important;
+  padding: 7px 11px !important;
+  border: 1px solid transparent !important;
+  border-radius: 7px !important;
+  background: transparent !important;
+  color: #5b6c62 !important;
+  font-size: 12px !important;
+  font-weight: 650 !important;
+}
+.ciu-status-tab.is-active {
+  border-color: #c8ded0 !important;
+  background: #eaf4ee !important;
+  color: #15533f !important;
+}
+.ciu-status-count {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 22px !important;
+  margin-left: 6px !important;
+  padding: 1px 5px !important;
+  border-radius: 5px !important;
+  background: rgba(0, 107, 89, .08) !important;
+  font-variant-numeric: tabular-nums !important;
+}
+.ciu-social-hub-page h2 {
+  color: #23382d !important;
+  font-size: 16px !important;
+  letter-spacing: -.15px !important;
+}
+.ciu-social-hub-page h3 {
+  color: #2b4035 !important;
+  font-size: 13px !important;
+}
+.ciu-social-hub-page section {
+  border-color: #e0e8e3 !important;
+}
+.ciu-social-hub-page .grid.grid-cols-2 > div {
+  min-width: 0;
+}
+.ciu-social-hub-page .text-2xl {
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 760px) {
+  .ciu-marketing-page,
+  .ciu-social-hub-page { padding: 16px 12px 84px !important; }
+  .ciu-marketing-hero { padding: 18px !important; }
+  .ciu-marketing-hero h1,
+  .ciu-social-hub-title { font-size: 22px !important; }
+  .ciu-workspace-tabs { grid-template-columns: minmax(0, 1fr) !important; gap: 8px !important; }
+  .ciu-workspace-tab { min-height: 60px !important; padding: 12px !important; }
+  .ciu-status-tabs { overflow-x: auto; flex-wrap: nowrap !important; }
+  .ciu-status-tab { flex: 0 0 auto; white-space: nowrap; }
+}
