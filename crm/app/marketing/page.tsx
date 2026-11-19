@@ -1452,6 +1452,10 @@ export default function MarketingPage() {
           </Link>
         </nav>
 
+          <Link href="/strategy" className="ciu-workspace-tab">
+            <span className="ciu-workspace-tab-icon">◎</span><span><strong>Strategy Planning</strong><small>Intake plans, activities and budgets</small></span>
+          </Link>
+
         {/* ERROR */}
         {error && (
           <div
@@ -3481,6 +3485,20 @@ export default function MarketingPage() {
           </div>
         )}
       </div>
+    
+      <style jsx global>{`
+        .ciu-marketing-page .ciu-workspace-tabs,.ciu-social-hub-page .ciu-workspace-tabs{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin:0 0 22px}
+        .ciu-marketing-page .ciu-workspace-tab,.ciu-social-hub-page .ciu-workspace-tab{display:flex;align-items:center;gap:12px;padding:14px 16px;border:1px solid #dce8e2;border-radius:14px;background:#fff;text-decoration:none;transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease;min-width:0}
+        .ciu-marketing-page .ciu-workspace-tab:hover,.ciu-social-hub-page .ciu-workspace-tab:hover{transform:translateY(-1px);box-shadow:0 8px 22px rgba(20,70,50,.08);border-color:#9fc8b7}
+        .ciu-marketing-page .ciu-workspace-tab.is-active,.ciu-social-hub-page .ciu-workspace-tab.is-active{background:#eff8f2;border-color:#83bba3;box-shadow:inset 3px 0 #08784f}
+        .ciu-marketing-page .ciu-workspace-tab-icon,.ciu-social-hub-page .ciu-workspace-tab-icon{display:grid;place-items:center;flex:0 0 38px;width:38px;height:38px;border-radius:11px;background:#e7f4ec;color:#08784f;font-size:19px}
+        .ciu-marketing-page .ciu-workspace-tab strong,.ciu-social-hub-page .ciu-workspace-tab strong{display:block;color:#173d30;font-size:13px;font-weight:750}
+        .ciu-marketing-page .ciu-workspace-tab small,.ciu-social-hub-page .ciu-workspace-tab small{display:block;margin-top:3px;color:#64776e;font-size:11px;line-height:1.4}
+        .ciu-marketing-page .ciu-status-tabs{display:flex;gap:8px;flex-wrap:wrap}
+        .ciu-marketing-page input,.ciu-marketing-page select,.ciu-marketing-page textarea,.ciu-social-hub-page input,.ciu-social-hub-page select,.ciu-social-hub-page textarea{font:inherit}
+        .ciu-social-hub-page .ciu-social-hub-content{max-width:1440px;margin:0 auto}
+        @media(max-width:640px){.ciu-marketing-page{padding:18px 14px 32px!important}.ciu-marketing-page .ciu-workspace-tabs,.ciu-social-hub-page .ciu-workspace-tabs{grid-template-columns:1fr}}
+      `}</style>
     </main>
   );
 }
