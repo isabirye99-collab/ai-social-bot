@@ -415,19 +415,19 @@ export default function SocialMediaPage() {
       style={{ background: "transparent", "--ciu-primary": "var(--ciu-primary, #00695c)", "--ciu-lime": "var(--ciu-secondary, #8bc63f)" } as React.CSSProperties}
     >
       <div className="ciu-social-hub-content space-y-6">
-        <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <header className="ciu-marketing-hero flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
+            <p className="ciu-workspace-eyebrow">STRATEGY &amp; PLANNING / CONTENT EXECUTION</p>
             <h1 className="ciu-social-hub-title text-3xl font-bold tracking-tight" style={{ color: "var(--ciu-primary, #00695c)" }}>Social Media Hub</h1>
             <p className="mt-2 max-w-2xl text-sm text-slate-600">
-              Prepare content for your channels, attach media, schedule a preferred publishing time,
-              and submit posts for manager approval.
+              Plan campaign-linked content, prepare media, request manager approval, and coordinate your publishing calendar.
             </p>
           </div>
           <button
             type="button"
             onClick={() => void loadPosts()}
             disabled={loading}
-            className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold hover:bg-slate-100 disabled:opacity-50"
+            className="ciu-btn-light rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold hover:bg-slate-100 disabled:opacity-50"
           >
             {loading ? "Refreshing..." : "Refresh posts"}
           </button>
