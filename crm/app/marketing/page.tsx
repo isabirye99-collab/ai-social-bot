@@ -1,6 +1,7 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
 type Campaign = {
@@ -1440,6 +1441,15 @@ export default function MarketingPage() {
             </button>
           </div>
         </div>
+
+        <nav className="ciu-workspace-tabs" aria-label="Marketing workspaces">
+          <Link href="/marketing" className="ciu-workspace-tab is-active" aria-current="page">
+            <span className="ciu-workspace-tab-icon">↗</span><span><strong>Campaigns</strong><small>Recruitment campaigns and lead results</small></span>
+          </Link>
+          <Link href="/marketing/social" className="ciu-workspace-tab">
+            <span className="ciu-workspace-tab-icon">▤</span><span><strong>Social Media Hub</strong><small>Content, approvals and publishing calendar</small></span>
+          </Link>
+        </nav>
 
         {/* ERROR */}
         {error && (
