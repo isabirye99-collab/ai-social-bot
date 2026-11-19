@@ -440,11 +440,10 @@ export default function SocialMediaPage() {
           <Link href="/marketing/social" className="ciu-workspace-tab is-active" aria-current="page">
             <span className="ciu-workspace-tab-icon">▤</span><span><strong>Social Media Hub</strong><small>Content, approvals and publishing calendar</small></span>
           </Link>
-        </nav>
-
           <Link href="/strategy" className="ciu-workspace-tab">
             <span className="ciu-workspace-tab-icon">◎</span><span><strong>Strategy Planning</strong><small>Intake plans, activities and budgets</small></span>
           </Link>
+        </nav>
         <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
           {[
             { label: "All posts", value: posts.length },
