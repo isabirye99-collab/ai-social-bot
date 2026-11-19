@@ -1813,6 +1813,9 @@ export default function MarketingPage() {
                           0
                       ) / leadCount
                     : 0;
+                const linkedActivity = activityOptions.find((activity) => activity.id === campaign.activity_id);
+                const linkedIntake = intakeOptions.find((intake) => intake.id === campaign.intake_plan_id);
+                const conversionWidth = Math.max(0, Math.min(100, campaignConversion));
 
                 return (
                   <div
@@ -1889,6 +1892,13 @@ export default function MarketingPage() {
                       >
                         {campaign.name}
                       </h3>
+
+                      {(linkedIntake || linkedActivity) && (
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10, marginBottom: 12 }}>
+                          {linkedIntake && <span style={{ display: "inline-flex", alignItems: "center", borderRadius: 999, padding: "5px 9px", background: "#edf8f4", color: "#006b45", fontSize: 11, fontWeight: 650 }}>Intake: {linkedIntake.programme} · {new Date(2000, linkedIntake.intake_month - 1, 1).toLocaleString("en", { month: "short" })}{linkedIntake.cycle ? " " + linkedIntake.cycle : ""}</span>}
+                          {linkedActivity && <span style={{ display: "inline-flex", alignItems: "center", borderRadius: 999, padding: "5px 9px", background: "#f3f6f4", color: "#52675d", fontSize: 11, fontWeight: 650 }}>Plan activity: {linkedActivity.title}</span>}
+                        </div>
+                      )}
 
                       {campaign.notes && (
                         <p
@@ -2055,6 +2065,16 @@ export default function MarketingPage() {
                                 "UGX"
                             )}
                           </div>
+                        </div>
+                      </div>
+
+                      <div style={{ marginTop: 14 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginBottom: 6, fontSize: 11, color: "#64748b" }}>
+                          <span>Lead-to-pipeline conversion</span>
+                          <strong style={{ color: "#245b45" }}>{campaignConversion.toFixed(1)}%</strong>
+                        </div>
+                        <div role="progressbar" aria-label="Lead-to-pipeline conversion" aria-valuenow={Math.round(conversionWidth)} aria-valuemin={0} aria-valuemax={100} style={{ height: 6, background: "#e8efeb", borderRadius: 999, overflow: "hidden" }}>
+                          <div style={{ width: String(conversionWidth) + "%", height: "100%", background: "linear-gradient(90deg,#08784f,#8bc63f)", borderRadius: 999, transition: "width .25s ease" }} />
                         </div>
                       </div>
 
@@ -3495,6 +3515,9 @@ export default function MarketingPage() {
         .ciu-marketing-page .ciu-workspace-tab strong,.ciu-social-hub-page .ciu-workspace-tab strong{display:block;color:#173d30;font-size:13px;font-weight:750}
         .ciu-marketing-page .ciu-workspace-tab small,.ciu-social-hub-page .ciu-workspace-tab small{display:block;margin-top:3px;color:#64776e;font-size:11px;line-height:1.4}
         .ciu-marketing-page .ciu-status-tabs{display:flex;gap:8px;flex-wrap:wrap}
+        .ciu-marketing-page [style*="gridTemplateColumns: repeat(auto-fit, minmax(340px, 1fr))"]>div{box-shadow:0 2px 8px rgba(21,62,44,.035);transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}
+        .ciu-marketing-page [style*="gridTemplateColumns: repeat(auto-fit, minmax(340px, 1fr))"]>div:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(21,62,44,.09)}
+
         .ciu-marketing-page input,.ciu-marketing-page select,.ciu-marketing-page textarea,.ciu-social-hub-page input,.ciu-social-hub-page select,.ciu-social-hub-page textarea{font:inherit}
         .ciu-social-hub-page .ciu-social-hub-content{max-width:1440px;margin:0 auto}
         @media(max-width:640px){.ciu-marketing-page{padding:18px 14px 32px!important}.ciu-marketing-page .ciu-workspace-tabs,.ciu-social-hub-page .ciu-workspace-tabs{grid-template-columns:1fr}}
