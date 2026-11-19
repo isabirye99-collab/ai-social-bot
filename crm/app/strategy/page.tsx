@@ -3,6 +3,7 @@
 import Link from "next/link";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 // Redeploy trigger: retry Vercel after the previous build-rate-limit failure.
@@ -146,6 +147,21 @@ export default function StrategyPlanningPage() {
   const [notice, setNotice] = useState("");
   const [attentionFilter, setAttentionFilter] = useState<"all" | "activities" | "risks" | "actions">("all");
   const [activeWorkspace, setActiveWorkspace] = useState<"general" | "intakes" | "activities" | "budget" | "performance" | "weekly" | "risks" | "approvals" | "reports">("general");
+  const pathname = usePathname();
+  const isStrategyHome = pathname === "/strategy";
+
+  useEffect(() => {
+    const workspaceByPath: Record<string, typeof activeWorkspace> = {
+      "/strategy/general-strategy": "general",
+      "/strategy/intake-strategies": "intakes",
+      "/strategy/activities": "activities",
+      "/strategy/budget-planning": "budget",
+      "/strategy/performance-outcomes": "performance",
+      "/strategy/weekly-reports": "weekly",
+    };
+    const workspace = workspaceByPath[pathname];
+    if (workspace) setActiveWorkspace(workspace);
+  }, [pathname]);
 
   const supabase = useMemo(() => createClient(), []);
   const [currentYear, setCurrentYear] = useState(() => new Date().getFullYear());
@@ -970,20 +986,19 @@ export default function StrategyPlanningPage() {
         </div>
       </header>
 
+      {isStrategyHome && (
       <section aria-labelledby="planning-workspaces-heading" className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-white to-emerald-50/60 p-4 shadow-sm sm:p-5">
         <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
-          <div><h2 id="planning-workspaces-heading" className="text-base font-semibold text-slate-900">Planning workspaces</h2><p className="mt-1 text-xs text-slate-600">Choose an area to open only the register you need. Your data and workflows stay in place.</p></div>
+          <div><h2 id="planning-workspaces-heading" className="text-base font-semibold text-slate-900">Planning workspaces</h2><p className="mt-1 text-xs text-slate-600">Choose an area to open its own page. Your data and workflows stay in place.</p></div>
           <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-emerald-800 ring-1 ring-emerald-100">8 workspaces</span>
         </div>
         <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
           {sections.map(([title, description], index) => {
-            const keys = ["general", "intakes", "activities", "budget", "performance", "weekly"] as const;
-            const key = keys[index];
-            const selected = activeWorkspace === key;
-            return <button key={title} type="button" aria-pressed={selected} onClick={() => { setActiveWorkspace(key); window.scrollTo({ top: 0, behavior: "smooth" }); }} className={`group flex min-h-[88px] items-start gap-3 rounded-xl border p-3 text-left transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 ${selected ? "border-emerald-700 bg-emerald-800 text-white shadow-sm" : "border-slate-200 bg-white text-slate-900 hover:border-emerald-300"}`}>
-              <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg text-xs font-bold ${selected ? "bg-white/15 text-white" : "bg-emerald-50 text-emerald-800 group-hover:bg-emerald-100"}`}>{String(index + 1).padStart(2, "0")}</span>
-              <span className="min-w-0 flex-1"><span className="block text-sm font-semibold">{title}</span><span className={`mt-1 block text-xs leading-5 ${selected ? "text-emerald-50" : "text-slate-500"}`}>{description}</span><span className={`mt-2 block text-[11px] font-semibold ${selected ? "text-white" : "text-emerald-800"}`}>{selected ? "Currently open ✓" : "Open workspace →"}</span></span>
-            </button>;
+            const routes = ["/strategy/general-strategy", "/strategy/intake-strategies", "/strategy/activities", "/strategy/budget-planning", "/strategy/performance-outcomes", "/strategy/weekly-reports"];
+            return <Link key={title} href={routes[index]} className="group flex min-h-[88px] items-start gap-3 rounded-xl border border-slate-200 bg-white p-3 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600">
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-emerald-50 text-xs font-bold text-emerald-800 group-hover:bg-emerald-100">{String(index + 1).padStart(2, "0")}</span>
+              <span className="min-w-0 flex-1"><span className="block text-sm font-semibold text-slate-900">{title}</span><span className="mt-1 block text-xs leading-5 text-slate-500">{description}</span><span className="mt-2 block text-[11px] font-semibold text-emerald-800">Open workspace →</span></span>
+            </Link>;
           })}
           <Link href="/strategy/campaigns" className="group flex min-h-[88px] items-start gap-3 rounded-xl border border-slate-200 bg-white p-3 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600">
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-emerald-50 text-xs font-bold text-emerald-800 group-hover:bg-emerald-100">07</span>
@@ -995,7 +1010,7 @@ export default function StrategyPlanningPage() {
           </Link>
         </div>
       </section>
-
+      )}
 
 
       {error && <div role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{error}</div>}
