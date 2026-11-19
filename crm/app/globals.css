@@ -4696,3 +4696,15 @@ button, input, select, textarea {
   .ciu-status-tabs { overflow-x: auto; flex-wrap: nowrap !important; }
   .ciu-status-tab { flex: 0 0 auto; white-space: nowrap; }
 }
+
+
+/* Shared workspace eyebrow used by Campaigns and Social Media Hub. */
+.ciu-workspace-eyebrow {
+  margin: 0 0 6px;
+  color: var(--ciu-primary, #00695c);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .13em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
