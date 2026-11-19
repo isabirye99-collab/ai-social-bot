@@ -370,7 +370,7 @@ export default function MarketingPage() {
 
     } catch (err) {
       console.error(
-        "Marketing loading error:",
+        "Campaigns loading error:",
         err
       );
 
@@ -1432,7 +1432,7 @@ export default function MarketingPage() {
             }}
           >
             <strong>
-              Marketing error:
+              Campaigns error:
             </strong>{" "}
             {error}
           </div>
