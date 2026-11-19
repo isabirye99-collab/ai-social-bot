@@ -471,12 +471,12 @@ export default function SocialMediaPage() {
         )}
 
         <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6" style={{ borderLeft: "4px solid var(--ciu-primary, #00695c)" }}>
-          <h2 className="text-xl font-bold" style={{ color: "var(--ciu-primary, #00695c)" }}>Create a social media draft</h2>
+          <div className="ciu-social-composer-heading"><div><p className="ciu-social-section-kicker">CONTENT WORKSPACE</p><h2 className="text-xl font-bold" style={{ color: "var(--ciu-primary, #00695c)" }}>Create a social media draft</h2></div><span className="ciu-social-draft-badge">Draft first · Approval required</span></div>
           <p className="mt-1 text-sm text-slate-500">
             Choose your channels, add media, and optionally choose a date and time. Scheduling is saved with the draft.
           </p>
 
-          <form onSubmit={createDraft} className="mt-5 space-y-6">
+          <form onSubmit={createDraft} className="ciu-social-composer-form mt-5 space-y-6">
             <div>
               <label htmlFor="social-campaign" className="mb-2 block text-sm font-semibold">Linked recruitment campaign (optional)</label>
               <select id="social-campaign" value={campaignId} onChange={(event) => setCampaignId(event.target.value)} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 outline-none focus:ring-2" style={{ "--tw-ring-color": "#d7eee9" } as React.CSSProperties}>
@@ -701,7 +701,7 @@ export default function SocialMediaPage() {
         <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6" style={{ borderLeft: "4px solid var(--ciu-primary, #00695c)" }}>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-xl font-bold">Social media posts</h2>
+              <p className="ciu-social-section-kicker">CONTENT LIBRARY</p><h2 className="text-xl font-bold">Social media posts</h2>
               <p className="mt-1 text-sm text-slate-500">Review your content and request manager approval.</p>
             </div>
             <span className="text-sm text-slate-500">{posts.length} posts</span>
@@ -803,6 +803,22 @@ export default function SocialMediaPage() {
         .ciu-marketing-page .ciu-status-tabs{display:flex;gap:8px;flex-wrap:wrap}
         .ciu-marketing-page input,.ciu-marketing-page select,.ciu-marketing-page textarea,.ciu-social-hub-page input,.ciu-social-hub-page select,.ciu-social-hub-page textarea{font:inherit}
         .ciu-social-hub-page .ciu-social-hub-content{max-width:1440px;margin:0 auto}
+        .ciu-social-hub-page .ciu-social-hub-content>section.rounded-xl{border-radius:18px!important;box-shadow:0 8px 28px rgba(24,65,46,.045)!important}
+        .ciu-social-hub-page .ciu-social-composer-heading{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+        .ciu-social-hub-page .ciu-social-section-kicker{margin:0 0 5px;color:#718278;font-size:10px;font-weight:800;letter-spacing:.14em}
+        .ciu-social-hub-page .ciu-social-draft-badge{display:inline-flex;align-items:center;border:1px solid #cce5d7;border-radius:999px;background:#eff8f2;padding:7px 11px;color:#176b49;font-size:11px;font-weight:750}
+        .ciu-social-hub-page .ciu-social-composer-form{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px 22px}
+        .ciu-social-hub-page .ciu-social-composer-form>div:nth-child(1),.ciu-social-hub-page .ciu-social-composer-form>div:nth-child(2){align-self:start}
+        .ciu-social-hub-page .ciu-social-composer-form>div:nth-child(3),.ciu-social-hub-page .ciu-social-composer-form>fieldset,.ciu-social-hub-page .ciu-social-composer-form>section,.ciu-social-hub-page .ciu-social-composer-form>button{grid-column:1/-1}
+        .ciu-social-hub-page .ciu-social-composer-form>section{border-radius:14px!important;background:#fcfdfc}
+        .ciu-social-hub-page .ciu-social-composer-form label{line-height:1.45}
+        .ciu-social-hub-page .ciu-social-composer-form input:not([type=checkbox]):not([type=file]),.ciu-social-hub-page .ciu-social-composer-form select,.ciu-social-hub-page .ciu-social-composer-form textarea{border-color:#d8e4dd;transition:border-color .15s ease,box-shadow .15s ease}
+        .ciu-social-hub-page .ciu-social-composer-form input:focus,.ciu-social-hub-page .ciu-social-composer-form select:focus,.ciu-social-hub-page .ciu-social-composer-form textarea:focus{border-color:#78b59a;box-shadow:0 0 0 3px rgba(8,120,79,.08);outline:none}
+        .ciu-social-hub-page .ciu-social-composer-form>button[type=submit]{justify-self:start;min-width:170px;box-shadow:0 5px 14px rgba(8,120,79,.14)}
+        .ciu-social-hub-page .ciu-social-hub-content article{border-radius:14px!important;background:linear-gradient(135deg,#fff 0%,#fcfdfc 100%);transition:border-color .15s ease,box-shadow .15s ease}
+        .ciu-social-hub-page .ciu-social-hub-content article:hover{border-color:#b8d7c6;box-shadow:0 8px 22px rgba(24,65,46,.06)}
+        .ciu-social-hub-page .ciu-social-hub-content article h3{line-height:1.35;overflow-wrap:anywhere}
+
         @media(max-width:640px){.ciu-marketing-page{padding:18px 14px 32px!important}.ciu-marketing-page .ciu-workspace-tabs,.ciu-social-hub-page .ciu-workspace-tabs{grid-template-columns:1fr}}
       `}</style>
     </main>
