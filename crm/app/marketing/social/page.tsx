@@ -1,6 +1,7 @@
-﻿"use client";
+"use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
 const supabase = createClient();
@@ -413,7 +414,7 @@ export default function SocialMediaPage() {
       className="ciu-social-hub-page min-h-screen p-4 text-slate-900 sm:p-6 lg:p-8"
       style={{ background: "transparent", "--ciu-primary": "var(--ciu-primary, #00695c)", "--ciu-lime": "var(--ciu-secondary, #8bc63f)" } as React.CSSProperties}
     >
-      <div className="mx-auto max-w-7xl space-y-6">
+      <div className="ciu-social-hub-content space-y-6">
         <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="ciu-social-hub-title text-3xl font-bold tracking-tight" style={{ color: "var(--ciu-primary, #00695c)" }}>Social Media Hub</h1>
@@ -431,6 +432,15 @@ export default function SocialMediaPage() {
             {loading ? "Refreshing..." : "Refresh posts"}
           </button>
         </header>
+
+        <nav className="ciu-workspace-tabs" aria-label="Marketing workspaces">
+          <Link href="/marketing" className="ciu-workspace-tab">
+            <span className="ciu-workspace-tab-icon">↗</span><span><strong>Campaigns</strong><small>Recruitment campaigns and lead results</small></span>
+          </Link>
+          <Link href="/marketing/social" className="ciu-workspace-tab is-active" aria-current="page">
+            <span className="ciu-workspace-tab-icon">▤</span><span><strong>Social Media Hub</strong><small>Content, approvals and publishing calendar</small></span>
+          </Link>
+        </nav>
 
         <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
           {[
