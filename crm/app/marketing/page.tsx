@@ -1337,6 +1337,7 @@ export default function MarketingPage() {
           }}
         >
           <div>
+            <p className="ciu-workspace-eyebrow">STRATEGY &amp; PLANNING / EXECUTION</p>
             <h1
               style={{
                 margin: 0,
