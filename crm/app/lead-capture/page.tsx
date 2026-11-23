@@ -60,7 +60,7 @@ const previousEducationLevels = [
 const programmes: Record<string, Record<string, string[]>> = {
   "School of Business and Applied Technology": {
     Certificate: ["Higher Education Certificate (Business)"],
-    Diploma: ["Diploma Programme - To Be Updated"],
+    Diploma: ["Other programme (please specify in additional message)"],
     "Bachelor's": [
       "Bachelor of Business Administration",
       "Bachelor of Accounting",
@@ -70,29 +70,29 @@ const programmes: Record<string, Record<string, string[]>> = {
       "Bachelor of Applied Computing Technologies",
       "Bachelor of Tourism, Hospitality and Events Management",
     ],
-    "Postgraduate Diploma": ["Postgraduate Programme - To Be Updated"],
+    "Postgraduate Diploma": ["Other programme (please specify in additional message)"],
     "Master's": ["Master of Business Administration"],
-    PhD: ["PhD Programme - To Be Updated"],
+    PhD: ["Other programme (please specify in additional message)"],
     Other: ["Other"],
   },
   "School of Nursing and Midwifery": {
-    Certificate: ["Certificate Programme - To Be Updated"],
-    Diploma: ["Diploma Programme - To Be Updated"],
+    Certificate: ["Other programme (please specify in additional message)"],
+    Diploma: ["Other programme (please specify in additional message)"],
     "Bachelor's": [
       "Bachelor of Nursing Science - Top Up",
       "Bachelor of Nursing Science - Direct",
       "Bachelor of Midwifery Science - Top Up",
     ],
     "Postgraduate Diploma": ["Postgraduate Diploma in Critical Care Nursing"],
-    "Master's": ["Master's Programme - To Be Updated"],
-    PhD: ["PhD Programme - To Be Updated"],
+    "Master's": ["Other programme (please specify in additional message)"],
+    PhD: ["Other programme (please specify in additional message)"],
     Other: ["Other"],
   },
   "School of Public Health": {
-    Certificate: ["Certificate Programme - To Be Updated"],
+    Certificate: ["Other programme (please specify in additional message)"],
     Diploma: ["Diploma in Public Health"],
     "Bachelor's": ["Bachelor of Public Health"],
-    "Postgraduate Diploma": ["Postgraduate Diploma Programme - To Be Updated"],
+    "Postgraduate Diploma": ["Other programme (please specify in additional message)"],
     "Master's": [
       "Master of Public Health",
       "Master of Science in Health Service Management",
@@ -100,7 +100,7 @@ const programmes: Record<string, Record<string, string[]>> = {
       "Master of Science in Health Informatics and Analytics",
       "Master of Science in Monitoring and Evaluation",
     ],
-    PhD: ["PhD Programme - To Be Updated"],
+    PhD: ["Other programme (please specify in additional message)"],
     Other: ["Other"],
   },
   "Institute of Allied Health Sciences": {
@@ -115,8 +115,8 @@ const programmes: Record<string, Record<string, string[]>> = {
       "Bachelor of Medical Laboratory Science - Top Up",
     ],
     "Postgraduate Diploma": ["Postgraduate Diploma in Medical Education"],
-    "Master's": ["Master's Programme - To Be Updated"],
-    PhD: ["PhD Programme - To Be Updated"],
+    "Master's": ["Other programme (please specify in additional message)"],
+    PhD: ["Other programme (please specify in additional message)"],
     Other: ["Other"],
   },
 };
