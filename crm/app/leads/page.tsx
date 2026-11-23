@@ -177,6 +177,7 @@ export default function LeadsPage() {
   const [csvReviewItems, setCsvReviewItems] = useState<LeadCsvReviewItem[]>([]);
   const [showCsvReview, setShowCsvReview] = useState(false);
   const [confirmingCsv, setConfirmingCsv] = useState(false);
+  const [csvInvalidCount, setCsvInvalidCount] = useState(0);
 
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedLead, setSelectedLead] =
@@ -787,6 +788,7 @@ export default function LeadsPage() {
         }) || null;
         return { candidate, match, decision: "separate" };
       });
+      setCsvInvalidCount(invalid);
       setCsvReviewItems(reviewItems);
       if (reviewItems.some((item) => item.match)) {
         setShowCsvReview(true);
@@ -801,7 +803,7 @@ export default function LeadsPage() {
     }
   }
 
-  async function finishLeadCsvImport(items: LeadCsvReviewItem[], invalid = 0) {
+  async function finishLeadCsvImport(items: LeadCsvReviewItem[], invalid = csvInvalidCount) {
     setConfirmingCsv(true);
     setError("");
     try {
@@ -832,6 +834,7 @@ export default function LeadsPage() {
       }
       setShowCsvReview(false);
       setCsvReviewItems([]);
+      setCsvInvalidCount(0);
       await loadLeads();
       const duplicateCount = items.filter((item) => item.match).length;
       setCsvSummary("Import complete: " + inserted + " new lead(s), " + merged + " duplicate record(s) merged by filling blank fields, " + (duplicateCount - merged) + " duplicate(s) kept as separate records, and " + invalid + " invalid row(s) skipped.");
