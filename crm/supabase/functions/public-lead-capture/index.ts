@@ -125,7 +125,7 @@ Deno.serve(async (req: Request) => {
         status: "new",
         notes: noteParts.join("\n"),
       })
-      .select("id")
+      .select("id,assigned_to")
       .single();
 
     if (leadError || !lead) {
@@ -203,7 +203,32 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    return json({ success: true, leadId, campaignId, duplicate: duplicateLead });
+    // Create one initial follow-up task for genuinely new campaign leads.
+    // Returning prospects keep their existing task history and are not given
+    // duplicate tasks just because they submitted another campaign form.
+    let taskCreated = false;
+    if (createdLead && leadId) {
+      const dueAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+      const { error: taskError } = await supabase
+        .from("tasks")
+        .insert({
+          title: "Follow up with " + name + " - campaign enquiry",
+          description: "New enquiry from campaign: " + campaign.name + (source ? "\\nSource: " + source : "") + (program ? "\\nProgramme: " + program : ""),
+          task_type: "call",
+          lead_id: leadId,
+          assigned_to: lead?.assigned_to || null,
+          due_at: dueAt,
+          status: "pending",
+          priority: "medium",
+        });
+      if (taskError) {
+        console.error("Initial lead follow-up task creation error:", taskError);
+      } else {
+        taskCreated = true;
+      }
+    }
+
+    return json({ success: true, leadId, campaignId, duplicate: duplicateLead, taskCreated });
   } catch (error) {
     console.error("Lead capture request error:", error);
     return json({ error: "Invalid request." }, 400);
