@@ -777,8 +777,8 @@ export default function LeadsPage() {
         .limit(5000);
       if (existingError) throw existingError;
       const existing = (existingRows || []) as Lead[];
-      const normalize = (value: unknown) => String(value || "").trim().toLowerCase().replace(/\\s+/g, " ");
-      const digits = (value: unknown) => String(value || "").replace(/\\D/g, "");
+      const normalize = (value: unknown) => String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
+      const digits = (value: unknown) => String(value || "").replace(/\D/g, "");
       const normalizedEmail = (value: unknown) => normalize(value);
       const reviewItems: LeadCsvReviewItem[] = candidates.map((candidate) => {
         const match = existing.find((lead) => {
