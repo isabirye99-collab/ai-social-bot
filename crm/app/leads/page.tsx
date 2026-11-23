@@ -830,7 +830,7 @@ export default function LeadsPage() {
           merged++;
         } else {
           const { error: insertError } = await supabase.from("leads").insert(item.candidate);
-          if (insertError) throw insertError;
+          if (insertError) throw new Error("Could not import lead \"" + String(item.candidate.name || "Unnamed") + "\": " + insertError.message + (insertError.code ? " (code " + insertError.code + ")" : ""));
           inserted++;
         }
       }
@@ -841,7 +841,8 @@ export default function LeadsPage() {
       const duplicateCount = items.filter((item) => item.match).length;
       setCsvSummary("Import complete: " + inserted + " new lead(s), " + merged + " duplicate record(s) merged by filling blank fields, " + (duplicateCount - merged) + " duplicate(s) kept as separate records, and " + invalid + " invalid row(s) skipped.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "CSV import failed.");
+      console.error("Leads CSV import failed:", err);
+      setError(err instanceof Error ? "CSV import failed: " + err.message : "CSV import failed. Please check the file and try again.");
     } finally {
       setConfirmingCsv(false);
     }
