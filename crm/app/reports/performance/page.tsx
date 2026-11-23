@@ -2189,7 +2189,27 @@ export default function ReportsPage() {
           .highlight-stat { text-align: left; }
           .report-table-scroll { max-height: none; }
         }
-
+        /* Match the dashboard's shared typography, green palette and card treatment. */
+        .ciu-page { font-family: inherit; background: linear-gradient(180deg,#f8fbfa 0%,#f5f8f7 100%); color: #17322c; }
+        .report-hero {
+          background: linear-gradient(135deg,#365314 0%,#00695c 68%,#087b68 100%) !important;
+          border: 0 !important; border-radius: 18px !important;
+          box-shadow: 0 14px 34px rgba(0,77,64,.16) !important;
+        }
+        .report-hero h1 { color: #fff !important; font-family: inherit; }
+        .report-hero p { color: rgba(255,255,255,.82) !important; }
+        .report-hero:before { display: none !important; }
+        .report-kpi, .ciu-card { border-color: #dfe9e5; border-radius: 14px; box-shadow: 0 7px 24px rgba(28,58,49,.06); }
+        .report-kpi { border-left-width: 3px; }
+        .report-card-head { background: #fff; }
+        .report-kpi strong, .report-card-head h2, .highlight-name strong { font-family: inherit; }
+        .funnel-bar span, .staff-chart-leads { background: linear-gradient(90deg,#00695c,#3c9475); }
+        .funnel-row-final .funnel-bar span, .staff-chart-enrolled { background: linear-gradient(90deg,#65a30d,#a3e635); }
+        .report-section-nav { border-color: #dfe9e5; box-shadow: 0 4px 16px rgba(28,58,49,.04); }
+        .report-section-nav a { background: #e8f4f0; color: #00695c; }
+        .report-section-nav a:hover { background: #dcefe1; }
+        .report-table th { background: #f3f8f4; }
+        @media (max-width: 760px) { .ciu-page-inner { padding: 14px 12px 28px; } }
       `}</style>
     </main>
   );
