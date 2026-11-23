@@ -145,7 +145,7 @@ Deno.serve(async (req: Request) => {
 
       const { data: existingLead, error: existingLeadError } = await supabase
         .from("leads")
-        .select("id")
+        .select("id,notes,product_service,location")
         .eq("id", duplicateId)
         .maybeSingle();
 
@@ -156,6 +156,22 @@ Deno.serve(async (req: Request) => {
 
       leadId = existingLead.id;
       duplicateLead = true;
+
+      // Preserve the existing lead record while capturing this new campaign enquiry.
+      const duplicateUpdates: Record<string, string> = {};
+      if (!existingLead.product_service && program) duplicateUpdates.product_service = program;
+      if (!existingLead.location && location) duplicateUpdates.location = location;
+      const additionalNotes = "\\n--- Additional campaign enquiry ---\\n" + noteParts.join("\\n");
+      duplicateUpdates.notes = [String(existingLead.notes || "").trim(), additionalNotes].filter(Boolean).join("\\n");
+      duplicateUpdates.updated_at = new Date().toISOString();
+      const { error: duplicateUpdateError } = await supabase
+        .from("leads")
+        .update(duplicateUpdates)
+        .eq("id", existingLead.id);
+      if (duplicateUpdateError) {
+        // Keep the campaign submission successful if the note update fails; the campaign link below is still recorded.
+        console.error("Existing lead enrichment error:", duplicateUpdateError);
+      }
     } else {
       leadId = lead.id;
       createdLead = true;
@@ -166,6 +182,7 @@ Deno.serve(async (req: Request) => {
       .select("lead_id")
       .eq("campaign_id", campaignId)
       .eq("lead_id", leadId)
+      .limit(1)
       .maybeSingle();
 
     if (linkLookupError) {
