@@ -66,14 +66,14 @@ export default function ReportsPage() {
   if (loading) return <main className="ciu-page" style={{ padding: 32, color: "#173d34" }}><div style={{ ...styles.panel, padding: 24 }}>Preparing your reports and access permissions…</div></main>;
 
   return <main className="ciu-page ciu-report-centre" style={{ padding: "28px clamp(16px,3vw,34px) 48px", color: "#173d34" }}>
-    <header style={{ ...styles.panel, overflow: "hidden", marginBottom: 22, background: "linear-gradient(135deg,#365314 0%,#00695c 68%,#087b68 100%)", border: 0, borderRadius: 18, boxShadow: "0 14px 34px rgba(0,77,64,.16)" }}>
-      <div style={{ padding: "28px clamp(18px,3vw,34px)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 22, flexWrap: "wrap" }}>
-        <div style={{ maxWidth: 660, color: "#fff" }}>
-          <div style={{ fontSize: 10, fontWeight: 850, letterSpacing: 2, opacity: .82 }}>CLARKE INTERNATIONAL UNIVERSITY · CRM</div>
-          <h1 style={{ fontSize: "clamp(27px,3vw,36px)", lineHeight: 1.12, margin: "10px 0", fontWeight: 850 }}>Reports Centre</h1>
-          <p style={{ margin: 0, maxWidth: 600, fontSize: 13, lineHeight: 1.7, color: "#e2f3e9" }}>A clear home for organisation-wide performance, your individual activity and reports from the modules you are authorised to access.</p>
+    <header style={{ ...styles.panel, overflow: "hidden", marginBottom: 22, background: "#ffffff", border: "1px solid #e3ebe5", borderRadius: 16, boxShadow: "0 5px 20px rgba(19,62,45,.035)" }}>
+      <div style={{ padding: "24px clamp(18px,3vw,30px)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 22, flexWrap: "wrap" }}>
+        <div style={{ maxWidth: 660, color: "#173d34" }}>
+          <div style={{ fontSize: 10, fontWeight: 850, letterSpacing: 2, color: "#16715b" }}>CLARKE INTERNATIONAL UNIVERSITY · CRM</div>
+          <h1 style={{ fontSize: "clamp(27px,3vw,36px)", lineHeight: 1.12, margin: "10px 0", fontWeight: 850, color: "#173d34" }}>Reports Centre</h1>
+          <p style={{ margin: 0, maxWidth: 600, fontSize: 13, lineHeight: 1.7, color: "#718078" }}>A clear home for organisation-wide performance, your individual activity and reports from the modules you are authorised to access.</p>
         </div>
-        <div style={{ background: "rgba(255,255,255,.88)", color: "#145848", borderRadius: 14, padding: "15px 18px", minWidth: 170 }}>
+        <div style={{ background: "#f3f9f5", border: "1px solid #dfede3", color: "#145848", borderRadius: 12, padding: "15px 18px", minWidth: 170 }}>
           <div style={{ fontSize: 10, fontWeight: 850, letterSpacing: 1 }}>SIGNED IN AS</div>
           <div style={{ fontSize: 16, fontWeight: 850, marginTop: 6 }}>{profile?.full_name || "CRM user"}</div>
           <div style={{ fontSize: 11, marginTop: 4, textTransform: "capitalize" }}>{role.replaceAll("_", " ") || "Staff"}</div>
@@ -125,7 +125,7 @@ export default function ReportsPage() {
     <footer style={{ marginTop: 20, padding: "13px 15px", borderRadius: 10, background: "#f4f8f5", color: "#728177", fontSize: 10, lineHeight: 1.7 }}>Access note: this page uses your signed-in profile role and module permissions to decide which report areas to display. Data access must also be enforced by the corresponding module permissions and database policies.</footer>
     <style jsx>{`
       .ciu-report-centre { font-family: inherit; color: var(--ciu-ink, #17322c); }
-      .ciu-report-centre header { border-radius: 18px !important; box-shadow: 0 14px 34px rgba(0,77,64,.16) !important; }
+      .ciu-report-centre header { border-radius: 16px !important; box-shadow: 0 5px 20px rgba(19,62,45,.035) !important; }
       .ciu-report-centre section[aria-label="General reports"],
       .ciu-report-centre section[aria-label="Individual reports"] {
         border-color: var(--ciu-border, #dfe9e5) !important;
