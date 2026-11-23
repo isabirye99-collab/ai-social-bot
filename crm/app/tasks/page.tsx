@@ -523,10 +523,9 @@ const isSalesperson =
           user.id
         );
 
-        leadsQuery = leadsQuery.eq(
-          "assigned_to",
-          user.id
-        );
+        // Lead visibility is enforced by Supabase RLS. This includes leads
+        // assigned to this salesperson and leads linked to tasks assigned to them.
+        // Do not filter only by lead owner, or reassigned tasks lose student details.
 
         opportunitiesQuery =
           opportunitiesQuery.eq(
