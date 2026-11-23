@@ -27,6 +27,8 @@ type Lead = {
 
 type SchoolOption = { id: string; school_name: string; district: string | null };
 
+type LeadCsvReviewItem = { candidate: Record<string, any>; match: Lead | null; decision: "merge" | "separate" };
+
 type Activity = {
   id: string;
   lead_id: string | null;
@@ -172,6 +174,9 @@ export default function LeadsPage() {
   const [saving, setSaving] = useState(false);
   const [uploadingCsv, setUploadingCsv] = useState(false);
   const [csvSummary, setCsvSummary] = useState("");
+  const [csvReviewItems, setCsvReviewItems] = useState<LeadCsvReviewItem[]>([]);
+  const [showCsvReview, setShowCsvReview] = useState(false);
+  const [confirmingCsv, setConfirmingCsv] = useState(false);
 
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedLead, setSelectedLead] =
@@ -726,25 +731,115 @@ export default function LeadsPage() {
   }
 
   async function handleLeadCsvUpload(file?: File) {
-    if (!file) return; setUploadingCsv(true); setCsvSummary(""); setError("");
+    if (!file) return;
+    setUploadingCsv(true);
+    setCsvSummary("");
+    setError("");
     try {
       if (!file.name.toLowerCase().endsWith(".csv")) throw new Error("Please choose a .csv file.");
       if (file.size > 10 * 1024 * 1024) throw new Error("CSV must be 10 MB or smaller.");
-      const parsed = parseLeadCsv(await file.text()); if (parsed.length < 2) throw new Error("The CSV has no data rows.");
-      const headers = parsed[0].map((h) => h.replace(/^\uFEFF/, "").toLowerCase().replace(/[ _-]+/g, "").trim());
+      const parsed = parseLeadCsv(await file.text());
+      if (parsed.length < 2) throw new Error("The CSV has no data rows.");
+      const headers = parsed[0].map((h) => h.replace(/^\\uFEFF/, "").toLowerCase().replace(/[ _-]+/g, "").trim());
       const findColumn = (...names: string[]) => headers.findIndex((h) => names.includes(h));
       const ni = findColumn("name", "fullname", "studentname", "leadname"), pi = findColumn("phone", "telephone", "phonenumber", "mobile", "contact"), ei = findColumn("email", "emailaddress"), ci = findColumn("ciunumber", "studentnumber", "studentno", "registrationnumber"), gi = findColumn("program", "programme", "productservice", "course"), si = findColumn("status", "leadstatus"), iyi = findColumn("intakeyear", "recruitmentyear"), imi = findColumn("intakemonth", "recruitmentmonth");
       if (ni < 0 || pi < 0) throw new Error("CSV needs Name and Phone columns. Optional: Email, CIU Number, Programme, Status.");
-      const csvLeadStatusMap: Record<string, string> = { new: "new", pending: "new", contacted: "contacted", called: "contacted", whatsapped: "contacted", whatsapp: "contacted", email_sent: "contacted", "no_answer": "contacted", unreachable: "contacted", financial: "contacted", interested: "qualified", qualified: "qualified", unqualified: "unqualified", "not_interested": "unqualified", lost: "lost", dropped: "lost", ineffective: "unqualified" };
-      const candidates: any[] = []; let invalid = 0;
-      parsed.slice(1).forEach((cells) => { const v = (n: number) => n < 0 ? "" : String(cells[n] || "").trim(); const name = v(ni), phone = v(pi), email = v(ei); if (!name || !phone) { invalid++; return; } const raw = v(si).toLowerCase().replace(/[ -]+/g, "_"); const programme = v(gi) || null; const normalizedProgramme = (programme || "").trim().toUpperCase(); const isNovember = normalizedProgramme === "PGDME" || normalizedProgramme === "MPH" || normalizedProgramme.startsWith("HEC") || normalizedProgramme.includes("ALLIED HEALTH"); const explicitYear = Number(v(iyi)), explicitMonthRaw = v(imi).toLowerCase(); const monthNames: Record<string, number> = { february: 2, feb: 2, april: 4, apr: 4, august: 8, aug: 8, november: 11, nov: 11 }; const explicitMonth = Number(explicitMonthRaw) || monthNames[explicitMonthRaw] || 0; const defaultYear = isNovember ? 2026 : 2027; const defaultMonth = isNovember ? 11 : 2; const intakeYear = explicitYear >= 2020 && explicitYear <= 2100 ? explicitYear : programme ? defaultYear : null; const intakeMonth = [2,4,8,11].includes(explicitMonth) ? explicitMonth : programme ? defaultMonth : null; candidates.push({ name, phone, email: email || null, ciu_number: v(ci) || null, product_service: programme, intake_year: intakeYear, intake_month: intakeMonth, original_intake_year: intakeYear, original_intake_month: intakeMonth, status: csvLeadStatusMap[raw] || "new", follow_up_status: raw ? raw.replace(/_/g, " ") : "Pending", next_follow_up_at: null, assigned_to: currentUserId || null }); });
+      const csvLeadStatusMap: Record<string, string> = { new: "new", pending: "new", contacted: "contacted", called: "contacted", whatsapped: "contacted", whatsapp: "contacted", email_sent: "contacted", no_answer: "contacted", unreachable: "contacted", financial: "contacted", interested: "qualified", qualified: "qualified", unqualified: "unqualified", not_interested: "unqualified", lost: "lost", dropped: "lost", ineffective: "unqualified" };
+      const candidates: Record<string, any>[] = [];
+      let invalid = 0;
+      parsed.slice(1).forEach((cells) => {
+        const v = (n: number) => n < 0 ? "" : String(cells[n] || "").trim();
+        const name = v(ni), phone = v(pi), email = v(ei);
+        if (!name || !phone) { invalid++; return; }
+        const raw = v(si).toLowerCase().replace(/[ -]+/g, "_");
+        const programme = v(gi) || null;
+        const normalizedProgramme = (programme || "").trim().toUpperCase();
+        const isNovember = normalizedProgramme === "PGDME" || normalizedProgramme === "MPH" || normalizedProgramme.startsWith("HEC") || normalizedProgramme.includes("ALLIED HEALTH");
+        const explicitYear = Number(v(iyi)), explicitMonthRaw = v(imi).toLowerCase();
+        const monthNames: Record<string, number> = { february: 2, feb: 2, april: 4, apr: 4, august: 8, aug: 8, november: 11, nov: 11 };
+        const explicitMonth = Number(explicitMonthRaw) || monthNames[explicitMonthRaw] || 0;
+        const defaultYear = isNovember ? 2026 : 2027;
+        const defaultMonth = isNovember ? 11 : 2;
+        const intakeYear = explicitYear >= 2020 && explicitYear <= 2100 ? explicitYear : programme ? defaultYear : null;
+        const intakeMonth = [2, 4, 8, 11].includes(explicitMonth) ? explicitMonth : programme ? defaultMonth : null;
+        candidates.push({ name, phone, email: email || null, ciu_number: v(ci) || null, product_service: programme, intake_year: intakeYear, intake_month: intakeMonth, original_intake_year: intakeYear, original_intake_month: intakeMonth, status: csvLeadStatusMap[raw] || "new", follow_up_status: raw ? raw.replace(/_/g, " ") : "Pending", next_follow_up_at: null, assigned_to: currentUserId || null });
+      });
       if (!candidates.length) throw new Error("No valid leads found. Name and Phone are required.");
-      const existingPhones = new Set(leads.map((l) => (l.phone || "").replace(/\D/g, "")).filter(Boolean)); const existingEmails = new Set(leads.map((l) => (l.email || "").trim().toLowerCase()).filter(Boolean)); const seen = new Set<string>();
-      const fresh = candidates.filter((lead) => { const p = lead.phone.replace(/\D/g, ""), e = (lead.email || "").trim().toLowerCase(); const keys = [p ? "p:" + p : "", e ? "e:" + e : ""].filter(Boolean); if (keys.some((k) => seen.has(k) || (k.startsWith("p:") ? existingPhones.has(k.slice(2)) : existingEmails.has(k.slice(2))))) return false; keys.forEach((k) => seen.add(k)); return true; });
-      if (!fresh.length) { setCsvSummary("No new leads imported. All valid rows matched existing or repeated phone/email details; " + invalid + " invalid row(s)."); return; }
-      for (let i = 0; i < fresh.length; i += 100) { const result = await supabase.from("leads").insert(fresh.slice(i, i + 100)); if (result.error) throw result.error; }
-      await loadLeads(); setCsvSummary("Imported " + fresh.length + " lead(s). Skipped " + (candidates.length - fresh.length) + " duplicate/repeated row(s) and " + invalid + " invalid row(s). Leads are assigned to your account; reassign them after import if needed.");
-    } catch (err) { setError(err instanceof Error ? err.message : "CSV import failed."); } finally { setUploadingCsv(false); }
+
+      // Load existing leads visible to this user for duplicate review, rather than silently discarding rows.
+      const { data: existingRows, error: existingError } = await supabase
+        .from("leads")
+        .select("id,ciu_number,name,phone,email,product_service,status,follow_up_status,next_follow_up_at,assigned_to,created_at,intake_year,intake_month,original_intake_year,original_intake_month")
+        .order("created_at", { ascending: false })
+        .limit(5000);
+      if (existingError) throw existingError;
+      const existing = (existingRows || []) as Lead[];
+      const normalize = (value: unknown) => String(value || "").trim().toLowerCase().replace(/\\s+/g, " ");
+      const digits = (value: unknown) => String(value || "").replace(/\\D/g, "");
+      const normalizedEmail = (value: unknown) => normalize(value);
+      const reviewItems: LeadCsvReviewItem[] = candidates.map((candidate) => {
+        const match = existing.find((lead) => {
+          const sameName = normalize(lead.name) && normalize(lead.name) === normalize(candidate.name);
+          const samePhone = digits(lead.phone) && digits(lead.phone) === digits(candidate.phone);
+          const sameEmail = normalizedEmail(lead.email) && normalizedEmail(lead.email) === normalizedEmail(candidate.email);
+          const sameCiu = normalize(lead.ciu_number) && normalize(lead.ciu_number) === normalize(candidate.ciu_number);
+          return Boolean(sameName || samePhone || sameEmail || sameCiu);
+        }) || null;
+        return { candidate, match, decision: "separate" };
+      });
+      setCsvReviewItems(reviewItems);
+      if (reviewItems.some((item) => item.match)) {
+        setShowCsvReview(true);
+        setCsvSummary("");
+      } else {
+        await finishLeadCsvImport(reviewItems, invalid);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "CSV import failed.");
+    } finally {
+      setUploadingCsv(false);
+    }
+  }
+
+  async function finishLeadCsvImport(items: LeadCsvReviewItem[], invalid = 0) {
+    setConfirmingCsv(true);
+    setError("");
+    try {
+      let merged = 0;
+      let inserted = 0;
+      for (const item of items) {
+        if (item.match && item.decision === "merge") {
+          const old = item.match;
+          const incoming = item.candidate;
+          // Merge conservatively: retain existing values and fill only fields that are blank.
+          const updates: Record<string, any> = {};
+          const fields = ["name", "phone", "email", "ciu_number", "product_service", "intake_year", "intake_month", "original_intake_year", "original_intake_month"] as const;
+          fields.forEach((field) => {
+            const oldValue = (old as any)[field];
+            const newValue = incoming[field];
+            if ((oldValue === null || oldValue === undefined || String(oldValue).trim() === "") && newValue !== null && newValue !== undefined && String(newValue).trim() !== "") updates[field] = newValue;
+          });
+          if (Object.keys(updates).length) {
+            const { error: updateError } = await supabase.from("leads").update(updates).eq("id", old.id);
+            if (updateError) throw updateError;
+          }
+          merged++;
+        } else {
+          const { error: insertError } = await supabase.from("leads").insert(item.candidate);
+          if (insertError) throw insertError;
+          inserted++;
+        }
+      }
+      setShowCsvReview(false);
+      setCsvReviewItems([]);
+      await loadLeads();
+      const duplicateCount = items.filter((item) => item.match).length;
+      setCsvSummary("Import complete: " + inserted + " new lead(s), " + merged + " duplicate record(s) merged by filling blank fields, " + (duplicateCount - merged) + " duplicate(s) kept as separate records, and " + invalid + " invalid row(s) skipped.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "CSV import failed.");
+    } finally {
+      setConfirmingCsv(false);
+    }
   }
 
   function handleView(
@@ -1087,6 +1182,52 @@ export default function LeadsPage() {
             <button type="button" onClick={loadLeads} className="ciu-btn-light leads-action-button" disabled={loading}>{loading ? "Refreshing..." : "↻ Refresh"}</button>
           </div>
           {csvSummary && <p role="status" style={{ marginTop: 10, color: "#166534", fontSize: 13 }}>{csvSummary}</p>}
+
+          {showCsvReview && (
+            <div role="presentation" style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(15,23,42,.58)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+              <section role="dialog" aria-modal="true" aria-labelledby="lead-csv-review-title" style={{ width: "min(100%, 980px)", maxHeight: "90vh", overflow: "auto", background: "#fff", borderRadius: 16, padding: 22, boxShadow: "0 24px 80px rgba(0,0,0,.25)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "flex-start" }}>
+                  <div>
+                    <h2 id="lead-csv-review-title" style={{ margin: 0, color: "#075442", fontSize: 21 }}>Review possible duplicate leads</h2>
+                    <p style={{ margin: "7px 0 0", color: "#52635b", fontSize: 13 }}>We found records with the same name, phone, email or CIU number. Choose whether to merge each match or keep it as a separate lead. Nothing is saved until you confirm.</p>
+                  </div>
+                  <button type="button" disabled={confirmingCsv} onClick={() => setShowCsvReview(false)} style={{ border: "1px solid #d6e2da", borderRadius: 8, padding: "7px 11px", background: "#fff", color: "#334155" }}>Close</button>
+                </div>
+                <div style={{ marginTop: 16, border: "1px solid #e0e8e2", borderRadius: 10, overflow: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 700 }}>
+                    <thead><tr style={{ background: "#f3f8f4", textAlign: "left" }}>
+                      {["Uploaded record", "Possible existing match", "Decision"].map((heading) => <th key={heading} style={{ padding: 11, borderBottom: "1px solid #dce7df" }}>{heading}</th>)}
+                    </tr></thead>
+                    <tbody>
+                      {csvReviewItems.map((item, index) => (
+                        <tr key={index} style={{ borderBottom: "1px solid #edf1ee" }}>
+                          <td style={{ padding: 11, verticalAlign: "top" }}>
+                            <strong>{item.candidate.name}</strong><br />{item.candidate.phone}<br />{item.candidate.email || "No email"}<br />{item.candidate.ciu_number || "No CIU number"}<br /><span style={{ color: "#64748b" }}>{item.candidate.product_service || "No programme"}</span>
+                          </td>
+                          <td style={{ padding: 11, verticalAlign: "top" }}>
+                            {item.match ? <><strong>{item.match.name}</strong><br />{item.match.phone || "No phone"}<br />{item.match.email || "No email"}<br />{item.match.ciu_number || "No CIU number"}<br /><span style={{ color: "#64748b" }}>{item.match.product_service || "No programme"}</span></> : <span style={{ color: "#64748b" }}>No match found — will be added as new</span>}
+                          </td>
+                          <td style={{ padding: 11, verticalAlign: "top", minWidth: 165 }}>
+                            {item.match ? <div style={{ display: "grid", gap: 8 }}>
+                              <label style={{ display: "flex", alignItems: "center", gap: 7 }}><input type="radio" name={"lead-csv-decision-" + index} checked={item.decision === "merge"} onChange={() => setCsvReviewItems((current) => current.map((row, i) => i === index ? { ...row, decision: "merge" } : row))} /> Merge (fill blank fields)</label>
+                              <label style={{ display: "flex", alignItems: "center", gap: 7 }}><input type="radio" name={"lead-csv-decision-" + index} checked={item.decision === "separate"} onChange={() => setCsvReviewItems((current) => current.map((row, i) => i === index ? { ...row, decision: "separate" } : row))} /> Keep separate</label>
+                            </div> : <span style={{ color: "#15803d", fontWeight: 600 }}>New lead</span>}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 12, marginTop: 16 }}>
+                  <p style={{ margin: 0, fontSize: 12, color: "#64748b" }}>{csvReviewItems.length} valid row(s) ready for review. Merge preserves existing information and only fills fields that are blank.</p>
+                  <div style={{ display: "flex", gap: 9 }}>
+                    <button type="button" disabled={confirmingCsv} onClick={() => setShowCsvReview(false)} style={{ border: "1px solid #cbd5e1", borderRadius: 8, padding: "10px 14px", background: "#fff", color: "#334155" }}>Cancel</button>
+                    <button type="button" disabled={confirmingCsv} onClick={() => void finishLeadCsvImport(csvReviewItems)} style={{ border: 0, borderRadius: 8, padding: "10px 16px", background: "#00695c", color: "#fff", fontWeight: 700, opacity: confirmingCsv ? .65 : 1 }}>{confirmingCsv ? "Processing…" : "Confirm import choices"}</button>
+                  </div>
+                </div>
+              </section>
+            </div>
+          )}
         </div>
 
         <section className="leads-intake-bar">
