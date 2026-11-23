@@ -104,9 +104,11 @@ export default function EngagementPage() {
     if(result.error)throw result.error;
     interactionId=result.data.id;
    }
+   let leadOwnerUpdated=true;
    if(selectedLead){
-    const leadUpdate=await supabase.from("leads").update({assigned_to:form.assigned_to||user.id,next_follow_up_at:followUpAt,follow_up_status:followUpAt?"scheduled":"pending"}).eq("id",selectedLead.id);
+    const leadUpdate=await supabase.rpc("assign_lead_from_engagement",{p_lead_id:selectedLead.id,p_assigned_to:form.assigned_to||user.id,p_follow_up_at:followUpAt});
     if(leadUpdate.error)throw leadUpdate.error;
+    leadOwnerUpdated=leadUpdate.data===true;
    }
    if(selectedLead && followUpAt){
     const taskPayload={title:`${form.channel.includes("whatsapp")?"WhatsApp":"Call"} follow-up: ${selectedLead.name}`,description:[form.reason,form.notes.trim()].filter(Boolean).join(" — ")||"Follow up from Call Centre & WhatsApp.",task_type:form.channel.includes("whatsapp")?"whatsapp":"call",lead_id:selectedLead.id,assigned_to:form.assigned_to||user.id,due_at:followUpAt,status:"pending",priority:"medium",created_by:user.id,intake_year:selectedLead.intake_year,intake_month:selectedLead.intake_month};
@@ -123,7 +125,7 @@ export default function EngagementPage() {
     }
     if(interactionId){const linkTask=await supabase.from("engagement_interactions").update({task_id:taskId}).eq("id",interactionId);if(linkTask.error)throw linkTask.error;}
    }
-   setForm(blankInteraction);setEditing(null);setSuccess(editing?"Interaction updated.":"Interaction logged.");await load();
+   setForm(blankInteraction);setEditing(null);setSuccess((editing?"Interaction updated.":"Interaction logged.")+(selectedLead&&followUpAt?" Follow-up task assigned.":"")+(selectedLead&&!leadOwnerUpdated?" The task is assigned, but only a manager or the current lead owner can change the lead owner.":""));await load();
   }catch(e){setError(e instanceof Error?e.message:"Could not save interaction.");}finally{setSaving(false);}
  }
  async function remove(id:string){if(!window.confirm("Delete this interaction record?"))return;const {error}=await supabase.from("engagement_interactions").delete().eq("id",id);if(error)setError(error.message);else{setSuccess("Interaction deleted.");await load();}}
