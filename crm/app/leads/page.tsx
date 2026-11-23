@@ -739,9 +739,11 @@ export default function LeadsPage() {
     try {
       if (!file.name.toLowerCase().endsWith(".csv")) throw new Error("Please choose a .csv file.");
       if (file.size > 10 * 1024 * 1024) throw new Error("CSV must be 10 MB or smaller.");
-      const parsed = parseLeadCsv(await file.text());
+      // Excel and other spreadsheet exports may prepend a UTF-8 BOM; remove it before parsing headers.
+      const csvText = (await file.text()).replace(/^\uFEFF/, "");
+      const parsed = parseLeadCsv(csvText);
       if (parsed.length < 2) throw new Error("The CSV has no data rows.");
-      const headers = parsed[0].map((h) => h.replace(/^\\uFEFF/, "").toLowerCase().replace(/[ _-]+/g, "").trim());
+      const headers = parsed[0].map((h) => h.replace(/^\uFEFF/, "").toLowerCase().replace(/[ _-]+/g, "").trim());
       const findColumn = (...names: string[]) => headers.findIndex((h) => names.includes(h));
       const ni = findColumn("name", "fullname", "studentname", "leadname"), pi = findColumn("phone", "telephone", "phonenumber", "mobile", "contact"), ei = findColumn("email", "emailaddress"), ci = findColumn("ciunumber", "studentnumber", "studentno", "registrationnumber"), gi = findColumn("program", "programme", "productservice", "course"), si = findColumn("status", "leadstatus"), iyi = findColumn("intakeyear", "recruitmentyear"), imi = findColumn("intakemonth", "recruitmentmonth");
       if (ni < 0 || pi < 0) throw new Error("CSV needs Name and Phone columns. Optional: Email, CIU Number, Programme, Status.");
