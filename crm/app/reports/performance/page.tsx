@@ -636,33 +636,35 @@ export default function ReportsPage() {
       ["SALES TEAM"],
       ["Staff Member", "Leads", "Calls", "Follow-ups", "Interested", "Applications", "Submitted", "Admitted", "Acceptance Paid", "Enrolled", "Tasks Done", "Conversion %"],
       ...salesRows.map((r) => [r.name, r.leads, r.calls, r.followUps, r.interested, r.applications, r.submitted, r.admitted, r.acceptancePaid, r.enrolled, r.completedTasks, r.conversion]),
-      [],
-      ["ALUMNI RELATIONS"],
-      ["Staff Member", "Contact activities", "Calls", "Emails", "WhatsApp", "Meetings", "Tasks done"],
-      ...alumniRows.map((r) => [r.name, r.contactActivities, r.calls, r.emails, r.whatsapp, r.meetings, r.completedTasks]),
-      [],
-      ["PARTNERSHIPS"],
-      ["Staff Member", "Contact activities", "Calls", "Follow-ups", "Completed tasks"],
-      ...partnershipRows.map((r) => [r.name, r.contactActivities, r.calls, r.followUps, r.completedTasks]),
-      [],
-      ["RELATIONSHIP SUMMARY", "Value"],
-      ["Total alumni", relationshipMetrics.alumniTotal],
-      ["Verified alumni", relationshipMetrics.alumniVerified],
-      ["Employed alumni", relationshipMetrics.alumniEmployed],
-      ["Total partnerships", relationshipMetrics.partnershipsTotal],
-      ["Active partnerships", relationshipMetrics.partnershipsActive],
-      ["Partnership pipeline", relationshipMetrics.partnershipsPipeline],
-      ["Renewals in next 90 days", relationshipMetrics.partnershipsRenewalWatch],
-      [],
-      ["ANNUAL STRATEGY PERFORMANCE", strategyOverview.year],
-      ["Strategy plan available", strategyOverview.available && strategyOverview.planFound ? "Yes" : "No"],
-      ["Annual leads recorded", strategyOverview.available ? strategyOverview.leads : "Unavailable"],
-      ["Applications actual", strategyOverview.available ? strategyOverview.applications : "Unavailable"],
-      ["Applications target", strategyOverview.available && strategyOverview.planFound ? strategyOverview.targetApplications : "Unavailable"],
-      ["Admissions actual", strategyOverview.available ? strategyOverview.admitted : "Unavailable"],
-      ["Admissions target", strategyOverview.available && strategyOverview.planFound ? strategyOverview.targetAdmissions : "Unavailable"],
-      ["Enrolments actual", strategyOverview.available ? strategyOverview.enrolled : "Unavailable"],
-      ["Enrolments target", strategyOverview.available && strategyOverview.planFound ? strategyOverview.targetRegistrations : "Unavailable"],
+      ...(!individualView ? [
+        [],
+        ["ALUMNI RELATIONS"],
+        ["Staff Member", "Contact activities", "Calls", "Emails", "WhatsApp", "Meetings", "Tasks done"],
+        ...alumniRows.map((r) => [r.name, r.contactActivities, r.calls, r.emails, r.whatsapp, r.meetings, r.completedTasks]),
+        [],
+        ["PARTNERSHIPS"],
+        ["Staff Member", "Contact activities", "Calls", "Follow-ups", "Completed tasks"],
+        ...partnershipRows.map((r) => [r.name, r.contactActivities, r.calls, r.followUps, r.completedTasks]),
+        [],
+        ["RELATIONSHIP SUMMARY", "Value"],
+        ["Total alumni", relationshipMetrics.alumniTotal],
+        ["Verified alumni", relationshipMetrics.alumniVerified],
+        ["Employed alumni", relationshipMetrics.alumniEmployed],
+        ["Total partnerships", relationshipMetrics.partnershipsTotal],
+        ["Active partnerships", relationshipMetrics.partnershipsActive],
+        ["Partnership pipeline", relationshipMetrics.partnershipsPipeline],
+        ["Renewals in next 90 days", relationshipMetrics.partnershipsRenewalWatch],
+        [],
+        ["ANNUAL STRATEGY PERFORMANCE", strategyOverview.year],
+        ["Strategy plan available", strategyOverview.available && strategyOverview.planFound ? "Yes" : "No"],
+        ["Annual leads recorded", strategyOverview.available ? strategyOverview.leads : "Unavailable"],
+        ["Applications actual", strategyOverview.available ? strategyOverview.applications : "Unavailable"],
+        ["Applications target", strategyOverview.available && strategyOverview.planFound ? strategyOverview.targetApplications : "Unavailable"],
+        ["Admissions actual", strategyOverview.available ? strategyOverview.admitted : "Unavailable"],
+        ["Admissions target", strategyOverview.available && strategyOverview.planFound ? strategyOverview.targetAdmissions : "Unavailable"],
+        ["Enrolments actual", strategyOverview.available ? strategyOverview.enrolled : "Unavailable"],
+        ["Enrolments target", strategyOverview.available && strategyOverview.planFound ? strategyOverview.targetRegistrations : "Unavailable"],
+      ] : []),
     ];
     const csv = "\uFEFF" + lines.map((line) => line.map(quote).join(",")).join("\r\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
@@ -797,8 +799,8 @@ export default function ReportsPage() {
           {viewerModules.includes("strategy") && !individualView && <a href="/reports/modules/strategy">Strategy report</a>}
           {(viewerModules.includes("leads") || viewerModules.includes("pipeline")) && <a href="/reports/modules/pipeline">Admissions funnel</a>}
           {(viewerModules.includes("leads") || viewerModules.includes("tasks") || viewerModules.includes("engagement")) && <a href="/reports/modules/tasks">{individualView ? "My activity" : "Team activity"}</a>}
-          {viewerModules.includes("alumni") && <a href="/reports/modules/alumni">Alumni report</a>}
-          {viewerModules.includes("partnerships") && <a href="/reports/modules/partnerships">Partnerships report</a>}
+          {!individualView && viewerModules.includes("alumni") && <a href="/reports/modules/alumni">Alumni report</a>}
+          {!individualView && viewerModules.includes("partnerships") && <a href="/reports/modules/partnerships">Partnerships report</a>}
           <a href="/reports/performance?view=individual">{individualView ? "My performance" : "Individual staff report"}</a>
         </nav>
 
@@ -853,8 +855,8 @@ export default function ReportsPage() {
 )}
 
         <section className="report-kpis report-overview-kpis" aria-label="CRM performance overview">
-          <div role="link" tabIndex={0} aria-label="Open Alumni module" onClick={() => router.push("/alumni")} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); router.push("/alumni"); } }} className="report-kpi report-kpi-primary cursor-pointer transition-all duration-200 hover:-translate-y-1 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"><span className="kpi-label">Alumni</span><strong>{relationshipMetrics.alumniTotal.toLocaleString()}</strong><small>{relationshipMetrics.alumniVerified.toLocaleString()} verified profiles · Open module ↗</small></div>
-          <div role="link" tabIndex={0} aria-label="Open Partnerships module" onClick={() => router.push("/partnerships")} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); router.push("/partnerships"); } }} className="report-kpi report-kpi-partnerships cursor-pointer transition-all duration-200 hover:-translate-y-1 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"><span className="kpi-label">Partnerships</span><strong>{relationshipMetrics.partnershipsTotal.toLocaleString()}</strong><small>{relationshipMetrics.partnershipsActive.toLocaleString()} active relationships · Open module ↗</small></div>
+          {!individualView && viewerModules.includes("alumni") && <div role="link" tabIndex={0} aria-label="Open Alumni module" onClick={() => router.push("/alumni")} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); router.push("/alumni"); } }} className="report-kpi report-kpi-primary cursor-pointer transition-all duration-200 hover:-translate-y-1 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"><span className="kpi-label">Alumni</span><strong>{relationshipMetrics.alumniTotal.toLocaleString()}</strong><small>{relationshipMetrics.alumniVerified.toLocaleString()} verified profiles · Open module ↗</small></div>}
+          {!individualView && viewerModules.includes("partnerships") && <div role="link" tabIndex={0} aria-label="Open Partnerships module" onClick={() => router.push("/partnerships")} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); router.push("/partnerships"); } }} className="report-kpi report-kpi-partnerships cursor-pointer transition-all duration-200 hover:-translate-y-1 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"><span className="kpi-label">Partnerships</span><strong>{relationshipMetrics.partnershipsTotal.toLocaleString()}</strong><small>{relationshipMetrics.partnershipsActive.toLocaleString()} active relationships · Open module ↗</small></div>}
           <div role="link" tabIndex={0} aria-label="Open Customers module" onClick={() => router.push("/customers")} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); router.push("/customers"); } }} className="report-kpi report-kpi-conversion cursor-pointer transition-all duration-200 hover:-translate-y-1 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"><span className="kpi-label">Sales · Enrolments</span><strong>{salesRows.reduce((sum, row) => sum + row.enrolled, 0).toLocaleString()}</strong><small>Enrolments recorded for this period · Open customers ↗</small></div>
           <div role="link" tabIndex={0} aria-label="Open Call Centre Tasks" onClick={() => router.push("/tasks")} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); router.push("/tasks"); } }} className="report-kpi report-kpi-contacts cursor-pointer transition-all duration-200 hover:-translate-y-1 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"><span className="kpi-label">Contact Activities</span><strong>{report.rows.reduce((sum, row) => sum + row.contactActivities, 0).toLocaleString()}</strong><small>Calls, emails, WhatsApp and meetings · Open tasks ↗</small></div>
         </section>
@@ -1153,7 +1155,7 @@ export default function ReportsPage() {
           </div>
         </section>
 )}
-        {viewerModules.includes("alumni") && (
+        {!individualView && viewerModules.includes("alumni") && (
 <section id="alumni-report" className="ciu-card report-table-card">
           <div className="ciu-card-head report-card-head"><div><h2>{individualView ? "My Alumni Activity" : "Alumni Relations Activity"}</h2><span>Contact and follow-up activity for Alumni Relations staff in the selected period.</span></div></div>
           <div className="report-table-scroll"><table className="report-table">
@@ -1163,7 +1165,7 @@ export default function ReportsPage() {
           <p style={{ padding: "0 18px 14px", color: "#64748b", fontSize: 12 }}>Contact activities are counted from call, WhatsApp and email tasks. They are logged activities, not a deduplicated count of unique people.</p>
         </section>
 )}
-        {viewerModules.includes("partnerships") && (
+        {!individualView && viewerModules.includes("partnerships") && (
 <section id="partnerships-report" className="ciu-card report-table-card">
           <div className="ciu-card-head report-card-head"><div><h2>{individualView ? "My Partnerships Activity" : "Partnerships Activity"}</h2><span>Contact and follow-up activity for staff responsible for partnerships in the selected period.</span></div></div>
           <div className="report-table-scroll"><table className="report-table">
