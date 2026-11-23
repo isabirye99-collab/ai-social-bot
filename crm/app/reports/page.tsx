@@ -123,6 +123,20 @@ export default function ReportsPage() {
     </div> : <div style={{ ...styles.panel, padding: 22, color: "#718078", fontSize: 13 }}>No module report links are available for your current permissions. Contact your CRM administrator if you need access.</div>}
 
     <footer style={{ marginTop: 20, padding: "13px 15px", borderRadius: 10, background: "#f4f8f5", color: "#728177", fontSize: 10, lineHeight: 1.7 }}>Access note: this page uses your signed-in profile role and module permissions to decide which report areas to display. Data access must also be enforced by the corresponding module permissions and database policies.</footer>
-    <style jsx>{`@media (max-width: 700px) { section[aria-label="General reports"], section[aria-label="Individual reports"] { grid-template-columns: 1fr !important; } }`}</style>
+    <style jsx>{`
+      .ciu-report-centre { font-family: inherit; color: var(--ciu-ink, #17322c); }
+      .ciu-report-centre header { border-radius: 18px !important; box-shadow: 0 14px 34px rgba(0,77,64,.16) !important; }
+      .ciu-report-centre section[aria-label="General reports"],
+      .ciu-report-centre section[aria-label="Individual reports"] {
+        border-color: var(--ciu-border, #dfe9e5) !important;
+        border-radius: 15px !important;
+        box-shadow: 0 7px 24px rgba(28,58,49,.06) !important;
+      }
+      .ciu-report-centre a { font-family: inherit; }
+      .ciu-report-centre a:focus-visible { outline: 3px solid #8bc63f; outline-offset: 3px; }
+      @media (max-width: 700px) {
+        section[aria-label="General reports"], section[aria-label="Individual reports"] { grid-template-columns: 1fr !important; }
+      }
+    `}</style>
   </main>;
 }
