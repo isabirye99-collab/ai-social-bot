@@ -15,7 +15,7 @@ const sources = [
 ];
 
 const schools = [
-  "School of Business and Applied Computer Technologies",
+  "School of Business and Applied Technology",
   "School of Nursing and Midwifery",
   "School of Public Health",
   "Institute of Allied Health Sciences",
@@ -57,117 +57,69 @@ const previousEducationLevels = [
  * The structure is:
  * School -> Study Level -> Programmes
  */
-const programmes: Record<
-  string,
-  Record<string, string[]>
-> = {
-  "School of Business and Applied Computer Technologies": {
-    Certificate: [
-      "Certificate Programme - To Be Updated",
-    ],
-    Diploma: [
-      "Diploma Programme - To Be Updated",
-    ],
+const programmes: Record<string, Record<string, string[]>> = {
+  "School of Business and Applied Technology": {
+    Certificate: ["Higher Education Certificate (Business)"],
+    Diploma: ["Diploma Programme - To Be Updated"],
     "Bachelor's": [
       "Bachelor of Business Administration",
       "Bachelor of Accounting",
       "Bachelor of Finance",
       "Bachelor of Procurement and Logistics",
       "Bachelor of Information Technology",
+      "Bachelor of Applied Computing Technologies",
       "Bachelor of Tourism, Hospitality and Events Management",
     ],
-    "Postgraduate Diploma": [
-      "Postgraduate Programme - To Be Updated",
-    ],
-    "Master's": [
-      "Master of Business Administration",
-    ],
-    PhD: [
-      "PhD Programme - To Be Updated",
-    ],
-    Other: [
-      "Other",
-    ],
+    "Postgraduate Diploma": ["Postgraduate Programme - To Be Updated"],
+    "Master's": ["Master of Business Administration"],
+    PhD: ["PhD Programme - To Be Updated"],
+    Other: ["Other"],
   },
-
   "School of Nursing and Midwifery": {
-    Certificate: [
-      "Certificate Programme - To Be Updated",
-    ],
-    Diploma: [
-      "Diploma Programme - To Be Updated",
-    ],
+    Certificate: ["Certificate Programme - To Be Updated"],
+    Diploma: ["Diploma Programme - To Be Updated"],
     "Bachelor's": [
-      "Bachelor of Nursing Science",
-      "Bachelor of Midwifery Science",
+      "Bachelor of Nursing Science - Top Up",
+      "Bachelor of Nursing Science - Direct",
+      "Bachelor of Midwifery Science - Top Up",
     ],
-    "Postgraduate Diploma": [
-      "Postgraduate Diploma in Critical Care Nursing",
-      "Postgraduate Diploma in Medical Education",
-    ],
-    "Master's": [
-      "Master's Programme - To Be Updated",
-    ],
-    PhD: [
-      "PhD Programme - To Be Updated",
-    ],
-    Other: [
-      "Other",
-    ],
+    "Postgraduate Diploma": ["Postgraduate Diploma in Critical Care Nursing"],
+    "Master's": ["Master's Programme - To Be Updated"],
+    PhD: ["PhD Programme - To Be Updated"],
+    Other: ["Other"],
   },
-
   "School of Public Health": {
-    Certificate: [
-      "Certificate Programme - To Be Updated",
-    ],
-    Diploma: [
-      "Diploma Programme - To Be Updated",
-    ],
-    "Bachelor's": [
-      "Bachelor of Public Health",
-    ],
-    "Postgraduate Diploma": [
-      "Postgraduate Diploma in Medical Education",
-      "Postgraduate Diploma Programme - To Be Updated",
-    ],
+    Certificate: ["Certificate Programme - To Be Updated"],
+    Diploma: ["Diploma in Public Health"],
+    "Bachelor's": ["Bachelor of Public Health"],
+    "Postgraduate Diploma": ["Postgraduate Diploma Programme - To Be Updated"],
     "Master's": [
       "Master of Public Health",
+      "Master of Science in Health Service Management",
+      "Master of Science in Human Nutrition",
+      "Master of Science in Health Informatics and Analytics",
+      "Master of Science in Monitoring and Evaluation",
     ],
-    PhD: [
-      "PhD Programme - To Be Updated",
-    ],
-    Other: [
-      "Other",
-    ],
+    PhD: ["PhD Programme - To Be Updated"],
+    Other: ["Other"],
   },
-
   "Institute of Allied Health Sciences": {
-    Certificate: [
-      "Certificate Programme - To Be Updated",
-    ],
+    Certificate: ["Higher Education Certificate (Biology)"],
     Diploma: [
       "Diploma in Clinical Medicine",
       "Diploma in Pharmacy",
       "Diploma in Medical Laboratory Science",
     ],
     "Bachelor's": [
-      "Bachelor of Medical Laboratory Science",
+      "Bachelor of Medical Laboratory Science - Direct",
+      "Bachelor of Medical Laboratory Science - Top Up",
     ],
-    "Postgraduate Diploma": [
-      "Postgraduate Programme - To Be Updated",
-    ],
-    "Master's": [
-      "Master's Programme - To Be Updated",
-    ],
-    PhD: [
-      "PhD Programme - To Be Updated",
-    ],
-    Other: [
-      "Other",
-    ],
+    "Postgraduate Diploma": ["Postgraduate Diploma in Medical Education"],
+    "Master's": ["Master's Programme - To Be Updated"],
+    PhD: ["PhD Programme - To Be Updated"],
+    Other: ["Other"],
   },
 };
-
 function LeadCaptureForm() {
   const searchParams = useSearchParams();
 
@@ -422,7 +374,7 @@ function LeadCaptureForm() {
         className="ciu-public-lead-success"
         style={{
           minHeight: "100vh",
-          background: "#f8fafc",
+          background: "#f5f8f7",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -436,7 +388,7 @@ function LeadCaptureForm() {
             width: "100%",
             maxWidth: 520,
             background: "#ffffff",
-            border: "1px solid #e5e7eb",
+            border: "1px solid #dfe9e5",
             borderRadius: 16,
             padding: 36,
             textAlign: "center",
@@ -602,8 +554,8 @@ function LeadCaptureForm() {
                   marginTop: 14,
                   padding: "7px 12px",
                   borderRadius: 999,
-                  background: "#eff6ff",
-                  color: "#1d4ed8",
+                  background: "#e8f4f0",
+                  color: "#00695c",
                   fontSize: 12,
                   fontWeight: 600,
                 }}
@@ -1090,9 +1042,9 @@ function LeadCaptureForm() {
                 visibility: "visible",
                 opacity: saving ? 0.7 : 1,
                 color: "#ffffff",
-                background: "#2563eb",
+                background: "#00695c",
                 border:
-                  "1px solid #2563eb",
+                  "1px solid #00695c",
                 borderRadius: 8,
                 fontSize: 15,
                 fontWeight: 600,
