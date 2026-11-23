@@ -66,7 +66,7 @@ export default function ReportsPage() {
   if (loading) return <main className="ciu-page" style={{ padding: 32, color: "#173d34" }}><div style={{ ...styles.panel, padding: 24 }}>Preparing your reports and access permissions…</div></main>;
 
   return <main className="ciu-page ciu-report-centre" style={{ padding: "28px clamp(16px,3vw,34px) 48px", color: "#173d34" }}>
-    <header style={{ ...styles.panel, overflow: "hidden", marginBottom: 22, background: "linear-gradient(115deg,#0d5145 0%,#176f5b 60%,#d9f0e1 60%,#f3faf5 100%)", border: 0 }}>
+    <header style={{ ...styles.panel, overflow: "hidden", marginBottom: 22, background: "linear-gradient(135deg,#365314 0%,#00695c 68%,#087b68 100%)", border: 0, borderRadius: 18, boxShadow: "0 14px 34px rgba(0,77,64,.16)" }}>
       <div style={{ padding: "28px clamp(18px,3vw,34px)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 22, flexWrap: "wrap" }}>
         <div style={{ maxWidth: 660, color: "#fff" }}>
           <div style={{ fontSize: 10, fontWeight: 850, letterSpacing: 2, opacity: .82 }}>CLARKE INTERNATIONAL UNIVERSITY · CRM</div>
