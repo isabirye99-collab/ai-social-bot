@@ -46,7 +46,7 @@ export default function EngagementPage() {
    const leadsById=new Map(leadRows.map(x=>[x.id,x]));
    const byId=new Map(cs.map(x=>[x.id,x]));
    const staffById=new Map(activeStaff.map(x=>[x.id,x.full_name]));
-   setInteractions(((i.data||[]) as Interaction[]).map(x=>({...x,contact:byId.get(x.contact_id),assigned_name:x.assigned_to?staffById.get(x.assigned_to)||"Inactive or unavailable staff":"Unassigned"})));
+   setInteractions(((i.data||[]) as Interaction[]).map(x=>({...x,contact:byId.get(x.contact_id),lead:x.lead_id?leadsById.get(x.lead_id)||null:null,assigned_name:x.assigned_to?staffById.get(x.assigned_to)||"Inactive or unavailable staff":"Unassigned"})));
   } catch(e){setError(e instanceof Error?e.message:"Unable to load engagement records.");}
   finally{setLoading(false);}
  }
