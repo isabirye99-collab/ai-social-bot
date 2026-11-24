@@ -1952,7 +1952,7 @@ const isSalesperson =
 
       const assignments = new Map<string, string[]>();
       activeSalespeople.forEach((person) => assignments.set(person.id, []));
-      [...scopedLeads]
+      [...unassignedLeads]
         .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")))
         .forEach((lead) => {
           const nextPerson = [...activeSalespeople].sort((a, b) =>
