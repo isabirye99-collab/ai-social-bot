@@ -20,6 +20,7 @@ export type CrmModule =
   | "strategy"
   | "partnerships"
   | "alumni"
+  | "shortcourses"
   | "reports"
   | "staff"
   | "advanced"
@@ -37,6 +38,7 @@ export const ALL_CRM_MODULES: CrmModule[] = [
   "strategy",
   "partnerships",
   "alumni",
+  "shortcourses",
   "reports",
   "staff",
   "advanced",
@@ -55,6 +57,7 @@ export const MODULE_LABELS: Record<CrmModule, string> = {
   strategy: "Strategy & Planning",
   partnerships: "Partnerships",
   alumni: "Alumni",
+  shortcourses: "Short Courses",
   reports: "Reports",
   staff: "Staff",
   advanced: "Advanced",
@@ -75,6 +78,7 @@ export const ROLE_MODULES: Record<CrmRole, CrmModule[]> = {
     "strategy",
     "partnerships",
     "alumni",
+    "shortcourses",
     "reports",
     "staff",
     "advanced",
@@ -89,6 +93,7 @@ export const ROLE_MODULES: Record<CrmRole, CrmModule[]> = {
     "engagement",
     "strategy",
     "partnerships",
+    "shortcourses",
     "reports",
     "advanced",
   ],
