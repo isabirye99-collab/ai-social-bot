@@ -340,7 +340,7 @@ export default function LeadsPage() {
     const params = new URLSearchParams(window.location.search);
     const intake = params.get("intake");
     const outcome = params.get("outcome");
-    if (intake && ["unassigned", "2026-11", "2027-2", "2027-4", "2027-8", "2027-11", "2028-2"].includes(intake)) {
+    if (intake && ["all", "unassigned", "2026-11", "2027-2", "2027-4", "2027-8", "2027-11", "2028-2"].includes(intake)) {
       setSelectedIntake(intake);
     }
     if (outcome) setOutcomeFilter(outcome);
@@ -377,7 +377,7 @@ export default function LeadsPage() {
 
     const [intakeYear, intakeMonth] = selectedIntake.split("-").map(Number);
     return leads.filter((lead) => {
-      if (selectedIntake === "unassigned" ? Boolean(lead.intake_year && lead.intake_month) : (lead.intake_year !== intakeYear || lead.intake_month !== intakeMonth)) return false;
+      if (selectedIntake !== "all" && (selectedIntake === "unassigned" ? Boolean(lead.intake_year && lead.intake_month) : (lead.intake_year !== intakeYear || lead.intake_month !== intakeMonth))) return false;
       const displayStatus =
         getDisplayStatus(
           lead.status
@@ -447,9 +447,9 @@ export default function LeadsPage() {
     let unrecorded = 0;
     const [intakeYear, intakeMonth] = selectedIntake.split("-").map(Number);
     const scopedLeads = leads.filter((lead) =>
-      selectedIntake === "unassigned"
+      selectedIntake === "all" || (selectedIntake === "unassigned"
         ? !lead.intake_year || !lead.intake_month
-        : lead.intake_year === intakeYear && lead.intake_month === intakeMonth
+        : lead.intake_year === intakeYear && lead.intake_month === intakeMonth)
     );
     scopedLeads.forEach((lead) => {
       const outcome = normalize(lead.follow_up_status);
@@ -475,7 +475,7 @@ export default function LeadsPage() {
   }, [leads, selectedIntake]);
 
   const [intakeYearForStats, intakeMonthForStats] = selectedIntake.split("-").map(Number);
-  const intakeLeads = leads.filter((lead) => lead.intake_year === intakeYearForStats && lead.intake_month === intakeMonthForStats);
+  const intakeLeads = selectedIntake === "all" ? leads : leads.filter((lead) => selectedIntake === "unassigned" ? (!lead.intake_year || !lead.intake_month) : lead.intake_year === intakeYearForStats && lead.intake_month === intakeMonthForStats);
   const activeLeads = intakeLeads.filter((lead) => !statusIsClosed(lead.status)).length;
   const interestedLeads = intakeLeads.filter((lead) => statusIsQualified(lead.status)).length;
   const closedLeads = intakeLeads.filter((lead) => statusIsClosed(lead.status)).length;
@@ -1196,7 +1196,7 @@ export default function LeadsPage() {
               <input type="file" accept=".csv,text/csv" disabled={uploadingCsv} style={{ display: "none" }} onChange={(event) => { const file = event.target.files?.[0]; void handleLeadCsvUpload(file); event.currentTarget.value = ""; }} />
             </label>
             <a className="ciu-btn-light leads-action-button" href="data:text/csv;charset=utf-8,Name%2CPhone%2CEmail%2CCIU%20Number%2CProgramme%2CStatus%2CIntake%20Year%2CIntake%20Month%0AExample%20Student%2C256700000000%2Cstudent%40example.com%2CCIU12345%2CBachelor%20of%20Business%2Cnew%2C2027%2C2" download="ciu-leads-template.csv">Download CSV template</a>
-            <button type="button" onClick={() => { if (selectedIntake !== "unassigned") { const [year, month] = selectedIntake.split("-"); setNewLead((current) => ({ ...current, intake_year: current.intake_year || year, intake_month: current.intake_month || month })); } setShowAddLead(true); }} className="ciu-btn leads-action-button leads-add-button">+ Add New Lead</button>
+            <button type="button" onClick={() => { if (selectedIntake !== "unassigned" && selectedIntake !== "all") { const [year, month] = selectedIntake.split("-"); setNewLead((current) => ({ ...current, intake_year: current.intake_year || year, intake_month: current.intake_month || month })); } setShowAddLead(true); }} className="ciu-btn leads-action-button leads-add-button">+ Add New Lead</button>
             <button type="button" onClick={loadLeads} className="ciu-btn-light leads-action-button" disabled={loading}>{loading ? "Refreshing..." : "↻ Refresh"}</button>
           </div>
           {csvSummary && <p role="status" style={{ marginTop: 10, color: "#166534", fontSize: 13 }}>{csvSummary}</p>}
@@ -1254,7 +1254,7 @@ export default function LeadsPage() {
             <p>Showing leads assigned to the selected intake.</p>
           </div>
           <select aria-label="Recruitment intake" value={selectedIntake} onChange={(event) => setSelectedIntake(event.target.value)} style={{ ...inputStyle, width: "auto", minWidth: 190 }}>
-            <option value="unassigned">Needs intake assignment</option><option value="2026-11">November 2026</option><option value="2027-2">February 2027</option><option value="2027-4">April 2027</option><option value="2027-8">August 2027</option><option value="2027-11">November 2027</option><option value="2028-2">February 2028</option>
+            <option value="all">All Intakes</option><option value="unassigned">Needs intake assignment</option><option value="2026-11">November 2026</option><option value="2027-2">February 2027</option><option value="2027-4">April 2027</option><option value="2027-8">August 2027</option><option value="2027-11">November 2027</option><option value="2028-2">February 2028</option>
           </select>
         </section>
 
