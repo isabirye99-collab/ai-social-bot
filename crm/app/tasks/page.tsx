@@ -1967,6 +1967,20 @@ const isSalesperson =
             .update({ assigned_to: person.id, updated_at: new Date().toISOString() })
             .in("id", batchIds);
           if (updateError) throw updateError;
+
+          // Keep existing follow-up tasks and pipeline opportunities aligned
+          // with the lead owner so staff workload counts reflect reassignment.
+          const { error: taskAssignmentError } = await supabase
+            .from("tasks")
+            .update({ assigned_to: person.id, updated_at: new Date().toISOString() })
+            .in("lead_id", batchIds);
+          if (taskAssignmentError) throw taskAssignmentError;
+
+          const { error: opportunityAssignmentError } = await supabase
+            .from("opportunities")
+            .update({ assigned_to: person.id, updated_at: new Date().toISOString() })
+            .in("lead_id", batchIds);
+          if (opportunityAssignmentError) throw opportunityAssignmentError;
         }
       }
 
@@ -1974,6 +1988,7 @@ const isSalesperson =
         const person = activeSalespeople.find((item) => assignments.get(item.id)?.includes(lead.id));
         return person ? { ...lead, assigned_to: person.id } : lead;
       }));
+      await loadAll();
       setSuccess(`Auto-assigned ${scopedLeads.length.toLocaleString()} leads across ${activeSalespeople.length} active salespeople for ${scopeLabel}. Existing assignments in other intakes were preserved.`);
     } catch (err) {
       console.error(err);
@@ -1999,9 +2014,24 @@ const isSalesperson =
         })
         .eq("id", leadId);
       if (assignmentError) throw assignmentError;
+
+      // Reassign existing follow-up tasks and pipeline records with their lead.
+      const { error: linkedTaskError } = await supabase
+        .from("tasks")
+        .update({ assigned_to: salespersonId || null, updated_at: new Date().toISOString() })
+        .eq("lead_id", leadId);
+      if (linkedTaskError) throw linkedTaskError;
+
+      const { error: linkedOpportunityError } = await supabase
+        .from("opportunities")
+        .update({ assigned_to: salespersonId || null, updated_at: new Date().toISOString() })
+        .eq("lead_id", leadId);
+      if (linkedOpportunityError) throw linkedOpportunityError;
+
       setLeads((current) => current.map((item) =>
         item.id === leadId ? { ...item, assigned_to: salespersonId || null } : item
       ));
+      await loadAll();
       const person = profiles.find((item) => item.id === salespersonId);
       setSuccess(salespersonId
         ? `${lead.name || "Lead"} assigned to ${person?.full_name || "the selected salesperson"}.`
