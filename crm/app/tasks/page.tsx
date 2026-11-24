@@ -548,6 +548,21 @@ const isSalesperson =
           );
       }
 
+      // Supabase/PostgREST limits each response to a maximum page size.
+      // Load every task page so managers and super admins see the complete workload.
+      const fetchAllPages = async (baseQuery: any) => {
+        const allRows: any[] = [];
+        const pageSize = 1000;
+        for (let offset = 0; ; offset += pageSize) {
+          const { data, error } = await baseQuery.range(offset, offset + pageSize - 1);
+          if (error) return { data: null, error };
+          const batch = data || [];
+          allRows.push(...batch);
+          if (batch.length < pageSize) break;
+        }
+        return { data: allRows, error: null };
+      };
+
       const [
         tasksResult,
         profilesResult,
@@ -555,7 +570,7 @@ const isSalesperson =
         opportunitiesResult,
         stagesResult,
       ] = await Promise.all([
-        tasksQuery,
+        fetchAllPages(tasksQuery),
 
         supabase
           .from("profiles")
