@@ -1207,7 +1207,7 @@ export default function LeadsPage() {
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "flex-start" }}>
                   <div>
                     <h2 id="lead-csv-review-title" style={{ margin: 0, color: "#075442", fontSize: 21 }}>Review possible duplicate leads</h2>
-                    <p style={{ margin: "7px 0 0", color: "#52635b", fontSize: 13 }}>We found records with the same name, phone, email or CIU number. Choose whether to merge each match or keep it as a separate lead. Nothing is saved until you confirm.</p>
+                    <p style={{ margin: "7px 0 0", color: "#52635b", fontSize: 13 }}>We found records with the same name, phone, email or CIU number. Merge to fill blank fields in the existing record, or skip the duplicate. Duplicate records cannot be imported separately. Nothing is saved until you confirm.</p>
                   </div>
                   <button type="button" disabled={confirmingCsv} onClick={() => setShowCsvReview(false)} style={{ border: "1px solid #d6e2da", borderRadius: 8, padding: "7px 11px", background: "#fff", color: "#334155" }}>Close</button>
                 </div>
