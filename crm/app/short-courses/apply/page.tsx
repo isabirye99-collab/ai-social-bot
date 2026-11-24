@@ -17,6 +17,9 @@ export default function ShortCourseApplicationPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState("");
+  const [paymentReference, setPaymentReference] = useState("");
+  const [proofFile, setProofFile] = useState<File | null>(null);
   const [form, setForm] = useState({ first_name: "", last_name: "", phone: "", email: "", date_of_birth: "", gender: "", nationality: "", highest_qualification: "", qualification_details: "", source: "Website", expected_outcome: "" });
 
   useEffect(() => {
@@ -40,8 +43,17 @@ export default function ShortCourseApplicationPage() {
   async function submit(event: FormEvent) {
     event.preventDefault(); setSaving(true); setError("");
     if (!courseId) { setError("Please select a short course."); setSaving(false); return; }
+    if (!paymentMethod) { setError("Please choose ABSA Bank or MTN MoMo."); setSaving(false); return; }
+    if (!proofFile) { setError("Please attach proof of payment to continue."); setSaving(false); return; }
+    if (proofFile.size > 5 * 1024 * 1024) { setError("Proof of payment must be 5 MB or smaller."); setSaving(false); return; }
+    if (!["image/jpeg", "image/png", "image/webp", "application/pdf"].includes(proofFile.type)) { setError("Attach a JPG, PNG, WEBP image or PDF document."); setSaving(false); return; }
+    let uploadedPath = "";
     try {
-      const { data, error: e } = await supabase.rpc("submit_short_course_application", {
+      const safeName = proofFile.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      uploadedPath = crypto.randomUUID() + "/" + safeName;
+      const { error: uploadError } = await supabase.storage.from("short-course-payment-proofs").upload(uploadedPath, proofFile, { upsert: false, contentType: proofFile.type });
+      if (uploadError) throw uploadError;
+      const { error: e } = await supabase.rpc("submit_short_course_application", {
         p_course_id: courseId,
         p_first_name: form.first_name.trim(),
         p_last_name: form.last_name.trim(),
@@ -54,11 +66,16 @@ export default function ShortCourseApplicationPage() {
         p_qualification_details: form.qualification_details.trim() || null,
         p_source: form.source || "Website",
         p_expected_outcome: form.expected_outcome.trim() || null,
+        p_payment_method: paymentMethod,
+        p_payment_reference: paymentReference.trim() || null,
+        p_payment_proof_path: uploadedPath,
       });
       if (e) throw e;
       setSubmitted(true);
-    } catch (e: any) { setError(e?.message || "We could not submit your application. Please try again."); }
-    finally { setSaving(false); }
+    } catch (e: any) {
+      if (uploadedPath) { try { await supabase.storage.from("short-course-payment-proofs").remove([uploadedPath]); } catch {} }
+      setError(e?.message || "We could not submit your application. Please try again.");
+    } finally { setSaving(false); }
   }
 
   return <main style={{ minHeight: "100vh", background: "#f6faf7", color: "#173b2b", fontFamily: "Inter, Arial, sans-serif" }}>
@@ -79,7 +96,7 @@ export default function ShortCourseApplicationPage() {
           </div>
         </div>
         <div style={{ background: "#fff", border: "1px solid #e0ebe4", borderRadius: 20, padding: "clamp(20px,3vw,32px)", boxShadow: "0 16px 45px rgba(27,70,46,.07)" }}>
-          {submitted ? <div style={{ textAlign: "center", padding: "32px 8px" }}><div style={{ width: 58, height: 58, margin: "0 auto 18px", borderRadius: 30, display: "grid", placeItems: "center", background: "#e7f7eb", color: "#22834d" }}><CheckCircle2 size={30}/></div><h2 style={{ fontSize: 25, fontWeight: 900, margin: "0 0 10px" }}>Thank you for applying!</h2><p style={{ fontSize: 14, color: "#65796c", lineHeight: 1.8 }}>Your short-course application has been received by Clarke International University. Our coordinator will contact you using the details you provided.</p><button onClick={() => { setSubmitted(false); setForm({ first_name: "", last_name: "", phone: "", email: "", date_of_birth: "", gender: "", nationality: "", highest_qualification: "", qualification_details: "", source: "Website", expected_outcome: "" }); setCourseId(courses.length === 1 ? courses[0].id : ""); }} style={{ marginTop: 12, border: 0, borderRadius: 10, padding: "12px 16px", color: "#fff", background: "#00695c", fontWeight: 800, cursor: "pointer" }}>Submit another application</button></div> : <>
+          {submitted ? <div style={{ textAlign: "center", padding: "32px 8px" }}><div style={{ width: 58, height: 58, margin: "0 auto 18px", borderRadius: 30, display: "grid", placeItems: "center", background: "#e7f7eb", color: "#22834d" }}><CheckCircle2 size={30}/></div><h2 style={{ fontSize: 25, fontWeight: 900, margin: "0 0 10px" }}>Thank you for applying!</h2><p style={{ fontSize: 14, color: "#65796c", lineHeight: 1.8 }}>Your short-course application has been received by Clarke International University. Our coordinator will contact you using the details you provided.</p><button onClick={() => { setSubmitted(false); setForm({ first_name: "", last_name: "", phone: "", email: "", date_of_birth: "", gender: "", nationality: "", highest_qualification: "", qualification_details: "", source: "Website", expected_outcome: "" }); setCourseId(courses.length === 1 ? courses[0].id : ""); setPaymentMethod(""); setPaymentReference(""); setProofFile(null); }} style={{ marginTop: 12, border: 0, borderRadius: 10, padding: "12px 16px", color: "#fff", background: "#00695c", fontWeight: 800, cursor: "pointer" }}>Submit another application</button></div> : <>
             <h2 style={{ fontSize: 23, fontWeight: 900, margin: "0 0 6px" }}>Apply for a short course</h2><p style={{ fontSize: 12, color: "#75867b", margin: "0 0 22px", lineHeight: 1.6 }}>Complete the form below. Fields marked * are required.</p>
             {error && <div style={{ background: "#fff1f0", border: "1px solid #fecaca", color: "#991b1b", padding: 11, borderRadius: 9, marginBottom: 13, fontSize: 12 }}>{error}</div>}
             <form onSubmit={submit} style={{ display: "grid", gap: 13 }}>
@@ -92,6 +109,23 @@ export default function ShortCourseApplicationPage() {
               <div><label style={labelStyle}>Qualification details / institution</label><textarea rows={2} value={form.qualification_details} onChange={(e) => update("qualification_details", e.target.value)} style={{ ...field, resize: "vertical" }}/></div>
               <div><label style={labelStyle}>What would you like to get out of this course?</label><textarea rows={3} value={form.expected_outcome} onChange={(e) => update("expected_outcome", e.target.value)} style={{ ...field, resize: "vertical" }}/></div>
               <div><label style={labelStyle}>Where did you learn about CIU?</label><select value={form.source} onChange={(e) => update("source", e.target.value)} style={field}>{["Website","Facebook","TikTok","Instagram","WhatsApp","Google","Billboard","Referral","Employer / organisation","Other"].map((s) => <option key={s}>{s}</option>)}</select></div>
+              <div style={{ border: "1px solid #d8e9d9", borderRadius: 12, background: "#f5faf5", padding: 15, marginBottom: 2 }}>
+                <div style={{ fontSize: 14, fontWeight: 900, color: "#185642", marginBottom: 8 }}>Application Fee: UGX 10,000</div>
+                <p style={{ margin: "0 0 10px", fontSize: 12, color: "#536b5c" }}>Make payment using either of the options below, then attach your payment proof.</p>
+                <div style={{ background: "#fff", border: "1px solid #e0ebe3", borderRadius: 9, padding: 11, marginBottom: 8 }}>
+                  <div style={{ fontSize: 12, fontWeight: 850 }}>ABSA Bank · UGX Account</div>
+                  <div style={{ fontSize: 12, marginTop: 5 }}>Account Number: <strong>6000164850</strong></div>
+                  <div style={{ fontSize: 12, marginTop: 3 }}>Account Name: <strong>Clarke International University</strong></div>
+                </div>
+                <div style={{ background: "#fff", border: "1px solid #e0ebe3", borderRadius: 9, padding: 11 }}>
+                  <div style={{ fontSize: 12, fontWeight: 850 }}>MTN MoMo</div>
+                  <div style={{ fontSize: 12, marginTop: 5 }}>Account Number: <strong>594845</strong></div>
+                  <div style={{ fontSize: 12, marginTop: 3 }}>Account Name: <strong>Clarke International University</strong></div>
+                </div>
+              </div>
+              <div><label style={labelStyle}>Payment method used *</label><select required value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} style={field}><option value="">Choose payment method</option><option value="ABSA Bank">ABSA Bank</option><option value="MTN MoMo">MTN MoMo</option></select></div>
+              <div><label style={labelStyle}>Payment transaction/reference number (if available)</label><input value={paymentReference} onChange={(e) => setPaymentReference(e.target.value)} placeholder="Enter transaction reference" style={field}/></div>
+              <div><label style={labelStyle}>Attach proof of payment * (JPG, PNG, WEBP or PDF; max 5 MB)</label><input required type="file" accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf" onChange={(e) => setProofFile(e.target.files?.[0] || null)} style={{ ...field, padding: 9 }}/><p style={{ margin: "5px 0 0", fontSize: 11, color: "#718278" }}>{proofFile ? "Selected: " + proofFile.name : "Upload a screenshot, photo or PDF receipt. Your payment will be marked pending verification."}</p></div>
               <button disabled={saving || loading || !courses.length} type="submit" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 4, border: 0, borderRadius: 11, padding: "14px 16px", color: "#fff", background: saving || !courses.length ? "#8ca99a" : "#00695c", fontWeight: 850, cursor: saving ? "wait" : "pointer" }}>{saving ? "Submitting application…" : "Submit application"} <ArrowRight size={16}/></button>
               <p style={{ margin: 0, color: "#91a097", fontSize: 10, lineHeight: 1.5, textAlign: "center" }}>By submitting, you consent to CIU contacting you about this short course.</p>
             </form>
