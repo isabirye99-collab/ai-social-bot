@@ -636,6 +636,7 @@ export default function LeadsPage() {
       }
 
       const {
+        data: createdLead,
         error,
       } = await supabase
         .from("leads")
@@ -676,10 +677,35 @@ export default function LeadsPage() {
 
           assigned_to:
             assignedSalespersonId,
-        });
+        })
+        .select("id,name,intake_year,intake_month")
+        .single();
 
       if (error) {
         throw error;
+      }
+
+      // Every newly added lead should immediately appear in Tasks as an
+      // outstanding follow-up for its assigned salesperson.
+      const { error: taskError } = await supabase
+        .from("tasks")
+        .insert({
+          title: `Follow up with ${createdLead.name || "Student"}`,
+          description: "Initial follow-up task created automatically when the lead was added.",
+          task_type: "call",
+          lead_id: createdLead.id,
+          assigned_to: assignedSalespersonId || null,
+          due_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+          status: "pending",
+          priority: "medium",
+          intake_year: createdLead.intake_year ?? null,
+          intake_month: createdLead.intake_month ?? null,
+          created_by: currentUserId || null,
+        });
+
+      if (taskError) {
+        await loadLeads();
+        throw new Error(`The lead was saved, but its follow-up task could not be created: ${taskError.message}`);
       }
 
       setNewLead({
