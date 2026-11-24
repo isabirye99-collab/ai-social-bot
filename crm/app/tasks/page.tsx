@@ -387,6 +387,7 @@ export default function TasksPage() {
   const [leadAssignmentSearch, setLeadAssignmentSearch] = useState("");
   const [leadAssignmentFilter, setLeadAssignmentFilter] = useState("all");
   const [savingLeadAssignmentId, setSavingLeadAssignmentId] = useState<string | null>(null);
+  const [autoAssigningLeads, setAutoAssigningLeads] = useState(false);
 
   const [showTaskModal, setShowTaskModal] =
     useState(false);
@@ -1892,6 +1893,97 @@ const isSalesperson =
     }
   };
 
+  const autoAssignLeads = async () => {
+    const activeSalespeople = profiles
+      .filter((profile) => profile.role === "salesperson" && profile.is_active !== false)
+      .sort((a, b) => String(a.full_name || "").localeCompare(String(b.full_name || "")));
+
+    if (activeSalespeople.length === 0) {
+      setError("No active salespeople are available. Activate at least one salesperson account and try again.");
+      return;
+    }
+
+    const [year, month] = selectedIntake.split("-").map(Number);
+    const scopedLeads = leads.filter((lead) =>
+      selectedIntake === "all" ||
+      (selectedIntake === "unassigned"
+        ? !lead.intake_year || !lead.intake_month
+        : lead.intake_year === year && lead.intake_month === month)
+    );
+
+    if (scopedLeads.length === 0) {
+      setError("There are no leads in the selected intake to assign.");
+      return;
+    }
+
+    const scopeLabel = selectedIntake === "all"
+      ? "all intakes"
+      : selectedIntake === "unassigned"
+        ? "leads without an intake"
+        : ({ "2026-11": "November 2026", "2027-2": "February 2027", "2027-4": "April 2027", "2027-8": "August 2027", "2027-11": "November 2027", "2028-2": "February 2028" } as Record<string, string>)[selectedIntake] || selectedIntake;
+
+    const confirmed = window.confirm(
+      `Auto-assign ${scopedLeads.length.toLocaleString()} leads in ${scopeLabel} across ${activeSalespeople.length} active salespeople? This will redistribute leads in this intake and may change existing salesperson assignments. Leads in other intakes will not be changed.`
+    );
+    if (!confirmed) return;
+
+    try {
+      setAutoAssigningLeads(true);
+      setError("");
+      setSuccess("");
+
+      // Count assignments outside the selected intake first, so distribution
+      // aims to balance each salesperson's overall lead workload.
+      const scopedIds = new Set(scopedLeads.map((lead) => lead.id));
+      const workload = new Map<string, number>();
+      activeSalespeople.forEach((person) => workload.set(person.id, 0));
+      leads.forEach((lead) => {
+        if (scopedIds.has(lead.id) || !lead.assigned_to) return;
+        if (workload.has(lead.assigned_to)) {
+          workload.set(lead.assigned_to, (workload.get(lead.assigned_to) || 0) + 1);
+        }
+      });
+
+      const assignments = new Map<string, string[]>();
+      activeSalespeople.forEach((person) => assignments.set(person.id, []));
+      [...scopedLeads]
+        .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")))
+        .forEach((lead) => {
+          const nextPerson = [...activeSalespeople].sort((a, b) =>
+            (workload.get(a.id) || 0) - (workload.get(b.id) || 0) ||
+            String(a.full_name || "").localeCompare(String(b.full_name || ""))
+          )[0];
+          assignments.get(nextPerson.id)?.push(lead.id);
+          workload.set(nextPerson.id, (workload.get(nextPerson.id) || 0) + 1);
+        });
+
+      // Update in small batches per salesperson; no lead records are created or deleted.
+      for (const person of activeSalespeople) {
+        const ids = assignments.get(person.id) || [];
+        for (let offset = 0; offset < ids.length; offset += 100) {
+          const batchIds = ids.slice(offset, offset + 100);
+          const { error: updateError } = await supabase
+            .from("leads")
+            .update({ assigned_to: person.id, updated_at: new Date().toISOString() })
+            .in("id", batchIds);
+          if (updateError) throw updateError;
+        }
+      }
+
+      setLeads((current) => current.map((lead) => {
+        const person = activeSalespeople.find((item) => assignments.get(item.id)?.includes(lead.id));
+        return person ? { ...lead, assigned_to: person.id } : lead;
+      }));
+      setSuccess(`Auto-assigned ${scopedLeads.length.toLocaleString()} leads across ${activeSalespeople.length} active salespeople for ${scopeLabel}. Existing assignments in other intakes were preserved.`);
+    } catch (err) {
+      console.error(err);
+      setError(err instanceof Error ? err.message : "Automatic lead assignment failed. Please refresh and check assignments before retrying.");
+      await loadAll();
+    } finally {
+      setAutoAssigningLeads(false);
+    }
+  };
+
   const assignLeadToSalesperson = async (leadId: string, salespersonId: string) => {
     const lead = leads.find((item) => item.id === leadId);
     if (!lead || lead.assigned_to === (salespersonId || null)) return;
@@ -2092,13 +2184,16 @@ const isSalesperson =
         {!isSalesperson && (
           <section aria-label="Lead assignment queue" style={{ marginBottom: 16, border: "1px solid #cfe1d6", borderRadius: 14, background: "#ffffff", overflow: "hidden" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, padding: "14px 16px", background: "#f0f8f3", borderBottom: "1px solid #dce9e1" }}>
-              <div>
+              <div style={{ flex: "1 1 280px" }}>
                 <div style={{ color: "#075442", fontSize: 15, fontWeight: 800 }}>Lead Assignment Queue</div>
                 <div style={{ color: "#536b5d", fontSize: 12, marginTop: 4 }}>View all leads for the selected intake and assign or reassign each lead to a salesperson. Changes save immediately.</div>
               </div>
-              <div style={{ borderRadius: 10, padding: "8px 12px", background: "#ffffff", border: "1px solid #cfe1d6", textAlign: "center" }}>
-                <div style={{ fontSize: 20, fontWeight: 850, color: "#075442" }}>{leads.length.toLocaleString()}</div>
-                <div style={{ fontSize: 10, color: "#64756b" }}>Leads loaded</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                <button type="button" onClick={() => void autoAssignLeads()} disabled={autoAssigningLeads || loading || leads.length === 0} style={{ border: "1px solid #087443", borderRadius: 9, padding: "10px 13px", background: autoAssigningLeads ? "#6b8f80" : "#087443", color: "#fff", fontWeight: 750, fontSize: 12, cursor: autoAssigningLeads || loading || leads.length === 0 ? "not-allowed" : "pointer", opacity: autoAssigningLeads || loading || leads.length === 0 ? 0.7 : 1, whiteSpace: "nowrap" }}>{autoAssigningLeads ? "Auto-assigning..." : "⚡ Auto-assign leads"}</button>
+                <div style={{ borderRadius: 10, padding: "8px 12px", background: "#ffffff", border: "1px solid #cfe1d6", textAlign: "center" }}>
+                  <div style={{ fontSize: 20, fontWeight: 850, color: "#075442" }}>{leads.length.toLocaleString()}</div>
+                  <div style={{ fontSize: 10, color: "#64756b" }}>Leads loaded</div>
+                </div>
               </div>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "minmax(220px, 1fr) minmax(170px, 220px)", gap: 10, padding: 12, borderBottom: "1px solid #edf2ee" }}>
