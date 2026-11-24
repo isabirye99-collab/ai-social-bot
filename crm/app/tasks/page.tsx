@@ -2108,6 +2108,23 @@ const isSalesperson =
     setAssignedFilter("all");
   };
 
+  // Assignment progress is scoped to the selected recruitment intake.
+  // The total lead count remains informational; the outstanding assignment
+  // count should reach zero when every lead in scope has an owner.
+  const assignmentQueueStats = useMemo(() => {
+    const [year, month] = selectedIntake.split("-").map(Number);
+    const scopedLeads = leads.filter((lead) =>
+      selectedIntake === "all" ||
+      (selectedIntake === "unassigned"
+        ? !lead.intake_year || !lead.intake_month
+        : lead.intake_year === year && lead.intake_month === month)
+    );
+    return {
+      total: scopedLeads.length,
+      unassigned: scopedLeads.filter((lead) => !lead.assigned_to).length,
+    };
+  }, [leads, selectedIntake]);
+
   return (
     <div
       className="ciu-tasks-page"
@@ -2276,9 +2293,15 @@ const isSalesperson =
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                 <button type="button" onClick={() => void autoAssignLeads()} disabled={autoAssigningLeads || loading || leads.length === 0} style={{ border: "1px solid #087443", borderRadius: 9, padding: "10px 13px", background: autoAssigningLeads ? "#6b8f80" : "#087443", color: "#fff", fontWeight: 750, fontSize: 12, cursor: autoAssigningLeads || loading || leads.length === 0 ? "not-allowed" : "pointer", opacity: autoAssigningLeads || loading || leads.length === 0 ? 0.7 : 1, whiteSpace: "nowrap" }}>{autoAssigningLeads ? "Auto-assigning..." : "⚡ Auto-assign leads"}</button>
-                <div style={{ borderRadius: 10, padding: "8px 12px", background: "#ffffff", border: "1px solid #cfe1d6", textAlign: "center" }}>
-                  <div style={{ fontSize: 20, fontWeight: 850, color: "#075442" }}>{leads.length.toLocaleString()}</div>
-                  <div style={{ fontSize: 10, color: "#64756b" }}>Leads loaded</div>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <div style={{ borderRadius: 10, padding: "8px 12px", background: "#ffffff", border: "1px solid #cfe1d6", textAlign: "center", minWidth: 94 }}>
+                    <div style={{ fontSize: 20, fontWeight: 850, color: "#075442" }}>{assignmentQueueStats.total.toLocaleString()}</div>
+                    <div style={{ fontSize: 10, color: "#64756b" }}>Leads in scope</div>
+                  </div>
+                  <div style={{ borderRadius: 10, padding: "8px 12px", background: assignmentQueueStats.unassigned === 0 ? "#f0fdf4" : "#fffaf0", border: assignmentQueueStats.unassigned === 0 ? "1px solid #bbf7d0" : "1px solid #fed7aa", textAlign: "center", minWidth: 112 }}>
+                    <div style={{ fontSize: 20, fontWeight: 850, color: assignmentQueueStats.unassigned === 0 ? "#15803d" : "#b45309" }}>{assignmentQueueStats.unassigned.toLocaleString()}</div>
+                    <div style={{ fontSize: 10, color: "#64756b" }}>Unassigned remaining</div>
+                  </div>
                 </div>
               </div>
             </div>
