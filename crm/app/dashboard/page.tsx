@@ -388,6 +388,21 @@ export default function DashboardPage() {
       const alumniVerifiedQuery = supabase.from("alumni").select("id", { count: "exact", head: true }).ilike("verification_status", "verified");
       const partnershipsQuery = supabase.from("partnerships").select("id,status,category");
 
+      // Fetch paginated core records. Supabase returns at most 1,000 rows
+      // per response by default; dashboard totals must include every lead/task.
+      const fetchAllPages = async (baseQuery: any) => {
+        const allRows: any[] = [];
+        const pageSize = 1000;
+        for (let offset = 0; ; offset += pageSize) {
+          const { data, error } = await baseQuery.range(offset, offset + pageSize - 1);
+          if (error) return { data: null, error };
+          const batch = data || [];
+          allRows.push(...batch);
+          if (batch.length < pageSize) break;
+        }
+        return { data: allRows, error: null };
+      };
+
       const [
         leadsResult,
         opportunitiesResult,
@@ -399,10 +414,10 @@ export default function DashboardPage() {
         alumniVerifiedResult,
         partnershipsResult,
       ] = await Promise.all([
-        leadsQuery,
+        fetchAllPages(leadsQuery),
         opportunitiesQuery,
         pipelineStagesQuery,
-        tasksQuery,
+        fetchAllPages(tasksQuery),
         admissionsQuery,
         approvedTargetsQuery,
         alumniTotalQuery,
