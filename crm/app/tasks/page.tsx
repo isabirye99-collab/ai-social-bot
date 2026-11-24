@@ -1904,18 +1904,22 @@ const isSalesperson =
     }
 
     const [year, month] = selectedIntake.split("-").map(Number);
-    // Only assign leads that are currently unassigned. Re-running this action
-    // must not redistribute staff members' existing workloads.
+    // Keep all leads in scope so the action can repair missing tasks even for
+    // leads that were assigned during an earlier run. Only unassigned leads
+    // are distributed; existing owners are preserved.
     const scopedLeads = leads.filter((lead) =>
-      !lead.assigned_to &&
-      (selectedIntake === "all" ||
+      selectedIntake === "all" ||
       (selectedIntake === "unassigned"
         ? !lead.intake_year || !lead.intake_month
-        : lead.intake_year === year && lead.intake_month === month))
+        : lead.intake_year === year && lead.intake_month === month)
+    );
+    const unassignedLeads = scopedLeads.filter((lead) => !lead.assigned_to);
+    const leadsMissingActiveTasks = scopedLeads.filter((lead) =>
+      !isClosedLead(lead) && !tasks.some((task) => task.lead_id === lead.id && isActiveTask(task))
     );
 
-    if (scopedLeads.length === 0) {
-      setError("There are no unassigned leads in the selected intake.");
+    if (scopedLeads.length === 0 || (unassignedLeads.length === 0 && leadsMissingActiveTasks.length === 0)) {
+      setError("There are no unassigned leads or missing active follow-up tasks in the selected intake.");
       return;
     }
 
@@ -1926,7 +1930,7 @@ const isSalesperson =
         : ({ "2026-11": "November 2026", "2027-2": "February 2027", "2027-4": "April 2027", "2027-8": "August 2027", "2027-11": "November 2027", "2028-2": "February 2028" } as Record<string, string>)[selectedIntake] || selectedIntake;
 
     const confirmed = window.confirm(
-      `Assign ${scopedLeads.length.toLocaleString()} currently unassigned leads in ${scopeLabel} across ${activeSalespeople.length} active salespeople? Existing lead assignments will be preserved. The system will also create a pending follow-up task for each eligible lead that does not already have an active task.`
+      `Assign ${unassignedLeads.length.toLocaleString()} unassigned leads in ${scopeLabel} across ${activeSalespeople.length} active salespeople, and create up to ${leadsMissingActiveTasks.length.toLocaleString()} missing follow-up tasks? Existing lead assignments and active tasks will be preserved.`
     );
     if (!confirmed) return;
 
@@ -1936,7 +1940,7 @@ const isSalesperson =
       setSuccess("");
 
       // Count existing assignments across all intakes to balance total lead workload.
-      const scopedIds = new Set(scopedLeads.map((lead) => lead.id));
+      const scopedIds = new Set(unassignedLeads.map((lead) => lead.id));
       const workload = new Map<string, number>();
       activeSalespeople.forEach((person) => workload.set(person.id, 0));
       leads.forEach((lead) => {
@@ -2026,7 +2030,7 @@ const isSalesperson =
       }));
       setLeadAssignmentFilter("unassigned");
       await loadAll();
-      setSuccess(`Assigned ${scopedLeads.length.toLocaleString()} previously unassigned leads across ${activeSalespeople.length} active salespeople for ${scopeLabel}; created ${createdTaskCount.toLocaleString()} new follow-up tasks. Existing assignments and active tasks were preserved.`);
+      setSuccess(`Assigned ${unassignedLeads.length.toLocaleString()} previously unassigned leads across ${activeSalespeople.length} active salespeople for ${scopeLabel}; created ${createdTaskCount.toLocaleString()} new follow-up tasks for leads that lacked one. Existing assignments and active tasks were preserved.`);
     } catch (err) {
       console.error(err);
       setError(err instanceof Error ? err.message : "Automatic lead assignment failed. Please refresh and check assignments before retrying.");
