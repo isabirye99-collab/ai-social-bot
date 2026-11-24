@@ -36,6 +36,7 @@ const ROLES: CrmRole[] = [
   "admin",
   "manager",
   "salesperson",
+  "short_courses_coordinator",
   "marketing",
   "finance",
   "viewer",
