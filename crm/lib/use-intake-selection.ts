@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 
 const STORAGE_KEY = "ciu-crm-selected-intake";
-const DEFAULT_INTAKE = "2026-11";
+const DEFAULT_INTAKE = "all";
 const VALID_INTAKES = new Set([
+  "all",
   "unassigned",
   "2026-11",
   "2027-2",
