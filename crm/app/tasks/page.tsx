@@ -384,6 +384,9 @@ export default function TasksPage() {
   const [assignedFilter, setAssignedFilter] =
     useState("all");
   const [selectedIntake, setSelectedIntake] = useIntakeSelection();
+  const [leadAssignmentSearch, setLeadAssignmentSearch] = useState("");
+  const [leadAssignmentFilter, setLeadAssignmentFilter] = useState("all");
+  const [savingLeadAssignmentId, setSavingLeadAssignmentId] = useState<string | null>(null);
 
   const [showTaskModal, setShowTaskModal] =
     useState(false);
@@ -1889,6 +1892,36 @@ const isSalesperson =
     }
   };
 
+  const assignLeadToSalesperson = async (leadId: string, salespersonId: string) => {
+    const lead = leads.find((item) => item.id === leadId);
+    if (!lead || lead.assigned_to === (salespersonId || null)) return;
+    try {
+      setSavingLeadAssignmentId(leadId);
+      setError("");
+      setSuccess("");
+      const { error: assignmentError } = await supabase
+        .from("leads")
+        .update({
+          assigned_to: salespersonId || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", leadId);
+      if (assignmentError) throw assignmentError;
+      setLeads((current) => current.map((item) =>
+        item.id === leadId ? { ...item, assigned_to: salespersonId || null } : item
+      ));
+      const person = profiles.find((item) => item.id === salespersonId);
+      setSuccess(salespersonId
+        ? `${lead.name || "Lead"} assigned to ${person?.full_name || "the selected salesperson"}.`
+        : `${lead.name || "Lead"} is now unassigned.`);
+    } catch (err) {
+      console.error(err);
+      setError(err instanceof Error ? err.message : "Could not update lead assignment.");
+    } finally {
+      setSavingLeadAssignmentId(null);
+    }
+  };
+
   const clearFilters = () => {
     setSearch("");
     setStatusFilter("all");
@@ -2055,6 +2088,82 @@ const isSalesperson =
             </div>
           ))}
         </section>
+
+        {!isSalesperson && (
+          <section aria-label="Lead assignment queue" style={{ marginBottom: 16, border: "1px solid #cfe1d6", borderRadius: 14, background: "#ffffff", overflow: "hidden" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, padding: "14px 16px", background: "#f0f8f3", borderBottom: "1px solid #dce9e1" }}>
+              <div>
+                <div style={{ color: "#075442", fontSize: 15, fontWeight: 800 }}>Lead Assignment Queue</div>
+                <div style={{ color: "#536b5d", fontSize: 12, marginTop: 4 }}>View all leads for the selected intake and assign or reassign each lead to a salesperson. Changes save immediately.</div>
+              </div>
+              <div style={{ borderRadius: 10, padding: "8px 12px", background: "#ffffff", border: "1px solid #cfe1d6", textAlign: "center" }}>
+                <div style={{ fontSize: 20, fontWeight: 850, color: "#075442" }}>{leads.length.toLocaleString()}</div>
+                <div style={{ fontSize: 10, color: "#64756b" }}>Leads loaded</div>
+              </div>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "minmax(220px, 1fr) minmax(170px, 220px)", gap: 10, padding: 12, borderBottom: "1px solid #edf2ee" }}>
+              <input value={leadAssignmentSearch} onChange={(event) => setLeadAssignmentSearch(event.target.value)} placeholder="Search lead name, CIU number, phone, programme..." style={{ width: "100%", boxSizing: "border-box", border: "1px solid #cfded4", borderRadius: 8, padding: "10px 12px", fontSize: 12 }} />
+              <select value={leadAssignmentFilter} onChange={(event) => setLeadAssignmentFilter(event.target.value)} style={{ border: "1px solid #cfded4", borderRadius: 8, padding: "10px 12px", background: "#fff", color: "#173b2b", fontSize: 12 }}>
+                <option value="all">All assignment statuses</option>
+                <option value="unassigned">Unassigned leads</option>
+                <option value="assigned">Assigned leads</option>
+              </select>
+            </div>
+            {(() => {
+              const query = leadAssignmentSearch.trim().toLowerCase();
+              const [year, month] = selectedIntake.split("-").map(Number);
+              const rows = leads.filter((lead) => {
+                if (selectedIntake !== "all" && (selectedIntake === "unassigned"
+                  ? Boolean(lead.intake_year && lead.intake_month)
+                  : lead.intake_year !== year || lead.intake_month !== month)) return false;
+                if (leadAssignmentFilter === "unassigned" && lead.assigned_to) return false;
+                if (leadAssignmentFilter === "assigned" && !lead.assigned_to) return false;
+                const staffName = profiles.find((profile) => profile.id === lead.assigned_to)?.full_name || "";
+                return !query || [lead.name, lead.ciu_number, lead.phone, lead.email, lead.product_service, staffName].filter(Boolean).join(" ").toLowerCase().includes(query);
+              });
+              return (
+                <>
+                  <div style={{ padding: "8px 14px", color: "#64756b", fontSize: 11, background: "#fbfdfb" }}>
+                    Showing <strong>{rows.length.toLocaleString()}</strong> of {leads.length.toLocaleString()} loaded leads
+                    {selectedIntake === "all" ? " across all intakes" : selectedIntake === "2027-2" ? " for February 2027" : selectedIntake === "unassigned" ? " needing intake assignment" : ""}
+                  </div>
+                  <div style={{ maxHeight: 480, overflow: "auto" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 760 }}>
+                      <thead style={{ position: "sticky", top: 0, zIndex: 1, background: "#f8faf9" }}>
+                        <tr>
+                          {["LEAD", "CONTACT / PROGRAMME", "INTAKE", "CURRENT SALESPERSON", "ASSIGN SALESPERSON"].map((heading) => <th key={heading} style={{ padding: "10px 12px", textAlign: "left", fontSize: 10, color: "#64756b", borderBottom: "1px solid #e1ebe4", whiteSpace: "nowrap" }}>{heading}</th>)}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rows.map((lead) => {
+                          const currentPerson = profiles.find((profile) => profile.id === lead.assigned_to);
+                          const intakeLabel = lead.intake_year && lead.intake_month
+                            ? `${({ 2: "February", 4: "April", 8: "August", 11: "November" } as Record<number, string>)[lead.intake_month] || lead.intake_month} ${lead.intake_year}`
+                            : "No intake";
+                          return (
+                            <tr key={lead.id} style={{ borderBottom: "1px solid #edf2ee" }}>
+                              <td style={{ padding: "10px 12px", fontSize: 12, color: "#173b2b", fontWeight: 750 }}>{lead.name || "Unnamed lead"}<div style={{ fontSize: 10, color: "#718178", marginTop: 3 }}>{lead.ciu_number || "No CIU number"}</div></td>
+                              <td style={{ padding: "10px 12px", fontSize: 11, color: "#536b5d" }}>{[lead.phone, lead.email, lead.product_service].filter(Boolean).join(" · ") || "No contact details"}</td>
+                              <td style={{ padding: "10px 12px", fontSize: 11, color: "#536b5d", whiteSpace: "nowrap" }}>{intakeLabel}</td>
+                              <td style={{ padding: "10px 12px", fontSize: 11, color: currentPerson ? "#173b2b" : "#a16207" }}>{currentPerson?.full_name || (lead.assigned_to ? "Assigned staff unavailable" : "Unassigned")}</td>
+                              <td style={{ padding: "8px 12px", minWidth: 190 }}>
+                                <select aria-label={`Assign ${lead.name || "lead"} to salesperson`} value={lead.assigned_to || ""} disabled={savingLeadAssignmentId === lead.id} onChange={(event) => void assignLeadToSalesperson(lead.id, event.target.value)} style={{ width: "100%", border: "1px solid #cfded4", borderRadius: 8, padding: "9px 10px", background: savingLeadAssignmentId === lead.id ? "#f3f4f6" : "#fff", color: "#173b2b", fontSize: 11 }}>
+                                  <option value="">Unassigned</option>
+                                  {profiles.filter((profile) => profile.role === "salesperson" && (profile.is_active !== false || profile.id === lead.assigned_to)).map((profile) => <option key={profile.id} value={profile.id}>{profile.full_name || "Unnamed salesperson"}{profile.is_active === false ? " (inactive)" : ""}</option>)}
+                                </select>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                        {rows.length === 0 && <tr><td colSpan={5} style={{ padding: 24, textAlign: "center", color: "#64756b", fontSize: 12 }}>No leads match these filters.</td></tr>}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              );
+            })()}
+          </section>
+        )}
 
         {/* FILTER BAR */}
         <div
