@@ -27,7 +27,7 @@ type Lead = {
 
 type SchoolOption = { id: string; school_name: string; district: string | null };
 
-type LeadCsvReviewItem = { candidate: Record<string, any>; match: Lead | null; decision: "merge" | "separate" };
+type LeadCsvReviewItem = { candidate: Record<string, any>; match: Lead | null; decision: "merge" | "skip" };
 
 type Activity = {
   id: string;
@@ -752,8 +752,13 @@ export default function LeadsPage() {
       let invalid = 0;
       parsed.slice(1).forEach((cells) => {
         const v = (n: number) => n < 0 ? "" : String(cells[n] || "").trim();
-        const name = v(ni), phone = v(pi), email = v(ei);
-        if (!name || !phone) { invalid++; return; }
+        const name = v(ni), phone = v(pi);
+        const rawEmail = v(ei);
+        const email = !rawEmail || ["-", "—", "n/a", "na", "none", "null", "not available"].includes(rawEmail.trim().toLowerCase()) ? "" : rawEmail;
+        const nameDigits = name.replace(/\D/g, "");
+        const phoneDigits = phone.replace(/\D/g, "");
+        const nameHasLetters = /[A-Za-zÀ-ÖØ-öø-ÿ]/.test(name);
+        if (!name || !phone || !nameHasLetters || (nameDigits && nameDigits === phoneDigits)) { invalid++; return; }
         const raw = v(si).toLowerCase().replace(/[ -]+/g, "_");
         const programme = v(gi) || null;
         const normalizedProgramme = (programme || "").trim().toUpperCase();
@@ -788,7 +793,7 @@ export default function LeadsPage() {
           const sameCiu = normalize(lead.ciu_number) && normalize(lead.ciu_number) === normalize(candidate.ciu_number);
           return Boolean(sameName || samePhone || sameEmail || sameCiu);
         }) || null;
-        return { candidate, match, decision: "separate" };
+        return { candidate, match, decision: "skip" };
       });
       setCsvInvalidCount(invalid);
       setCsvReviewItems(reviewItems);
@@ -811,7 +816,12 @@ export default function LeadsPage() {
     try {
       let merged = 0;
       let inserted = 0;
+      let skipped = 0;
       for (const item of items) {
+        if (item.match && item.decision === "skip") {
+          skipped++;
+          continue;
+        }
         if (item.match && item.decision === "merge") {
           const old = item.match;
           const incoming = item.candidate;
@@ -830,6 +840,11 @@ export default function LeadsPage() {
           merged++;
         } else {
           const { error: insertError } = await supabase.from("leads").insert(item.candidate);
+          if (insertError?.code === "23505") {
+            skipped++;
+            console.warn("Skipped duplicate lead during CSV import:", item.candidate.name, insertError.message);
+            continue;
+          }
           if (insertError) throw new Error("Could not import lead \"" + String(item.candidate.name || "Unnamed") + "\": " + insertError.message + (insertError.code ? " (code " + insertError.code + ")" : ""));
           inserted++;
         }
@@ -838,8 +853,7 @@ export default function LeadsPage() {
       setCsvReviewItems([]);
       setCsvInvalidCount(0);
       await loadLeads();
-      const duplicateCount = items.filter((item) => item.match).length;
-      setCsvSummary("Import complete: " + inserted + " new lead(s), " + merged + " duplicate record(s) merged by filling blank fields, " + (duplicateCount - merged) + " duplicate(s) kept as separate records, and " + invalid + " invalid row(s) skipped.");
+      setCsvSummary("Import complete: " + inserted + " new lead(s), " + merged + " existing record(s) updated only where fields were blank, " + skipped + " duplicate(s) skipped, and " + invalid + " invalid row(s) skipped. Existing lead records were not deleted.");
     } catch (err) {
       console.error("Leads CSV import failed:", err);
       setError(err instanceof Error ? "CSV import failed: " + err.message : "CSV import failed. Please check the file and try again.");
@@ -1216,7 +1230,7 @@ export default function LeadsPage() {
                           <td style={{ padding: 11, verticalAlign: "top", minWidth: 165 }}>
                             {item.match ? <div style={{ display: "grid", gap: 8 }}>
                               <label style={{ display: "flex", alignItems: "center", gap: 7 }}><input type="radio" name={"lead-csv-decision-" + index} checked={item.decision === "merge"} onChange={() => setCsvReviewItems((current) => current.map((row, i) => i === index ? { ...row, decision: "merge" } : row))} /> Merge (fill blank fields)</label>
-                              <label style={{ display: "flex", alignItems: "center", gap: 7 }}><input type="radio" name={"lead-csv-decision-" + index} checked={item.decision === "separate"} onChange={() => setCsvReviewItems((current) => current.map((row, i) => i === index ? { ...row, decision: "separate" } : row))} /> Keep separate</label>
+                              <label style={{ display: "flex", alignItems: "center", gap: 7 }}><input type="radio" name={"lead-csv-decision-" + index} checked={item.decision === "skip"} onChange={() => setCsvReviewItems((current) => current.map((row, i) => i === index ? { ...row, decision: "skip" } : row))} /> Skip duplicate</label>
                             </div> : <span style={{ color: "#15803d", fontWeight: 600 }}>New lead</span>}
                           </td>
                         </tr>
@@ -1225,7 +1239,7 @@ export default function LeadsPage() {
                   </table>
                 </div>
                 <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 12, marginTop: 16 }}>
-                  <p style={{ margin: 0, fontSize: 12, color: "#64748b" }}>{csvReviewItems.length} valid row(s) ready for review. Merge preserves existing information and only fills fields that are blank.</p>
+                  <p style={{ margin: 0, fontSize: 12, color: "#64748b" }}>{csvReviewItems.length} valid row(s) ready for review. Merge fills blank fields only. Skip duplicate avoids creating a record the database would reject.</p>
                   <div style={{ display: "flex", gap: 9 }}>
                     <button type="button" disabled={confirmingCsv} onClick={() => setShowCsvReview(false)} style={{ border: "1px solid #cbd5e1", borderRadius: 8, padding: "10px 14px", background: "#fff", color: "#334155" }}>Cancel</button>
                     <button type="button" disabled={confirmingCsv} onClick={() => void finishLeadCsvImport(csvReviewItems)} style={{ border: 0, borderRadius: 8, padding: "10px 16px", background: "#00695c", color: "#fff", fontWeight: 700, opacity: confirmingCsv ? .65 : 1 }}>{confirmingCsv ? "Processing…" : "Confirm import choices"}</button>
