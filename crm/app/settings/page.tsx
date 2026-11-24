@@ -93,6 +93,12 @@ const ROLES = [
       "Manage assigned leads, opportunities and follow-ups.",
   },
   {
+    value: "short_courses_coordinator",
+    label: "Short Courses Coordinator",
+    description:
+      "Manage short-course applicants, course records, calls, follow-ups and attendance.",
+  },
+  {
     value: "marketing",
     label: "Marketing",
     description:
