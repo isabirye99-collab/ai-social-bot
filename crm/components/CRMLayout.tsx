@@ -34,6 +34,7 @@ const nav: NavItem[] = [
   { label: "Partnerships", href: "/partnerships", module: "partnerships" },
   { label: "Reports", href: "/reports", module: "reports" },
   { label: "Alumni", href: "/alumni", module: "alumni" },
+  { label: "Short Courses", href: "/shortcourses", module: "shortcourses" },
   { label: "Settings", href: "/settings", module: "settings" },
 ];
 
@@ -212,7 +213,7 @@ export default function CRMLayout({
     };
   }, []);
 
-  if (pathname === "/login") return <>{children}</>;
+  if (pathname === "/login" || pathname.startsWith("/short-courses/apply")) return <>{children}</>;
 
   const horizontal = branding.navigationOrientation === "horizontal";
   const allowedModules = getEffectiveModules(role, modulePermissions);
