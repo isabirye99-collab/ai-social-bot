@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-const STORAGE_KEY = "ciu-crm-selected-intake";
+const STORAGE_KEY = "ciu-crm-selected-intake-v2";
 const DEFAULT_INTAKE = "all";
 const VALID_INTAKES = new Set([
   "all",
