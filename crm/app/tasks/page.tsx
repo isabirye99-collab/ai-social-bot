@@ -499,14 +499,24 @@ const isSalesperson =
           nullsFirst: false,
         });
 
-      let leadsQuery = supabase
-        .from("leads")
-        .select(
-          "id,name,ciu_number,phone,email,product_service,status,assigned_to,feedback,follow_up_status,next_follow_up_at,intake_year,intake_month"
-        )
-        .order("name", {
-          ascending: true,
-        });
+      // Fetch every visible lead in pages; Supabase's default response limit
+      // can otherwise hide records once the CRM exceeds 1,000 leads.
+      const leadsQuery = (async () => {
+        const allRows: Lead[] = [];
+        const pageSize = 1000;
+        for (let offset = 0; ; offset += pageSize) {
+          const { data, error } = await supabase
+            .from("leads")
+            .select("id,name,ciu_number,phone,email,product_service,status,assigned_to,feedback,follow_up_status,next_follow_up_at,intake_year,intake_month")
+            .order("name", { ascending: true })
+            .range(offset, offset + pageSize - 1);
+          if (error) return { data: null, error };
+          const batch = (data || []) as Lead[];
+          allRows.push(...batch);
+          if (batch.length < pageSize) break;
+        }
+        return { data: allRows, error: null };
+      })();
 
       let opportunitiesQuery = supabase
         .from("opportunities")
