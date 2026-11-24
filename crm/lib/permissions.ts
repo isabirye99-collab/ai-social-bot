@@ -4,6 +4,7 @@ export type CrmRole =
   | "admin"
   | "manager"
   | "salesperson"
+  | "short_courses_coordinator"
   | "marketing"
   | "finance"
   | "viewer";
@@ -107,6 +108,7 @@ export const ROLE_MODULES: Record<CrmRole, CrmModule[]> = {
     "reports",
     "advanced",
   ],
+  short_courses_coordinator: ["dashboard", "shortcourses", "tasks"],
   marketing: ["dashboard", "leads", "schools", "engagement", "marketing", "strategy", "partnerships", "alumni", "reports", "advanced"],
   finance: ["dashboard", "customers", "pipeline", "reports", "advanced"],
   viewer: ["dashboard", "leads", "schools", "customers", "pipeline", "reports"],
