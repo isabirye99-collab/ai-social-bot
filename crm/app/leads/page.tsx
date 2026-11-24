@@ -755,10 +755,8 @@ export default function LeadsPage() {
         const name = v(ni), phone = v(pi);
         const rawEmail = v(ei);
         const email = !rawEmail || ["-", "—", "n/a", "na", "none", "null", "not available"].includes(rawEmail.trim().toLowerCase()) ? "" : rawEmail;
-        const nameDigits = name.replace(/\D/g, "");
-        const phoneDigits = phone.replace(/\D/g, "");
         const nameHasLetters = /[A-Za-zÀ-ÖØ-öø-ÿ]/.test(name);
-        if (!name || !phone || !nameHasLetters || (nameDigits && nameDigits === phoneDigits)) { invalid++; return; }
+        if (!name || !phone || !nameHasLetters) { invalid++; return; }
         const raw = v(si).toLowerCase().replace(/[ -]+/g, "_");
         const programme = v(gi) || null;
         const normalizedProgramme = (programme || "").trim().toUpperCase();
