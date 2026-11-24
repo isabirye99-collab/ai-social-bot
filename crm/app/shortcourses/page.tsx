@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Phone, MessageCircle, Plus, Search, RefreshCw, BookOpen, Users, ClipboardCheck, CalendarClock, X, Save, Download } from "lucide-react";
 
 type Course = { id: string; title: string; course_code: string | null; description: string | null; category: string | null; duration: string | null; delivery_mode: string; venue: string | null; fee_amount: number | null; currency: string; start_date: string | null; end_date: string | null; application_deadline: string | null; status: string; public_visible: boolean; created_at: string };
-type Applicant = { id: string; application_number: number; course_id: string; first_name: string; last_name: string; phone: string; email: string | null; date_of_birth: string | null; gender: string | null; nationality: string | null; highest_qualification: string | null; qualification_details: string | null; source: string | null; expected_outcome: string | null; application_status: string; attendance_status: string; assigned_to: string | null; last_contacted_at: string | null; last_feedback: string | null; next_follow_up_at: string | null; registration_date: string | null; first_class_date: string | null; application_date: string | null; submitted_at: string; created_at: string };
+type Applicant = { id: string; application_number: number; course_id: string; first_name: string; last_name: string; phone: string; email: string | null; date_of_birth: string | null; gender: string | null; nationality: string | null; highest_qualification: string | null; qualification_details: string | null; source: string | null; expected_outcome: string | null; application_status: string; attendance_status: string; assigned_to: string | null; last_contacted_at: string | null; last_feedback: string | null; next_follow_up_at: string | null; registration_date: string | null; first_class_date: string | null; application_date: string | null; application_fee_amount: number; payment_method: string | null; payment_status: string; payment_reference: string | null; payment_proof_path: string | null; submitted_at: string; created_at: string };
 type Staff = { id: string; full_name: string | null; role: string; is_active: boolean };
 type Activity = { id: string; application_id: string; activity_type: string; outcome: string | null; notes: string | null; next_follow_up_at: string | null; created_at: string };
 const statuses = ["new", "contacted", "qualified", "registered", "waitlisted", "not_eligible", "withdrawn", "completed"];
@@ -106,6 +106,15 @@ export default function ShortCoursesPage() {
     } catch (e: any) { setError(e?.message || "Could not save the course."); }
     finally { setSaving(false); }
   };
+  const openPaymentProof = async () => {
+    if (!selected?.payment_proof_path) return;
+    setError(""); setNotice("");
+    try {
+      const { data, error: proofError } = await supabase.storage.from("short-course-payment-proofs").createSignedUrl(selected.payment_proof_path, 120);
+      if (proofError) throw proofError;
+      if (data?.signedUrl) window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+    } catch (e: any) { setError(e?.message || "Could not open the payment proof. Check your Short Courses access."); }
+  };
   const saveApplicant = async (changes: Partial<Applicant>, activity?: { type: string; outcome: string; notes: string; next?: string }) => {
     if (!selected) return;
     setSaving(true); setError(""); setNotice("");
@@ -177,6 +186,15 @@ export default function ShortCoursesPage() {
         <div style={{ padding: 16, display: "grid", gap: 14, maxHeight: "75vh", overflowY: "auto" }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, fontSize: 11 }}><div><div style={{ color: "#819187" }}>Phone</div><b>{selected.phone}</b></div><div><div style={{ color: "#819187" }}>Email</div><b style={{ overflowWrap: "anywhere" }}>{selected.email || "—"}</b></div><div><div style={{ color: "#819187" }}>Nationality</div><b>{selected.nationality || "—"}</b></div><div><div style={{ color: "#819187" }}>Qualification</div><b>{selected.highest_qualification || "—"}</b></div><div><div style={{ color: "#819187" }}>Source</div><b>{selected.source || "Website"}</b></div><div><div style={{ color: "#819187" }}>Application date</div><b>{dateLabel(selected.application_date || selected.submitted_at)}</b></div></div>
           {selected.expected_outcome && <div style={{ padding: 10, borderRadius: 9, background: "#f8fbf9", fontSize: 12 }}><b>What they want from the course</b><p style={{ margin: "5px 0 0", color: "#65776b" }}>{selected.expected_outcome}</p></div>}
+          <div style={{ border: "1px solid #d9e8dc", borderRadius: 11, padding: 12, background: "#f7fbf8", display: "grid", gap: 10 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", gap: 8 }}>
+              <div><div style={{ fontSize: 12, fontWeight: 850 }}>Application fee payment</div><div style={{ fontSize: 11, color: "#6e8174", marginTop: 3 }}>UGX {Number(selected.application_fee_amount || 10000).toLocaleString()} · {selected.payment_method || "Method not recorded"}</div></div>
+              <span style={{ borderRadius: 20, padding: "4px 8px", fontSize: 10, fontWeight: 800, background: selected.payment_status === "verified" ? "#e2f5e8" : selected.payment_status === "rejected" ? "#fff0ef" : "#fff5d9", color: selected.payment_status === "verified" ? "#17663a" : selected.payment_status === "rejected" ? "#a52b24" : "#886016" }}>{label(selected.payment_status || "not_submitted")}</span>
+            </div>
+            {selected.payment_reference && <div style={{ fontSize: 11 }}><b>Transaction reference:</b> {selected.payment_reference}</div>}
+            {selected.payment_proof_path ? <button type="button" onClick={() => void openPaymentProof()} style={{ ...button, justifyContent: "center" }}>View proof of payment</button> : <div style={{ fontSize: 11, color: "#9b5b20" }}>No payment proof attached.</div>}
+            <div><label style={{ display: "block", fontSize: 11, fontWeight: 800, marginBottom: 5 }}>Verify payment</label><select value={selected.payment_status || "not_submitted"} onChange={(e) => void saveApplicant({ payment_status: e.target.value })} style={input}>{[["not_submitted","Not submitted"],["pending_verification","Pending verification"],["verified","Verified"],["rejected","Rejected"]].map(([v,t]) => <option key={v} value={v}>{t}</option>)}</select></div>
+          </div>
           <div><label style={{ display: "block", fontSize: 11, fontWeight: 800, marginBottom: 5 }}>Application status</label><select value={selected.application_status} onChange={(e) => void saveApplicant({ application_status: e.target.value })} style={input}>{statuses.map((s) => <option key={s} value={s}>{label(s)}</option>)}</select></div>
           <div><label style={{ display: "block", fontSize: 11, fontWeight: 800, marginBottom: 5 }}>Assigned coordinator</label><select value={selected.assigned_to || ""} onChange={(e) => void saveApplicant({ assigned_to: e.target.value || null })} style={input}><option value="">Unassigned</option>{staff.map((s) => <option key={s.id} value={s.id}>{s.full_name || s.id} · {s.role}</option>)}</select></div>
           <div><label style={{ display: "block", fontSize: 11, fontWeight: 800, marginBottom: 5 }}>Class attendance status</label><select value={selected.attendance_status} onChange={(e) => void saveApplicant({ attendance_status: e.target.value })} style={input}>{attendanceStatuses.map((s) => <option key={s} value={s}>{label(s)}</option>)}</select></div>
