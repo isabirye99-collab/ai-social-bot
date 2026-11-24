@@ -149,8 +149,8 @@ export default function ShortCoursesPage() {
     finally { setSaving(false); }
   };
   const exportCsv = () => {
-    const rows = filtered.map((a) => [a.application_number, a.first_name, a.last_name, a.phone, a.email || "", courseById.get(a.course_id)?.title || "", a.application_status, a.attendance_status, a.application_date || a.submitted_at, a.source || "", staff.find((s) => s.id === a.assigned_to)?.full_name || "", a.last_feedback || ""]);
-    const csv = [["Application No.","First Name","Last Name","Phone","Email","Course","Application Status","Attendance","Application Date","Source","Assigned To","Last Feedback"], ...rows].map((r) => r.map((v) => '"' + String(v ?? "").replaceAll('"','""') + '"').join(",")).join("\r\n");
+    const rows = filtered.map((a) => [a.application_number, a.first_name, a.last_name, a.phone, a.email || "", courseById.get(a.course_id)?.title || "", a.application_status, a.attendance_status, a.application_date || a.submitted_at, a.source || "", staff.find((s) => s.id === a.assigned_to)?.full_name || "", a.last_feedback || "", a.application_fee_amount || 10000, a.payment_method || "", a.payment_status || "not_submitted", a.payment_reference || ""]);
+    const csv = [["Application No.","First Name","Last Name","Phone","Email","Course","Application Status","Attendance","Application Date","Source","Assigned To","Last Feedback","Application Fee UGX","Payment Method","Payment Status","Payment Reference"], ...rows].map((r) => r.map((v) => '"' + String(v ?? "").replaceAll('"','""') + '"').join(",")).join("\r\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
     const a = document.createElement("a"); a.href = url; a.download = "ciu-short-course-applications.csv"; a.click(); URL.revokeObjectURL(url);
   };
