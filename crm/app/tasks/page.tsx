@@ -672,14 +672,14 @@ const isSalesperson =
       const lead = getLead(task);
       const taskYear = task.intake_year ?? lead?.intake_year ?? null;
       const taskMonth = task.intake_month ?? lead?.intake_month ?? null;
-      return selectedIntake === "unassigned"
+      return selectedIntake === "all" || (selectedIntake === "unassigned"
         ? !taskYear || !taskMonth
-        : taskYear === intakeYear && taskMonth === intakeMonth;
+        : taskYear === intakeYear && taskMonth === intakeMonth);
     };
     const scopedLeads = leads.filter((lead) =>
-      selectedIntake === "unassigned"
+      selectedIntake === "all" || (selectedIntake === "unassigned"
         ? !lead.intake_year || !lead.intake_month
-        : lead.intake_year === intakeYear && lead.intake_month === intakeMonth
+        : lead.intake_year === intakeYear && lead.intake_month === intakeMonth)
     );
     const active = tasks.filter((task) =>
       matchesSelectedIntake(task) && isActiveTask(task) && !isClosedLead(getLead(task))
@@ -704,7 +704,7 @@ const isSalesperson =
       const lead = leads.find((item) => item.id === task.lead_id);
       const year = task.intake_year ?? lead?.intake_year ?? null;
       const month = task.intake_month ?? lead?.intake_month ?? null;
-      return selectedIntake === "unassigned" ? !year || !month : year === intakeYear && month === intakeMonth;
+      return selectedIntake === "all" || (selectedIntake === "unassigned" ? !year || !month : year === intakeYear && month === intakeMonth);
     }).filter((task) => !isClosedLead(leads.find((lead) => lead.id === task.lead_id)));
     const visible = currentRole === "salesperson" ? scoped.filter((task) => task.assigned_to === currentUserId) : scoped;
     const now = new Date();
@@ -739,7 +739,7 @@ const isSalesperson =
         const [intakeYear, intakeMonth] = selectedIntake.split("-").map(Number);
         const taskIntakeYear = task.intake_year ?? lead?.intake_year ?? null;
         const taskIntakeMonth = task.intake_month ?? lead?.intake_month ?? null;
-        if (selectedIntake === "unassigned" ? Boolean(taskIntakeYear && taskIntakeMonth) : (taskIntakeYear !== intakeYear || taskIntakeMonth !== intakeMonth)) return false;
+        if (selectedIntake !== "all" && (selectedIntake === "unassigned" ? Boolean(taskIntakeYear && taskIntakeMonth) : (taskIntakeYear !== intakeYear || taskIntakeMonth !== intakeMonth))) return false;
 
         if (
           query &&
@@ -821,7 +821,7 @@ const isSalesperson =
     const query = search.trim().toLowerCase();
     const [intakeYear, intakeMonth] = selectedIntake.split("-").map(Number);
     return leads.filter((lead) => {
-      if (selectedIntake === "unassigned" ? Boolean(lead.intake_year && lead.intake_month) : (lead.intake_year !== intakeYear || lead.intake_month !== intakeMonth)) return false;
+      if (selectedIntake !== "all" && (selectedIntake === "unassigned" ? Boolean(lead.intake_year && lead.intake_month) : (lead.intake_year !== intakeYear || lead.intake_month !== intakeMonth))) return false;
       if (!isInterestedLead(lead)) return false;
       if (!query) return true;
       return [lead.name, lead.ciu_number, lead.phone, lead.email, lead.product_service]
@@ -837,9 +837,9 @@ const isSalesperson =
     let unrecorded = 0;
     const [intakeYear, intakeMonth] = selectedIntake.split("-").map(Number);
     const scopedLeads = leads.filter((lead) =>
-      selectedIntake === "unassigned"
+      selectedIntake === "all" || (selectedIntake === "unassigned"
         ? !lead.intake_year || !lead.intake_month
-        : lead.intake_year === intakeYear && lead.intake_month === intakeMonth
+        : lead.intake_year === intakeYear && lead.intake_month === intakeMonth)
     );
     scopedLeads.forEach((lead) => {
       const outcome = normalize(lead.follow_up_status);
@@ -983,10 +983,10 @@ const isSalesperson =
           phone: walkInPhone.trim() || null,
           email: walkInEmail.trim() || null,
           product_service: walkInProgramme.trim() || null,
-          intake_year: selectedIntake === "unassigned" ? null : Number(selectedIntake.split("-")[0]),
-          intake_month: selectedIntake === "unassigned" ? null : Number(selectedIntake.split("-")[1]),
-          original_intake_year: selectedIntake === "unassigned" ? null : Number(selectedIntake.split("-")[0]),
-          original_intake_month: selectedIntake === "unassigned" ? null : Number(selectedIntake.split("-")[1]),
+          intake_year: selectedIntake === "unassigned" ? null : selectedIntake === "all" ? 2027 : Number(selectedIntake.split("-")[0]),
+          intake_month: selectedIntake === "unassigned" ? null : selectedIntake === "all" ? 2 : Number(selectedIntake.split("-")[1]),
+          original_intake_year: selectedIntake === "unassigned" ? null : selectedIntake === "all" ? 2027 : Number(selectedIntake.split("-")[0]),
+          original_intake_month: selectedIntake === "unassigned" ? null : selectedIntake === "all" ? 2 : Number(selectedIntake.split("-")[1]),
           location: "Walk-in",
           status: "new",
           assigned_to: linkedAssigneeId,
@@ -1046,8 +1046,8 @@ const isSalesperson =
               : null,
         status: form.status,
         priority: form.priority,
-        intake_year: linkedLeadId ? (leads.find((lead) => lead.id === linkedLeadId)?.intake_year ?? (selectedIntake === "unassigned" ? null : Number(selectedIntake.split("-")[0]))) : (selectedIntake === "unassigned" ? null : Number(selectedIntake.split("-")[0])),
-        intake_month: linkedLeadId ? (leads.find((lead) => lead.id === linkedLeadId)?.intake_month ?? (selectedIntake === "unassigned" ? null : Number(selectedIntake.split("-")[1]))) : (selectedIntake === "unassigned" ? null : Number(selectedIntake.split("-")[1])),
+        intake_year: linkedLeadId ? (leads.find((lead) => lead.id === linkedLeadId)?.intake_year ?? (selectedIntake === "unassigned" ? null : selectedIntake === "all" ? 2027 : Number(selectedIntake.split("-")[0]))) : (selectedIntake === "unassigned" ? null : selectedIntake === "all" ? 2027 : Number(selectedIntake.split("-")[0])),
+        intake_month: linkedLeadId ? (leads.find((lead) => lead.id === linkedLeadId)?.intake_month ?? (selectedIntake === "unassigned" ? null : selectedIntake === "all" ? 2 : Number(selectedIntake.split("-")[1]))) : (selectedIntake === "unassigned" ? null : selectedIntake === "all" ? 2 : Number(selectedIntake.split("-")[1])),
         updated_at: new Date().toISOString(),
       };
 
@@ -1739,8 +1739,8 @@ const isSalesperson =
               dateValue
             ).toISOString(),
           status: "pending",
-          intake_year: lead.intake_year ?? (selectedIntake === "unassigned" ? null : Number(selectedIntake.split("-")[0])),
-          intake_month: lead.intake_month ?? (selectedIntake === "unassigned" ? null : Number(selectedIntake.split("-")[1])),
+          intake_year: lead.intake_year ?? (selectedIntake === "unassigned" ? null : selectedIntake === "all" ? 2027 : Number(selectedIntake.split("-")[0])),
+          intake_month: lead.intake_month ?? (selectedIntake === "unassigned" ? null : selectedIntake === "all" ? 2 : Number(selectedIntake.split("-")[1])),
           created_by:
             currentUserId,
         });
@@ -1992,7 +1992,7 @@ const isSalesperson =
 <section style={{ marginBottom: 10, padding: 10, border: "1px solid #dce8df", borderRadius: 12, background: "#fff", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
   <div><strong style={{ color: "#075442", fontSize: 14 }}>Recruitment intake</strong><p style={{ margin: "3px 0 0", color: "#68776f", fontSize: 12 }}>Tasks and follow-up leads are filtered to this intake.</p></div>
   <select value={selectedIntake} onChange={(event) => setSelectedIntake(event.target.value)} style={{ border: "1px solid #cfded4", borderRadius: 9, padding: "10px 12px", fontSize: 13, background: "#fff", color: "#173b2b" }}>
-    <option value="unassigned">Needs intake assignment</option><option value="2026-11">November 2026</option><option value="2027-2">February 2027</option><option value="2027-4">April 2027</option><option value="2027-8">August 2027</option><option value="2027-11">November 2027</option><option value="2028-2">February 2028</option>
+    <option value="all">All Intakes</option><option value="unassigned">Needs intake assignment</option><option value="2026-11">November 2026</option><option value="2027-2">February 2027</option><option value="2027-4">April 2027</option><option value="2027-8">August 2027</option><option value="2027-11">November 2027</option><option value="2028-2">February 2028</option>
   </select>
 </section>
 {/* ALERTS */}
@@ -3326,6 +3326,7 @@ const isSalesperson =
                     }}
                     style={{ width: "100%", border: "1px solid #d1d5db", borderRadius: "9px", padding: "11px 12px", fontSize: "13px", background: "#ffffff" }}
                   >
+                    <option value="all">All Intakes (linked student intake / February 2027 default)</option>
                     <option value="unassigned">Needs intake assignment</option>
                     <option value="2026-11">November 2026</option>
                     <option value="2027-2">February 2027</option>
@@ -3568,7 +3569,7 @@ const isSalesperson =
                       No student
                     </option>
 
-                    {leads.filter((lead) => (selectedIntake === "unassigned" ? (!lead.intake_year || !lead.intake_month) : (lead.intake_year === Number(selectedIntake.split("-")[0]) && lead.intake_month === Number(selectedIntake.split("-")[1])))).map(
+                    {leads.filter((lead) => (selectedIntake === "all" ? true : selectedIntake === "unassigned" ? (!lead.intake_year || !lead.intake_month) : (lead.intake_year === Number(selectedIntake.split("-")[0]) && lead.intake_month === Number(selectedIntake.split("-")[1])))).map(
                       (lead) => (
                         <option
                           key={
