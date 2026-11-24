@@ -301,18 +301,19 @@ export default function LeadsPage() {
         );
       }
 
-      const {
-        data,
-        error,
-      } = await query;
-
-      if (error) {
-        throw error;
+      // Supabase commonly caps a single response at 1,000 rows.
+      // Page through the full result so the CRM can account for every lead.
+      const allLeadRows: Lead[] = [];
+      const pageSize = 1000;
+      for (let offset = 0; ; offset += pageSize) {
+        const { data, error } = await query.range(offset, offset + pageSize - 1);
+        if (error) throw error;
+        const batch = (data || []) as Lead[];
+        allLeadRows.push(...batch);
+        if (batch.length < pageSize) break;
       }
 
-      setLeads(
-        (data || []) as Lead[]
-      );
+      setLeads(allLeadRows);
 
       // School linking is optional; a school-list failure must not block lead management.
       const { data: schoolData } = await supabase
