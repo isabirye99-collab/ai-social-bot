@@ -52,6 +52,7 @@ export async function updateSession(request: NextRequest) {
   // inserts for an existing secondary school through restrictive table RLS.
   if (
     pathname === "/alumni-update" || pathname.startsWith("/alumni-update/") ||
+    pathname === "/short-courses/apply" || pathname.startsWith("/short-courses/apply/") ||
     pathname === "/lead-capture" || pathname.startsWith("/lead-capture/") ||
     pathname === "/school-student-registration" || pathname.startsWith("/school-student-registration/") ||
     pathname === "/forgot-password" || pathname.startsWith("/forgot-password/") ||
