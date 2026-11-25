@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Phone, MessageCircle, Plus, Search, RefreshCw, BookOpen, Users, ClipboardCheck, CalendarClock, X, Save, Download } from "lucide-react";
+import { Phone, MessageCircle, Plus, Search, RefreshCw, BookOpen, Users, ClipboardCheck, CalendarClock, X, Save, Download, Trash2 } from "lucide-react";
 
 type Course = { id: string; title: string; course_code: string | null; description: string | null; category: string | null; duration: string | null; delivery_mode: string; venue: string | null; fee_amount: number | null; currency: string; start_date: string | null; end_date: string | null; application_deadline: string | null; status: string; public_visible: boolean; created_at: string };
 type Applicant = { id: string; application_number: number; course_id: string; first_name: string; last_name: string; phone: string; email: string | null; date_of_birth: string | null; gender: string | null; nationality: string | null; highest_qualification: string | null; qualification_details: string | null; source: string | null; expected_outcome: string | null; application_status: string; attendance_status: string; assigned_to: string | null; last_contacted_at: string | null; last_feedback: string | null; next_follow_up_at: string | null; registration_date: string | null; first_class_date: string | null; application_date: string | null; application_fee_amount: number; payment_method: string | null; payment_status: string; payment_reference: string | null; payment_proof_path: string | null; submitted_at: string; created_at: string };
@@ -106,6 +106,27 @@ export default function ShortCoursesPage() {
     } catch (e: any) { setError(e?.message || "Could not save the course."); }
     finally { setSaving(false); }
   };
+  const deleteCourse = async (course: Course) => {
+    const linkedCount = applicants.filter((a) => a.course_id === course.id).length;
+    if (linkedCount > 0) {
+      setError(`Cannot delete "${course.title}" because it has ${linkedCount} linked application(s). Close the course instead to preserve applicant history.`);
+      setNotice("");
+      return;
+    }
+    const confirmed = window.confirm(`Delete the course "${course.title}"? This cannot be undone.`);
+    if (!confirmed) return;
+    setSaving(true); setError(""); setNotice("");
+    try {
+      const { error: deleteError } = await supabase.from("short_courses").delete().eq("id", course.id);
+      if (deleteError) throw deleteError;
+      setNotice(`Deleted course: ${course.title}`);
+      await loadAll();
+    } catch (e: any) {
+      setError(e?.message || "Could not delete this course. It may be protected by database permissions or linked records.");
+    } finally {
+      setSaving(false);
+    }
+  };
   const openPaymentProof = async () => {
     if (!selected?.payment_proof_path) return;
     setError(""); setNotice("");
@@ -170,7 +191,7 @@ export default function ShortCoursesPage() {
       {[["applicants","Applicants"],["followups","Follow-ups"],["courses","Course catalogue"]].map(([id, name]) => <button key={id} onClick={() => setTab(id)} style={{ ...button, borderColor: tab === id ? "#fff" : "transparent", background: tab === id ? "#fff" : "transparent" }}>{name}</button>)}
     </div>
     {tab === "courses" ? <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(270px,1fr))", gap: 14 }}>
-      {courses.map((c) => <article key={c.id} style={{ background: "#fff", border: "1px solid #e0ebe4", borderRadius: 14, padding: 18 }}><div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}><span style={{ fontSize: 10, textTransform: "uppercase", fontWeight: 800, color: "#5d8b6c" }}>{c.category || "Short course"}</span><span style={{ fontSize: 10, borderRadius: 20, padding: "4px 8px", background: c.status === "active" ? "#e7f8eb" : "#f1f5f2" }}>{label(c.status)}</span></div><h3 style={{ fontSize: 17, fontWeight: 800, margin: "10px 0 6px" }}>{c.title}</h3><p style={{ fontSize: 12, color: "#6b7b72", lineHeight: 1.6 }}>{c.description || "Add a description for applicants."}</p><div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, fontSize: 11, color: "#6a7c71" }}><div><b>Duration</b><br/>{c.duration || "Not set"}</div><div><b>Mode</b><br/>{c.delivery_mode}</div><div><b>Start</b><br/>{dateLabel(c.start_date)}</div><div><b>Fee</b><br/>{c.fee_amount == null ? "Not set" : c.currency + " " + Number(c.fee_amount).toLocaleString()}</div></div><div style={{ marginTop: 15, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}><span style={{ fontSize: 10, color: c.public_visible && c.status === "active" ? "#16803d" : "#829087" }}>{c.public_visible && c.status === "active" ? "Visible publicly" : "Not visible publicly"}</span><button style={button} onClick={() => editCourse(c)}>Edit course</button></div></article>)}
+      {courses.map((c) => <article key={c.id} style={{ background: "#fff", border: "1px solid #e0ebe4", borderRadius: 14, padding: 18 }}><div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}><span style={{ fontSize: 10, textTransform: "uppercase", fontWeight: 800, color: "#5d8b6c" }}>{c.category || "Short course"}</span><span style={{ fontSize: 10, borderRadius: 20, padding: "4px 8px", background: c.status === "active" ? "#e7f8eb" : "#f1f5f2" }}>{label(c.status)}</span></div><h3 style={{ fontSize: 17, fontWeight: 800, margin: "10px 0 6px" }}>{c.title}</h3><p style={{ fontSize: 12, color: "#6b7b72", lineHeight: 1.6 }}>{c.description || "Add a description for applicants."}</p><div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, fontSize: 11, color: "#6a7c71" }}><div><b>Duration</b><br/>{c.duration || "Not set"}</div><div><b>Mode</b><br/>{c.delivery_mode}</div><div><b>Start</b><br/>{dateLabel(c.start_date)}</div><div><b>Fee</b><br/>{c.fee_amount == null ? "Not set" : c.currency + " " + Number(c.fee_amount).toLocaleString()}</div></div><div style={{ marginTop: 15, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}><span style={{ fontSize: 10, color: c.public_visible && c.status === "active" ? "#16803d" : "#829087" }}>{c.public_visible && c.status === "active" ? "Visible publicly" : "Not visible publicly"}</span><div style={{ display: "flex", gap: 6 }}><button style={button} onClick={() => editCourse(c)}>Edit course</button><button type="button" disabled={saving} title="Delete course (only when no applicants are linked)" style={{ ...button, color: "#a12b25", borderColor: "#f1c8c5" }} onClick={() => void deleteCourse(c)}><Trash2 size={13}/> Delete</button></div></div></article>)}
       {!courses.length && <div style={{ background: "#fff", border: "1px dashed #cbdcd1", borderRadius: 14, padding: 28, color: "#738278", gridColumn: "1/-1", textAlign: "center" }}>No short courses yet. Select Add short course to create the first one.</div>}
     </section> : <section style={{ display: "grid", gridTemplateColumns: selected ? "minmax(0,1.2fr) minmax(330px,.8fr)" : "1fr", gap: 14, alignItems: "start" }}>
       <div style={{ minWidth: 0, background: "#fff", border: "1px solid #e0ebe4", borderRadius: 14, overflow: "hidden" }}>
