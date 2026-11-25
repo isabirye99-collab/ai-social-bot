@@ -50,7 +50,7 @@ export default function ShortCoursesImportPage() {
       const { data: courseData, error: courseError } = await supabase.from("short_courses").select("id,title");
       if (courseError) throw courseError;
       const courseMap = new Map<string, string>((courseData || []).map((c: {id:string;title:string}) => [c.title.trim().toLowerCase(), c.id]));
-      const missingTitles = [...new Set(records.map(r => clean(r.course_title) || clean(r.raw_course)).filter((t): t is string => !!t && !courseMap.has(t.toLowerCase())) )];
+      const missingTitles = [...new Set(records.map(r => clean(r.course_title) || clean(r.raw_course) || "Historical short course application").filter((t): t is string => !!t && !courseMap.has(t.toLowerCase())) )];
       let createdCourses = 0;
       for (const title of missingTitles) {
         const { data, error: createError } = await supabase.from("short_courses").insert({
