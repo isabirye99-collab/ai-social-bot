@@ -127,6 +127,37 @@ export default function ShortCoursesPage() {
       setSaving(false);
     }
   };
+  const deleteApplicant = async () => {
+    if (!selected) return;
+    const applicantName = `${selected.first_name} ${selected.last_name}`.trim();
+    const confirmed = window.confirm(
+      `Permanently delete applicant ${applicantName} (SC-${selected.application_number})? Their application, contact history and attendance records will be deleted. This cannot be undone.`
+    );
+    if (!confirmed) return;
+    setSaving(true); setError(""); setNotice("");
+    const applicationId = selected.id;
+    const proofPath = selected.payment_proof_path;
+    try {
+      // Remove dependent records first to avoid foreign-key conflicts.
+      const { error: activityError } = await supabase.from("short_course_activities").delete().eq("application_id", applicationId);
+      if (activityError) throw activityError;
+      const { error: attendanceError } = await supabase.from("short_course_attendance").delete().eq("application_id", applicationId);
+      if (attendanceError) throw attendanceError;
+      const { error: applicationError } = await supabase.from("short_course_applications").delete().eq("id", applicationId);
+      if (applicationError) throw applicationError;
+      setSelectedId(null);
+      setNotice(`Applicant ${applicantName} (SC-${selected.application_number}) was deleted.`);
+      if (proofPath) {
+        const { error: storageError } = await supabase.storage.from("short-course-payment-proofs").remove([proofPath]);
+        if (storageError) setNotice(`Applicant ${applicantName} was deleted, but the attached payment-proof file could not be removed.`);
+      }
+      await loadAll();
+    } catch (e: any) {
+      setError(e?.message || "Could not delete this applicant. Check your permissions and try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
   const openPaymentProof = async () => {
     if (!selected?.payment_proof_path) return;
     setError(""); setNotice("");
@@ -203,7 +234,7 @@ export default function ShortCoursesPage() {
         </tbody></table></div>
       </div>
       {selected && <aside style={{ minWidth: 0, background: "#fff", border: "1px solid #dce9e1", borderRadius: 14, overflow: "hidden" }}>
-        <div style={{ padding: 18, background: "linear-gradient(130deg,#edf7ef,#fff)", borderBottom: "1px solid #e2ece5" }}><div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}><div><div style={{ fontSize: 10, color: "#6d8c78", fontWeight: 800 }}>APPLICANT SC-{selected.application_number}</div><h2 style={{ margin: "6px 0 4px", fontSize: 21, fontWeight: 850 }}>{selected.first_name} {selected.last_name}</h2><p style={{ margin: 0, fontSize: 12, color: "#6c7c72" }}>{courseById.get(selected.course_id)?.title || "Short course"}</p></div><button onClick={() => setSelectedId(null)} style={{ ...button, padding: 6 }}><X size={15}/></button></div><div style={{ display: "flex", gap: 8, marginTop: 14 }}><a href={"tel:" + selected.phone} style={{ ...button, textDecoration: "none" }}><Phone size={14}/> Call</a><a href={whatsappUrl(selected.phone)} target="_blank" rel="noreferrer" style={{ ...button, textDecoration: "none", color: "#167447" }}><MessageCircle size={14}/> WhatsApp</a></div></div>
+        <div style={{ padding: 18, background: "linear-gradient(130deg,#edf7ef,#fff)", borderBottom: "1px solid #e2ece5" }}><div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}><div><div style={{ fontSize: 10, color: "#6d8c78", fontWeight: 800 }}>APPLICANT SC-{selected.application_number}</div><h2 style={{ margin: "6px 0 4px", fontSize: 21, fontWeight: 850 }}>{selected.first_name} {selected.last_name}</h2><p style={{ margin: 0, fontSize: 12, color: "#6c7c72" }}>{courseById.get(selected.course_id)?.title || "Short course"}</p></div><button onClick={() => setSelectedId(null)} style={{ ...button, padding: 6 }}><X size={15}/></button></div><div style={{ display: "flex", gap: 8, marginTop: 14 }}><a href={"tel:" + selected.phone} style={{ ...button, textDecoration: "none" }}><Phone size={14}/> Call</a><a href={whatsappUrl(selected.phone)} target="_blank" rel="noreferrer" style={{ ...button, textDecoration: "none", color: "#167447" }}><MessageCircle size={14}/> WhatsApp</a><button type="button" disabled={saving} onClick={() => void deleteApplicant()} style={{ ...button, color: "#a12b25", borderColor: "#f1c8c5", marginLeft: "auto" }}><Trash2 size={14}/>{saving ? "Working…" : "Delete applicant"}</button></div></div>
         <div style={{ padding: 16, display: "grid", gap: 14, maxHeight: "75vh", overflowY: "auto" }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, fontSize: 11 }}><div><div style={{ color: "#819187" }}>Phone</div><b>{selected.phone}</b></div><div><div style={{ color: "#819187" }}>Email</div><b style={{ overflowWrap: "anywhere" }}>{selected.email || "—"}</b></div><div><div style={{ color: "#819187" }}>Nationality</div><b>{selected.nationality || "—"}</b></div><div><div style={{ color: "#819187" }}>Qualification</div><b>{selected.highest_qualification || "—"}</b></div><div><div style={{ color: "#819187" }}>Source</div><b>{selected.source || "Website"}</b></div><div><div style={{ color: "#819187" }}>Application date</div><b>{dateLabel(selected.application_date || selected.submitted_at)}</b></div></div>
           {selected.expected_outcome && <div style={{ padding: 10, borderRadius: 9, background: "#f8fbf9", fontSize: 12 }}><b>What they want from the course</b><p style={{ margin: "5px 0 0", color: "#65776b" }}>{selected.expected_outcome}</p></div>}
