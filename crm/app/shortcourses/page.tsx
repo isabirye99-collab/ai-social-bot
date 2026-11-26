@@ -143,8 +143,18 @@ export default function ShortCoursesPage() {
       if (activityError) throw activityError;
       const { error: attendanceError } = await supabase.from("short_course_attendance").delete().eq("application_id", applicationId);
       if (attendanceError) throw attendanceError;
-      const { error: applicationError } = await supabase.from("short_course_applications").delete().eq("id", applicationId);
+      const { data: deletedApplications, error: applicationError } = await supabase
+        .from("short_course_applications")
+        .delete()
+        .eq("id", applicationId)
+        .select("id");
       if (applicationError) throw applicationError;
+      // PostgREST can return no error when RLS silently filters a DELETE.
+      // Verify that the application row was actually removed before reporting success.
+      if (!deletedApplications || deletedApplications.length === 0) {
+        throw new Error("The applicant was not deleted. Your account may not have permission to delete applicants. Ask a CIU CRM administrator to check Short Courses delete access.");
+      }
+      setApplicants((current) => current.filter((applicant) => applicant.id !== applicationId));
       setSelectedId(null);
       setNotice(`Applicant ${applicantName} (SC-${selected.application_number}) was deleted.`);
       if (proofPath) {
