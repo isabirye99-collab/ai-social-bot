@@ -306,6 +306,10 @@ function LeadCaptureForm() {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            // Public publishable key identifies the Supabase project; it is not a service-role secret.
+            apikey:
+              process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || "",
+            Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || ""}`,
           },
           body: JSON.stringify({
             campaignId,
