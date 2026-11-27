@@ -52,6 +52,76 @@ type Profile = {
   is_active: boolean | null;
 };
 
+type DailyInteraction = {
+  id: string;
+  lead_id: string | null;
+  channel: string | null;
+  response: string | null;
+  outcome: string | null;
+  assigned_to: string | null;
+  contacted_at: string | null;
+  created_by: string | null;
+  task_id: string | null;
+};
+
+type ContactReviewHistory = {
+  id: string;
+  lead_id: string;
+  trigger_interaction_id: string;
+  decision: "retain" | "reassign" | "other_action";
+  notes: string;
+  new_assigned_to: string | null;
+  decided_by: string;
+  decided_at: string;
+};
+
+type WorkingCalendarDay = {
+  calendar_date: string;
+  title: string;
+  day_type: "public_holiday" | "ciu_closure" | "working_day";
+  is_active: boolean;
+  notes: string | null;
+};
+
+type AbsenceRequest = {
+  id: string;
+  salesperson_id: string;
+  absence_date: string;
+  day_fraction: number;
+  reason: string;
+  status: "pending" | "approved" | "rejected";
+  requested_by: string;
+  requested_at: string;
+  decided_by: string | null;
+  decided_at: string | null;
+  decision_notes: string | null;
+};
+
+type AbsenceDecisionHistory = {
+  id: string;
+  request_id: string;
+  salesperson_id: string;
+  absence_date: string;
+  previous_status: "pending" | "approved" | "rejected";
+  new_status: "approved" | "rejected";
+  decision_notes: string | null;
+  decided_by: string;
+  decided_at: string;
+};
+
+type ContactReportSnapshot = {
+  id: string;
+  report_date: string;
+  salesperson_id: string;
+  revision: number;
+  report_data: Record<string, unknown>;
+  finalized_at: string;
+  finalized_by: string | null;
+  finalization_source: "manual" | "automated";
+  supersedes_id: string | null;
+  correction_reason: string | null;
+};
+
 type Lead = {
   id: string;
   name: string | null;
@@ -172,6 +242,16 @@ const EMPTY_FORM: TaskForm = {
   status: "pending",
   priority: "medium",
 };
+
+function isMissingOptionalTableError(error: unknown) {
+  if (!error || typeof error !== "object") return false;
+  const candidate = error as { code?: string; message?: string };
+  return (
+    candidate.code === "42P01" ||
+    candidate.code === "PGRST205" ||
+    /relation .* does not exist|could not find the table .* in the schema cache/i.test(candidate.message || "")
+  );
+}
 
 function formatDate(value: string | null) {
   if (!value) return "—";
@@ -363,6 +443,22 @@ export default function TasksPage() {
     Opportunity[]
   >([]);
   const [stages, setStages] = useState<PipelineStage[]>([]);
+  const [dailyInteractions, setDailyInteractions] = useState<DailyInteraction[]>([]);
+  const [contactReviewHistory, setContactReviewHistory] = useState<ContactReviewHistory[]>([]);
+  const [workingCalendar, setWorkingCalendar] = useState<WorkingCalendarDay[]>([]);
+  const [absenceRequests, setAbsenceRequests] = useState<AbsenceRequest[]>([]);
+  const [absenceDecisionHistory, setAbsenceDecisionHistory] = useState<AbsenceDecisionHistory[]>([]);
+  const [contactReportSnapshots, setContactReportSnapshots] = useState<ContactReportSnapshot[]>([]);
+  const [calendarDate, setCalendarDate] = useState("");
+  const [calendarTitle, setCalendarTitle] = useState("");
+  const [calendarType, setCalendarType] = useState<WorkingCalendarDay["day_type"]>("public_holiday");
+  const [calendarNotes, setCalendarNotes] = useState("");
+  const [absenceDate, setAbsenceDate] = useState("");
+  const [absenceFraction, setAbsenceFraction] = useState("1");
+  const [absenceReason, setAbsenceReason] = useState("");
+  const [savingGovernance, setSavingGovernance] = useState(false);
+  const [savingReviewLeadId, setSavingReviewLeadId] = useState<string | null>(null);
+  const [reviewClock, setReviewClock] = useState(() => Date.now());
 
   const [currentUserId, setCurrentUserId] =
     useState("");
@@ -450,6 +546,14 @@ const isSalesperson =
   const isAdmin =
     currentRole === "admin" ||
     currentRole === "super_admin";
+
+  // Team-wide contact performance and exception reviews are management-only.
+  // Other non-salesperson roles (e.g. marketing, finance, viewer) must not
+  // inherit access merely because they are not salespeople.
+  const canViewTeamContactPerformance =
+    currentRole === "super_admin" ||
+    currentRole === "admin" ||
+    currentRole === "manager";
 
   const loadAll = async () => {
     try {
@@ -569,6 +673,12 @@ const isSalesperson =
         leadsResult,
         opportunitiesResult,
         stagesResult,
+        interactionsResult,
+        reviewHistoryResult,
+        calendarResult,
+        absenceResult,
+        absenceHistoryResult,
+        reportSnapshotsResult,
       ] = await Promise.all([
         fetchAllPages(tasksQuery),
 
@@ -593,6 +703,46 @@ const isSalesperson =
           .order("position", {
             ascending: true,
           }),
+
+        fetchAllPages(
+          supabase
+            .from("engagement_interactions")
+            .select("id,lead_id,channel,response,outcome,assigned_to,contacted_at,created_by,task_id")
+            .eq("channel", "outgoing_call")
+            .order("contacted_at", { ascending: false })
+        ),
+
+        fetchAllPages(
+          supabase
+            .from("lead_contact_review_history")
+            .select("id,lead_id,trigger_interaction_id,decision,notes,new_assigned_to,decided_by,decided_at")
+            .order("decided_at", { ascending: false })
+        ),
+
+        fetchAllPages(
+          supabase.from("ciu_working_calendar")
+            .select("calendar_date,title,day_type,is_active,notes")
+            .eq("is_active", true)
+            .order("calendar_date", { ascending: true })
+        ),
+
+        fetchAllPages(
+          supabase.from("salesperson_absence_requests")
+            .select("id,salesperson_id,absence_date,day_fraction,reason,status,requested_by,requested_at,decided_by,decided_at,decision_notes")
+            .order("absence_date", { ascending: false })
+        ),
+
+        fetchAllPages(
+          supabase.from("salesperson_absence_decision_history")
+            .select("id,request_id,salesperson_id,absence_date,previous_status,new_status,decision_notes,decided_by,decided_at")
+            .order("decided_at", { ascending: false })
+        ),
+
+        fetchAllPages(
+          supabase.from("salesperson_contact_report_snapshots")
+            .select("id,report_date,salesperson_id,revision,report_data,finalized_at,finalized_by,finalization_source,supersedes_id,correction_reason")
+            .order("revision", { ascending: false })
+        ),
       ]);
 
       if (tasksResult.error)
@@ -609,6 +759,32 @@ const isSalesperson =
 
       if (stagesResult.error)
         throw stagesResult.error;
+
+      if (interactionsResult.error)
+        throw interactionsResult.error;
+
+      // These governance tables are introduced by the salesperson-accountability
+      // migrations. Keep the core Tasks page usable before those migrations are
+      // deployed, but do not hide permission, network, or other database errors.
+      const optionalGovernanceResults = [
+        reviewHistoryResult,
+        calendarResult,
+        absenceResult,
+        absenceHistoryResult,
+        reportSnapshotsResult,
+      ];
+      for (const result of optionalGovernanceResults) {
+        if (result.error && !isMissingOptionalTableError(result.error)) {
+          throw result.error;
+        }
+      }
+
+      setWorkingCalendar((calendarResult.data || []) as WorkingCalendarDay[]);
+      setAbsenceRequests((absenceResult.data || []) as AbsenceRequest[]);
+      setAbsenceDecisionHistory((absenceHistoryResult.data || []) as AbsenceDecisionHistory[]);
+      setContactReportSnapshots((reportSnapshotsResult.data || []) as ContactReportSnapshot[]);
+      setDailyInteractions((interactionsResult.data || []) as DailyInteraction[]);
+      setContactReviewHistory((reviewHistoryResult.data || []) as ContactReviewHistory[]);
 
       const loadedTasks = (tasksResult.data || []) as Task[];
 
@@ -647,6 +823,12 @@ const isSalesperson =
 
   useEffect(() => {
     loadAll();
+  }, []);
+
+  // Keep management overdue indicators current while this page remains open.
+  useEffect(() => {
+    const timer = window.setInterval(() => setReviewClock(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
   }, []);
 
   const getLead = (task: Task) => {
@@ -726,6 +908,509 @@ const isSalesperson =
       interestedLeads: scopedLeads.filter(isInterestedLead).length,
     };
   }, [tasks, leads, selectedIntake]);
+
+  const getEATDateKey = (value: Date) => {
+    const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Africa/Kampala", year: "numeric", month: "2-digit", day: "2-digit" })
+      .formatToParts(value).reduce((result, part) => {
+        if (part.type !== "literal") result[part.type] = part.value;
+        return result;
+      }, {} as Record<string, string>);
+    return `${parts.year}-${parts.month}-${parts.day}`;
+  };
+
+  const isOfficialWorkingDay = (dateKey: string) => {
+    const calendarOverride = workingCalendar.find((day) => day.calendar_date === dateKey && day.is_active);
+    if (calendarOverride) return calendarOverride.day_type === "working_day";
+    const weekday = new Date(`${dateKey}T12:00:00Z`).getUTCDay();
+    return weekday !== 0 && weekday !== 6;
+  };
+
+  const approvedAbsenceFraction = (staffId: string, dateKey: string) =>
+    Math.min(1, absenceRequests
+      .filter((request) => request.salesperson_id === staffId && request.absence_date === dateKey && request.status === "approved")
+      .reduce((sum, request) => sum + Number(request.day_fraction || 0), 0));
+
+  const targetForStaff = (staffId: string, dateKey: string) =>
+    isOfficialWorkingDay(dateKey) ? Math.max(0, Math.round(50 * (1 - approvedAbsenceFraction(staffId, dateKey)))) : 0;
+
+  const dailyContactSummary = useMemo(() => {
+    const isQualifyingAnsweredCall = (interaction: DailyInteraction) => {
+      const channel = (interaction.channel || "").trim().toLowerCase();
+      const response = (interaction.response || "").trim().toLowerCase();
+      const outcome = (interaction.outcome || "").trim().toLowerCase();
+      return channel === "outgoing_call" &&
+        response === "answered" &&
+        outcome !== "wrong number" &&
+        Boolean(interaction.lead_id) &&
+        Boolean(interaction.created_by || interaction.assigned_to);
+    };
+
+    const todayKey = getEATDateKey(new Date());
+    const qualifying = dailyInteractions.filter((interaction) => {
+      if (!isQualifyingAnsweredCall(interaction) || !interaction.contacted_at) return false;
+      const parts = new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Africa/Kampala",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).formatToParts(new Date(interaction.contacted_at)).reduce((values, part) => {
+        if (part.type !== "literal") values[part.type] = part.value;
+        return values;
+      }, {} as Record<string, string>);
+      return `${parts.year}-${parts.month}-${parts.day}` === todayKey;
+    });
+    const countForStaff = (staffId: string) =>
+      new Set(qualifying
+        .filter((interaction) => (interaction.created_by || interaction.assigned_to) === staffId)
+        .map((interaction) => interaction.lead_id)
+      ).size;
+
+    const teamPairs = new Set(qualifying.map((interaction) =>
+      `${interaction.created_by || interaction.assigned_to}:${interaction.lead_id}`
+    ));
+
+    return {
+      mine: countForStaff(currentUserId),
+      team: teamPairs.size,
+      staff: profiles
+        .filter((profile) => profile.role === "salesperson" && profile.is_active !== false)
+        .map((profile) => ({
+          id: profile.id,
+          name: profile.full_name || "Unnamed salesperson",
+          contacted: countForStaff(profile.id),
+          target: targetForStaff(profile.id, todayKey),
+          absenceFraction: approvedAbsenceFraction(profile.id, todayKey),
+        }))
+        .sort((a, b) => b.contacted - a.contacted || a.name.localeCompare(b.name)),
+      todayKey,
+      isWorkingDay: isOfficialWorkingDay(todayKey),
+      myTarget: targetForStaff(currentUserId, todayKey),
+    };
+  }, [dailyInteractions, currentUserId, profiles, workingCalendar, absenceRequests]);
+
+  const exportDailyContactReport = () => {
+    if (!canViewTeamContactPerformance) {
+      setError("Team contact reports are available to authorised management only.");
+      return;
+    }
+    const escapeCsv = (value: string | number) => {
+      const text = String(value);
+      return `"${text.replace(/"/g, '""')}"`;
+    };
+    const dateParts = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Africa/Kampala",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(new Date()).reduce((parts, part) => {
+      if (part.type !== "literal") parts[part.type] = part.value;
+      return parts;
+    }, {} as Record<string, string>);
+    const dateKey = `${dateParts.year}-${dateParts.month}-${dateParts.day}`;
+    const rows = [
+      ["Report date (EAT)", dateKey],
+      ["Generated at (EAT)", new Intl.DateTimeFormat("en-UG", { timeZone: "Africa/Kampala", dateStyle: "medium", timeStyle: "short" }).format(new Date())],
+      ["Report working day", dailyContactSummary.isWorkingDay ? "Yes" : "No"],
+      [],
+      ["Salesperson", "Unique students contacted", "Daily target", "Status"],
+      ...dailyContactSummary.staff.map((person) => [
+        person.name,
+        person.contacted,
+        person.target,
+        person.target === 0 ? "Exempt / non-working day" : person.contacted >= person.target ? "Target achieved" : person.contacted > 0 ? "Below target" : "No qualifying calls",
+      ]),
+    ];
+    const csv = "\uFEFF" + rows.map((row) => row.map((value) => escapeCsv(value ?? "")).join(",")).join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `ciu-salesperson-contact-progress-${dateKey}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportMyDailyContactReport = () => {
+    if (!currentUserId) {
+      setError("Your signed-in salesperson profile is not ready. Please try again.");
+      return;
+    }
+
+    const dateKeyFor = (value: Date) => {
+      const parts = new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Africa/Kampala",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).formatToParts(value).reduce((result, part) => {
+        if (part.type !== "literal") result[part.type] = part.value;
+        return result;
+      }, {} as Record<string, string>);
+      return `${parts.year}-${parts.month}-${parts.day}`;
+    };
+    const todayKey = dateKeyFor(new Date());
+    const myCalls = dailyInteractions.filter((interaction) => {
+      const staffId = interaction.created_by || interaction.assigned_to;
+      if (staffId !== currentUserId || !interaction.contacted_at || !interaction.lead_id) return false;
+      if ((interaction.channel || "").trim().toLowerCase() !== "outgoing_call") return false;
+      if ((interaction.response || "").trim().toLowerCase() !== "answered") return false;
+      if ((interaction.outcome || "").trim().toLowerCase() === "wrong number") return false;
+      return dateKeyFor(new Date(interaction.contacted_at)) === todayKey;
+    });
+    const uniqueStudentCount = new Set(myCalls.map((interaction) => interaction.lead_id)).size;
+    const myTarget = targetForStaff(currentUserId, todayKey);
+    const escapeCsv = (value: string | number) => `"${String(value).replace(/"/g, '""')}"`;
+    const rows: Array<Array<string | number>> = [
+      ["CIU Salesperson Daily Contact Report"],
+      ["Report date (EAT)", todayKey],
+      ["Generated at (EAT)", new Intl.DateTimeFormat("en-UG", { timeZone: "Africa/Kampala", dateStyle: "medium", timeStyle: "short" }).format(new Date())],
+      ["Daily target", myTarget],
+      ["Unique students reached by answered calls", uniqueStudentCount],
+      ["Status", myTarget === 0 ? "Exempt / non-working day" : uniqueStudentCount >= myTarget ? "Target achieved" : uniqueStudentCount > 0 ? "Below target" : "No qualifying calls"],
+      [],
+      ["Call time (EAT)", "Student", "Phone", "Outcome"],
+      ...myCalls
+        .sort((a, b) => new Date(a.contacted_at || 0).getTime() - new Date(b.contacted_at || 0).getTime())
+        .map((interaction) => {
+          const lead = leads.find((item) => item.id === interaction.lead_id);
+          return [
+            interaction.contacted_at ? new Intl.DateTimeFormat("en-UG", { timeZone: "Africa/Kampala", dateStyle: "short", timeStyle: "short" }).format(new Date(interaction.contacted_at)) : "",
+            lead?.name || lead?.ciu_number || "Unnamed student",
+            lead?.phone || "",
+            interaction.outcome || "",
+          ];
+        }),
+    ];
+    const csv = "\uFEFF" + rows.map((row) => row.map((value) => escapeCsv(value ?? "")).join(",")).join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `ciu-my-daily-contact-report-${todayKey}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const requestMyAbsence = async () => {
+    if (!currentUserId || currentRole !== "salesperson") {
+      setError("Only salespeople can submit their own absence request.");
+      return;
+    }
+    if (!absenceDate || !absenceReason.trim()) {
+      setError("Choose an absence date and provide a reason.");
+      return;
+    }
+    try {
+      setSavingGovernance(true);
+      setError("");
+      setSuccess("");
+      const { error: insertError } = await supabase.from("salesperson_absence_requests").insert({
+        salesperson_id: currentUserId,
+        absence_date: absenceDate,
+        day_fraction: Number(absenceFraction),
+        reason: absenceReason.trim(),
+        requested_by: currentUserId,
+        status: "pending",
+      });
+      if (insertError) throw insertError;
+      setAbsenceDate("");
+      setAbsenceFraction("1");
+      setAbsenceReason("");
+      setSuccess("Absence request submitted for management approval. The target will not change unless approved.");
+      await loadAll();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not submit the absence request.");
+    } finally {
+      setSavingGovernance(false);
+    }
+  };
+
+  const decideAbsenceRequest = async (request: AbsenceRequest, decision: "approved" | "rejected") => {
+    if (!canViewTeamContactPerformance) return;
+    const notes = window.prompt(`Optional notes for ${decision === "approved" ? "approval" : "rejection"}:`, "");
+    if (notes === null) return;
+    try {
+      setSavingGovernance(true);
+      setError("");
+      const { error: rpcError } = await supabase.rpc("decide_salesperson_absence", {
+        p_request_id: request.id,
+        p_decision: decision,
+        p_decision_notes: notes.trim() || null,
+      });
+      if (rpcError) throw rpcError;
+      setSuccess(`Absence request ${decision}.`);
+      await loadAll();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save the absence decision.");
+    } finally {
+      setSavingGovernance(false);
+    }
+  };
+
+  const saveCalendarDay = async () => {
+    if (!canViewTeamContactPerformance) return;
+    if (!calendarDate || !calendarTitle.trim()) {
+      setError("Choose a date and enter a calendar title.");
+      return;
+    }
+    try {
+      setSavingGovernance(true);
+      setError("");
+      const { error: calendarError } = await supabase.from("ciu_working_calendar").upsert({
+        calendar_date: calendarDate,
+        title: calendarTitle.trim(),
+        day_type: calendarType,
+        notes: calendarNotes.trim() || null,
+        is_active: true,
+        created_by: currentUserId,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "calendar_date" });
+      if (calendarError) throw calendarError;
+      setCalendarDate("");
+      setCalendarTitle("");
+      setCalendarType("public_holiday");
+      setCalendarNotes("");
+      setSuccess("CIU calendar date saved. Daily targets and follow-up deadlines will use this calendar.");
+      await loadAll();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save the CIU calendar date.");
+    } finally {
+      setSavingGovernance(false);
+    }
+  };
+
+  const finalizeContactReport = async (staffId: string) => {
+    if (!currentUserId) return;
+    const person = dailyContactSummary.staff.find((item) => item.id === staffId);
+    if (!person) {
+      setError("Could not find the salesperson for this report.");
+      return;
+    }
+    const todayKey = dailyContactSummary.todayKey;
+    const previous = contactReportSnapshots
+      .filter((snapshot) => snapshot.report_date === todayKey && snapshot.salesperson_id === staffId)
+      .sort((a, b) => b.revision - a.revision)[0];
+    const correctionReason = previous
+      ? window.prompt("A report already exists. Enter the reason for this correction; the previous version will be preserved:")
+      : null;
+    if (previous && (correctionReason === null || !correctionReason.trim())) {
+      if (correctionReason !== null) setError("A correction reason is required.");
+      return;
+    }
+    if (!previous && window.confirm("Finalise this report now? It becomes an immutable snapshot. Any later correction creates a new revision and requires a reason.") === false) return;
+
+    const isMyReport = staffId === currentUserId;
+    if (!isMyReport && !canViewTeamContactPerformance) {
+      setError("Only authorised management can finalise another salesperson's report.");
+      return;
+    }
+    const calls = dailyInteractions.filter((interaction) => {
+      if (!interaction.contacted_at || !interaction.lead_id) return false;
+      if ((interaction.created_by || interaction.assigned_to) !== staffId) return false;
+      if ((interaction.channel || "").toLowerCase() !== "outgoing_call" || (interaction.response || "").toLowerCase() !== "answered") return false;
+      if ((interaction.outcome || "").toLowerCase() === "wrong number") return false;
+      return getEATDateKey(new Date(interaction.contacted_at)) === todayKey;
+    });
+    const uniqueLeadIds = Array.from(new Set(calls.map((interaction) => interaction.lead_id)));
+    const target = targetForStaff(staffId, todayKey);
+    const snapshot = {
+      salesperson_id: staffId,
+      report_date: todayKey,
+      salesperson_name: person.name,
+      target,
+      unique_students_contacted: uniqueLeadIds.length,
+      status: target === 0 ? "Exempt / non-working day" : uniqueLeadIds.length >= target ? "Target achieved" : uniqueLeadIds.length > 0 ? "Below target" : "No qualifying calls",
+      working_day: isOfficialWorkingDay(todayKey),
+      approved_absence_fraction: approvedAbsenceFraction(staffId, todayKey),
+      generated_at_eat: new Intl.DateTimeFormat("en-UG", { timeZone: "Africa/Kampala", dateStyle: "medium", timeStyle: "short" }).format(new Date()),
+      calls: calls.map((interaction) => {
+        const lead = leads.find((item) => item.id === interaction.lead_id);
+        return {
+          contacted_at: interaction.contacted_at,
+          lead_id: interaction.lead_id,
+          student_name: lead?.name || lead?.ciu_number || "Unnamed student",
+          ciu_number: lead?.ciu_number || "",
+          phone: lead?.phone || "",
+          outcome: interaction.outcome || "",
+        };
+      }),
+    };
+    try {
+      setSavingGovernance(true);
+      setError("");
+      const { error: rpcError } = await supabase.rpc("finalize_salesperson_contact_report", {
+        p_report_date: todayKey,
+        p_report_data: snapshot,
+        p_correction_reason: previous ? correctionReason!.trim() : null,
+      });
+      if (rpcError) throw rpcError;
+      setSuccess(previous ? "Correction saved as a new report revision. The original snapshot remains unchanged." : "Daily contact report finalised and locked as an immutable snapshot.");
+      await loadAll();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not finalise the daily report.");
+    } finally {
+      setSavingGovernance(false);
+    }
+  };
+
+  const printContactReport = (snapshot: ContactReportSnapshot) => {
+    const data = snapshot.report_data as any;
+    const popup = window.open("", "_blank", "width=900,height=700");
+    if (!popup) {
+      setError("Allow pop-ups to print or save the report as PDF.");
+      return;
+    }
+    const safe = (value: unknown) => String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    const rows = Array.isArray(data.calls) ? data.calls.map((call: any) => `<tr><td>${safe(call.contacted_at ? new Intl.DateTimeFormat("en-UG", { timeZone: "Africa/Kampala", dateStyle: "short", timeStyle: "short" }).format(new Date(call.contacted_at)) : "")}</td><td>${safe(call.student_name)}</td><td>${safe(call.phone)}</td><td>${safe(call.outcome)}</td></tr>`).join("") : "";
+    popup.document.write(`<!doctype html><html><head><title>CIU Daily Contact Report</title><style>body{font:14px Arial,sans-serif;margin:28px;color:#173b2b}h1{font-size:22px;color:#075442}p{margin:6px 0}table{border-collapse:collapse;width:100%;margin-top:20px}th,td{border:1px solid #d9e4dc;padding:8px;text-align:left}th{background:#f0f8f3}@media print{button{display:none}}</style></head><body><h1>Clarke International University — Daily Contact Report</h1><p><b>Salesperson:</b> ${safe(data.salesperson_name)}</p><p><b>Report date:</b> ${safe(snapshot.report_date)} (EAT)</p><p><b>Unique students contacted:</b> ${safe(data.unique_students_contacted)} / ${safe(data.target)}</p><p><b>Status:</b> ${safe(data.status)}</p><p><b>Revision:</b> ${safe(snapshot.revision)} · <b>Finalised:</b> ${safe(new Intl.DateTimeFormat("en-UG", { timeZone: "Africa/Kampala", dateStyle: "medium", timeStyle: "short" }).format(new Date(snapshot.finalized_at)))}</p>${snapshot.correction_reason ? `<p><b>Correction reason:</b> ${safe(snapshot.correction_reason)}</p>` : ""}<table><thead><tr><th>Call time (EAT)</th><th>Student</th><th>Phone</th><th>Outcome</th></tr></thead><tbody>${rows}</tbody></table><p style="margin-top:24px;color:#64756b;font-size:11px">System-generated record. Manual call outcomes depend on user entry.</p><button onclick="window.print()">Print / Save as PDF</button></body></html>`);
+    popup.document.close();
+  };
+
+  const exportAbsenceDecisionHistory = () => {
+    const escapeCsv = (value: unknown) => `"${String(value ?? "").replace(/"/g, '""')}"`;
+    const rows: unknown[][] = [
+      ["CIU Absence Decision Audit History"],
+      ["Generated at (EAT)", new Intl.DateTimeFormat("en-UG", { timeZone: "Africa/Kampala", dateStyle: "medium", timeStyle: "short" }).format(new Date())],
+      [],
+      ["Decision time (EAT)", "Salesperson", "Absence date", "Decision", "Decision maker", "Notes", "Request ID"],
+      ...absenceDecisionHistory
+        .filter((entry) => canViewTeamContactPerformance || entry.salesperson_id === currentUserId)
+        .map((entry) => {
+          const owner = profiles.find((profile) => profile.id === entry.salesperson_id);
+          const decisionMaker = profiles.find((profile) => profile.id === entry.decided_by);
+          return [
+            new Intl.DateTimeFormat("en-UG", { timeZone: "Africa/Kampala", dateStyle: "short", timeStyle: "short" }).format(new Date(entry.decided_at)),
+            owner?.full_name || entry.salesperson_id, entry.absence_date, entry.new_status,
+            decisionMaker?.full_name || entry.decided_by, entry.decision_notes || "", entry.request_id,
+          ];
+        }),
+    ];
+    const blob = new Blob(["\uFEFF" + rows.map((row) => row.map(escapeCsv).join(",")).join("\r\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `ciu-absence-decision-audit-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportContactReviewHistory = () => {
+    if (!canViewTeamContactPerformance) {
+      setError("Only authorised management users can export review history.");
+      return;
+    }
+    const escapeCsv = (value: unknown) => `"${String(value ?? "").replace(/"/g, '""')}"`;
+    const rows: unknown[][] = [
+      ["CIU Management Contact Review Audit"],
+      ["Generated at (EAT)", new Intl.DateTimeFormat("en-UG", { timeZone: "Africa/Kampala", dateStyle: "medium", timeStyle: "short" }).format(new Date())],
+      [],
+      ["Decision time (EAT)", "Student", "CIU number", "Phone", "Decision", "Manager", "New assignee", "Notes", "Lead ID", "Trigger interaction ID"],
+      ...contactReviewHistory.map((review) => {
+        const lead = leads.find((item) => item.id === review.lead_id);
+        const reviewer = profiles.find((profile) => profile.id === review.decided_by);
+        const assignee = review.new_assigned_to ? profiles.find((profile) => profile.id === review.new_assigned_to) : null;
+        return [
+          new Intl.DateTimeFormat("en-UG", { timeZone: "Africa/Kampala", dateStyle: "short", timeStyle: "short" }).format(new Date(review.decided_at)),
+          lead?.name || "", lead?.ciu_number || "", lead?.phone || "",
+          review.decision === "retain" ? "Retain assignment" : review.decision === "reassign" ? "Reassign lead" : "Other action",
+          reviewer?.full_name || review.decided_by, assignee?.full_name || "", review.notes, review.lead_id, review.trigger_interaction_id,
+        ];
+      }),
+    ];
+    const blob = new Blob(["\uFEFF" + rows.map((row) => row.map(escapeCsv).join(",")).join("\r\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `ciu-contact-review-audit-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const unansweredReviewFlags = useMemo(() => {
+    const grouped = new Map<string, DailyInteraction[]>();
+    for (const interaction of dailyInteractions) {
+      if (!interaction.lead_id || !interaction.contacted_at) continue;
+      const staffId = interaction.created_by || interaction.assigned_to;
+      if (!staffId) continue;
+      const key = `${staffId}:${interaction.lead_id}`;
+      const list = grouped.get(key) || [];
+      list.push(interaction);
+      grouped.set(key, list);
+    }
+
+    const addTwoWeekdaysForReview = (contactedAt: string) => {
+      const parts = new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Africa/Kampala",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).formatToParts(new Date(contactedAt)).reduce((values, part) => {
+        if (part.type !== "literal") values[part.type] = part.value;
+        return values;
+      }, {} as Record<string, string>);
+      // 14:00 UTC is 17:00 East Africa Time. This weekday-only estimate
+      // must be reconciled with the official CIU/Uganda holiday calendar.
+      const due = new Date(Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day), 14, 0, 0));
+      let weekdaysAdded = 0;
+      while (weekdaysAdded < 2) {
+        due.setUTCDate(due.getUTCDate() + 1);
+        const weekday = due.getUTCDay();
+        const dateKey = `${due.getUTCFullYear()}-${String(due.getUTCMonth() + 1).padStart(2, "0")}-${String(due.getUTCDate()).padStart(2, "0")}`;
+        const override = workingCalendar.find((day) => day.calendar_date === dateKey && day.is_active);
+        const isWorking = override ? override.day_type === "working_day" : weekday !== 0 && weekday !== 6;
+        if (isWorking) weekdaysAdded += 1;
+      }
+      return due;
+    };
+    const flags: Array<{ key: string; lead: Lead; staffName: string; attempts: number; latestInteractionId: string; lastContactedAt: string; reviewDueAt: string; reviewOverdue: boolean }> = [];
+    for (const [key, history] of grouped.entries()) {
+      const sorted = [...history].sort((a, b) =>
+        new Date(b.contacted_at || 0).getTime() - new Date(a.contacted_at || 0).getTime()
+      );
+      let attempts = 0;
+      for (const interaction of sorted) {
+        const response = (interaction.response || "").trim().toLowerCase();
+        if (response === "unanswered") {
+          attempts += 1;
+          continue;
+        }
+        // Any later answered/invalid-number outcome breaks the consecutive
+        // unanswered sequence; only true no-answer attempts trigger this flag.
+        break;
+      }
+      if (attempts < 3) continue;
+      const latest = sorted[0];
+      const lead = leads.find((item) => item.id === latest.lead_id);
+      if (!lead || isClosedLead(lead)) continue;
+      const staffId = latest.assigned_to || latest.created_by || "";
+      const staff = profiles.find((profile) => profile.id === staffId);
+      flags.push({
+        key,
+        lead,
+        staffName: staff?.full_name || "Unknown salesperson",
+        attempts,
+        latestInteractionId: latest.id,
+        lastContactedAt: latest.contacted_at || "",
+        reviewDueAt: addTwoWeekdaysForReview(latest.contacted_at || new Date().toISOString()).toISOString(),
+        reviewOverdue: reviewClock > addTwoWeekdaysForReview(latest.contacted_at || new Date().toISOString()).getTime(),
+      });
+    }
+    const pendingFlags = flags.filter((flag) => {
+      const latestDecision = contactReviewHistory
+        .filter((review) => review.lead_id === flag.lead.id)
+        .sort((a, b) => new Date(b.decided_at).getTime() - new Date(a.decided_at).getTime())[0];
+      return !latestDecision || new Date(latestDecision.decided_at).getTime() < new Date(flag.lastContactedAt).getTime();
+    });
+    return pendingFlags.sort((a, b) => new Date(a.lastContactedAt).getTime() - new Date(b.lastContactedAt).getTime());
+  }, [dailyInteractions, leads, profiles, reviewClock, contactReviewHistory, workingCalendar]);
 
   const performanceSummary = useMemo(() => {
     const [intakeYear, intakeMonth] = selectedIntake.split("-").map(Number);
@@ -1437,6 +2122,72 @@ const isSalesperson =
       `mailto:${lead.email}`;
   };
 
+  const recordContactReviewDecision = async (flag: { lead: Lead; latestInteractionId: string }) => {
+    if (!canViewTeamContactPerformance) {
+      setError("Only authorised management users can record contact review decisions.");
+      return;
+    }
+    const choice = window.prompt("Choose management action: type RETAIN, REASSIGN, or OTHER.", "RETAIN");
+    if (choice === null) return;
+    const normalized = choice.trim().toLowerCase();
+    const decision = normalized === "retain" ? "retain" : normalized === "reassign" ? "reassign" : normalized === "other" || normalized === "other_action" ? "other_action" : null;
+    if (!decision) {
+      setError("Enter RETAIN, REASSIGN, or OTHER.");
+      return;
+    }
+    let newAssignee: string | null = null;
+    if (decision === "reassign") {
+      const salespeople = profiles.filter((profile) => profile.is_active !== false && profile.role === "salesperson");
+      if (!salespeople.length) {
+        setError("No active salespeople are available for reassignment.");
+        return;
+      }
+      const selected = window.prompt("Enter the number of the new salesperson:\n" + salespeople.map((person, index) => `${index + 1}. ${person.full_name || "Unnamed salesperson"}`).join("\n"));
+      if (selected === null) return;
+      if (!/^\d+$/.test(selected.trim()) || !salespeople[Number(selected.trim()) - 1]) {
+        setError("Choose a valid salesperson number.");
+        return;
+      }
+      newAssignee = salespeople[Number(selected.trim()) - 1].id;
+    }
+    const notes = window.prompt("Enter the management review notes (required for the audit trail):");
+    if (notes === null) return;
+    if (!notes.trim()) {
+      setError("Review notes are required.");
+      return;
+    }
+    try {
+      setSavingReviewLeadId(flag.lead.id);
+      setError("");
+      setSuccess("");
+      const { error: rpcError } = await supabase.rpc("record_lead_contact_review_decision", {
+        p_lead_id: flag.lead.id,
+        p_trigger_interaction_id: flag.latestInteractionId,
+        p_decision: decision,
+        p_notes: notes.trim(),
+        p_new_assigned_to: newAssignee,
+      });
+      if (rpcError) throw rpcError;
+      setSuccess(decision === "reassign" ? "Review recorded and lead reassigned. The decision is retained in the audit history." : "Management review decision saved to the audit history.");
+      await loadAll();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save the management review decision.");
+    } finally {
+      setSavingReviewLeadId(null);
+    }
+  };
+
+  const suggestNextWeekdayFollowUp = () => {
+    // Suggest the next official working day using the maintained CIU calendar.
+    const suggested = new Date();
+    suggested.setDate(suggested.getDate() + 1);
+    while (!isOfficialWorkingDay(getEATDateKey(suggested))) {
+      suggested.setDate(suggested.getDate() + 1);
+    }
+    suggested.setHours(9, 0, 0, 0);
+    setOutcomeDate(toDateTimeLocal(suggested.toISOString()));
+  };
+
   const openOutcome = (
     task: Task
   ) => {
@@ -1838,22 +2589,55 @@ const isSalesperson =
           ? `${previousDescription}\n\n${outcomeEntry}`
           : outcomeEntry;
 
+      // Log each call outcome in the existing engagement history. The task_id
+      // lookup makes retries idempotent at the UI level and avoids counting a
+      // second interaction when the task save is retried.
+      // Record the call interaction before completing the task. If interaction
+      // logging fails, the task remains open; if task completion then fails,
+      // a retry finds the existing interaction and can safely finish the task.
+      if ((outcomeTask.task_type || "").toLowerCase() === "call" && outcomeTask.lead_id) {
+        const { data: priorInteraction, error: priorInteractionError } = await supabase
+          .from("engagement_interactions")
+          .select("id")
+          .eq("task_id", outcomeTask.id)
+          .limit(1)
+          .maybeSingle();
+        if (priorInteractionError) throw priorInteractionError;
+
+        if (!priorInteraction) {
+          const normalizedOutcome = selectedOutcome.trim().toLowerCase();
+          const response = ["no answer", "unreachable"].includes(normalizedOutcome)
+            ? "unanswered"
+            : normalizedOutcome === "wrong number"
+              ? "invalid_number"
+              : "answered";
+          const { error: interactionInsertError } = await supabase
+            .from("engagement_interactions")
+            .insert({
+              lead_id: outcomeTask.lead_id,
+              task_id: outcomeTask.id,
+              reason: "Salesperson task call outcome",
+              channel: "outgoing_call",
+              response,
+              outcome: selectedOutcome,
+              assigned_to: currentUserId,
+              created_by: currentUserId,
+              contacted_at: new Date().toISOString(),
+            });
+          if (interactionInsertError) throw interactionInsertError;
+        }
+      }
+
       const { error: taskError } =
         await supabase
           .from("tasks")
           .update({
-            description:
-              newDescription,
+            description: newDescription,
             status: "completed",
-            completed_at:
-              new Date().toISOString(),
-            updated_at:
-              new Date().toISOString(),
+            completed_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
           })
-          .eq(
-            "id",
-            outcomeTask.id
-          );
+          .eq("id", outcomeTask.id);
 
       if (taskError) {
         throw taskError;
@@ -2271,6 +3055,7 @@ const isSalesperson =
         {/* ROLE-SPECIFIC PERFORMANCE SUMMARY */}
         <section aria-label="Task performance summary" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(145px, 1fr))", gap: 8, marginBottom: 10 }}>
           {[
+            { label: performanceSummary.isManager ? "Team contacted today (per-salesperson unique)" : "Unique students contacted today", value: performanceSummary.isManager ? dailyContactSummary.team : dailyContactSummary.mine, note: "Answered calls only · target adjusts for approved absence and non-working days" },
             { label: performanceSummary.isManager ? "Team outstanding" : "My outstanding", value: performanceSummary.outstanding },
             { label: performanceSummary.isManager ? "Team overdue" : "My overdue", value: performanceSummary.overdue },
             { label: performanceSummary.isManager ? "Team completed today" : "Completed today", value: performanceSummary.completedToday },
@@ -2283,6 +3068,220 @@ const isSalesperson =
             </div>
           ))}
         </section>
+
+        <section aria-label="CIU working calendar and absence management" style={{ marginBottom: 16, border: "1px solid #cfe1d6", borderRadius: 14, background: "#ffffff", overflow: "hidden" }}>
+          <div style={{ padding: "14px 16px", background: "#f0f8f3", borderBottom: "1px solid #dce9e1" }}>
+            <div style={{ color: "#075442", fontSize: 15, fontWeight: 800 }}>CIU Working Calendar & Staff Absence</div>
+            <div style={{ color: "#536b5d", fontSize: 12, marginTop: 4 }}>Targets use the maintained calendar. Weekends are excluded unless explicitly marked as a CIU working day. Enter official holidays and campus closures here.</div>
+          </div>
+          <div style={{ padding: 14, display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))", gap: 16 }}>
+            {canViewTeamContactPerformance && (
+              <div style={{ border: "1px solid #e2ece5", borderRadius: 10, padding: 12 }}>
+                <div style={{ color: "#075442", fontWeight: 750, fontSize: 13, marginBottom: 10 }}>Add or update calendar date</div>
+                <label style={{ display: "block", fontSize: 11, color: "#52665a", marginBottom: 4 }}>Date</label>
+                <input type="date" value={calendarDate} onChange={(event) => setCalendarDate(event.target.value)} style={{ width: "100%", padding: 8, border: "1px solid #cbd5cf", borderRadius: 7, marginBottom: 8 }} />
+                <label style={{ display: "block", fontSize: 11, color: "#52665a", marginBottom: 4 }}>Title</label>
+                <input value={calendarTitle} onChange={(event) => setCalendarTitle(event.target.value)} placeholder="e.g. Uganda public holiday" style={{ width: "100%", padding: 8, border: "1px solid #cbd5cf", borderRadius: 7, marginBottom: 8 }} />
+                <label style={{ display: "block", fontSize: 11, color: "#52665a", marginBottom: 4 }}>Day type</label>
+                <select value={calendarType} onChange={(event) => setCalendarType(event.target.value as WorkingCalendarDay["day_type"])} style={{ width: "100%", padding: 8, border: "1px solid #cbd5cf", borderRadius: 7, marginBottom: 8 }}>
+                  <option value="public_holiday">Public holiday (no target)</option>
+                  <option value="ciu_closure">CIU closure (no target)</option>
+                  <option value="working_day">Official working day (override weekend)</option>
+                </select>
+                <textarea value={calendarNotes} onChange={(event) => setCalendarNotes(event.target.value)} placeholder="Source / notes (optional)" rows={2} style={{ width: "100%", padding: 8, border: "1px solid #cbd5cf", borderRadius: 7, marginBottom: 8 }} />
+                <button type="button" disabled={savingGovernance} onClick={() => void saveCalendarDay()} style={{ padding: "8px 12px", border: 0, borderRadius: 7, background: "#087443", color: "#fff", fontWeight: 700, cursor: "pointer" }}>{savingGovernance ? "Saving…" : "Save calendar date"}</button>
+              </div>
+            )}
+            {currentRole === "salesperson" && (
+              <div style={{ border: "1px solid #e2ece5", borderRadius: 10, padding: 12 }}>
+                <div style={{ color: "#075442", fontWeight: 750, fontSize: 13, marginBottom: 10 }}>Request absence</div>
+                <label style={{ display: "block", fontSize: 11, color: "#52665a", marginBottom: 4 }}>Date</label>
+                <input type="date" value={absenceDate} onChange={(event) => setAbsenceDate(event.target.value)} style={{ width: "100%", padding: 8, border: "1px solid #cbd5cf", borderRadius: 7, marginBottom: 8 }} />
+                <label style={{ display: "block", fontSize: 11, color: "#52665a", marginBottom: 4 }}>Absence fraction</label>
+                <select value={absenceFraction} onChange={(event) => setAbsenceFraction(event.target.value)} style={{ width: "100%", padding: 8, border: "1px solid #cbd5cf", borderRadius: 7, marginBottom: 8 }}>
+                  <option value="1">Full day (100%)</option>
+                  <option value="0.75">Three-quarter day (75%)</option>
+                  <option value="0.5">Half day (50%)</option>
+                  <option value="0.25">Quarter day (25%)</option>
+                </select>
+                <textarea value={absenceReason} onChange={(event) => setAbsenceReason(event.target.value)} placeholder="Reason for absence (required)" rows={2} style={{ width: "100%", padding: 8, border: "1px solid #cbd5cf", borderRadius: 7, marginBottom: 8 }} />
+                <button type="button" disabled={savingGovernance} onClick={() => void requestMyAbsence()} style={{ padding: "8px 12px", border: 0, borderRadius: 7, background: "#087443", color: "#fff", fontWeight: 700, cursor: "pointer" }}>Submit request</button>
+              </div>
+            )}
+            <div style={{ border: "1px solid #e2ece5", borderRadius: 10, padding: 12 }}>
+              <div style={{ color: "#075442", fontWeight: 750, fontSize: 13, marginBottom: 8 }}>Upcoming / recorded calendar dates</div>
+              {workingCalendar.length ? workingCalendar.slice(0, 8).map((day) => <div key={day.calendar_date} style={{ padding: "7px 0", borderBottom: "1px solid #edf3ef", fontSize: 12 }}><b>{day.calendar_date}</b> · {day.title}<div style={{ color: "#64756b", fontSize: 11 }}>{day.day_type.replaceAll("_", " ")}</div></div>) : <div style={{ color: "#64756b", fontSize: 12 }}>No calendar dates entered yet. Management should maintain the official Uganda/CIU holiday calendar.</div>}
+            </div>
+          </div>
+          {absenceRequests.length > 0 && (
+            <div style={{ padding: 14, borderTop: "1px solid #e2ece5" }}>
+              <div style={{ color: "#075442", fontWeight: 750, fontSize: 13, marginBottom: 8 }}>{canViewTeamContactPerformance ? "Staff absence requests" : "My absence requests"}</div>
+              <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse", minWidth: 600 }}>
+                <thead><tr style={{ textAlign: "left", fontSize: 11, color: "#52665a" }}><th style={{ padding: 7 }}>Salesperson</th><th style={{ padding: 7 }}>Date</th><th style={{ padding: 7 }}>Fraction</th><th style={{ padding: 7 }}>Reason</th><th style={{ padding: 7 }}>Status</th><th style={{ padding: 7 }}>Action</th></tr></thead>
+                <tbody>{absenceRequests.filter((request) => canViewTeamContactPerformance || request.salesperson_id === currentUserId || request.requested_by === currentUserId).slice(0, 30).map((request) => {
+                  const owner = profiles.find((profile) => profile.id === request.salesperson_id);
+                  return <tr key={request.id}><td style={{ padding: 7, borderTop: "1px solid #edf3ef", fontSize: 12 }}>{owner?.full_name || "Salesperson"}</td><td style={{ padding: 7, borderTop: "1px solid #edf3ef", fontSize: 12 }}>{request.absence_date}</td><td style={{ padding: 7, borderTop: "1px solid #edf3ef", fontSize: 12 }}>{Math.round(Number(request.day_fraction) * 100)}%</td><td style={{ padding: 7, borderTop: "1px solid #edf3ef", fontSize: 12 }}>{request.reason}</td><td style={{ padding: 7, borderTop: "1px solid #edf3ef", fontSize: 12, fontWeight: 700 }}>{request.status}</td><td style={{ padding: 7, borderTop: "1px solid #edf3ef" }}>{canViewTeamContactPerformance && request.status === "pending" ? <div style={{ display: "flex", gap: 5 }}><button type="button" disabled={savingGovernance} onClick={() => void decideAbsenceRequest(request, "approved")} style={{ border: "1px solid #087443", borderRadius: 6, padding: "5px 7px", color: "#087443", background: "#fff", fontSize: 11 }}>Approve</button><button type="button" disabled={savingGovernance} onClick={() => void decideAbsenceRequest(request, "rejected")} style={{ border: "1px solid #b42318", borderRadius: 6, padding: "5px 7px", color: "#b42318", background: "#fff", fontSize: 11 }}>Reject</button></div> : "—"}</td></tr>;
+                })}</tbody>
+              </table></div>
+            </div>
+          )}
+          {absenceDecisionHistory.filter((entry) => canViewTeamContactPerformance || entry.salesperson_id === currentUserId).length > 0 && (
+            <div style={{ padding: 14, borderTop: "1px solid #e2ece5" }}>
+              <div style={{ color: "#075442", fontWeight: 750, fontSize: 13, marginBottom: 8 }}>Absence Decision Audit History</div><button type="button" onClick={exportAbsenceDecisionHistory} style={{ marginBottom: 8, border: "1px solid #0b6b50", borderRadius: 7, padding: "6px 9px", background: "#fff", color: "#075442", fontSize: 11, fontWeight: 700 }}>Export absence audit (CSV)</button>
+              <div style={{ color: "#64756b", fontSize: 11, marginBottom: 8 }}>Previous approval/rejection decisions are preserved for audit and cannot be silently edited or deleted.</div>
+              <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse", minWidth: 650 }}>
+                <thead><tr style={{ textAlign: "left", fontSize: 11, color: "#52665a" }}><th style={{ padding: 7 }}>Decision time (EAT)</th><th style={{ padding: 7 }}>Salesperson</th><th style={{ padding: 7 }}>Absence date</th><th style={{ padding: 7 }}>Decision</th><th style={{ padding: 7 }}>Decision by</th><th style={{ padding: 7 }}>Notes</th></tr></thead>
+                <tbody>{absenceDecisionHistory.filter((entry) => canViewTeamContactPerformance || entry.salesperson_id === currentUserId).slice(0, 50).map((entry) => {
+                  const owner = profiles.find((profile) => profile.id === entry.salesperson_id);
+                  const decisionMaker = profiles.find((profile) => profile.id === entry.decided_by);
+                  return <tr key={entry.id}><td style={{ padding: 7, borderTop: "1px solid #edf3ef", fontSize: 12, whiteSpace: "nowrap" }}>{formatDateTime(entry.decided_at)}</td><td style={{ padding: 7, borderTop: "1px solid #edf3ef", fontSize: 12 }}>{owner?.full_name || "Salesperson"}</td><td style={{ padding: 7, borderTop: "1px solid #edf3ef", fontSize: 12 }}>{entry.absence_date}</td><td style={{ padding: 7, borderTop: "1px solid #edf3ef", fontSize: 12, fontWeight: 750 }}>{entry.new_status}</td><td style={{ padding: 7, borderTop: "1px solid #edf3ef", fontSize: 12 }}>{decisionMaker?.full_name || "Management user"}</td><td style={{ padding: 7, borderTop: "1px solid #edf3ef", fontSize: 12 }}>{entry.decision_notes || "—"}</td></tr>;
+                })}</tbody>
+              </table></div>
+            </div>
+          )}
+        </section>
+
+        <section aria-label="Daily contact report finalisation" style={{ marginBottom: 16, border: "1px solid #cfe1d6", borderRadius: 14, background: "#ffffff", overflow: "hidden" }}>
+          <div style={{ padding: "14px 16px", background: "#f0f8f3", borderBottom: "1px solid #dce9e1" }}>
+            <div style={{ color: "#075442", fontSize: 15, fontWeight: 800 }}>End-of-Day Contact Reports</div>
+            <div style={{ color: "#536b5d", fontSize: 12, marginTop: 4 }}>Reports may be finalised from 5:00pm East Africa Time. Existing reports are preserved; corrections create a new revision with a required reason.</div>
+          </div>
+          <div style={{ padding: 14, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+            <div style={{ color: "#173b2b", fontSize: 12, flex: 1 }}>Today ({dailyContactSummary.todayKey}): {dailyContactSummary.isWorkingDay ? "official working day" : "non-working day"} · Target for you: {dailyContactSummary.myTarget}</div>
+            {currentRole === "salesperson" && <button type="button" disabled={savingGovernance} onClick={() => void finalizeContactReport(currentUserId)} style={{ padding: "8px 12px", border: "1px solid #087443", borderRadius: 8, background: "#fff", color: "#075442", fontWeight: 750, cursor: "pointer" }}>Finalise my report</button>}
+            {canViewTeamContactPerformance && dailyContactSummary.staff.map((person) => <button key={person.id} type="button" disabled={savingGovernance} onClick={() => void finalizeContactReport(person.id)} style={{ padding: "7px 10px", border: "1px solid #cfe1d6", borderRadius: 8, background: "#fff", color: "#075442", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Finalise: {person.name}</button>)}
+          </div>
+          <div style={{ padding: "0 14px 14px", overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse", minWidth: 650 }}>
+            <thead><tr style={{ textAlign: "left", color: "#52665a", fontSize: 11 }}><th style={{ padding: 8 }}>Salesperson</th><th style={{ padding: 8 }}>Report date</th><th style={{ padding: 8 }}>Revision</th><th style={{ padding: 8 }}>Students / target</th><th style={{ padding: 8 }}>Finalised at (EAT)</th><th style={{ padding: 8 }}>PDF</th></tr></thead>
+            <tbody>{contactReportSnapshots.filter((snapshot) => snapshot.report_date === dailyContactSummary.todayKey).sort((a, b) => a.salesperson_id.localeCompare(b.salesperson_id) || b.revision - a.revision).filter((snapshot) => canViewTeamContactPerformance || snapshot.salesperson_id === currentUserId).map((snapshot) => {
+              const data = snapshot.report_data as any;
+              const owner = profiles.find((profile) => profile.id === snapshot.salesperson_id);
+              return <tr key={snapshot.id}><td style={{ padding: 8, borderTop: "1px solid #edf3ef", fontSize: 12 }}>{owner?.full_name || data.salesperson_name || "Salesperson"}</td><td style={{ padding: 8, borderTop: "1px solid #edf3ef", fontSize: 12 }}>{snapshot.report_date}</td><td style={{ padding: 8, borderTop: "1px solid #edf3ef", fontSize: 12 }}>{snapshot.revision}{snapshot.correction_reason ? <div style={{ color: "#64756b", fontSize: 10 }}>{snapshot.correction_reason}</div> : null}</td><td style={{ padding: 8, borderTop: "1px solid #edf3ef", fontSize: 12 }}>{String(data.unique_students_contacted ?? 0)} / {String(data.target ?? 50)}<div style={{ color: "#64756b", fontSize: 10 }}>{String(data.status ?? "")}</div></td><td style={{ padding: 8, borderTop: "1px solid #edf3ef", fontSize: 12 }}>{formatDateTime(snapshot.finalized_at)}<div style={{ color: "#64756b", fontSize: 10 }}>{snapshot.finalization_source === "automated" ? "Automated" : "Manual"}{snapshot.finalized_by ? " · user recorded" : ""}</div></td><td style={{ padding: 8, borderTop: "1px solid #edf3ef" }}><button type="button" onClick={() => printContactReport(snapshot)} style={{ border: "1px solid #087443", borderRadius: 6, padding: "6px 8px", background: "#fff", color: "#075442", fontSize: 11 }}>Print / Save PDF</button></td></tr>;
+            })}</tbody>
+          </table></div>
+        </section>
+
+        {currentRole === "salesperson" && (
+          <section aria-label="My daily contact report" style={{ marginBottom: 16, border: "1px solid #cfe1d6", borderRadius: 12, background: "#ffffff", padding: "12px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+            <div>
+              <div style={{ color: "#075442", fontSize: 14, fontWeight: 800 }}>My Daily Contact Progress</div>
+              <div style={{ color: "#536b5d", fontSize: 12, marginTop: 4 }}>Today: {dailyContactSummary.mine} unique students reached by answered phone calls out of {dailyContactSummary.myTarget} target.</div>
+            </div>
+            <button type="button" onClick={exportMyDailyContactReport} style={{ border: "1px solid #087443", borderRadius: 8, padding: "8px 11px", background: "#ffffff", color: "#075442", fontSize: 12, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>Export My Report (CSV)</button>
+          </section>
+        )}
+
+        {canViewTeamContactPerformance && (
+          <section aria-label="Daily salesperson contact progress" style={{ marginBottom: 16, border: "1px solid #cfe1d6", borderRadius: 14, background: "#ffffff", overflow: "hidden" }}>
+            <div style={{ padding: "14px 16px", background: "#f0f8f3", borderBottom: "1px solid #dce9e1", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+              <div>
+                <div style={{ color: "#075442", fontSize: 15, fontWeight: 800 }}>Daily Salesperson Contact Progress</div>
+                <div style={{ color: "#536b5d", fontSize: 12, marginTop: 4 }}>CIU working-day target: 50 unique students reached by answered phone call, proportionately adjusted for approved absence. Counts are attributed to the staff member who recorded the call.</div>
+              </div>
+              <button type="button" onClick={exportDailyContactReport} style={{ border: "1px solid #087443", borderRadius: 8, padding: "8px 11px", background: "#ffffff", color: "#075442", fontSize: 12, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>Export CSV for Excel</button>
+            </div>
+            <div style={{ padding: 12, overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 420 }}>
+                <thead><tr style={{ textAlign: "left", color: "#52665a", fontSize: 11 }}>
+                  <th style={{ padding: "8px 10px", borderBottom: "1px solid #e2e8e3" }}>Salesperson</th>
+                  <th style={{ padding: "8px 10px", borderBottom: "1px solid #e2e8e3" }}>Unique students</th>
+                  <th style={{ padding: "8px 10px", borderBottom: "1px solid #e2e8e3" }}>Target progress</th>
+                  <th style={{ padding: "8px 10px", borderBottom: "1px solid #e2e8e3" }}>Status</th>
+                </tr></thead>
+                <tbody>
+                  {dailyContactSummary.staff.map((person) => {
+                    const achieved = person.target > 0 && person.contacted >= person.target;
+                    return <tr key={person.id}>
+                      <td style={{ padding: "9px 10px", borderBottom: "1px solid #eef2ef", color: "#183b2b", fontSize: 12, fontWeight: 650 }}>{person.name}</td>
+                      <td style={{ padding: "9px 10px", borderBottom: "1px solid #eef2ef", color: "#183b2b", fontSize: 12 }}>{person.contacted} / {person.target}</td>
+                      <td style={{ padding: "9px 10px", borderBottom: "1px solid #eef2ef", minWidth: 120 }}>
+                        <div style={{ height: 7, background: "#e8efe9", borderRadius: 999, overflow: "hidden" }}>
+                          <div style={{ height: "100%", width: `${person.target > 0 ? Math.min(100, (person.contacted / person.target) * 100) : 0}%`, background: achieved ? "#087443" : "#8bc63f", borderRadius: 999 }} />
+                        </div>
+                      </td>
+                      <td style={{ padding: "9px 10px", borderBottom: "1px solid #eef2ef", fontSize: 11, fontWeight: 700, color: achieved ? "#087443" : person.contacted > 0 ? "#8a5a00" : "#64748b" }}>{person.target === 0 ? "Exempt / non-working day" : achieved ? "Target achieved" : person.contacted > 0 ? "In progress" : "No qualifying calls"}</td>
+                    </tr>;
+                  })}
+                  {dailyContactSummary.staff.length === 0 && <tr><td colSpan={4} style={{ padding: 12, color: "#64748b", fontSize: 12 }}>No active salesperson profiles were found.</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
+        {canViewTeamContactPerformance && unansweredReviewFlags.length > 0 && (
+          <section aria-label="Leads requiring unanswered-call review" style={{ marginBottom: 16, border: "1px solid #f0d4a8", borderRadius: 14, background: "#fffdf7", overflow: "hidden" }}>
+            <div style={{ padding: "14px 16px", background: "#fff6e5", borderBottom: "1px solid #f0d4a8" }}>
+              <div style={{ color: "#7a4b00", fontSize: 15, fontWeight: 800 }}>Management Review Required</div>
+              <div style={{ color: "#7a5b2d", fontSize: 12, marginTop: 4 }}>These leads have at least three consecutive unanswered call attempts. They remain assigned to their current salesperson until management decides what to do.</div>
+            </div>
+            <div style={{ padding: 12, overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 520 }}>
+                <thead><tr style={{ textAlign: "left", color: "#7a5b2d", fontSize: 11 }}>
+                  <th style={{ padding: "8px 10px", borderBottom: "1px solid #f0d4a8" }}>Prospective student</th>
+                  <th style={{ padding: "8px 10px", borderBottom: "1px solid #f0d4a8" }}>Salesperson</th>
+                  <th style={{ padding: "8px 10px", borderBottom: "1px solid #f0d4a8" }}>Consecutive unanswered calls</th>
+                  <th style={{ padding: "8px 10px", borderBottom: "1px solid #f0d4a8" }}>Latest attempt</th>
+                  <th style={{ padding: "8px 10px", borderBottom: "1px solid #f0d4a8" }}>Review deadline (EAT)</th>
+                  <th style={{ padding: "8px 10px", borderBottom: "1px solid #f0d4a8" }}>Management action</th>
+                </tr></thead>
+                <tbody>{unansweredReviewFlags.map((flag) => (
+                  <tr key={flag.key}>
+                    <td style={{ padding: "9px 10px", borderBottom: "1px solid #f8ead2", color: "#4b3718", fontSize: 12 }}>{flag.lead.name || flag.lead.ciu_number || "Unnamed lead"}{flag.lead.phone ? <div style={{ color: "#7a6a50", marginTop: 2 }}>{flag.lead.phone}</div> : null}</td>
+                    <td style={{ padding: "9px 10px", borderBottom: "1px solid #f8ead2", color: "#4b3718", fontSize: 12 }}>{flag.staffName}</td>
+                    <td style={{ padding: "9px 10px", borderBottom: "1px solid #f8ead2", color: "#9a3412", fontWeight: 800, fontSize: 12 }}>{flag.attempts}</td>
+                    <td style={{ padding: "9px 10px", borderBottom: "1px solid #f8ead2", color: "#4b3718", fontSize: 12 }}>{formatDateTime(flag.lastContactedAt)}</td>
+                    <td style={{ padding: "9px 10px", borderBottom: "1px solid #f8ead2", color: flag.reviewOverdue ? "#b42318" : "#4b3718", fontWeight: flag.reviewOverdue ? 800 : 500, fontSize: 12 }}>{formatDateTime(flag.reviewDueAt)}{flag.reviewOverdue ? <div style={{ marginTop: 3, fontSize: 10 }}>OVERDUE</div> : null}</td>
+                    <td style={{ padding: "9px 10px", borderBottom: "1px solid #f8ead2", minWidth: 150 }}>
+                      <button type="button" disabled={savingReviewLeadId === flag.lead.id} onClick={() => void recordContactReviewDecision(flag)} style={{ border: "1px solid #a16207", borderRadius: 7, padding: "7px 9px", background: "#fff", color: "#854d0e", fontSize: 11, fontWeight: 750, cursor: savingReviewLeadId === flag.lead.id ? "wait" : "pointer", opacity: savingReviewLeadId === flag.lead.id ? 0.65 : 1 }}>
+                        {savingReviewLeadId === flag.lead.id ? "Saving…" : "Record decision"}
+                      </button>
+                    </td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
+        {canViewTeamContactPerformance && contactReviewHistory.length > 0 && (
+          <section aria-label="Management contact review history" style={{ marginBottom: 16, border: "1px solid #cfe1d6", borderRadius: 14, background: "#ffffff", overflow: "hidden" }}>
+            <div style={{ padding: "14px 16px", background: "#f0f8f3", borderBottom: "1px solid #dce9e1" }}>
+              <div style={{ color: "#075442", fontSize: 15, fontWeight: 800 }}>Management Contact Review History</div>
+              <button type="button" onClick={exportContactReviewHistory} style={{ marginTop: 10, border: "1px solid #0b6b50", borderRadius: 8, padding: "8px 11px", background: "#ffffff", color: "#075442", fontWeight: 750, fontSize: 12, cursor: "pointer" }}>Export audit history (CSV)</button>
+              <div style={{ color: "#527064", fontSize: 12, marginTop: 4 }}>Append-only record of previous decisions. Reassignments are reflected in the lead's current assignment; earlier decisions remain visible here.</div>
+            </div>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 780 }}>
+                <thead><tr style={{ background: "#fbfdfb", textAlign: "left" }}>
+                  <th style={{ padding: "8px 10px", borderBottom: "1px solid #dce9e1" }}>Decision time (EAT)</th>
+                  <th style={{ padding: "8px 10px", borderBottom: "1px solid #dce9e1" }}>Student</th>
+                  <th style={{ padding: "8px 10px", borderBottom: "1px solid #dce9e1" }}>Decision</th>
+                  <th style={{ padding: "8px 10px", borderBottom: "1px solid #dce9e1" }}>Manager</th>
+                  <th style={{ padding: "8px 10px", borderBottom: "1px solid #dce9e1" }}>New assignee</th>
+                  <th style={{ padding: "8px 10px", borderBottom: "1px solid #dce9e1" }}>Notes</th>
+                </tr></thead>
+                <tbody>{contactReviewHistory.slice(0, 100).map((review) => {
+                  const reviewedLead = leads.find((lead) => lead.id === review.lead_id);
+                  const reviewer = profiles.find((profile) => profile.id === review.decided_by);
+                  const newAssignee = review.new_assigned_to ? profiles.find((profile) => profile.id === review.new_assigned_to) : null;
+                  const decisionLabel = review.decision === "retain" ? "Retain assignment" : review.decision === "reassign" ? "Reassign lead" : "Other action";
+                  return (
+                    <tr key={review.id}>
+                      <td style={{ padding: "9px 10px", borderBottom: "1px solid #edf3ef", fontSize: 12, whiteSpace: "nowrap" }}>{formatDateTime(review.decided_at)}</td>
+                      <td style={{ padding: "9px 10px", borderBottom: "1px solid #edf3ef", fontSize: 12 }}>{reviewedLead?.name || reviewedLead?.ciu_number || review.lead_id}</td>
+                      <td style={{ padding: "9px 10px", borderBottom: "1px solid #edf3ef", fontSize: 12, fontWeight: 750 }}>{decisionLabel}</td>
+                      <td style={{ padding: "9px 10px", borderBottom: "1px solid #edf3ef", fontSize: 12 }}>{reviewer?.full_name || "Management user"}</td>
+                      <td style={{ padding: "9px 10px", borderBottom: "1px solid #edf3ef", fontSize: 12 }}>{newAssignee?.full_name || (review.new_assigned_to ? "Assigned user" : "—")}</td>
+                      <td style={{ padding: "9px 10px", borderBottom: "1px solid #edf3ef", fontSize: 12, minWidth: 200, whiteSpace: "pre-wrap" }}>{review.notes}</td>
+                    </tr>
+                  );
+                })}</tbody>
+              </table>
+            </div>
+            {contactReviewHistory.length > 100 ? <div style={{ padding: "9px 12px", color: "#527064", fontSize: 11 }}>Showing the latest 100 of {contactReviewHistory.length} decisions.</div> : null}
+          </section>
+        )}
 
         {!isSalesperson && (
           <section aria-label="Lead assignment queue" style={{ marginBottom: 16, border: "1px solid #cfe1d6", borderRadius: 14, background: "#ffffff", overflow: "hidden" }}>
@@ -4373,13 +5372,13 @@ const isSalesperson =
                   }
                   onChange={(
                     event
-                  ) =>
-                    setSelectedOutcome(
-                      event
-                        .target
-                        .value
-                    )
-                  }
+                  ) => {
+                    const nextOutcome = event.target.value;
+                    setSelectedOutcome(nextOutcome);
+                    if (nextOutcome === "No Answer" || nextOutcome === "Unreachable") {
+                      suggestNextWeekdayFollowUp();
+                    }
+                  }}
                   style={{
                     width:
                       "100%",
