@@ -67,7 +67,13 @@ create policy "Creators and management delete engagement contacts"
   on public.engagement_contacts
   for delete to authenticated
   using (
-    created_by = auth.uid()
+    (
+      created_by = auth.uid()
+      and exists (
+        select 1 from public.profiles p
+        where p.id = auth.uid() and p.is_active = true
+      )
+    )
     or exists (
       select 1 from public.profiles p
       where p.id = auth.uid() and p.is_active = true
