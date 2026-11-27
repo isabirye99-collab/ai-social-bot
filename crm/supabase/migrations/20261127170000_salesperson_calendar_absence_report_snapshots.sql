@@ -42,9 +42,12 @@ drop policy if exists "Salespeople read own absence requests and management read
 create policy "Salespeople read own absence requests and management reads team"
   on public.salesperson_absence_requests for select to authenticated
   using (
-    salesperson_id = auth.uid()
-    or requested_by = auth.uid()
-    or exists (select 1 from public.profiles p where p.id = auth.uid() and p.is_active = true and p.role in ('super_admin','admin','manager'))
+    exists (select 1 from public.profiles p where p.id = auth.uid() and p.is_active = true)
+    and (
+      salesperson_id = auth.uid()
+      or requested_by = auth.uid()
+      or exists (select 1 from public.profiles p where p.id = auth.uid() and p.is_active = true and p.role in ('super_admin','admin','manager'))
+    )
   );
 drop policy if exists "Salespeople request own absence" on public.salesperson_absence_requests;
 create policy "Salespeople request own absence"
@@ -76,8 +79,11 @@ drop policy if exists "Salespeople and management read absence decision history"
 create policy "Salespeople and management read absence decision history"
   on public.salesperson_absence_decision_history for select to authenticated
   using (
-    salesperson_id = auth.uid()
-    or exists (select 1 from public.profiles p where p.id = auth.uid() and p.is_active = true and p.role in ('super_admin','admin','manager'))
+    exists (select 1 from public.profiles p where p.id = auth.uid() and p.is_active = true)
+    and (
+      salesperson_id = auth.uid()
+      or exists (select 1 from public.profiles p where p.id = auth.uid() and p.is_active = true and p.role in ('super_admin','admin','manager'))
+    )
   );
 revoke all on public.salesperson_absence_decision_history from anon, authenticated;
 grant select on public.salesperson_absence_decision_history to authenticated;
@@ -142,8 +148,11 @@ drop policy if exists "Salespeople read own snapshots and management reads team"
 create policy "Salespeople read own snapshots and management reads team"
   on public.salesperson_contact_report_snapshots for select to authenticated
   using (
-    salesperson_id = auth.uid()
-    or exists (select 1 from public.profiles p where p.id = auth.uid() and p.is_active = true and p.role in ('super_admin','admin','manager'))
+    exists (select 1 from public.profiles p where p.id = auth.uid() and p.is_active = true)
+    and (
+      salesperson_id = auth.uid()
+      or exists (select 1 from public.profiles p where p.id = auth.uid() and p.is_active = true and p.role in ('super_admin','admin','manager'))
+    )
   );
 revoke all on public.salesperson_contact_report_snapshots from anon, authenticated;
 grant select on public.salesperson_contact_report_snapshots to authenticated;
