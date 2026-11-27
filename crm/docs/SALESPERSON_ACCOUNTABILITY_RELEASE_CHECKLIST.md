@@ -37,6 +37,7 @@ The route also uses the existing `NEXT_PUBLIC_SUPABASE_URL`. After setting varia
 - A read-only policy check found the existing `Authenticated staff manage engagement interactions` policy allowed all authenticated users to manage all interaction records (`USING true`, `WITH CHECK true`). A feature-branch migration now replaces this with active-staff read/create permissions, creator-or-management edit/delete for ordinary interactions, and management-only edits/deletes for `Salesperson task call outcome` records. The Call Centre & WhatsApp UI hides edit/delete controls for records the current user cannot change. The insert policy also requires a task-outcome interaction to link to a call task accessible to the current user, with the same lead and current-user attribution. This is a proposed change only: test staff role coverage, existing contact-centre flows, task follow-up linking, and RPC permissions in a non-production environment before applying.
 
 - A read-only production table check on 2026-11-27 confirmed that `ciu_working_calendar`, `salesperson_absence_requests`, `salesperson_absence_decision_history`, `salesperson_contact_report_snapshots`, and `lead_contact_review_history` are not present in the live schema. This explains why the Tasks page's new accountability queries could fail before the optional-table handling change. The feature-branch UI now skips only recognized missing-table/schema-cache errors for these optional governance queries; it still throws permission, network, and other query errors. Core tasks/leads remain required. Do not treat this as a production fix until a reviewed release is deployed.
+- Report-correction guard reviewed on the feature branch: first-time finalisation remains restricted to today's report after 17:00 EAT, but an existing snapshot can be corrected later with a required reason and appended revision. The change is not yet verified by CI or database tests.
 - This verifies compilation/build only; it does not verify database migrations, RLS behaviour, Vercel preview deployment, or the scheduled production job.
 
 ## Required tests before release
@@ -49,7 +50,7 @@ The route also uses the existing `NEXT_PUBLIC_SUPABASE_URL`. After setting varia
 7. Verify 50 unique answered-call contacts meets target; repeat calls to the same lead count once; unanswered calls, messages, and wrong numbers do not count.
 8. Verify public holidays/closures suppress target, working-day overrides enable target, and approved partial/full-day absences adjust it.
 9. Verify the cron creates one snapshot per active salesperson, skips existing snapshots, skips non-working days, and runs only at/after 17:00 EAT.
-10. Verify corrections require a reason and create a new immutable revision without changing the original.
+10. Verify first-time finalisation is limited to the current EAT date at/after 17:00, while corrections to an existing report can be made on a later date only with a required reason and a new immutable revision; confirm the original snapshot remains unchanged.
 11. Verify PDF print output and CSV files open correctly in Excel.
 12. Test lead reassignment and ensure historical call attribution remains with the salesperson who made the call.
 13. Confirm the live branch remains `deploy/ciu-crm-updated`; do not merge/deploy without approval.
