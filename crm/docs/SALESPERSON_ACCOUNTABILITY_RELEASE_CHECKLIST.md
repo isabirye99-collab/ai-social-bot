@@ -13,7 +13,7 @@ Review and apply in this order in a controlled release:
 3. `supabase/migrations/20261127180000_align_salesperson_call_interactions.sql` (aligns task call logging with the existing engagement interaction constraints: outgoing-call channel, optional engagement contact link, and supported outcome labels)
 4. `supabase/migrations/20261127190000_restrict_engagement_interaction_mutations.sql` (limits edits/deletes to record creators or management; task-outcome interactions are management-only for edits/deletes)
 
-The live Supabase migration history was checked read-only on 2026-11-27. None of these three migrations is recorded as applied. Do not run them against production until the release owner has reviewed the SQL, confirmed the schema/role assumptions, taken a backup or confirmed the normal recovery process, and explicitly approved the change. The UI queries the new tables, so deploying UI code before migrations are applied will cause Tasks-page data loading errors.
+The live Supabase migration history was checked read-only on 2026-11-27. None of these four migrations is recorded as applied. Do not run them against production until the release owner has reviewed the SQL, confirmed the schema/role assumptions, taken a backup or confirmed the normal recovery process, and explicitly approved the change. The UI queries the new tables, so deploying UI code before migrations are applied will cause Tasks-page data loading errors.
 
 ## Required Vercel environment variables
 Configure these on the CRM Vercel project (server-side only):
@@ -34,7 +34,7 @@ The route also uses the existing `NEXT_PUBLIC_SUPABASE_URL`. After setting varia
 - Runs `npm ci` and `npm run build` in `crm/` for matching pull requests and pushes to the feature branch, with placeholder Supabase build variables only.
 - Latest verified build: run #21 (ID `45997483293`) passed on commit `6cd10292090b15fc0bd703139076fa6d8da5ed2a`; install and build steps completed successfully. This build includes the outcome-constraint fix for `Paid Acceptance Fee`. Earlier run #17 (ID `45994939976`) passed on commit `b53d6f21c9d5c9b04cc12cfb535705a4d422d8ff`.
 - A read-only production schema check on 2026-11-27 confirmed `engagement_interactions.contact_id` is currently NOT NULL and the current outcome constraint allows only the existing lowercase values. Migration #3 addresses these known schema mismatches and now includes all call-task UI outcomes, including `Paid Acceptance Fee`; it remains unapplied.
-- A read-only policy check found the existing `Authenticated staff manage engagement interactions` policy allows all authenticated users to manage all engagement interactions (`USING true`, `WITH CHECK true`). The existing Call Centre & WhatsApp page currently loads the full interaction history, inserts interactions, edits any interaction by ID, and exposes deletion; it also links follow-up tasks and calls `assign_lead_from_engagement`. Tightening RLS alone could break these workflows. Before changing policy, define role-based permissions for view/create/edit/delete and align the page to them, then test call-centre and salesperson workflows together. Do not silently change this policy because it may affect existing operations.
+- A read-only policy check found the existing `Authenticated staff manage engagement interactions` policy allowed all authenticated users to manage all interaction records (`USING true`, `WITH CHECK true`). A feature-branch migration now replaces this with active-staff read/create permissions, creator-or-management edit/delete for ordinary interactions, and management-only edits/deletes for `Salesperson task call outcome` records. The Call Centre & WhatsApp UI hides edit/delete controls for records the current user cannot change. This is a proposed change only: test staff role coverage, existing contact-centre flows, task follow-up linking, and RPC permissions in a non-production environment before applying.
 - This verifies compilation/build only; it does not verify database migrations, RLS behaviour, Vercel preview deployment, or the scheduled production job.
 
 ## Required tests before release
@@ -42,15 +42,15 @@ The route also uses the existing `NEXT_PUBLIC_SUPABASE_URL`. After setting varia
 2. Apply migrations to a non-production Supabase environment first.
 3. Verify salesperson can see/export only their own report and absence requests.
 4. Verify interaction policy migration: active staff can read/create; ordinary interaction creators can edit/delete their own records; management can administer all records; non-management staff cannot edit/delete salesperson task-outcome records; inactive users are blocked. Verify Call Centre & WhatsApp still supports normal logging, follow-up task linking, and lead assignment.
-4. Verify manager/admin/super_admin can see team progress, approve/reject absences, manage the calendar, record review decisions, and view both contact-review and absence-decision audit histories.
-5. Verify marketing, finance, viewer, and short-course roles cannot read team report snapshots or write review/absence decisions.
-6. Verify 50 unique answered-call contacts meets target; repeat calls to the same lead count once; unanswered calls, messages, and wrong numbers do not count.
-7. Verify public holidays/closures suppress target, working-day overrides enable target, and approved partial/full-day absences adjust it.
-8. Verify the cron creates one snapshot per active salesperson, skips existing snapshots, skips non-working days, and runs only at/after 17:00 EAT.
-9. Verify corrections require a reason and create a new immutable revision without changing the original.
-10. Verify PDF print output and CSV files open correctly in Excel.
-11. Test lead reassignment and ensure historical call attribution remains with the salesperson who made the call.
-12. Confirm the live branch remains `deploy/ciu-crm-updated`; do not merge/deploy without approval.
+5. Verify manager/admin/super_admin can see team progress, approve/reject absences, manage the calendar, record review decisions, and view both contact-review and absence-decision audit histories.
+6. Verify marketing, finance, viewer, and short-course roles cannot read team report snapshots or write review/absence decisions.
+7. Verify 50 unique answered-call contacts meets target; repeat calls to the same lead count once; unanswered calls, messages, and wrong numbers do not count.
+8. Verify public holidays/closures suppress target, working-day overrides enable target, and approved partial/full-day absences adjust it.
+9. Verify the cron creates one snapshot per active salesperson, skips existing snapshots, skips non-working days, and runs only at/after 17:00 EAT.
+10. Verify corrections require a reason and create a new immutable revision without changing the original.
+11. Verify PDF print output and CSV files open correctly in Excel.
+12. Test lead reassignment and ensure historical call attribution remains with the salesperson who made the call.
+13. Confirm the live branch remains `deploy/ciu-crm-updated`; do not merge/deploy without approval.
 
 ## Known limitations
 - The holiday calendar is management-maintained; it is not pre-populated with future Uganda public-holiday dates. Management must enter confirmed dates and update them when authorities announce moon-dependent holidays.
