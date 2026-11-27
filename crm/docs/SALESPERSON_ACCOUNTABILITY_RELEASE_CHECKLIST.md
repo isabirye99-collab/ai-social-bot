@@ -12,7 +12,7 @@ Review and apply in this order in a controlled release:
 2. `supabase/migrations/20261127170000_salesperson_calendar_absence_report_snapshots.sql` (includes append-only absence decision audit history)
 3. `supabase/migrations/20261127180000_align_salesperson_call_interactions.sql` (aligns task call logging with the existing engagement interaction constraints: outgoing-call channel, optional engagement contact link, and supported outcome labels)
 
-Do not run these against production until the release owner has reviewed the SQL, confirmed the schema/role assumptions, taken a backup or confirmed the normal recovery process, and explicitly approved the change. The UI queries the new tables, so deploying UI code before migrations are applied will cause Tasks-page data loading errors.
+The live Supabase migration history was checked read-only on 2026-11-27. None of these three migrations is recorded as applied. Do not run them against production until the release owner has reviewed the SQL, confirmed the schema/role assumptions, taken a backup or confirmed the normal recovery process, and explicitly approved the change. The UI queries the new tables, so deploying UI code before migrations are applied will cause Tasks-page data loading errors.
 
 ## Required Vercel environment variables
 Configure these on the CRM Vercel project (server-side only):
@@ -31,7 +31,8 @@ The route also uses the existing `NEXT_PUBLIC_SUPABASE_URL`. After setting varia
 ## Continuous integration
 - Workflow: `.github/workflows/ciu-crm-build.yml`.
 - Runs `npm ci` and `npm run build` in `crm/` for matching pull requests and pushes to the feature branch, with placeholder Supabase build variables only.
-- Confirm a completed GitHub Actions run before release. Latest verified build: run #13 (`45993657988`) passed on PR head commit `ae503d6fd4d9fa1f24e7a8f89723257763cf76c1`.
+- Latest verified build: run #15 (ID `45993806641`) passed on current PR head commit `b47e748f8e712004d6262d9b85377d0fcabd6fa8`; install and build steps both completed successfully.
+- This verifies compilation/build only; it does not verify database migrations, RLS behaviour, Vercel preview deployment, or the scheduled production job.
 
 ## Required tests before release
 1. Run the CRM build/type-check against the exact PR head commit.
@@ -49,6 +50,7 @@ The route also uses the existing `NEXT_PUBLIC_SUPABASE_URL`. After setting varia
 
 ## Known limitations
 - The holiday calendar is management-maintained; it is not pre-populated with future Uganda public-holiday dates. Management must enter confirmed dates and update them when authorities announce moon-dependent holidays.
-- CSV exports are Excel-compatible but are not native `.xlsx` files.
+- CSV exports are Excel-compatible but are not native `.xlsx` workbooks.
 - Answered-call status is manually recorded without telephony integration; it is not independent proof of a completed call.
 - The cron route requires the environment variables above and has not been confirmed running in production.
+- No production data writes, migration applications, merge, or deployment have been performed.
