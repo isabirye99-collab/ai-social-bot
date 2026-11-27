@@ -58,6 +58,30 @@ create policy "Salespeople request own absence"
     and exists (select 1 from public.profiles p where p.id = auth.uid() and p.is_active = true and p.role = 'salesperson')
   );
 
+create table if not exists public.salesperson_absence_decision_history (
+  id uuid primary key default gen_random_uuid(),
+  request_id uuid not null references public.salesperson_absence_requests(id) on delete restrict,
+  salesperson_id uuid not null references auth.users(id) on delete restrict,
+  absence_date date not null,
+  previous_status text not null check (previous_status in ('pending','approved','rejected')),
+  new_status text not null check (new_status in ('approved','rejected')),
+  decision_notes text,
+  decided_by uuid not null references auth.users(id) on delete restrict default auth.uid(),
+  decided_at timestamptz not null default now()
+);
+create index if not exists salesperson_absence_decision_history_request_idx
+  on public.salesperson_absence_decision_history(request_id, decided_at desc);
+alter table public.salesperson_absence_decision_history enable row level security;
+drop policy if exists "Salespeople and management read absence decision history" on public.salesperson_absence_decision_history;
+create policy "Salespeople and management read absence decision history"
+  on public.salesperson_absence_decision_history for select to authenticated
+  using (
+    salesperson_id = auth.uid()
+    or exists (select 1 from public.profiles p where p.id = auth.uid() and p.is_active = true and p.role in ('super_admin','admin','manager'))
+  );
+revoke all on public.salesperson_absence_decision_history from anon, authenticated;
+grant select on public.salesperson_absence_decision_history to authenticated;
+
 create or replace function public.decide_salesperson_absence(
   p_request_id uuid,
   p_decision text,
@@ -85,6 +109,13 @@ begin
     set status = p_decision, decided_by = v_actor, decided_at = now(),
         decision_notes = nullif(trim(coalesce(p_decision_notes,'')), '')
     where id = p_request_id;
+
+  insert into public.salesperson_absence_decision_history
+    (request_id, salesperson_id, absence_date, previous_status, new_status, decision_notes, decided_by)
+  values
+    (v_request.id, v_request.salesperson_id, v_request.absence_date, v_request.status, p_decision,
+     nullif(trim(coalesce(p_decision_notes,'')), ''), v_actor);
+
   return p_request_id;
 end;
 $$;
@@ -199,6 +230,21 @@ before update or delete on public.salesperson_contact_report_snapshots
 for each row execute function public.prevent_salesperson_contact_report_mutation();
 revoke execute on function public.prevent_salesperson_contact_report_mutation() from public, anon, authenticated;
 
+create or replace function public.prevent_salesperson_absence_history_mutation()
+returns trigger language plpgsql security invoker set search_path = public, pg_temp
+as $
+begin
+  raise exception 'Absence decision history is append-only';
+end;
+$;
+drop trigger if exists salesperson_absence_decision_history_append_only on public.salesperson_absence_decision_history;
+create trigger salesperson_absence_decision_history_append_only
+before update or delete on public.salesperson_absence_decision_history
+for each row execute function public.prevent_salesperson_absence_history_mutation();
+revoke execute on function public.prevent_salesperson_absence_history_mutation() from public, anon, authenticated;
+
 comment on table public.ciu_working_calendar is 'Management-maintained CIU working calendar. Public holidays and campus closures must be entered and maintained by authorised staff.';
 comment on table public.salesperson_absence_requests is 'Daily salesperson absence requests, with approved full-day or partial-day fraction and decision audit.';
 comment on table public.salesperson_contact_report_snapshots is 'Immutable end-of-day salesperson contact report snapshots. Corrections append a new revision with reason and superseded snapshot.';
+
+comment on table public.salesperson_absence_decision_history is 'Append-only audit of manager decisions on salesperson absence requests.';
