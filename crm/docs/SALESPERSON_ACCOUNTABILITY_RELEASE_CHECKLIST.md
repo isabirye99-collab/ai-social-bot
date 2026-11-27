@@ -31,7 +31,9 @@ The route also uses the existing `NEXT_PUBLIC_SUPABASE_URL`. After setting varia
 ## Continuous integration
 - Workflow: `.github/workflows/ciu-crm-build.yml`.
 - Runs `npm ci` and `npm run build` in `crm/` for matching pull requests and pushes to the feature branch, with placeholder Supabase build variables only.
-- Latest verified build: run #15 (ID `45993806641`) passed on current PR head commit `b47e748f8e712004d6262d9b85377d0fcabd6fa8`; install and build steps both completed successfully.
+- Latest verified build: run #17 (ID `45994939976`) passed on commit `b53d6f21c9d5c9b04cc12cfb535705a4d422d8ff`; install and build steps completed successfully. This is the latest verified application build, not a build of any later documentation-only edit.
+- A read-only production schema check on 2026-11-27 confirmed `engagement_interactions.contact_id` is currently NOT NULL and the current outcome constraint allows only the existing lowercase values. Migration #3 addresses these known schema mismatches but remains unapplied.
+- A read-only policy check found the existing `Authenticated staff manage engagement interactions` policy allows all authenticated users to manage all engagement interactions (`USING true`, `WITH CHECK true`). Review whether this broad policy is appropriate before relying on interaction records for performance accountability; do not silently change it because it may affect the existing call-centre workflow.
 - This verifies compilation/build only; it does not verify database migrations, RLS behaviour, Vercel preview deployment, or the scheduled production job.
 
 ## Required tests before release
