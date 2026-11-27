@@ -84,11 +84,13 @@ export default function ContactPerformanceReportPage() {
     const override = calendar.find(day => day.calendar_date === selectedDate && day.is_active);
     const weekday = new Date(`${selectedDate}T12:00:00Z`).getUTCDay();
     const workingDay = override ? override.day_type === "working_day" : weekday !== 0 && weekday !== 6;
+    const visibleStaffIds = new Set(staff.map(person => person.id));
     const qualifying = interactions.filter(item => {
       const channel = (item.channel || "").trim().toLowerCase();
       const response = (item.response || "").trim().toLowerCase();
       const outcome = (item.outcome || "").trim().toLowerCase();
-      return channel === "outgoing_call" && response === "answered" && outcome !== "wrong number" && Boolean(item.lead_id) && Boolean(item.created_by || item.assigned_to);
+      const creditedTo = item.created_by || item.assigned_to;
+      return channel === "outgoing_call" && response === "answered" && outcome !== "wrong number" && Boolean(item.lead_id) && Boolean(creditedTo) && visibleStaffIds.has(creditedTo as string);
     });
     const rows = staff.map(person => {
       const credited = qualifying.filter(item => (item.created_by || item.assigned_to) === person.id);
