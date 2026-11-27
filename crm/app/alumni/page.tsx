@@ -191,7 +191,8 @@ export default function AlumniPage() {
         <Link href="/alumni/events" style={{ display: "inline-flex", alignItems: "center", padding: "10px 12px", border: "1px solid #d9e4dd", borderRadius: 8, color: brand, background: "#fff", textDecoration: "none", fontSize: 12, fontWeight: 750 }}>Events & Attendance</Link>
         <Link href="/alumni/mentorship" style={{ display: "inline-flex", alignItems: "center", padding: "10px 12px", border: "1px solid #d9e4dd", borderRadius: 8, color: brand, background: "#fff", textDecoration: "none", fontSize: 12, fontWeight: 750 }}>Mentorship</Link>
         <Link href="/alumni/referrals" style={{ display: "inline-flex", alignItems: "center", padding: "10px 12px", border: "1px solid #d9e4dd", borderRadius: 8, color: brand, background: "#fff", textDecoration: "none", fontSize: 12, fontWeight: 750 }}>Referrals</Link>
-        <Link href="/alumni/reports" style={{ display: "inline-flex", alignItems: "center", padding: "10px 12px", border: "1px solid #d9e4dd", borderRadius: 8, color: brand, background: "#fff", textDecoration: "none", fontSize: 12, fontWeight: 750 }}>Reports</Link>\n        <Link href="/alumni/communications" style={{ display: "inline-flex", alignItems: "center", padding: "10px 12px", border: "1px solid #d9e4dd", borderRadius: 8, color: brand, background: "#fff", textDecoration: "none", fontSize: 12, fontWeight: 750 }}>Communications</Link>
+        <Link href="/alumni/reports" style={{ display: "inline-flex", alignItems: "center", padding: "10px 12px", border: "1px solid #d9e4dd", borderRadius: 8, color: brand, background: "#fff", textDecoration: "none", fontSize: 12, fontWeight: 750 }}>Reports</Link>
+        <Link href="/alumni/communications" style={{ display: "inline-flex", alignItems: "center", padding: "10px 12px", border: "1px solid #d9e4dd", borderRadius: 8, color: brand, background: "#fff", textDecoration: "none", fontSize: 12, fontWeight: 750 }}>Communications</Link>
         <Link href="/alumni/reviews" style={{ display: "inline-flex", alignItems: "center", padding: "10px 12px", border: "1px solid #d9e4dd", borderRadius: 8, color: brand, background: "#fff", textDecoration: "none", fontSize: 12, fontWeight: 750 }}>Submitted Changes</Link>
         <Link href="/alumni/duplicates" style={{ display: "inline-flex", alignItems: "center", padding: "10px 12px", border: "1px solid #d9e4dd", borderRadius: 8, color: brand, background: "#fff", textDecoration: "none", fontSize: 12, fontWeight: 750 }}>Duplicate Records</Link>
         <Link href="/alumni-update" target="_blank" style={{ display: "inline-flex", alignItems: "center", padding: "10px 12px", border: "1px solid #d9e4dd", borderRadius: 8, color: brand, background: "#fff", textDecoration: "none", fontSize: 12, fontWeight: 750 }}>Public Update Link</Link>
@@ -213,6 +214,34 @@ export default function AlumniPage() {
         </button>
       ))}
     </nav>
+    <section aria-label="Alumni daily work centre" style={{ ...card, marginBottom: 14, padding: 20, background: "linear-gradient(135deg, #f5faf6 0%, #ffffff 72%)" }}>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
+        <div><div style={{ color: brand, fontSize: 10, fontWeight: 800, letterSpacing: 1.2 }}>DAILY WORK CENTRE</div><h2 style={{ margin: "5px 0 4px", fontSize: 19, fontWeight: 800 }}>What needs attention?</h2><p style={{ margin: 0, color: "#718078", fontSize: 12 }}>Start with pending profile checks, then move to alumni engagement and follow-up activities.</p></div>
+        <span style={{ borderRadius: 20, padding: "6px 10px", background: "#e8f3eb", color: brand, fontSize: 11, fontWeight: 750 }}>{new Date().toLocaleDateString("en-UG", { weekday: "short", day: "numeric", month: "short" })}</span>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 12 }}>
+        <Link href="/alumni/reviews" style={{ display: "block", padding: 15, border: "1px solid #dce9df", borderRadius: 11, background: "#fff", textDecoration: "none", color: "#173d34" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}><strong style={{ fontSize: 13 }}>Review profile updates</strong><span style={{ color: brand, fontSize: 19 }}>↗</span></div>
+          <div style={{ fontSize: 25, fontWeight: 800, marginTop: 8, color: brand }}>{needsReview.toLocaleString()}</div>
+          <p style={{ margin: "4px 0 0", color: "#718078", fontSize: 11, lineHeight: 1.5 }}>Records marked needs review, contact required or in progress. Review and verify submitted information.</p>
+        </Link>
+        <Link href="/alumni/duplicates" style={{ display: "block", padding: 15, border: "1px solid #dce9df", borderRadius: 11, background: "#fff", textDecoration: "none", color: "#173d34" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}><strong style={{ fontSize: 13 }}>Resolve duplicate flags</strong><span style={{ color: brand, fontSize: 19 }}>↗</span></div>
+          <div style={{ fontSize: 25, fontWeight: 800, marginTop: 8, color: brand }}>Open queue</div>
+          <p style={{ margin: "4px 0 0", color: "#718078", fontSize: 11, lineHeight: 1.5 }}>Check possible duplicate records carefully before confirming or dismissing a match.</p>
+        </Link>
+        <Link href="/alumni/communications" style={{ display: "block", padding: 15, border: "1px solid #dce9df", borderRadius: 11, background: "#fff", textDecoration: "none", color: "#173d34" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}><strong style={{ fontSize: 13 }}>Engage alumni</strong><span style={{ color: brand, fontSize: 19 }}>↗</span></div>
+          <div style={{ fontSize: 25, fontWeight: 800, marginTop: 8, color: brand }}>Communications</div>
+          <p style={{ margin: "4px 0 0", color: "#718078", fontSize: 11, lineHeight: 1.5 }}>Open alumni communications to plan targeted outreach and record engagement activity.</p>
+        </Link>
+        <Link href="/alumni/reports" style={{ display: "block", padding: 15, border: "1px solid #dce9df", borderRadius: 11, background: "#fff", textDecoration: "none", color: "#173d34" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}><strong style={{ fontSize: 13 }}>Account for results</strong><span style={{ color: brand, fontSize: 19 }}>↗</span></div>
+          <div style={{ fontSize: 25, fontWeight: 800, marginTop: 8, color: brand }}>{verified.toLocaleString()} verified</div>
+          <p style={{ margin: "4px 0 0", color: "#718078", fontSize: 11, lineHeight: 1.5 }}>Review alumni reporting and monitor profile verification progress across the database.</p>
+        </Link>
+      </div>
+    </section>
     {progress && <div style={{ ...card, marginBottom: 14, borderColor: "#c9e2d3", color: brand, fontSize: 13 }}>{progress}</div>}
     {error && <div role="alert" style={{ ...card, marginBottom: 14, borderColor: "#f4c7c7", color: "#a32828", fontSize: 13 }}>{error}</div>}
     <section style={card}>
