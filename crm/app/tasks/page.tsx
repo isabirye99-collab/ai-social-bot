@@ -555,6 +555,13 @@ const isSalesperson =
     currentRole === "admin" ||
     currentRole === "manager";
 
+  // Global lead assignment is a management function, not a default for every
+  // non-salesperson role that can open Tasks.
+  const canManageLeadAssignments =
+    currentRole === "super_admin" ||
+    currentRole === "admin" ||
+    currentRole === "manager";
+
   const loadAll = async () => {
     try {
       setLoading(true);
@@ -3160,128 +3167,6 @@ const isSalesperson =
             })}</tbody>
           </table></div>
         </section>
-
-        {currentRole === "salesperson" && (
-          <section aria-label="My daily contact report" style={{ marginBottom: 16, border: "1px solid #cfe1d6", borderRadius: 12, background: "#ffffff", padding: "12px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-            <div>
-              <div style={{ color: "#075442", fontSize: 14, fontWeight: 800 }}>My Daily Contact Progress</div>
-              <div style={{ color: "#536b5d", fontSize: 12, marginTop: 4 }}>Today: {dailyContactSummary.mine} unique students reached by answered phone calls out of {dailyContactSummary.myTarget} target.</div>
-            </div>
-            <button type="button" onClick={exportMyDailyContactReport} style={{ border: "1px solid #087443", borderRadius: 8, padding: "8px 11px", background: "#ffffff", color: "#075442", fontSize: 12, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>Export My Report (CSV)</button>
-          </section>
-        )}
-
-        {canViewTeamContactPerformance && (
-          <section aria-label="Daily salesperson contact progress" style={{ marginBottom: 16, border: "1px solid #cfe1d6", borderRadius: 14, background: "#ffffff", overflow: "hidden" }}>
-            <div style={{ padding: "14px 16px", background: "#f0f8f3", borderBottom: "1px solid #dce9e1", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-              <div>
-                <div style={{ color: "#075442", fontSize: 15, fontWeight: 800 }}>Daily Salesperson Contact Progress</div>
-                <div style={{ color: "#536b5d", fontSize: 12, marginTop: 4 }}>CIU working-day target: 50 unique students reached by answered phone call, proportionately adjusted for approved absence. Counts are attributed to the staff member who recorded the call.</div>
-              </div>
-              <button type="button" onClick={exportDailyContactReport} style={{ border: "1px solid #087443", borderRadius: 8, padding: "8px 11px", background: "#ffffff", color: "#075442", fontSize: 12, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>Export CSV for Excel</button>
-            </div>
-            <div style={{ padding: 12, overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 420 }}>
-                <thead><tr style={{ textAlign: "left", color: "#52665a", fontSize: 11 }}>
-                  <th style={{ padding: "8px 10px", borderBottom: "1px solid #e2e8e3" }}>Salesperson</th>
-                  <th style={{ padding: "8px 10px", borderBottom: "1px solid #e2e8e3" }}>Unique students</th>
-                  <th style={{ padding: "8px 10px", borderBottom: "1px solid #e2e8e3" }}>Target progress</th>
-                  <th style={{ padding: "8px 10px", borderBottom: "1px solid #e2e8e3" }}>Status</th>
-                </tr></thead>
-                <tbody>
-                  {dailyContactSummary.staff.map((person) => {
-                    const achieved = person.target > 0 && person.contacted >= person.target;
-                    return <tr key={person.id}>
-                      <td style={{ padding: "9px 10px", borderBottom: "1px solid #eef2ef", color: "#183b2b", fontSize: 12, fontWeight: 650 }}>{person.name}</td>
-                      <td style={{ padding: "9px 10px", borderBottom: "1px solid #eef2ef", color: "#183b2b", fontSize: 12 }}>{person.contacted} / {person.target}</td>
-                      <td style={{ padding: "9px 10px", borderBottom: "1px solid #eef2ef", minWidth: 120 }}>
-                        <div style={{ height: 7, background: "#e8efe9", borderRadius: 999, overflow: "hidden" }}>
-                          <div style={{ height: "100%", width: `${person.target > 0 ? Math.min(100, (person.contacted / person.target) * 100) : 0}%`, background: achieved ? "#087443" : "#8bc63f", borderRadius: 999 }} />
-                        </div>
-                      </td>
-                      <td style={{ padding: "9px 10px", borderBottom: "1px solid #eef2ef", fontSize: 11, fontWeight: 700, color: achieved ? "#087443" : person.contacted > 0 ? "#8a5a00" : "#64748b" }}>{person.target === 0 ? "Exempt / non-working day" : achieved ? "Target achieved" : person.contacted > 0 ? "In progress" : "No qualifying calls"}</td>
-                    </tr>;
-                  })}
-                  {dailyContactSummary.staff.length === 0 && <tr><td colSpan={4} style={{ padding: 12, color: "#64748b", fontSize: 12 }}>No active salesperson profiles were found.</td></tr>}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        )}
-
-        {canViewTeamContactPerformance && unansweredReviewFlags.length > 0 && (
-          <section aria-label="Leads requiring unanswered-call review" style={{ marginBottom: 16, border: "1px solid #f0d4a8", borderRadius: 14, background: "#fffdf7", overflow: "hidden" }}>
-            <div style={{ padding: "14px 16px", background: "#fff6e5", borderBottom: "1px solid #f0d4a8" }}>
-              <div style={{ color: "#7a4b00", fontSize: 15, fontWeight: 800 }}>Management Review Required</div>
-              <div style={{ color: "#7a5b2d", fontSize: 12, marginTop: 4 }}>These leads have at least three consecutive unanswered call attempts. They remain assigned to their current salesperson until management decides what to do.</div>
-            </div>
-            <div style={{ padding: 12, overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 520 }}>
-                <thead><tr style={{ textAlign: "left", color: "#7a5b2d", fontSize: 11 }}>
-                  <th style={{ padding: "8px 10px", borderBottom: "1px solid #f0d4a8" }}>Prospective student</th>
-                  <th style={{ padding: "8px 10px", borderBottom: "1px solid #f0d4a8" }}>Salesperson</th>
-                  <th style={{ padding: "8px 10px", borderBottom: "1px solid #f0d4a8" }}>Consecutive unanswered calls</th>
-                  <th style={{ padding: "8px 10px", borderBottom: "1px solid #f0d4a8" }}>Latest attempt</th>
-                  <th style={{ padding: "8px 10px", borderBottom: "1px solid #f0d4a8" }}>Review deadline (EAT)</th>
-                  <th style={{ padding: "8px 10px", borderBottom: "1px solid #f0d4a8" }}>Management action</th>
-                </tr></thead>
-                <tbody>{unansweredReviewFlags.map((flag) => (
-                  <tr key={flag.key}>
-                    <td style={{ padding: "9px 10px", borderBottom: "1px solid #f8ead2", color: "#4b3718", fontSize: 12 }}>{flag.lead.name || flag.lead.ciu_number || "Unnamed lead"}{flag.lead.phone ? <div style={{ color: "#7a6a50", marginTop: 2 }}>{flag.lead.phone}</div> : null}</td>
-                    <td style={{ padding: "9px 10px", borderBottom: "1px solid #f8ead2", color: "#4b3718", fontSize: 12 }}>{flag.staffName}</td>
-                    <td style={{ padding: "9px 10px", borderBottom: "1px solid #f8ead2", color: "#9a3412", fontWeight: 800, fontSize: 12 }}>{flag.attempts}</td>
-                    <td style={{ padding: "9px 10px", borderBottom: "1px solid #f8ead2", color: "#4b3718", fontSize: 12 }}>{formatDateTime(flag.lastContactedAt)}</td>
-                    <td style={{ padding: "9px 10px", borderBottom: "1px solid #f8ead2", color: flag.reviewOverdue ? "#b42318" : "#4b3718", fontWeight: flag.reviewOverdue ? 800 : 500, fontSize: 12 }}>{formatDateTime(flag.reviewDueAt)}{flag.reviewOverdue ? <div style={{ marginTop: 3, fontSize: 10 }}>OVERDUE</div> : null}</td>
-                    <td style={{ padding: "9px 10px", borderBottom: "1px solid #f8ead2", minWidth: 150 }}>
-                      <button type="button" disabled={savingReviewLeadId === flag.lead.id} onClick={() => void recordContactReviewDecision(flag)} style={{ border: "1px solid #a16207", borderRadius: 7, padding: "7px 9px", background: "#fff", color: "#854d0e", fontSize: 11, fontWeight: 750, cursor: savingReviewLeadId === flag.lead.id ? "wait" : "pointer", opacity: savingReviewLeadId === flag.lead.id ? 0.65 : 1 }}>
-                        {savingReviewLeadId === flag.lead.id ? "Saving…" : "Record decision"}
-                      </button>
-                    </td>
-                  </tr>
-                ))}</tbody>
-              </table>
-            </div>
-          </section>
-        )}
-
-        {canViewTeamContactPerformance && contactReviewHistory.length > 0 && (
-          <section aria-label="Management contact review history" style={{ marginBottom: 16, border: "1px solid #cfe1d6", borderRadius: 14, background: "#ffffff", overflow: "hidden" }}>
-            <div style={{ padding: "14px 16px", background: "#f0f8f3", borderBottom: "1px solid #dce9e1" }}>
-              <div style={{ color: "#075442", fontSize: 15, fontWeight: 800 }}>Management Contact Review History</div>
-              <button type="button" onClick={exportContactReviewHistory} style={{ marginTop: 10, border: "1px solid #0b6b50", borderRadius: 8, padding: "8px 11px", background: "#ffffff", color: "#075442", fontWeight: 750, fontSize: 12, cursor: "pointer" }}>Export audit history (CSV)</button>
-              <div style={{ color: "#527064", fontSize: 12, marginTop: 4 }}>Append-only record of previous decisions. Reassignments are reflected in the lead's current assignment; earlier decisions remain visible here.</div>
-            </div>
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 780 }}>
-                <thead><tr style={{ background: "#fbfdfb", textAlign: "left" }}>
-                  <th style={{ padding: "8px 10px", borderBottom: "1px solid #dce9e1" }}>Decision time (EAT)</th>
-                  <th style={{ padding: "8px 10px", borderBottom: "1px solid #dce9e1" }}>Student</th>
-                  <th style={{ padding: "8px 10px", borderBottom: "1px solid #dce9e1" }}>Decision</th>
-                  <th style={{ padding: "8px 10px", borderBottom: "1px solid #dce9e1" }}>Manager</th>
-                  <th style={{ padding: "8px 10px", borderBottom: "1px solid #dce9e1" }}>New assignee</th>
-                  <th style={{ padding: "8px 10px", borderBottom: "1px solid #dce9e1" }}>Notes</th>
-                </tr></thead>
-                <tbody>{contactReviewHistory.slice(0, 100).map((review) => {
-                  const reviewedLead = leads.find((lead) => lead.id === review.lead_id);
-                  const reviewer = profiles.find((profile) => profile.id === review.decided_by);
-                  const newAssignee = review.new_assigned_to ? profiles.find((profile) => profile.id === review.new_assigned_to) : null;
-                  const decisionLabel = review.decision === "retain" ? "Retain assignment" : review.decision === "reassign" ? "Reassign lead" : "Other action";
-                  return (
-                    <tr key={review.id}>
-                      <td style={{ padding: "9px 10px", borderBottom: "1px solid #edf3ef", fontSize: 12, whiteSpace: "nowrap" }}>{formatDateTime(review.decided_at)}</td>
-                      <td style={{ padding: "9px 10px", borderBottom: "1px solid #edf3ef", fontSize: 12 }}>{reviewedLead?.name || reviewedLead?.ciu_number || review.lead_id}</td>
-                      <td style={{ padding: "9px 10px", borderBottom: "1px solid #edf3ef", fontSize: 12, fontWeight: 750 }}>{decisionLabel}</td>
-                      <td style={{ padding: "9px 10px", borderBottom: "1px solid #edf3ef", fontSize: 12 }}>{reviewer?.full_name || "Management user"}</td>
-                      <td style={{ padding: "9px 10px", borderBottom: "1px solid #edf3ef", fontSize: 12 }}>{newAssignee?.full_name || (review.new_assigned_to ? "Assigned user" : "—")}</td>
-                      <td style={{ padding: "9px 10px", borderBottom: "1px solid #edf3ef", fontSize: 12, minWidth: 200, whiteSpace: "pre-wrap" }}>{review.notes}</td>
-                    </tr>
-                  );
-                })}</tbody>
-              </table>
-            </div>
-            {contactReviewHistory.length > 100 ? <div style={{ padding: "9px 12px", color: "#527064", fontSize: 11 }}>Showing the latest 100 of {contactReviewHistory.length} decisions.</div> : null}
-          </section>
-        )}
 
         {!isSalesperson && (
           <section aria-label="Lead assignment queue" style={{ marginBottom: 16, border: "1px solid #cfe1d6", borderRadius: 14, background: "#ffffff", overflow: "hidden" }}>
