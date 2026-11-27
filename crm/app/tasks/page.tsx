@@ -813,6 +813,50 @@ const isSalesperson =
     };
   }, [dailyInteractions, currentUserId, profiles]);
 
+  const exportDailyContactReport = () => {
+    if (currentRole === "salesperson") {
+      setError("Team contact reports are available to authorised management only.");
+      return;
+    }
+    const escapeCsv = (value: string | number) => {
+      const text = String(value);
+      return `"${text.replace(/"/g, '""')}"`;
+    };
+    const dateParts = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Africa/Kampala",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(new Date()).reduce((parts, part) => {
+      if (part.type !== "literal") parts[part.type] = part.value;
+      return parts;
+    }, {} as Record<string, string>);
+    const dateKey = `${dateParts.year}-${dateParts.month}-${dateParts.day}`;
+    const rows = [
+      ["Report date (EAT)", dateKey],
+      ["Generated at (EAT)", new Intl.DateTimeFormat("en-UG", { timeZone: "Africa/Kampala", dateStyle: "medium", timeStyle: "short" }).format(new Date())],
+      ["Target per salesperson", 50],
+      [],
+      ["Salesperson", "Unique students contacted", "Daily target", "Status"],
+      ...dailyContactSummary.staff.map((person) => [
+        person.name,
+        person.contacted,
+        50,
+        person.contacted >= 50 ? "Target achieved" : person.contacted > 0 ? "Below target" : "No qualifying calls",
+      ]),
+    ];
+    const csv = "\\uFEFF" + rows.map((row) => row.map((value) => escapeCsv(value ?? "")).join(",")).join("\\r\\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `ciu-salesperson-contact-progress-${dateKey}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
   const unansweredReviewFlags = useMemo(() => {
     const grouped = new Map<string, DailyInteraction[]>();
     for (const interaction of dailyInteractions) {
@@ -2465,9 +2509,12 @@ const isSalesperson =
 
         {!isSalesperson && (
           <section aria-label="Daily salesperson contact progress" style={{ marginBottom: 16, border: "1px solid #cfe1d6", borderRadius: 14, background: "#ffffff", overflow: "hidden" }}>
-            <div style={{ padding: "14px 16px", background: "#f0f8f3", borderBottom: "1px solid #dce9e1" }}>
-              <div style={{ color: "#075442", fontSize: 15, fontWeight: 800 }}>Daily Salesperson Contact Progress</div>
-              <div style={{ color: "#536b5d", fontSize: 12, marginTop: 4 }}>CIU working-day target: 50 unique students reached by answered phone call per salesperson. Counts are attributed to the staff member who recorded the call.</div>
+            <div style={{ padding: "14px 16px", background: "#f0f8f3", borderBottom: "1px solid #dce9e1", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+              <div>
+                <div style={{ color: "#075442", fontSize: 15, fontWeight: 800 }}>Daily Salesperson Contact Progress</div>
+                <div style={{ color: "#536b5d", fontSize: 12, marginTop: 4 }}>CIU working-day target: 50 unique students reached by answered phone call per salesperson. Counts are attributed to the staff member who recorded the call.</div>
+              </div>
+              <button type="button" onClick={exportDailyContactReport} style={{ border: "1px solid #087443", borderRadius: 8, padding: "8px 11px", background: "#ffffff", color: "#075442", fontSize: 12, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>Export CSV for Excel</button>
             </div>
             <div style={{ padding: 12, overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 420 }}>
