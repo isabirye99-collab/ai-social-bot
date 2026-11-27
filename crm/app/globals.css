@@ -4708,3 +4708,60 @@ button, input, select, textarea {
   line-height: 1.4;
   text-transform: uppercase;
 }
+
+
+/* Shared workspace alignment — keep module behaviour intact while matching the Short Courses visual standard. */
+.ciu-consistent-workspace {
+  box-sizing: border-box;
+  color: #18392b;
+}
+.ciu-consistent-workspace h1,
+.ciu-marketing-page .ciu-marketing-hero h1 {
+  color: var(--ciu-primary, #00695c);
+  letter-spacing: -.035em;
+}
+.ciu-consistent-workspace > header,
+.ciu-consistent-workspace .ciu-marketing-hero {
+  align-items: center;
+  gap: 14px;
+}
+.ciu-consistent-workspace button,
+.ciu-marketing-page button {
+  transition: background-color .16s ease, border-color .16s ease, box-shadow .16s ease, transform .16s ease;
+}
+.ciu-consistent-workspace button:focus-visible,
+.ciu-marketing-page button:focus-visible,
+.ciu-social-hub-page a:focus-visible {
+  outline: 3px solid rgba(139, 198, 63, .55);
+  outline-offset: 2px;
+}
+.ciu-consistent-workspace input:not([type="checkbox"]):not([type="radio"]),
+.ciu-consistent-workspace select,
+.ciu-consistent-workspace textarea,
+.ciu-marketing-page input,
+.ciu-marketing-page select,
+.ciu-marketing-page textarea {
+  max-width: 100%;
+}
+.ciu-consistent-workspace table {
+  border-collapse: collapse;
+}
+.ciu-consistent-workspace th {
+  color: #587064;
+  font-weight: 750;
+}
+@media (max-width: 700px) {
+  .ciu-consistent-workspace {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+  .ciu-consistent-workspace > header {
+    align-items: stretch;
+  }
+  .ciu-consistent-workspace table {
+    font-size: 12px;
+  }
+  .ciu-marketing-page {
+    padding: 18px 12px 40px !important;
+  }
+}
