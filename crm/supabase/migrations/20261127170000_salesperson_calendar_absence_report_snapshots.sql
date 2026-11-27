@@ -22,6 +22,12 @@ create policy "Management manages CIU working calendar"
   using (exists (select 1 from public.profiles p where p.id = auth.uid() and p.is_active = true and p.role in ('super_admin','admin','manager')))
   with check (exists (select 1 from public.profiles p where p.id = auth.uid() and p.is_active = true and p.role in ('super_admin','admin','manager')));
 
+-- RLS policies do not grant SQL privileges by themselves. Explicitly grant only the
+-- table operations needed by authenticated users; RLS continues to enforce roles.
+revoke all on public.ciu_working_calendar from anon, authenticated;
+grant select, insert, update, delete on public.ciu_working_calendar to authenticated;
+grant all on public.ciu_working_calendar to service_role;
+
 create table if not exists public.salesperson_absence_requests (
   id uuid primary key default gen_random_uuid(),
   salesperson_id uuid not null references auth.users(id) on delete restrict,
@@ -61,6 +67,10 @@ create policy "Salespeople request own absence"
     and exists (select 1 from public.profiles p where p.id = auth.uid() and p.is_active = true and p.role = 'salesperson')
   );
 
+revoke all on public.salesperson_absence_requests from anon, authenticated;
+grant select, insert on public.salesperson_absence_requests to authenticated;
+grant all on public.salesperson_absence_requests to service_role;
+
 create table if not exists public.salesperson_absence_decision_history (
   id uuid primary key default gen_random_uuid(),
   request_id uuid not null references public.salesperson_absence_requests(id) on delete restrict,
@@ -87,6 +97,7 @@ create policy "Salespeople and management read absence decision history"
   );
 revoke all on public.salesperson_absence_decision_history from anon, authenticated;
 grant select on public.salesperson_absence_decision_history to authenticated;
+grant all on public.salesperson_absence_decision_history to service_role;
 
 create or replace function public.decide_salesperson_absence(
   p_request_id uuid,
@@ -156,6 +167,7 @@ create policy "Salespeople read own snapshots and management reads team"
   );
 revoke all on public.salesperson_contact_report_snapshots from anon, authenticated;
 grant select on public.salesperson_contact_report_snapshots to authenticated;
+grant all on public.salesperson_contact_report_snapshots to service_role;
 
 create or replace function public.finalize_salesperson_contact_report(
   p_report_date date,
