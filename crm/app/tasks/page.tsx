@@ -778,7 +778,7 @@ const isSalesperson =
         response === "answered" &&
         outcome !== "wrong number" &&
         Boolean(interaction.lead_id) &&
-        Boolean(interaction.created_by || interaction.assigned_to);
+        Boolean(interaction.assigned_to || interaction.created_by);
     };
 
     const kampalaDateKey = new Intl.DateTimeFormat("en-GB", {
@@ -806,12 +806,12 @@ const isSalesperson =
     });
     const countForStaff = (staffId: string) =>
       new Set(qualifying
-        .filter((interaction) => (interaction.created_by || interaction.assigned_to) === staffId)
+        .filter((interaction) => (interaction.assigned_to || interaction.created_by) === staffId)
         .map((interaction) => interaction.lead_id)
       ).size;
 
     const teamPairs = new Set(qualifying.map((interaction) =>
-      `${interaction.created_by || interaction.assigned_to}:${interaction.lead_id}`
+      `${interaction.assigned_to || interaction.created_by}:${interaction.lead_id}`
     ));
 
     return {
@@ -892,7 +892,7 @@ const isSalesperson =
     };
     const todayKey = dateKeyFor(new Date());
     const myCalls = dailyInteractions.filter((interaction) => {
-      const staffId = interaction.created_by || interaction.assigned_to;
+      const staffId = interaction.assigned_to || interaction.created_by;
       if (staffId !== currentUserId || !interaction.contacted_at || !interaction.lead_id) return false;
       if ((interaction.channel || "").trim().toLowerCase() !== "call") return false;
       if ((interaction.response || "").trim().toLowerCase() !== "answered") return false;
@@ -938,7 +938,7 @@ const isSalesperson =
     const grouped = new Map<string, DailyInteraction[]>();
     for (const interaction of dailyInteractions) {
       if (!interaction.lead_id || !interaction.contacted_at) continue;
-      const staffId = interaction.created_by || interaction.assigned_to;
+      const staffId = interaction.assigned_to || interaction.created_by;
       if (!staffId) continue;
       const key = `${staffId}:${interaction.lead_id}`;
       const list = grouped.get(key) || [];
@@ -987,7 +987,7 @@ const isSalesperson =
       const latest = sorted[0];
       const lead = leads.find((item) => item.id === latest.lead_id);
       if (!lead || isClosedLead(lead)) continue;
-      const staffId = latest.created_by || latest.assigned_to || "";
+      const staffId = latest.assigned_to || latest.created_by || "";
       const staff = profiles.find((profile) => profile.id === staffId);
       flags.push({
         key,
