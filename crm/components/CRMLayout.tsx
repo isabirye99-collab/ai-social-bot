@@ -286,7 +286,7 @@ export default function CRMLayout({
             >
               MOU
             </Link>
-            {(pathname.startsWith("/partnerships/mous") || pathname === "/partnerships/work") && <div className={horizontal ? "flex items-center gap-1" : "ml-3 space-y-1 border-l border-slate-200 pl-2"}>}
+            {(pathname.startsWith("/partnerships/mous") || pathname === "/partnerships/work") && (<div className={horizontal ? "flex items-center gap-1" : "ml-3 space-y-1 border-l border-slate-200 pl-2"}>}
               {[
                 { label: "Daily Work", href: "/partnerships/work" },
                 { label: "MOU Register", href: "/partnerships/mous" },
@@ -309,7 +309,7 @@ export default function CRMLayout({
                   {subItem.label}
                 </Link>
               ))}
-            </div>}
+            </div>)}
           </div>
         )}
       ))}
