@@ -1273,7 +1273,7 @@ export default function MarketingPage() {
 
   return (
     <main
-      className="ciu-marketing-page"
+      className="ciu-consistent-workspace ciu-marketing-page"
       style={{
         minHeight: "100vh",
         background: "transparent",
