@@ -146,6 +146,10 @@ create policy "Creators and management update engagement interactions"
     (
       created_by = auth.uid()
       and coalesce(reason, '') <> 'Salesperson task call outcome'
+      and exists (
+        select 1 from public.profiles p
+        where p.id = auth.uid() and p.is_active = true
+      )
     )
     or exists (
       select 1 from public.profiles p
