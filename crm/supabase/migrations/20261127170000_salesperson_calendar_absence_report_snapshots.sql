@@ -232,11 +232,11 @@ revoke execute on function public.prevent_salesperson_contact_report_mutation() 
 
 create or replace function public.prevent_salesperson_absence_history_mutation()
 returns trigger language plpgsql security invoker set search_path = public, pg_temp
-as $
+as $absence_audit$
 begin
   raise exception 'Absence decision history is append-only';
 end;
-$;
+$absence_audit$;
 drop trigger if exists salesperson_absence_decision_history_append_only on public.salesperson_absence_decision_history;
 create trigger salesperson_absence_decision_history_append_only
 before update or delete on public.salesperson_absence_decision_history
