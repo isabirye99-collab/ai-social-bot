@@ -410,7 +410,7 @@ export default function SocialMediaPage() {
 
   return (
     <main
-      className="ciu-social-hub-page min-h-screen p-4 text-slate-900 sm:p-6 lg:p-8"
+      className="ciu-consistent-workspace ciu-social-hub-page min-h-screen p-4 text-slate-900 sm:p-6 lg:p-8"
       style={{ background: "transparent", "--ciu-primary": "var(--ciu-primary, #00695c)", "--ciu-lime": "var(--ciu-secondary, #8bc63f)" } as React.CSSProperties}
     >
       <div className="ciu-social-hub-content space-y-4">
