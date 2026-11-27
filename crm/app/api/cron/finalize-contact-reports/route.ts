@@ -97,7 +97,7 @@ export async function GET(request: Request) {
     const interactions = await fetchAll<any>(
       supabase.from("engagement_interactions")
         .select("id,lead_id,channel,response,outcome,assigned_to,created_by,contacted_at")
-        .eq("channel", "call")
+        .eq("channel", "outgoing_call")
         .eq("response", "answered")
         .gte("contacted_at", start)
         .lt("contacted_at", end)
