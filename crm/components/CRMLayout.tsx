@@ -302,8 +302,8 @@ export default function CRMLayout({
                     ? "shrink-0 whitespace-nowrap rounded-lg px-3 py-2 text-xs font-semibold transition-colors"
                     : "block rounded-lg px-3 py-2 text-sm font-medium transition-colors"}
                   style={{
-                    color: isActive(subItem.href) ? "#075442" : "#5b7065",
-                    background: isActive(subItem.href) ? "#e8f6d8" : "transparent",
+                    color: (subItem.href === "/partnerships/mous" ? pathname === subItem.href : isActive(subItem.href)) ? "#075442" : "#5b7065",
+                    background: (subItem.href === "/partnerships/mous" ? pathname === subItem.href : isActive(subItem.href)) ? "#e8f6d8" : "transparent",
                   }}
                 >
                   {subItem.label}
