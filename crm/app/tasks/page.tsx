@@ -64,6 +64,17 @@ type DailyInteraction = {
   task_id: string | null;
 };
 
+type ContactReviewHistory = {
+  id: string;
+  lead_id: string;
+  trigger_interaction_id: string;
+  decision: "retain" | "reassign" | "other_action";
+  notes: string;
+  new_assigned_to: string | null;
+  decided_by: string;
+  decided_at: string;
+};
+
 type Lead = {
   id: string;
   name: string | null;
@@ -376,6 +387,8 @@ export default function TasksPage() {
   >([]);
   const [stages, setStages] = useState<PipelineStage[]>([]);
   const [dailyInteractions, setDailyInteractions] = useState<DailyInteraction[]>([]);
+  const [contactReviewHistory, setContactReviewHistory] = useState<ContactReviewHistory[]>([]);
+  const [savingReviewLeadId, setSavingReviewLeadId] = useState<string | null>(null);
   const [reviewClock, setReviewClock] = useState(() => Date.now());
 
   const [currentUserId, setCurrentUserId] =
@@ -592,6 +605,7 @@ const isSalesperson =
         opportunitiesResult,
         stagesResult,
         interactionsResult,
+        reviewHistoryResult,
       ] = await Promise.all([
         fetchAllPages(tasksQuery),
 
@@ -624,6 +638,13 @@ const isSalesperson =
             .eq("channel", "call")
             .order("contacted_at", { ascending: false })
         ),
+
+        fetchAllPages(
+          supabase
+            .from("lead_contact_review_history")
+            .select("id,lead_id,trigger_interaction_id,decision,notes,new_assigned_to,decided_by,decided_at")
+            .order("decided_at", { ascending: false })
+        ),
       ]);
 
       if (tasksResult.error)
@@ -644,7 +665,11 @@ const isSalesperson =
       if (interactionsResult.error)
         throw interactionsResult.error;
 
+      if (reviewHistoryResult.error)
+        throw reviewHistoryResult.error;
+
       setDailyInteractions((interactionsResult.data || []) as DailyInteraction[]);
+      setContactReviewHistory((reviewHistoryResult.data || []) as ContactReviewHistory[]);
 
       const loadedTasks = (tasksResult.data || []) as Task[];
 
@@ -967,7 +992,7 @@ const isSalesperson =
       }
       return due;
     };
-    const flags: Array<{ key: string; lead: Lead; staffName: string; attempts: number; lastContactedAt: string; reviewDueAt: string; reviewOverdue: boolean }> = [];
+    const flags: Array<{ key: string; lead: Lead; staffName: string; attempts: number; latestInteractionId: string; lastContactedAt: string; reviewDueAt: string; reviewOverdue: boolean }> = [];
     for (const [key, history] of grouped.entries()) {
       const sorted = [...history].sort((a, b) =>
         new Date(b.contacted_at || 0).getTime() - new Date(a.contacted_at || 0).getTime()
@@ -994,13 +1019,20 @@ const isSalesperson =
         lead,
         staffName: staff?.full_name || "Unknown salesperson",
         attempts,
+        latestInteractionId: latest.id,
         lastContactedAt: latest.contacted_at || "",
         reviewDueAt: addTwoWeekdaysForReview(latest.contacted_at || new Date().toISOString()).toISOString(),
         reviewOverdue: reviewClock > addTwoWeekdaysForReview(latest.contacted_at || new Date().toISOString()).getTime(),
       });
     }
-    return flags.sort((a, b) => new Date(a.lastContactedAt).getTime() - new Date(b.lastContactedAt).getTime());
-  }, [dailyInteractions, leads, profiles, reviewClock]);
+    const pendingFlags = flags.filter((flag) => {
+      const latestDecision = contactReviewHistory
+        .filter((review) => review.lead_id === flag.lead.id)
+        .sort((a, b) => new Date(b.decided_at).getTime() - new Date(a.decided_at).getTime())[0];
+      return !latestDecision || new Date(latestDecision.decided_at).getTime() < new Date(flag.lastContactedAt).getTime();
+    });
+    return pendingFlags.sort((a, b) => new Date(a.lastContactedAt).getTime() - new Date(b.lastContactedAt).getTime());
+  }, [dailyInteractions, leads, profiles, reviewClock, contactReviewHistory]);
 
   const performanceSummary = useMemo(() => {
     const [intakeYear, intakeMonth] = selectedIntake.split("-").map(Number);
@@ -1710,6 +1742,61 @@ const isSalesperson =
 
     window.location.href =
       `mailto:${lead.email}`;
+  };
+
+  const recordContactReviewDecision = async (flag: { lead: Lead; latestInteractionId: string }) => {
+    if (!canViewTeamContactPerformance) {
+      setError("Only authorised management users can record contact review decisions.");
+      return;
+    }
+    const choice = window.prompt("Choose management action: type RETAIN, REASSIGN, or OTHER.", "RETAIN");
+    if (choice === null) return;
+    const normalized = choice.trim().toLowerCase();
+    const decision = normalized === "retain" ? "retain" : normalized === "reassign" ? "reassign" : normalized === "other" || normalized === "other_action" ? "other_action" : null;
+    if (!decision) {
+      setError("Enter RETAIN, REASSIGN, or OTHER.");
+      return;
+    }
+    let newAssignee: string | null = null;
+    if (decision === "reassign") {
+      const salespeople = profiles.filter((profile) => profile.is_active !== false && profile.role === "salesperson");
+      if (!salespeople.length) {
+        setError("No active salespeople are available for reassignment.");
+        return;
+      }
+      const selected = window.prompt("Enter the number of the new salesperson:\n" + salespeople.map((person, index) => `${index + 1}. ${person.full_name || "Unnamed salesperson"}`).join("\n"));
+      if (selected === null) return;
+      if (!/^\\d+$/.test(selected.trim()) || !salespeople[Number(selected.trim()) - 1]) {
+        setError("Choose a valid salesperson number.");
+        return;
+      }
+      newAssignee = salespeople[Number(selected.trim()) - 1].id;
+    }
+    const notes = window.prompt("Enter the management review notes (required for the audit trail):");
+    if (notes === null) return;
+    if (!notes.trim()) {
+      setError("Review notes are required.");
+      return;
+    }
+    try {
+      setSavingReviewLeadId(flag.lead.id);
+      setError("");
+      setSuccess("");
+      const { error: rpcError } = await supabase.rpc("record_lead_contact_review_decision", {
+        p_lead_id: flag.lead.id,
+        p_trigger_interaction_id: flag.latestInteractionId,
+        p_decision: decision,
+        p_notes: notes.trim(),
+        p_new_assigned_to: newAssignee,
+      });
+      if (rpcError) throw rpcError;
+      setSuccess(decision === "reassign" ? "Review recorded and lead reassigned. The decision is retained in the audit history." : "Management review decision saved to the audit history.");
+      await loadAll();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save the management review decision.");
+    } finally {
+      setSavingReviewLeadId(null);
+    }
   };
 
   const suggestNextWeekdayFollowUp = () => {
@@ -2669,6 +2756,7 @@ const isSalesperson =
                   <th style={{ padding: "8px 10px", borderBottom: "1px solid #f0d4a8" }}>Consecutive unanswered calls</th>
                   <th style={{ padding: "8px 10px", borderBottom: "1px solid #f0d4a8" }}>Latest attempt</th>
                   <th style={{ padding: "8px 10px", borderBottom: "1px solid #f0d4a8" }}>Review deadline (EAT)</th>
+                  <th style={{ padding: "8px 10px", borderBottom: "1px solid #f0d4a8" }}>Management action</th>
                 </tr></thead>
                 <tbody>{unansweredReviewFlags.map((flag) => (
                   <tr key={flag.key}>
@@ -2677,6 +2765,11 @@ const isSalesperson =
                     <td style={{ padding: "9px 10px", borderBottom: "1px solid #f8ead2", color: "#9a3412", fontWeight: 800, fontSize: 12 }}>{flag.attempts}</td>
                     <td style={{ padding: "9px 10px", borderBottom: "1px solid #f8ead2", color: "#4b3718", fontSize: 12 }}>{formatDateTime(flag.lastContactedAt)}</td>
                     <td style={{ padding: "9px 10px", borderBottom: "1px solid #f8ead2", color: flag.reviewOverdue ? "#b42318" : "#4b3718", fontWeight: flag.reviewOverdue ? 800 : 500, fontSize: 12 }}>{formatDateTime(flag.reviewDueAt)}{flag.reviewOverdue ? <div style={{ marginTop: 3, fontSize: 10 }}>OVERDUE</div> : null}</td>
+                    <td style={{ padding: "9px 10px", borderBottom: "1px solid #f8ead2", minWidth: 150 }}>
+                      <button type="button" disabled={savingReviewLeadId === flag.lead.id} onClick={() => void recordContactReviewDecision(flag)} style={{ border: "1px solid #a16207", borderRadius: 7, padding: "7px 9px", background: "#fff", color: "#854d0e", fontSize: 11, fontWeight: 750, cursor: savingReviewLeadId === flag.lead.id ? "wait" : "pointer", opacity: savingReviewLeadId === flag.lead.id ? 0.65 : 1 }}>
+                        {savingReviewLeadId === flag.lead.id ? "Saving…" : "Record decision"}
+                      </button>
+                    </td>
                   </tr>
                 ))}</tbody>
               </table>
