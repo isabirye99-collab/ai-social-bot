@@ -98,13 +98,16 @@ export async function GET(request: Request) {
       supabase.from("engagement_interactions")
         .select("id,lead_id,channel,response,outcome,assigned_to,created_by,contacted_at")
         .eq("channel", "outgoing_call")
-        .eq("response", "answered")
         .gte("contacted_at", start)
         .lt("contacted_at", end)
         .order("contacted_at", { ascending: true })
     );
+    // Match the database finalisation function: normalise response/outcome
+    // values so legacy rows such as "Answered" are not silently omitted.
     const qualifying = interactions.filter((item) =>
-      Boolean(item.lead_id) && (item.outcome || "").trim().toLowerCase() !== "wrong number"
+      Boolean(item.lead_id) &&
+      (item.response || "").trim().toLowerCase() === "answered" &&
+      (item.outcome || "").trim().toLowerCase() !== "wrong number"
     );
     const leadIds = Array.from(new Set(qualifying.map((item) => item.lead_id as string)));
     const leadRows: any[] = [];
