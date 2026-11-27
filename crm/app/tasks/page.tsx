@@ -1035,7 +1035,7 @@ const isSalesperson =
     const myCalls = dailyInteractions.filter((interaction) => {
       const staffId = interaction.assigned_to || interaction.created_by;
       if (staffId !== currentUserId || !interaction.contacted_at || !interaction.lead_id) return false;
-      if ((interaction.channel || "").trim().toLowerCase() !== "call") return false;
+      if ((interaction.channel || "").trim().toLowerCase() !== "outgoing_call") return false;
       if ((interaction.response || "").trim().toLowerCase() !== "answered") return false;
       if ((interaction.outcome || "").trim().toLowerCase() === "wrong number") return false;
       return dateKeyFor(new Date(interaction.contacted_at)) === todayKey;
@@ -1192,7 +1192,7 @@ const isSalesperson =
     const calls = dailyInteractions.filter((interaction) => {
       if (!interaction.contacted_at || !interaction.lead_id) return false;
       if ((interaction.assigned_to || interaction.created_by) !== staffId) return false;
-      if ((interaction.channel || "").toLowerCase() !== "call" || (interaction.response || "").toLowerCase() !== "answered") return false;
+      if ((interaction.channel || "").toLowerCase() !== "outgoing_call" || (interaction.response || "").toLowerCase() !== "answered") return false;
       if ((interaction.outcome || "").toLowerCase() === "wrong number") return false;
       return getEATDateKey(new Date(interaction.contacted_at)) === todayKey;
     });
