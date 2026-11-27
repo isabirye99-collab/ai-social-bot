@@ -1568,6 +1568,18 @@ const isSalesperson =
       `mailto:${lead.email}`;
   };
 
+  const suggestNextWeekdayFollowUp = () => {
+    // Weekend-aware suggestion only. Uganda public holidays still require a
+    // maintained CIU calendar before they can be excluded reliably.
+    const suggested = new Date();
+    suggested.setDate(suggested.getDate() + 1);
+    while (suggested.getDay() === 0 || suggested.getDay() === 6) {
+      suggested.setDate(suggested.getDate() + 1);
+    }
+    suggested.setHours(9, 0, 0, 0);
+    setOutcomeDate(toDateTimeLocal(suggested.toISOString()));
+  };
+
   const openOutcome = (
     task: Task
   ) => {
@@ -4602,12 +4614,12 @@ const isSalesperson =
                   }
                   onChange={(
                     event
-                  ) =>
-                    setSelectedOutcome(
-                      event
-                        .target
-                        .value
-                    )
+                  ) => {
+                    const nextOutcome = event.target.value;
+                    setSelectedOutcome(nextOutcome);
+                    if (nextOutcome === "No Answer" || nextOutcome === "Unreachable") {
+                      suggestNextWeekdayFollowUp();
+                    }
                   }
                   style={{
                     width:
