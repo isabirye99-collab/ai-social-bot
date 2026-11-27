@@ -691,7 +691,7 @@ export default function ReportsPage() {
 
   if (loading) {
     return (
-      <main className="ciu-page">
+      <main className="ciu-consistent-workspace ciu-page">
         <div className="ciu-page-inner">
           <div className="report-loading">
             <div className="loading-dot" />
@@ -707,7 +707,7 @@ export default function ReportsPage() {
   }
 
   return (
-    <main className="ciu-page">
+    <main className="ciu-consistent-workspace ciu-page">
       <div className="ciu-page-inner">
         <section className="report-hero">
           <div className="report-hero-content">
