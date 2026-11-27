@@ -60,8 +60,6 @@ export default function ReportsPage() {
     if (effective.length || ["super_admin", "admin", "manager", "salesperson", "marketing", "finance", "viewer"].includes(role)) return effective;
     return (profile?.module_permissions || []).filter((module): module is CrmModule => ALL_CRM_MODULES.includes(module as CrmModule));
   }, [role, profile?.module_permissions]);
-  const canViewTeam = ["super_admin", "admin", "manager"].includes(role);
-  const canViewReports = modules.includes("reports");
   const allowedModules = moduleReports.filter(item => modules.includes(item.module));
   const listedReports: ReportCard[] = [...allowedModules];
 
@@ -103,16 +101,9 @@ export default function ReportsPage() {
     <style jsx>{`
       .ciu-report-centre { font-family: inherit; color: var(--ciu-ink, #17322c); }
       .ciu-report-centre header { border-radius: 16px !important; box-shadow: 0 5px 20px rgba(19,62,45,.035) !important; }
-      .ciu-report-centre section[aria-label="General reports"],
-      .ciu-report-centre section[aria-label="Individual reports"] {
-        border-color: var(--ciu-border, #dfe9e5) !important;
-        border-radius: 15px !important;
-        box-shadow: 0 7px 24px rgba(28,58,49,.06) !important;
-      }
       .ciu-report-centre a { font-family: inherit; }
       .ciu-report-centre a:focus-visible { outline: 3px solid #8bc63f; outline-offset: 3px; }
       @media (max-width: 700px) {
-        section[aria-label="General reports"], section[aria-label="Individual reports"] { grid-template-columns: 1fr !important; }
       }
     `}</style>
   </main>;
