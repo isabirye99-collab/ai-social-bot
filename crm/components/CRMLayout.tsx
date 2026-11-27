@@ -278,28 +278,38 @@ export default function CRMLayout({
         </Link>
         {item.label === "Partnerships" && isActive(item.href) && (
           <div className={horizontal ? "flex shrink-0 items-center gap-1 border-l border-slate-200 pl-2" : "ml-4 space-y-1 border-l-2 border-emerald-100 py-1 pl-3"}>
-            {[
-              { label: "MOU Daily Work", href: "/partnerships/work" },
-              { label: "MOU Register", href: "/partnerships/mous" },
-              { label: "Quarterly Reviews", href: "/partnerships/mous/reviews" },
-              { label: "Commitments", href: "/partnerships/mous/commitments" },
-              { label: "Performance", href: "/partnerships/mous/performance" },
-            ].map((subItem) => (
-              <Link
-                key={subItem.href}
-                href={subItem.href}
-                onClick={() => setMobileOpen(false)}
-                className={horizontal
-                  ? "shrink-0 whitespace-nowrap rounded-lg px-3 py-2 text-xs font-semibold transition-colors"
-                  : "block rounded-lg px-3 py-2 text-sm font-medium transition-colors"}
-                style={{
-                  color: isActive(subItem.href) ? "#075442" : "#5b7065",
-                  background: isActive(subItem.href) ? "#e8f6d8" : "transparent",
-                }}
-              >
-                {subItem.label}
-              </Link>
-            ))}
+            <Link
+              href="/partnerships/mous"
+              onClick={() => setMobileOpen(false)}
+              className={horizontal ? "shrink-0 whitespace-nowrap rounded-lg px-3 py-2 text-xs font-bold" : "block rounded-lg px-3 py-2 text-sm font-bold"}
+              style={{ color: isActive("/partnerships/mous") ? "#075442" : "#29483a", background: isActive("/partnerships/mous") ? "#e8f6d8" : "transparent" }}
+            >
+              MOU
+            </Link>
+            <div className={horizontal ? "flex items-center gap-1" : "ml-3 space-y-1 border-l border-slate-200 pl-2"}>
+              {[
+                { label: "Daily Work", href: "/partnerships/work" },
+                { label: "MOU Register", href: "/partnerships/mous" },
+                { label: "Quarterly Reviews", href: "/partnerships/mous/reviews" },
+                { label: "Commitments", href: "/partnerships/mous/commitments" },
+                { label: "Performance", href: "/partnerships/mous/performance" },
+              ].map((subItem) => (
+                <Link
+                  key={subItem.href}
+                  href={subItem.href}
+                  onClick={() => setMobileOpen(false)}
+                  className={horizontal
+                    ? "shrink-0 whitespace-nowrap rounded-lg px-3 py-2 text-xs font-semibold transition-colors"
+                    : "block rounded-lg px-3 py-2 text-sm font-medium transition-colors"}
+                  style={{
+                    color: isActive(subItem.href) ? "#075442" : "#5b7065",
+                    background: isActive(subItem.href) ? "#e8f6d8" : "transparent",
+                  }}
+                >
+                  {subItem.label}
+                </Link>
+              ))}
+            </div>
           </div>
         )}
       ))}
