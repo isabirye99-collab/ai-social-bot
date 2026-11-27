@@ -9,7 +9,7 @@
 ## Database migrations
 Review and apply in this order in a controlled release:
 1. `supabase/migrations/20261127140000_salesperson_contact_review_history.sql`
-2. `supabase/migrations/20261127170000_salesperson_calendar_absence_report_snapshots.sql`
+2. `supabase/migrations/20261127170000_salesperson_calendar_absence_report_snapshots.sql` (includes append-only absence decision audit history)
 
 Do not run these against production until the release owner has reviewed the SQL, confirmed the schema/role assumptions, taken a backup or confirmed the normal recovery process, and explicitly approved the change. The UI queries the new tables, so deploying UI code before migrations are applied will cause Tasks-page data loading errors.
 
@@ -31,7 +31,7 @@ The route also uses the existing `NEXT_PUBLIC_SUPABASE_URL`. After setting varia
 1. Run the CRM build/type-check against the exact PR head commit.
 2. Apply migrations to a non-production Supabase environment first.
 3. Verify salesperson can see/export only their own report and absence requests.
-4. Verify manager/admin/super_admin can see team progress, approve/reject absences, manage the calendar, record review decisions, and export audit history.
+4. Verify manager/admin/super_admin can see team progress, approve/reject absences, manage the calendar, record review decisions, and view both contact-review and absence-decision audit histories.
 5. Verify marketing, finance, viewer, and short-course roles cannot read team report snapshots or write review/absence decisions.
 6. Verify 50 unique answered-call contacts meets target; repeat calls to the same lead count once; unanswered calls, messages, and wrong numbers do not count.
 7. Verify public holidays/closures suppress target, working-day overrides enable target, and approved partial/full-day absences adjust it.
