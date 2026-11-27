@@ -104,7 +104,8 @@ type ContactReportSnapshot = {
   revision: number;
   report_data: Record<string, unknown>;
   finalized_at: string;
-  finalized_by: string;
+  finalized_by: string | null;
+  finalization_source: "manual" | "automated";
   supersedes_id: string | null;
   correction_reason: string | null;
 };
@@ -709,7 +710,7 @@ const isSalesperson =
 
         fetchAllPages(
           supabase.from("salesperson_contact_report_snapshots")
-            .select("id,report_date,salesperson_id,revision,report_data,finalized_at,finalized_by,supersedes_id,correction_reason")
+            .select("id,report_date,salesperson_id,revision,report_data,finalized_at,finalized_by,finalization_source,supersedes_id,correction_reason")
             .order("revision", { ascending: false })
         ),
       ]);
@@ -3072,7 +3073,7 @@ const isSalesperson =
             <tbody>{contactReportSnapshots.filter((snapshot) => snapshot.report_date === dailyContactSummary.todayKey).sort((a, b) => a.salesperson_id.localeCompare(b.salesperson_id) || b.revision - a.revision).filter((snapshot) => canViewTeamContactPerformance || snapshot.salesperson_id === currentUserId).map((snapshot) => {
               const data = snapshot.report_data as any;
               const owner = profiles.find((profile) => profile.id === snapshot.salesperson_id);
-              return <tr key={snapshot.id}><td style={{ padding: 8, borderTop: "1px solid #edf3ef", fontSize: 12 }}>{owner?.full_name || data.salesperson_name || "Salesperson"}</td><td style={{ padding: 8, borderTop: "1px solid #edf3ef", fontSize: 12 }}>{snapshot.report_date}</td><td style={{ padding: 8, borderTop: "1px solid #edf3ef", fontSize: 12 }}>{snapshot.revision}{snapshot.correction_reason ? <div style={{ color: "#64756b", fontSize: 10 }}>{snapshot.correction_reason}</div> : null}</td><td style={{ padding: 8, borderTop: "1px solid #edf3ef", fontSize: 12 }}>{String(data.unique_students_contacted ?? 0)} / {String(data.target ?? 50)}<div style={{ color: "#64756b", fontSize: 10 }}>{String(data.status ?? "")}</div></td><td style={{ padding: 8, borderTop: "1px solid #edf3ef", fontSize: 12 }}>{formatDateTime(snapshot.finalized_at)}</td><td style={{ padding: 8, borderTop: "1px solid #edf3ef" }}><button type="button" onClick={() => printContactReport(snapshot)} style={{ border: "1px solid #087443", borderRadius: 6, padding: "6px 8px", background: "#fff", color: "#075442", fontSize: 11 }}>Print / Save PDF</button></td></tr>;
+              return <tr key={snapshot.id}><td style={{ padding: 8, borderTop: "1px solid #edf3ef", fontSize: 12 }}>{owner?.full_name || data.salesperson_name || "Salesperson"}</td><td style={{ padding: 8, borderTop: "1px solid #edf3ef", fontSize: 12 }}>{snapshot.report_date}</td><td style={{ padding: 8, borderTop: "1px solid #edf3ef", fontSize: 12 }}>{snapshot.revision}{snapshot.correction_reason ? <div style={{ color: "#64756b", fontSize: 10 }}>{snapshot.correction_reason}</div> : null}</td><td style={{ padding: 8, borderTop: "1px solid #edf3ef", fontSize: 12 }}>{String(data.unique_students_contacted ?? 0)} / {String(data.target ?? 50)}<div style={{ color: "#64756b", fontSize: 10 }}>{String(data.status ?? "")}</div></td><td style={{ padding: 8, borderTop: "1px solid #edf3ef", fontSize: 12 }}>{formatDateTime(snapshot.finalized_at)}<div style={{ color: "#64756b", fontSize: 10 }}>{snapshot.finalization_source === "automated" ? "Automated" : "Manual"}{snapshot.finalized_by ? " · user recorded" : ""}</div></td><td style={{ padding: 8, borderTop: "1px solid #edf3ef" }}><button type="button" onClick={() => printContactReport(snapshot)} style={{ border: "1px solid #087443", borderRadius: 6, padding: "6px 8px", background: "#fff", color: "#075442", fontSize: 11 }}>Print / Save PDF</button></td></tr>;
             })}</tbody>
           </table></div>
         </section>
