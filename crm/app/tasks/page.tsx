@@ -4667,7 +4667,7 @@ const isSalesperson =
                     if (nextOutcome === "No Answer" || nextOutcome === "Unreachable") {
                       suggestNextWeekdayFollowUp();
                     }
-                  }
+                  }}
                   style={{
                     width:
                       "100%",
