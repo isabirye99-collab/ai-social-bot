@@ -33,7 +33,7 @@ jobs:
     env:
       # Build-time placeholders only; never connect this job to production.
       NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: ciu-crm-build-only-placeholder
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ciu-crm-build-only-placeholder
     steps:
       - name: Check out source
         uses: actions/checkout@v4
