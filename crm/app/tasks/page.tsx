@@ -2589,30 +2589,12 @@ const isSalesperson =
           ? `${previousDescription}\n\n${outcomeEntry}`
           : outcomeEntry;
 
-      const { error: taskError } =
-        await supabase
-          .from("tasks")
-          .update({
-            description:
-              newDescription,
-            status: "completed",
-            completed_at:
-              new Date().toISOString(),
-            updated_at:
-              new Date().toISOString(),
-          })
-          .eq(
-            "id",
-            outcomeTask.id
-          );
-
-      if (taskError) {
-        throw taskError;
-      }
-
       // Log each call outcome in the existing engagement history. The task_id
       // lookup makes retries idempotent at the UI level and avoids counting a
       // second interaction when the task save is retried.
+      // Record the call interaction before completing the task. If interaction
+      // logging fails, the task remains open; if task completion then fails,
+      // a retry finds the existing interaction and can safely finish the task.
       if ((outcomeTask.task_type || "").toLowerCase() === "call" && outcomeTask.lead_id) {
         const { data: priorInteraction, error: priorInteractionError } = await supabase
           .from("engagement_interactions")
@@ -2644,6 +2626,21 @@ const isSalesperson =
             });
           if (interactionInsertError) throw interactionInsertError;
         }
+      }
+
+      const { error: taskError } =
+        await supabase
+          .from("tasks")
+          .update({
+            description: newDescription,
+            status: "completed",
+            completed_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", outcomeTask.id);
+
+      if (taskError) {
+        throw taskError;
       }
 
       if (
