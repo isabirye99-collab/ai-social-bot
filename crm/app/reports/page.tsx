@@ -71,7 +71,7 @@ export default function ReportsPage() {
         <div style={{ maxWidth: 660, color: "#173d34" }}>
           <div style={{ fontSize: 10, fontWeight: 850, letterSpacing: 2, color: "#16715b" }}>CLARKE INTERNATIONAL UNIVERSITY · CRM</div>
           <h1 style={{ fontSize: "clamp(27px,3vw,36px)", lineHeight: 1.12, margin: "10px 0", fontWeight: 850, color: "#173d34" }}>Reports Centre</h1>
-          <p style={{ margin: 0, maxWidth: 600, fontSize: 13, lineHeight: 1.7, color: "#718078" }}>A clear home for organisation-wide performance, your individual activity and reports from the modules you are authorised to access.</p>
+          <p style={{ margin: 0, maxWidth: 600, fontSize: 13, lineHeight: 1.7, color: "#718078" }}>A central place to open reports from the CRM work areas you are authorised to access.</p>
         </div>
         <div style={{ background: "#f3f9f5", border: "1px solid #dfede3", color: "#145848", borderRadius: 12, padding: "15px 18px", minWidth: 170 }}>
           <div style={{ fontSize: 10, fontWeight: 850, letterSpacing: 1 }}>SIGNED IN AS</div>
