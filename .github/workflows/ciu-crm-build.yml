@@ -1,0 +1,52 @@
+name: CIU CRM pull request build
+
+on:
+  pull_request:
+    branches:
+      - deploy/ciu-crm-updated
+    paths:
+      - "crm/**"
+      - ".github/workflows/ciu-crm-build.yml"
+  push:
+    branches:
+      - feature/salesperson-task-accountability
+    paths:
+      - "crm/**"
+      - ".github/workflows/ciu-crm-build.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ciu-crm-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Install and build CRM
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: crm
+    env:
+      # Build-time placeholders only; never connect this job to production.
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ciu-crm-build-only-placeholder
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: crm/package-lock.json
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Build CRM
+        run: npm run build
