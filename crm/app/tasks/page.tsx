@@ -506,19 +506,6 @@ const isSalesperson =
       setCurrentUserId(user.id);
       setCurrentRole(role);
 
-      // Daily accountability uses the CIU local day (East Africa Time), not
-      // the viewer's device timezone. This is a read of existing interaction logs.
-      const kampalaDateParts = new Intl.DateTimeFormat("en-GB", {
-        timeZone: "Africa/Kampala",
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      }).formatToParts(new Date());
-      const kampalaDateValues = Object.fromEntries(kampalaDateParts.map((part) => [part.type, part.value]));
-      const kampalaDateKey = `${kampalaDateValues.year}-${kampalaDateValues.month}-${kampalaDateValues.day}`;
-      const dayStart = new Date(`${kampalaDateKey}T00:00:00+03:00`);
-      const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
-
       let tasksQuery = supabase
         .from("tasks")
         .select(
