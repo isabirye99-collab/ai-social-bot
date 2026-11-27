@@ -31,7 +31,7 @@ The route also uses the existing `NEXT_PUBLIC_SUPABASE_URL`. After setting varia
 ## Continuous integration
 - Workflow: `.github/workflows/ciu-crm-build.yml`.
 - Runs `npm ci` and `npm run build` in `crm/` for matching pull requests and pushes to the feature branch, with placeholder Supabase build variables only.
-- Confirm a completed GitHub Actions run before release; adding the workflow file does not itself prove the workflow has executed.
+- Confirm a completed GitHub Actions run before release. Latest verified build: run #13 (`45993657988`) passed on PR head commit `ae503d6fd4d9fa1f24e7a8f89723257763cf76c1`.
 
 ## Required tests before release
 1. Run the CRM build/type-check against the exact PR head commit.
