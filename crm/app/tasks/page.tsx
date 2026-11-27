@@ -376,6 +376,7 @@ export default function TasksPage() {
   >([]);
   const [stages, setStages] = useState<PipelineStage[]>([]);
   const [dailyInteractions, setDailyInteractions] = useState<DailyInteraction[]>([]);
+  const [reviewClock, setReviewClock] = useState(() => Date.now());
 
   const [currentUserId, setCurrentUserId] =
     useState("");
@@ -684,6 +685,12 @@ const isSalesperson =
     loadAll();
   }, []);
 
+  // Keep management overdue indicators current while this page remains open.
+  useEffect(() => {
+    const timer = window.setInterval(() => setReviewClock(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
   const getLead = (task: Task) => {
     if (!task.lead_id) return null;
 
@@ -989,11 +996,11 @@ const isSalesperson =
         attempts,
         lastContactedAt: latest.contacted_at || "",
         reviewDueAt: addTwoWeekdaysForReview(latest.contacted_at || new Date().toISOString()).toISOString(),
-        reviewOverdue: Date.now() > addTwoWeekdaysForReview(latest.contacted_at || new Date().toISOString()).getTime(),
+        reviewOverdue: reviewClock > addTwoWeekdaysForReview(latest.contacted_at || new Date().toISOString()).getTime(),
       });
     }
     return flags.sort((a, b) => new Date(a.lastContactedAt).getTime() - new Date(b.lastContactedAt).getTime());
-  }, [dailyInteractions, leads, profiles]);
+  }, [dailyInteractions, leads, profiles, reviewClock]);
 
   const performanceSummary = useMemo(() => {
     const [intakeYear, intakeMonth] = selectedIntake.split("-").map(Number);
