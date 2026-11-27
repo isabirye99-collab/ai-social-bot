@@ -30,7 +30,6 @@ function csvCell(value: string | number) {
 
 export default function ContactPerformanceReportPage() {
   const router = useRouter();
-  const [profile, setProfile] = useState<Profile | null>(null);
   const [staff, setStaff] = useState<Profile[]>([]);
   const [interactions, setInteractions] = useState<Interaction[]>([]);
   const [calendar, setCalendar] = useState<CalendarDay[]>([]);
@@ -52,11 +51,9 @@ export default function ContactPerformanceReportPage() {
       if (!current) { router.replace("/dashboard"); return; }
       const currentProfile = current as Profile;
       if (!managementRoles.includes(currentProfile.role || "") && currentProfile.role !== "salesperson") {
-        setProfile(currentProfile);
         setError("This report is available to salespeople and authorised management only.");
         return;
       }
-      setProfile(currentProfile);
       const { start, end } = dateBoundsEAT(selectedDate);
       const management = managementRoles.includes(currentProfile.role || "");
       const [staffResult, interactionResult, calendarResult, absenceResult] = await Promise.all([
@@ -129,7 +126,7 @@ export default function ContactPerformanceReportPage() {
       <h1 style={{ margin: "9px 0", fontSize: "clamp(25px,3vw,34px)", fontWeight: 850 }}>Salesperson Contact Performance</h1>
       <p style={{ maxWidth: 800, margin: 0, color: "#65796d", fontSize: 13, lineHeight: 1.7 }}>Measures unique students reached through answered outgoing phone calls. Each student counts once per salesperson per day and is credited to the staff member who recorded the call. The standard target is 50 on an official working day, adjusted proportionately for approved absence.</p>
       <div style={{ display: "flex", alignItems: "end", flexWrap: "wrap", gap: 10, marginTop: 18 }}>
-        <label style={{ display: "grid", gap: 6, color: "#4e665a", fontSize: 11, fontWeight: 800 }}>REPORT DATE (EAT)<input type="date" value={selectedDate} onChange={event => setSelectedDate(event.target.value)} style={{ border: "1px solid #cbded1", borderRadius: 8, padding: "10px 12px", color: "#173d34", font: "inherit" }} /></label>
+        <label style={{ display: "grid", gap: 6, color: "#4e665a", fontSize: 11, fontWeight: 800 }}>REPORT DATE (EAT)<input type="date" value={selectedDate} onChange={event => { if (event.target.value) setSelectedDate(event.target.value); }} required style={{ border: "1px solid #cbded1", borderRadius: 8, padding: "10px 12px", color: "#173d34", font: "inherit" }} /></label>
         <button type="button" onClick={() => void load()} disabled={loading} style={{ border: 0, borderRadius: 8, padding: "11px 15px", background: "#106053", color: "#fff", fontWeight: 800, cursor: loading ? "wait" : "pointer" }}>{loading ? "Refreshing…" : "Refresh report"}</button>
         <button type="button" onClick={exportCsv} disabled={loading || report.rows.length === 0} style={{ border: "1px solid #bfd8c8", borderRadius: 8, padding: "10px 14px", background: "#fff", color: "#176849", fontWeight: 800, cursor: loading || report.rows.length === 0 ? "not-allowed" : "pointer" }}>Export CSV for Excel</button>
       </div>
