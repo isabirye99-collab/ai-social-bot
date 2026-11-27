@@ -62,6 +62,15 @@ export async function GET(request: Request) {
       auth: { persistSession: false, autoRefreshToken: false },
     });
     const now = new Date();
+    const eatClock = new Intl.DateTimeFormat("en-GB", {
+      timeZone: EAT, hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+    }).formatToParts(now).reduce((result, part) => {
+      if (part.type !== "literal") result[part.type] = part.value;
+      return result;
+    }, {} as Record<string, string>);
+    if (Number(eatClock.hour) < 17) {
+      return NextResponse.json({ error: "Scheduled finalisation is only permitted from 5:00pm EAT." }, { status: 409 });
+    }
     const reportDate = dateKeyInEAT(now);
     const { data: calendarRow, error: calendarError } = await supabase
       .from("ciu_working_calendar")
