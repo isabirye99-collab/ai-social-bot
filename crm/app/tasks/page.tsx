@@ -621,12 +621,13 @@ const isSalesperson =
             ascending: true,
           }),
 
-        supabase
-          .from("engagement_interactions")
-          .select("id,lead_id,channel,response,outcome,assigned_to,contacted_at,created_by,task_id")
-          .gte("contacted_at", dayStart.toISOString())
-          .lt("contacted_at", dayEnd.toISOString())
-          .order("contacted_at", { ascending: false }),
+        fetchAllPages(
+          supabase
+            .from("engagement_interactions")
+            .select("id,lead_id,channel,response,outcome,assigned_to,contacted_at,created_by,task_id")
+            .eq("channel", "call")
+            .order("contacted_at", { ascending: false })
+        ),
       ]);
 
       if (tasksResult.error)
@@ -778,7 +779,29 @@ const isSalesperson =
         Boolean(interaction.created_by || interaction.assigned_to);
     };
 
-    const qualifying = dailyInteractions.filter(isQualifyingAnsweredCall);
+    const kampalaDateKey = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Africa/Kampala",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(new Date()).reduce((parts, part) => {
+      if (part.type !== "literal") parts[part.type] = part.value;
+      return parts;
+    }, {} as Record<string, string>);
+    const todayKey = `${kampalaDateKey.year}-${kampalaDateKey.month}-${kampalaDateKey.day}`;
+    const qualifying = dailyInteractions.filter((interaction) => {
+      if (!isQualifyingAnsweredCall(interaction) || !interaction.contacted_at) return false;
+      const parts = new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Africa/Kampala",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).formatToParts(new Date(interaction.contacted_at)).reduce((values, part) => {
+        if (part.type !== "literal") values[part.type] = part.value;
+        return values;
+      }, {} as Record<string, string>);
+      return `${parts.year}-${parts.month}-${parts.day}` === todayKey;
+    });
     const countForStaff = (staffId: string) =>
       new Set(qualifying
         .filter((interaction) => (interaction.created_by || interaction.assigned_to) === staffId)
@@ -802,6 +825,51 @@ const isSalesperson =
         .sort((a, b) => b.contacted - a.contacted || a.name.localeCompare(b.name)),
     };
   }, [dailyInteractions, currentUserId, profiles]);
+
+  const unansweredReviewFlags = useMemo(() => {
+    const grouped = new Map<string, DailyInteraction[]>();
+    for (const interaction of dailyInteractions) {
+      if (!interaction.lead_id || !interaction.contacted_at) continue;
+      const staffId = interaction.created_by || interaction.assigned_to;
+      if (!staffId) continue;
+      const key = `${staffId}:${interaction.lead_id}`;
+      const list = grouped.get(key) || [];
+      list.push(interaction);
+      grouped.set(key, list);
+    }
+
+    const flags: Array<{ key: string; lead: Lead; staffName: string; attempts: number; lastContactedAt: string }> = [];
+    for (const [key, history] of grouped.entries()) {
+      const sorted = [...history].sort((a, b) =>
+        new Date(b.contacted_at || 0).getTime() - new Date(a.contacted_at || 0).getTime()
+      );
+      let attempts = 0;
+      for (const interaction of sorted) {
+        const response = (interaction.response || "").trim().toLowerCase();
+        if (response === "unanswered") {
+          attempts += 1;
+          continue;
+        }
+        // Any later answered/invalid-number outcome breaks the consecutive
+        // unanswered sequence; only true no-answer attempts trigger this flag.
+        break;
+      }
+      if (attempts < 3) continue;
+      const latest = sorted[0];
+      const lead = leads.find((item) => item.id === latest.lead_id);
+      if (!lead || isClosedLead(lead)) continue;
+      const staffId = latest.created_by || latest.assigned_to || "";
+      const staff = profiles.find((profile) => profile.id === staffId);
+      flags.push({
+        key,
+        lead,
+        staffName: staff?.full_name || "Unknown salesperson",
+        attempts,
+        lastContactedAt: latest.contacted_at || "",
+      });
+    }
+    return flags.sort((a, b) => new Date(a.lastContactedAt).getTime() - new Date(b.lastContactedAt).getTime());
+  }, [dailyInteractions, leads, profiles]);
 
   const performanceSummary = useMemo(() => {
     const [intakeYear, intakeMonth] = selectedIntake.split("-").map(Number);
@@ -2426,6 +2494,33 @@ const isSalesperson =
                   })}
                   {dailyContactSummary.staff.length === 0 && <tr><td colSpan={4} style={{ padding: 12, color: "#64748b", fontSize: 12 }}>No active salesperson profiles were found.</td></tr>}
                 </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
+        {!isSalesperson && unansweredReviewFlags.length > 0 && (
+          <section aria-label="Leads requiring unanswered-call review" style={{ marginBottom: 16, border: "1px solid #f0d4a8", borderRadius: 14, background: "#fffdf7", overflow: "hidden" }}>
+            <div style={{ padding: "14px 16px", background: "#fff6e5", borderBottom: "1px solid #f0d4a8" }}>
+              <div style={{ color: "#7a4b00", fontSize: 15, fontWeight: 800 }}>Management Review Required</div>
+              <div style={{ color: "#7a5b2d", fontSize: 12, marginTop: 4 }}>These leads have at least three consecutive unanswered call attempts. They remain assigned to their current salesperson until management decides what to do.</div>
+            </div>
+            <div style={{ padding: 12, overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 520 }}>
+                <thead><tr style={{ textAlign: "left", color: "#7a5b2d", fontSize: 11 }}>
+                  <th style={{ padding: "8px 10px", borderBottom: "1px solid #f0d4a8" }}>Prospective student</th>
+                  <th style={{ padding: "8px 10px", borderBottom: "1px solid #f0d4a8" }}>Salesperson</th>
+                  <th style={{ padding: "8px 10px", borderBottom: "1px solid #f0d4a8" }}>Consecutive unanswered calls</th>
+                  <th style={{ padding: "8px 10px", borderBottom: "1px solid #f0d4a8" }}>Latest attempt</th>
+                </tr></thead>
+                <tbody>{unansweredReviewFlags.map((flag) => (
+                  <tr key={flag.key}>
+                    <td style={{ padding: "9px 10px", borderBottom: "1px solid #f8ead2", color: "#4b3718", fontSize: 12 }}>{flag.lead.name || flag.lead.ciu_number || "Unnamed lead"}{flag.lead.phone ? <div style={{ color: "#7a6a50", marginTop: 2 }}>{flag.lead.phone}</div> : null}</td>
+                    <td style={{ padding: "9px 10px", borderBottom: "1px solid #f8ead2", color: "#4b3718", fontSize: 12 }}>{flag.staffName}</td>
+                    <td style={{ padding: "9px 10px", borderBottom: "1px solid #f8ead2", color: "#9a3412", fontWeight: 800, fontSize: 12 }}>{flag.attempts}</td>
+                    <td style={{ padding: "9px 10px", borderBottom: "1px solid #f8ead2", color: "#4b3718", fontSize: 12 }}>{formatDateTime(flag.lastContactedAt)}</td>
+                  </tr>
+                ))}</tbody>
               </table>
             </div>
           </section>
