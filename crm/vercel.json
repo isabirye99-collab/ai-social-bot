@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/finalize-contact-reports",
+      "schedule": "0 14 * * *"
+    }
+  ]
+}
