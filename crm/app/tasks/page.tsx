@@ -1766,7 +1766,7 @@ const isSalesperson =
       }
       const selected = window.prompt("Enter the number of the new salesperson:\n" + salespeople.map((person, index) => `${index + 1}. ${person.full_name || "Unnamed salesperson"}`).join("\n"));
       if (selected === null) return;
-      if (!/^\\d+$/.test(selected.trim()) || !salespeople[Number(selected.trim()) - 1]) {
+      if (!/^\d+$/.test(selected.trim()) || !salespeople[Number(selected.trim()) - 1]) {
         setError("Choose a valid salesperson number.");
         return;
       }
