@@ -2777,6 +2777,44 @@ const isSalesperson =
           </section>
         )}
 
+        {canViewTeamContactPerformance && contactReviewHistory.length > 0 && (
+          <section aria-label="Management contact review history" style={{ marginBottom: 16, border: "1px solid #cfe1d6", borderRadius: 14, background: "#ffffff", overflow: "hidden" }}>
+            <div style={{ padding: "14px 16px", background: "#f0f8f3", borderBottom: "1px solid #dce9e1" }}>
+              <div style={{ color: "#075442", fontSize: 15, fontWeight: 800 }}>Management Contact Review History</div>
+              <div style={{ color: "#527064", fontSize: 12, marginTop: 4 }}>Append-only record of previous decisions. Reassignments are reflected in the lead's current assignment; earlier decisions remain visible here.</div>
+            </div>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 780 }}>
+                <thead><tr style={{ background: "#fbfdfb", textAlign: "left" }}>
+                  <th style={{ padding: "8px 10px", borderBottom: "1px solid #dce9e1" }}>Decision time (EAT)</th>
+                  <th style={{ padding: "8px 10px", borderBottom: "1px solid #dce9e1" }}>Student</th>
+                  <th style={{ padding: "8px 10px", borderBottom: "1px solid #dce9e1" }}>Decision</th>
+                  <th style={{ padding: "8px 10px", borderBottom: "1px solid #dce9e1" }}>Manager</th>
+                  <th style={{ padding: "8px 10px", borderBottom: "1px solid #dce9e1" }}>New assignee</th>
+                  <th style={{ padding: "8px 10px", borderBottom: "1px solid #dce9e1" }}>Notes</th>
+                </tr></thead>
+                <tbody>{contactReviewHistory.slice(0, 100).map((review) => {
+                  const reviewedLead = leads.find((lead) => lead.id === review.lead_id);
+                  const reviewer = profiles.find((profile) => profile.id === review.decided_by);
+                  const newAssignee = review.new_assigned_to ? profiles.find((profile) => profile.id === review.new_assigned_to) : null;
+                  const decisionLabel = review.decision === "retain" ? "Retain assignment" : review.decision === "reassign" ? "Reassign lead" : "Other action";
+                  return (
+                    <tr key={review.id}>
+                      <td style={{ padding: "9px 10px", borderBottom: "1px solid #edf3ef", fontSize: 12, whiteSpace: "nowrap" }}>{formatDateTime(review.decided_at)}</td>
+                      <td style={{ padding: "9px 10px", borderBottom: "1px solid #edf3ef", fontSize: 12 }}>{reviewedLead?.name || reviewedLead?.ciu_number || review.lead_id}</td>
+                      <td style={{ padding: "9px 10px", borderBottom: "1px solid #edf3ef", fontSize: 12, fontWeight: 750 }}>{decisionLabel}</td>
+                      <td style={{ padding: "9px 10px", borderBottom: "1px solid #edf3ef", fontSize: 12 }}>{reviewer?.full_name || "Management user"}</td>
+                      <td style={{ padding: "9px 10px", borderBottom: "1px solid #edf3ef", fontSize: 12 }}>{newAssignee?.full_name || (review.new_assigned_to ? "Assigned user" : "—")}</td>
+                      <td style={{ padding: "9px 10px", borderBottom: "1px solid #edf3ef", fontSize: 12, minWidth: 200, whiteSpace: "pre-wrap" }}>{review.notes}</td>
+                    </tr>
+                  );
+                })}</tbody>
+              </table>
+            </div>
+            {contactReviewHistory.length > 100 ? <div style={{ padding: "9px 12px", color: "#527064", fontSize: 11 }}>Showing the latest 100 of {contactReviewHistory.length} decisions.</div> : null}
+          </section>
+        )}
+
         {!isSalesperson && (
           <section aria-label="Lead assignment queue" style={{ marginBottom: 16, border: "1px solid #cfe1d6", borderRadius: 14, background: "#ffffff", overflow: "hidden" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, padding: "14px 16px", background: "#f0f8f3", borderBottom: "1px solid #dce9e1" }}>
