@@ -20,11 +20,11 @@ create index if not exists idx_alumni_work_tasks_alumni on public.alumni_work_ta
 alter table public.alumni_work_tasks enable row level security;
 drop policy if exists alumni_work_tasks_read on public.alumni_work_tasks;
 create policy alumni_work_tasks_read on public.alumni_work_tasks for select to authenticated
-using (public.is_admin_or_manager() or assigned_to = auth.uid() or created_by = auth.uid());
+using (exists (select 1 from public.profiles p where p.id=auth.uid() and p.role in ('super_admin','admin','manager')) or assigned_to = auth.uid() or created_by = auth.uid());
 drop policy if exists alumni_work_tasks_insert on public.alumni_work_tasks;
 create policy alumni_work_tasks_insert on public.alumni_work_tasks for insert to authenticated
-with check (public.is_admin_or_manager() or created_by = auth.uid());
+with check (exists (select 1 from public.profiles p where p.id=auth.uid() and p.role in ('super_admin','admin','manager')) or created_by = auth.uid());
 drop policy if exists alumni_work_tasks_update on public.alumni_work_tasks;
 create policy alumni_work_tasks_update on public.alumni_work_tasks for update to authenticated
-using (public.is_admin_or_manager() or assigned_to = auth.uid() or created_by = auth.uid())
-with check (public.is_admin_or_manager() or assigned_to = auth.uid() or created_by = auth.uid());
+using (exists (select 1 from public.profiles p where p.id=auth.uid() and p.role in ('super_admin','admin','manager')) or assigned_to = auth.uid() or created_by = auth.uid())
+with check (exists (select 1 from public.profiles p where p.id=auth.uid() and p.role in ('super_admin','admin','manager')) or assigned_to = auth.uid() or created_by = auth.uid());
