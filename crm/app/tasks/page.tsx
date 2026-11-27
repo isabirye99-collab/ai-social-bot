@@ -2962,6 +2962,90 @@ const isSalesperson =
           ))}
         </section>
 
+        <section aria-label="CIU working calendar and absence management" style={{ marginBottom: 16, border: "1px solid #cfe1d6", borderRadius: 14, background: "#ffffff", overflow: "hidden" }}>
+          <div style={{ padding: "14px 16px", background: "#f0f8f3", borderBottom: "1px solid #dce9e1" }}>
+            <div style={{ color: "#075442", fontSize: 15, fontWeight: 800 }}>CIU Working Calendar & Staff Absence</div>
+            <div style={{ color: "#536b5d", fontSize: 12, marginTop: 4 }}>Targets use the maintained calendar. Weekends are excluded unless explicitly marked as a CIU working day. Enter official holidays and campus closures here.</div>
+          </div>
+          <div style={{ padding: 14, display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))", gap: 16 }}>
+            {canViewTeamContactPerformance && (
+              <div style={{ border: "1px solid #e2ece5", borderRadius: 10, padding: 12 }}>
+                <div style={{ color: "#075442", fontWeight: 750, fontSize: 13, marginBottom: 10 }}>Add or update calendar date</div>
+                <label style={{ display: "block", fontSize: 11, color: "#52665a", marginBottom: 4 }}>Date</label>
+                <input type="date" value={calendarDate} onChange={(event) => setCalendarDate(event.target.value)} style={{ width: "100%", padding: 8, border: "1px solid #cbd5cf", borderRadius: 7, marginBottom: 8 }} />
+                <label style={{ display: "block", fontSize: 11, color: "#52665a", marginBottom: 4 }}>Title</label>
+                <input value={calendarTitle} onChange={(event) => setCalendarTitle(event.target.value)} placeholder="e.g. Uganda public holiday" style={{ width: "100%", padding: 8, border: "1px solid #cbd5cf", borderRadius: 7, marginBottom: 8 }} />
+                <label style={{ display: "block", fontSize: 11, color: "#52665a", marginBottom: 4 }}>Day type</label>
+                <select value={calendarType} onChange={(event) => setCalendarType(event.target.value as WorkingCalendarDay["day_type"])} style={{ width: "100%", padding: 8, border: "1px solid #cbd5cf", borderRadius: 7, marginBottom: 8 }}>
+                  <option value="public_holiday">Public holiday (no target)</option>
+                  <option value="ciu_closure">CIU closure (no target)</option>
+                  <option value="working_day">Official working day (override weekend)</option>
+                </select>
+                <textarea value={calendarNotes} onChange={(event) => setCalendarNotes(event.target.value)} placeholder="Source / notes (optional)" rows={2} style={{ width: "100%", padding: 8, border: "1px solid #cbd5cf", borderRadius: 7, marginBottom: 8 }} />
+                <button type="button" disabled={savingGovernance} onClick={() => void saveCalendarDay()} style={{ padding: "8px 12px", border: 0, borderRadius: 7, background: "#087443", color: "#fff", fontWeight: 700, cursor: "pointer" }}>{savingGovernance ? "Saving…" : "Save calendar date"}</button>
+              </div>
+            )}
+            {currentRole === "salesperson" && (
+              <div style={{ border: "1px solid #e2ece5", borderRadius: 10, padding: 12 }}>
+                <div style={{ color: "#075442", fontWeight: 750, fontSize: 13, marginBottom: 10 }}>Request absence</div>
+                <label style={{ display: "block", fontSize: 11, color: "#52665a", marginBottom: 4 }}>Date</label>
+                <input type="date" value={absenceDate} onChange={(event) => setAbsenceDate(event.target.value)} style={{ width: "100%", padding: 8, border: "1px solid #cbd5cf", borderRadius: 7, marginBottom: 8 }} />
+                <label style={{ display: "block", fontSize: 11, color: "#52665a", marginBottom: 4 }}>Absence fraction</label>
+                <select value={absenceFraction} onChange={(event) => setAbsenceFraction(event.target.value)} style={{ width: "100%", padding: 8, border: "1px solid #cbd5cf", borderRadius: 7, marginBottom: 8 }}>
+                  <option value="1">Full day (100%)</option>
+                  <option value="0.75">Three-quarter day (75%)</option>
+                  <option value="0.5">Half day (50%)</option>
+                  <option value="0.25">Quarter day (25%)</option>
+                </select>
+                <textarea value={absenceReason} onChange={(event) => setAbsenceReason(event.target.value)} placeholder="Reason for absence (required)" rows={2} style={{ width: "100%", padding: 8, border: "1px solid #cbd5cf", borderRadius: 7, marginBottom: 8 }} />
+                <button type="button" disabled={savingGovernance} onClick={() => void requestMyAbsence()} style={{ padding: "8px 12px", border: 0, borderRadius: 7, background: "#087443", color: "#fff", fontWeight: 700, cursor: "pointer" }}>Submit request</button>
+              </div>
+            )}
+            <div style={{ border: "1px solid #e2ece5", borderRadius: 10, padding: 12 }}>
+              <div style={{ color: "#075442", fontWeight: 750, fontSize: 13, marginBottom: 8 }}>Upcoming / recorded calendar dates</div>
+              {workingCalendar.length ? workingCalendar.slice(0, 8).map((day) => <div key={day.calendar_date} style={{ padding: "7px 0", borderBottom: "1px solid #edf3ef", fontSize: 12 }}><b>{day.calendar_date}</b> · {day.title}<div style={{ color: "#64756b", fontSize: 11 }}>{day.day_type.replaceAll("_", " ")}</div></div>) : <div style={{ color: "#64756b", fontSize: 12 }}>No calendar dates entered yet. Management should maintain the official Uganda/CIU holiday calendar.</div>}
+            </div>
+          </div>
+          {absenceRequests.length > 0 && (
+            <div style={{ padding: 14, borderTop: "1px solid #e2ece5" }}>
+              <div style={{ color: "#075442", fontWeight: 750, fontSize: 13, marginBottom: 8 }}>{canViewTeamContactPerformance ? "Staff absence requests" : "My absence requests"}</div>
+              <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse", minWidth: 600 }}>
+                <thead><tr style={{ textAlign: "left", fontSize: 11, color: "#52665a" }}><th style={{ padding: 7 }}>Salesperson</th><th style={{ padding: 7 }}>Date</th><th style={{ padding: 7 }}>Fraction</th><th style={{ padding: 7 }}>Reason</th><th style={{ padding: 7 }}>Status</th><th style={{ padding: 7 }}>Action</th></tr></thead>
+                <tbody>{absenceRequests.filter((request) => canViewTeamContactPerformance || request.salesperson_id === currentUserId || request.requested_by === currentUserId).slice(0, 30).map((request) => {
+                  const owner = profiles.find((profile) => profile.id === request.salesperson_id);
+                  return <tr key={request.id}><td style={{ padding: 7, borderTop: "1px solid #edf3ef", fontSize: 12 }}>{owner?.full_name || "Salesperson"}</td><td style={{ padding: 7, borderTop: "1px solid #edf3ef", fontSize: 12 }}>{request.absence_date}</td><td style={{ padding: 7, borderTop: "1px solid #edf3ef", fontSize: 12 }}>{Math.round(Number(request.day_fraction) * 100)}%</td><td style={{ padding: 7, borderTop: "1px solid #edf3ef", fontSize: 12 }}>{request.reason}</td><td style={{ padding: 7, borderTop: "1px solid #edf3ef", fontSize: 12, fontWeight: 700 }}>{request.status}</td><td style={{ padding: 7, borderTop: "1px solid #edf3ef" }}>{canViewTeamContactPerformance && request.status === "pending" ? <div style={{ display: "flex", gap: 5 }}><button type="button" disabled={savingGovernance} onClick={() => void decideAbsenceRequest(request, "approved")} style={{ border: "1px solid #087443", borderRadius: 6, padding: "5px 7px", color: "#087443", background: "#fff", fontSize: 11 }}>Approve</button><button type="button" disabled={savingGovernance} onClick={() => void decideAbsenceRequest(request, "rejected")} style={{ border: "1px solid #b42318", borderRadius: 6, padding: "5px 7px", color: "#b42318", background: "#fff", fontSize: 11 }}>Reject</button></div> : "—"}</td></tr>;
+                })}</tbody>
+              </table></div>
+            </div>
+          )}
+        </section>
+
+        <section aria-label="Daily contact report finalisation" style={{ marginBottom: 16, border: "1px solid #cfe1d6", borderRadius: 14, background: "#ffffff", overflow: "hidden" }}>
+          <div style={{ padding: "14px 16px", background: "#f0f8f3", borderBottom: "1px solid #dce9e1" }}>
+            <div style={{ color: "#075442", fontSize: 15, fontWeight: 800 }}>End-of-Day Contact Reports</div>
+            <div style={{ color: "#536b5d", fontSize: 12, marginTop: 4 }}>Reports may be finalised from 5:00pm East Africa Time. Existing reports are preserved; corrections create a new revision with a required reason.</div>
+          </div>
+          <div style={{ padding: 14, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+            <div style={{ color: "#173b2b", fontSize: 12, flex: 1 }}>Today ({dailyContactSummary.todayKey}): {dailyContactSummary.isWorkingDay ? "official working day" : "non-working day"} · Target for you: {dailyContactSummary.myTarget}</div>
+            {currentRole === "salesperson" && <button type="button" disabled={savingGovernance} onClick={() => void finalizeContactReport(currentUserId)} style={{ padding: "8px 12px", border: "1px solid #087443", borderRadius: 8, background: "#fff", color: "#075442", fontWeight: 750, cursor: "pointer" }}>Finalise my report</button>}
+            {canViewTeamContactPerformance && dailyContactSummary.staff.map((person) => <button key={person.id} type="button" disabled={savingGovernance} onClick={() => void finalizeContactReport(person.id)} style={{ padding: "7px 10px", border: "1px solid #cfe1d6", borderRadius: 8, background: "#fff", color: "#075442", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Finalise: {person.name}</button>)}
+          </div>
+          <div style={{ padding: "0 14px 14px", overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse", minWidth: 650 }}>
+            <thead><tr style={{ textAlign: "left", color: "#52665a", fontSize: 11 }}><th style={{ padding: 8 }}>Salesperson</th><th style={{ padding: 8 }}>Report date</th><th style={{ padding: 8 }}>Revision</th><th style={{ padding: 8 }}>Students / target</th><th style={{ padding: 8 }}>Finalised at (EAT)</th><th style={{ padding: 8 }}>PDF</th></tr></thead>
+            <tbody>{contactReportSnapshots.filter((snapshot) => snapshot.report_date === dailyContactSummary.todayKey).reduce((latest, snapshot) => {
+              const existing = latest.find((item) => item.salesperson_id === snapshot.salesperson_id);
+              if (!existing || snapshot.revision > existing.revision) {
+                return [...latest.filter((item) => item.salesperson_id !== snapshot.salesperson_id), snapshot];
+              }
+              return latest;
+            }, [] as ContactReportSnapshot[]).filter((snapshot) => canViewTeamContactPerformance || snapshot.salesperson_id === currentUserId).map((snapshot) => {
+              const data = snapshot.report_data as any;
+              const owner = profiles.find((profile) => profile.id === snapshot.salesperson_id);
+              return <tr key={snapshot.id}><td style={{ padding: 8, borderTop: "1px solid #edf3ef", fontSize: 12 }}>{owner?.full_name || data.salesperson_name || "Salesperson"}</td><td style={{ padding: 8, borderTop: "1px solid #edf3ef", fontSize: 12 }}>{snapshot.report_date}</td><td style={{ padding: 8, borderTop: "1px solid #edf3ef", fontSize: 12 }}>{snapshot.revision}{snapshot.correction_reason ? <div style={{ color: "#64756b", fontSize: 10 }}>{snapshot.correction_reason}</div> : null}</td><td style={{ padding: 8, borderTop: "1px solid #edf3ef", fontSize: 12 }}>{String(data.unique_students_contacted ?? 0)} / {String(data.target ?? 50)}<div style={{ color: "#64756b", fontSize: 10 }}>{String(data.status ?? "")}</div></td><td style={{ padding: 8, borderTop: "1px solid #edf3ef", fontSize: 12 }}>{formatDateTime(snapshot.finalized_at)}</td><td style={{ padding: 8, borderTop: "1px solid #edf3ef" }}><button type="button" onClick={() => printContactReport(snapshot)} style={{ border: "1px solid #087443", borderRadius: 6, padding: "6px 8px", background: "#fff", color: "#075442", fontSize: 11 }}>Print / Save PDF</button></td></tr>;
+            })}</tbody>
+          </table></div>
+        </section>
+
         {currentRole === "salesperson" && (
           <section aria-label="My daily contact report" style={{ marginBottom: 16, border: "1px solid #cfe1d6", borderRadius: 12, background: "#ffffff", padding: "12px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
             <div>
