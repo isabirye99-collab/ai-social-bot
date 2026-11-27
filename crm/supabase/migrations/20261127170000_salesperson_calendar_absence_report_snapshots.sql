@@ -182,17 +182,16 @@ begin
   if not exists (select 1 from public.profiles p where p.id = v_salesperson_id and p.is_active = true and p.role = 'salesperson') then
     raise exception 'The report owner must be an active salesperson';
   end if;
-  if (now() at time zone 'Africa/Kampala')::date <> p_report_date then
-    raise exception 'Only the current EAT report date can be finalised or corrected from this screen';
-  end if;
-  if (now() at time zone 'Africa/Kampala')::time < time '17:00' then
-    raise exception 'Daily contact reports can be finalised from 5:00pm East Africa Time';
+  if p_report_date > (now() at time zone 'Africa/Kampala')::date then
+    raise exception 'A future report date cannot be finalised or corrected';
   end if;
 
   select * into v_latest from public.salesperson_contact_report_snapshots
    where report_date = p_report_date and salesperson_id = v_salesperson_id
    order by revision desc limit 1;
   if found then
+    -- Corrections to an existing immutable snapshot may be made later, including
+    -- for prior dates, but must always create a new revision with a reason.
     if nullif(trim(coalesce(p_correction_reason,'')), '') is null then
       raise exception 'A correction reason is required because a report has already been finalised';
     end if;
@@ -203,6 +202,13 @@ begin
       (p_report_date, v_salesperson_id, v_revision, p_report_data, v_actor, v_latest.id, trim(p_correction_reason))
     returning id into v_new_id;
   else
+    -- Only the first finalisation is limited to today's report after 17:00 EAT.
+    if p_report_date <> (now() at time zone 'Africa/Kampala')::date then
+      raise exception 'An original report can only be finalised for the current EAT date';
+    end if;
+    if (now() at time zone 'Africa/Kampala')::time < time '17:00' then
+      raise exception 'Daily contact reports can be finalised from 5:00pm East Africa Time';
+    end if;
     if nullif(trim(coalesce(p_correction_reason,'')), '') is not null then
       raise exception 'A correction reason is only valid after the original report exists';
     end if;
