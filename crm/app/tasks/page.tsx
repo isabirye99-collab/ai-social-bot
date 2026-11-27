@@ -3168,7 +3168,7 @@ const isSalesperson =
           </table></div>
         </section>
 
-        {!isSalesperson && (
+        {canManageLeadAssignments && (
           <section aria-label="Lead assignment queue" style={{ marginBottom: 16, border: "1px solid #cfe1d6", borderRadius: 14, background: "#ffffff", overflow: "hidden" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, padding: "14px 16px", background: "#f0f8f3", borderBottom: "1px solid #dce9e1" }}>
               <div style={{ flex: "1 1 280px" }}>
