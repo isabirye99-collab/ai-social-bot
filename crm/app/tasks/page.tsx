@@ -52,6 +52,18 @@ type Profile = {
   is_active: boolean | null;
 };
 
+type DailyInteraction = {
+  id: string;
+  lead_id: string | null;
+  channel: string | null;
+  response: string | null;
+  outcome: string | null;
+  assigned_to: string | null;
+  contacted_at: string | null;
+  created_by: string | null;
+  task_id: string | null;
+};
+
 type Lead = {
   id: string;
   name: string | null;
@@ -363,6 +375,7 @@ export default function TasksPage() {
     Opportunity[]
   >([]);
   const [stages, setStages] = useState<PipelineStage[]>([]);
+  const [dailyInteractions, setDailyInteractions] = useState<DailyInteraction[]>([]);
 
   const [currentUserId, setCurrentUserId] =
     useState("");
@@ -493,6 +506,17 @@ const isSalesperson =
       setCurrentUserId(user.id);
       setCurrentRole(role);
 
+      // Daily accountability uses the CIU local day (East Africa Time), not
+      // the viewer's device timezone. This is a read of existing interaction logs.
+      const kampalaDateKey = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Africa/Kampala",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(new Date());
+      const dayStart = new Date(`${kampalaDateKey}T00:00:00+03:00`);
+      const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+
       let tasksQuery = supabase
         .from("tasks")
         .select(
@@ -569,6 +593,7 @@ const isSalesperson =
         leadsResult,
         opportunitiesResult,
         stagesResult,
+        interactionsResult,
       ] = await Promise.all([
         fetchAllPages(tasksQuery),
 
@@ -593,6 +618,13 @@ const isSalesperson =
           .order("position", {
             ascending: true,
           }),
+
+        supabase
+          .from("engagement_interactions")
+          .select("id,lead_id,channel,response,outcome,assigned_to,contacted_at,created_by,task_id")
+          .gte("contacted_at", dayStart.toISOString())
+          .lt("contacted_at", dayEnd.toISOString())
+          .order("contacted_at", { ascending: false }),
       ]);
 
       if (tasksResult.error)
@@ -609,6 +641,11 @@ const isSalesperson =
 
       if (stagesResult.error)
         throw stagesResult.error;
+
+      if (interactionsResult.error)
+        throw interactionsResult.error;
+
+      setDailyInteractions((interactionsResult.data || []) as DailyInteraction[]);
 
       const loadedTasks = (tasksResult.data || []) as Task[];
 
@@ -726,6 +763,43 @@ const isSalesperson =
       interestedLeads: scopedLeads.filter(isInterestedLead).length,
     };
   }, [tasks, leads, selectedIntake]);
+
+  const dailyContactSummary = useMemo(() => {
+    const isQualifyingAnsweredCall = (interaction: DailyInteraction) => {
+      const channel = (interaction.channel || "").trim().toLowerCase();
+      const response = (interaction.response || "").trim().toLowerCase();
+      const outcome = (interaction.outcome || "").trim().toLowerCase();
+      return channel === "call" &&
+        response === "answered" &&
+        outcome !== "wrong number" &&
+        Boolean(interaction.lead_id) &&
+        Boolean(interaction.created_by || interaction.assigned_to);
+    };
+
+    const qualifying = dailyInteractions.filter(isQualifyingAnsweredCall);
+    const countForStaff = (staffId: string) =>
+      new Set(qualifying
+        .filter((interaction) => (interaction.created_by || interaction.assigned_to) === staffId)
+        .map((interaction) => interaction.lead_id)
+      ).size;
+
+    const teamPairs = new Set(qualifying.map((interaction) =>
+      `${interaction.created_by || interaction.assigned_to}:${interaction.lead_id}`
+    ));
+
+    return {
+      mine: countForStaff(currentUserId),
+      team: teamPairs.size,
+      staff: profiles
+        .filter((profile) => profile.role === "salesperson" && profile.is_active !== false)
+        .map((profile) => ({
+          id: profile.id,
+          name: profile.full_name || "Unnamed salesperson",
+          contacted: countForStaff(profile.id),
+        }))
+        .sort((a, b) => b.contacted - a.contacted || a.name.localeCompare(b.name)),
+    };
+  }, [dailyInteractions, currentUserId, profiles]);
 
   const performanceSummary = useMemo(() => {
     const [intakeYear, intakeMonth] = selectedIntake.split("-").map(Number);
@@ -1820,6 +1894,41 @@ const isSalesperson =
         outcomeNotes
       );
 
+      // Log each call outcome in the existing engagement history. The task_id
+      // lookup makes retries idempotent at the UI level and avoids counting a
+      // second interaction when the task save is retried.
+      if ((outcomeTask.task_type || "").toLowerCase() === "call" && outcomeTask.lead_id) {
+        const { data: priorInteraction, error: priorInteractionError } = await supabase
+          .from("engagement_interactions")
+          .select("id")
+          .eq("task_id", outcomeTask.id)
+          .limit(1)
+          .maybeSingle();
+        if (priorInteractionError) throw priorInteractionError;
+
+        if (!priorInteraction) {
+          const normalizedOutcome = selectedOutcome.trim().toLowerCase();
+          const response = ["no answer", "unreachable"].includes(normalizedOutcome)
+            ? "unanswered"
+            : normalizedOutcome === "wrong number"
+              ? "invalid_number"
+              : "answered";
+          const { error: interactionInsertError } = await supabase
+            .from("engagement_interactions")
+            .insert({
+              lead_id: outcomeTask.lead_id,
+              task_id: outcomeTask.id,
+              channel: "call",
+              response,
+              outcome: selectedOutcome,
+              assigned_to: currentUserId,
+              created_by: currentUserId,
+              contacted_at: new Date().toISOString(),
+            });
+          if (interactionInsertError) throw interactionInsertError;
+        }
+      }
+
       const previousDescription =
         outcomeTask.description
           ?.trim() || "";
@@ -2271,6 +2380,7 @@ const isSalesperson =
         {/* ROLE-SPECIFIC PERFORMANCE SUMMARY */}
         <section aria-label="Task performance summary" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(145px, 1fr))", gap: 8, marginBottom: 10 }}>
           {[
+            { label: performanceSummary.isManager ? "Team contacted today (per-salesperson unique)" : "Unique students contacted today", value: performanceSummary.isManager ? dailyContactSummary.team : dailyContactSummary.mine, note: "Answered calls only · Target: 50 per salesperson" },
             { label: performanceSummary.isManager ? "Team outstanding" : "My outstanding", value: performanceSummary.outstanding },
             { label: performanceSummary.isManager ? "Team overdue" : "My overdue", value: performanceSummary.overdue },
             { label: performanceSummary.isManager ? "Team completed today" : "Completed today", value: performanceSummary.completedToday },
@@ -2283,6 +2393,41 @@ const isSalesperson =
             </div>
           ))}
         </section>
+
+        {!isSalesperson && (
+          <section aria-label="Daily salesperson contact progress" style={{ marginBottom: 16, border: "1px solid #cfe1d6", borderRadius: 14, background: "#ffffff", overflow: "hidden" }}>
+            <div style={{ padding: "14px 16px", background: "#f0f8f3", borderBottom: "1px solid #dce9e1" }}>
+              <div style={{ color: "#075442", fontSize: 15, fontWeight: 800 }}>Daily Salesperson Contact Progress</div>
+              <div style={{ color: "#536b5d", fontSize: 12, marginTop: 4 }}>CIU working-day target: 50 unique students reached by answered phone call per salesperson. Counts are attributed to the staff member who recorded the call.</div>
+            </div>
+            <div style={{ padding: 12, overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 420 }}>
+                <thead><tr style={{ textAlign: "left", color: "#52665a", fontSize: 11 }}>
+                  <th style={{ padding: "8px 10px", borderBottom: "1px solid #e2e8e3" }}>Salesperson</th>
+                  <th style={{ padding: "8px 10px", borderBottom: "1px solid #e2e8e3" }}>Unique students</th>
+                  <th style={{ padding: "8px 10px", borderBottom: "1px solid #e2e8e3" }}>Target progress</th>
+                  <th style={{ padding: "8px 10px", borderBottom: "1px solid #e2e8e3" }}>Status</th>
+                </tr></thead>
+                <tbody>
+                  {dailyContactSummary.staff.map((person) => {
+                    const achieved = person.contacted >= 50;
+                    return <tr key={person.id}>
+                      <td style={{ padding: "9px 10px", borderBottom: "1px solid #eef2ef", color: "#183b2b", fontSize: 12, fontWeight: 650 }}>{person.name}</td>
+                      <td style={{ padding: "9px 10px", borderBottom: "1px solid #eef2ef", color: "#183b2b", fontSize: 12 }}>{person.contacted} / 50</td>
+                      <td style={{ padding: "9px 10px", borderBottom: "1px solid #eef2ef", minWidth: 120 }}>
+                        <div style={{ height: 7, background: "#e8efe9", borderRadius: 999, overflow: "hidden" }}>
+                          <div style={{ height: "100%", width: `${Math.min(100, (person.contacted / 50) * 100)}%`, background: achieved ? "#087443" : "#8bc63f", borderRadius: 999 }} />
+                        </div>
+                      </td>
+                      <td style={{ padding: "9px 10px", borderBottom: "1px solid #eef2ef", fontSize: 11, fontWeight: 700, color: achieved ? "#087443" : person.contacted > 0 ? "#8a5a00" : "#64748b" }}>{achieved ? "Target achieved" : person.contacted > 0 ? "In progress" : "No qualifying calls"}</td>
+                    </tr>;
+                  })}
+                  {dailyContactSummary.staff.length === 0 && <tr><td colSpan={4} style={{ padding: 12, color: "#64748b", fontSize: 12 }}>No active salesperson profiles were found.</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
 
         {!isSalesperson && (
           <section aria-label="Lead assignment queue" style={{ marginBottom: 16, border: "1px solid #cfe1d6", borderRadius: 14, background: "#ffffff", overflow: "hidden" }}>
