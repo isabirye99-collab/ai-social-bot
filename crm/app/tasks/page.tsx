@@ -1251,6 +1251,36 @@ const isSalesperson =
     popup.document.close();
   };
 
+  const exportAbsenceDecisionHistory = () => {
+    const escapeCsv = (value: unknown) => `"${String(value ?? "").replace(/"/g, '""')}"`;
+    const rows: unknown[][] = [
+      ["CIU Absence Decision Audit History"],
+      ["Generated at (EAT)", new Intl.DateTimeFormat("en-UG", { timeZone: "Africa/Kampala", dateStyle: "medium", timeStyle: "short" }).format(new Date())],
+      [],
+      ["Decision time (EAT)", "Salesperson", "Absence date", "Decision", "Decision maker", "Notes", "Request ID"],
+      ...absenceDecisionHistory
+        .filter((entry) => canViewTeamContactPerformance || entry.salesperson_id === currentUserId)
+        .map((entry) => {
+          const owner = profiles.find((profile) => profile.id === entry.salesperson_id);
+          const decisionMaker = profiles.find((profile) => profile.id === entry.decided_by);
+          return [
+            new Intl.DateTimeFormat("en-UG", { timeZone: "Africa/Kampala", dateStyle: "short", timeStyle: "short" }).format(new Date(entry.decided_at)),
+            owner?.full_name || entry.salesperson_id, entry.absence_date, entry.new_status,
+            decisionMaker?.full_name || entry.decided_by, entry.decision_notes || "", entry.request_id,
+          ];
+        }),
+    ];
+    const blob = new Blob(["\uFEFF" + rows.map((row) => row.map(escapeCsv).join(",")).join("\r\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `ciu-absence-decision-audit-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
   const exportContactReviewHistory = () => {
     if (!canViewTeamContactPerformance) {
       setError("Only authorised management users can export review history.");
@@ -3080,7 +3110,7 @@ const isSalesperson =
           )}
           {absenceDecisionHistory.filter((entry) => canViewTeamContactPerformance || entry.salesperson_id === currentUserId).length > 0 && (
             <div style={{ padding: 14, borderTop: "1px solid #e2ece5" }}>
-              <div style={{ color: "#075442", fontWeight: 750, fontSize: 13, marginBottom: 8 }}>Absence Decision Audit History</div>
+              <div style={{ color: "#075442", fontWeight: 750, fontSize: 13, marginBottom: 8 }}>Absence Decision Audit History</div><button type="button" onClick={exportAbsenceDecisionHistory} style={{ marginBottom: 8, border: "1px solid #0b6b50", borderRadius: 7, padding: "6px 9px", background: "#fff", color: "#075442", fontSize: 11, fontWeight: 700 }}>Export absence audit (CSV)</button>
               <div style={{ color: "#64756b", fontSize: 11, marginBottom: 8 }}>Previous approval/rejection decisions are preserved for audit and cannot be silently edited or deleted.</div>
               <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse", minWidth: 650 }}>
                 <thead><tr style={{ textAlign: "left", fontSize: 11, color: "#52665a" }}><th style={{ padding: 7 }}>Decision time (EAT)</th><th style={{ padding: 7 }}>Salesperson</th><th style={{ padding: 7 }}>Absence date</th><th style={{ padding: 7 }}>Decision</th><th style={{ padding: 7 }}>Decision by</th><th style={{ padding: 7 }}>Notes</th></tr></thead>
