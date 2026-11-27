@@ -63,13 +63,7 @@ export default function ReportsPage() {
   const canViewTeam = ["super_admin", "admin", "manager"].includes(role);
   const canViewReports = modules.includes("reports");
   const allowedModules = moduleReports.filter(item => modules.includes(item.module));
-  const listedReports: ReportCard[] = [
-    ...(canViewReports ? [
-      { title: "Individual reports", description: "Your personal activity, assigned leads, calls, follow-ups and results for a selected period.", href: "/reports/performance?view=individual", module: "reports" as CrmModule, tag: "My performance", icon: "◎" },
-      ...(canViewTeam ? [{ title: "General reports", description: "Organisation-wide performance, team results and individual staff breakdowns for authorised managers.", href: "/reports/performance?view=general", module: "reports" as CrmModule, tag: "Management overview", icon: "▥" }] : []),
-    ] : []),
-    ...allowedModules,
-  ];
+  const listedReports: ReportCard[] = [...allowedModules];
 
   if (loading) return <main className="ciu-page" style={{ padding: 32, color: "#173d34" }}><div style={{ ...styles.panel, padding: 24 }}>Preparing your reports and access permissions…</div></main>;
 
@@ -97,32 +91,7 @@ export default function ReportsPage() {
       <div style={{ fontSize: 11, color: "#73837a" }}>Reports shown here follow your assigned CRM permissions.</div>
     </div>
 
-    {canViewTeam && canViewReports && <section aria-label="General reports" style={{ ...styles.panel, padding: "20px clamp(16px,2.5vw,26px)", marginBottom: 18, display: "grid", gridTemplateColumns: "minmax(0,1.4fr) minmax(220px,.6fr)", gap: 20, alignItems: "center" }}>
-      <div>
-        <div style={{ display: "inline-flex", alignItems: "center", borderRadius: 20, padding: "5px 9px", background: "#e6f5eb", color: "#176849", fontSize: 10, fontWeight: 850, letterSpacing: .7 }}>01 · GENERAL REPORTS</div>
-        <h3 style={{ margin: "12px 0 6px", fontSize: 19, fontWeight: 850 }}>Organisation & team performance</h3>
-        <p style={{ margin: 0, maxWidth: 620, color: "#718078", fontSize: 12, lineHeight: 1.75 }}>Review recruitment activity, admissions progress, team output, intake performance, alumni relations and partnerships in one consolidated report.</p>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginTop: 14 }}>{["Daily", "Weekly", "Monthly", "Intake view"].map(x => <span key={x} style={{ border: "1px solid #e2ebe5", background: "#fafcfb", color: "#51685d", borderRadius: 7, padding: "6px 9px", fontSize: 10, fontWeight: 750 }}>{x}</span>)}</div>
-      </div>
-      <div style={{ background: "#f3f9f5", border: "1px solid #dfede3", borderRadius: 12, padding: 18 }}>
-        <div style={{ fontSize: 12, color: "#60766a", lineHeight: 1.6 }}>{canViewTeam ? "Your role allows access to team-level reporting." : "Organisation-wide reporting is restricted to authorised management roles."}</div>
-        {canViewTeam && canViewReports ? <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 14 }}><Link href="/reports/performance" style={{ ...styles.button, marginTop: 0 }}>Open general report <span aria-hidden="true">→</span></Link><Link href="/reports/intake" style={{ ...styles.button, marginTop: 0, background: "#fff", color: "#176849", border: "1px solid #cfe2d4" }}>Open intake report <span aria-hidden="true">→</span></Link></div> : <div style={{ marginTop: 13, fontSize: 11, fontWeight: 800, color: "#7a8981" }}>Management permission required</div>}
-      </div>
-    </section>}
-
-    {canViewReports && <section aria-label="Individual reports" style={{ ...styles.panel, padding: "20px clamp(16px,2.5vw,26px)", marginBottom: 22, display: "grid", gridTemplateColumns: "minmax(0,1.4fr) minmax(220px,.6fr)", gap: 20, alignItems: "center" }}>
-      <div>
-        <div style={{ display: "inline-flex", alignItems: "center", borderRadius: 20, padding: "5px 9px", background: "#e9f0fb", color: "#315a8b", fontSize: 10, fontWeight: 850, letterSpacing: .7 }}>02 · INDIVIDUAL REPORTS</div>
-        <h3 style={{ margin: "12px 0 6px", fontSize: 19, fontWeight: 850 }}>My activity & results</h3>
-        <p style={{ margin: 0, maxWidth: 620, color: "#718078", fontSize: 12, lineHeight: 1.75 }}>A personal view of assigned leads, calls and follow-ups, admissions outcomes, tasks completed and your activity for the selected day, week or month. Managers can also review eligible staff reports.</p>
-      </div>
-      <div style={{ background: "#f5f8fd", border: "1px solid #e0e8f5", borderRadius: 12, padding: 18 }}>
-        <div style={{ fontSize: 12, color: "#60718a", lineHeight: 1.6 }}>{canViewTeam ? "Your report includes team performance and individual staff breakdowns." : "Your report is limited to your own activity and records available to your account."}</div>
-        {canViewReports ? <Link href="/reports/performance?view=individual" style={{ ...styles.button, marginTop: 14, background: "#315a8b" }}>Open individual report <span aria-hidden="true">→</span></Link> : <div style={{ marginTop: 13, fontSize: 11, fontWeight: 800, color: "#7a8981" }}>Reports permission required</div>}
-      </div>
-    </section>}
-
-    <div style={{ marginBottom: 13 }}><div style={{ color: "#16715b", fontSize: 10, letterSpacing: 1.5, fontWeight: 850 }}>03 · MODULE REPORTS</div><h2 style={{ margin: "5px 0 4px", fontSize: 21, fontWeight: 850 }}>Reports by work area</h2><p style={{ margin: 0, fontSize: 12, color: "#718078" }}>Open a module you have been granted access to. Modules without permission are not listed.</p></div>
+    <div style={{ marginBottom: 13 }}><div style={{ color: "#16715b", fontSize: 10, letterSpacing: 1.5, fontWeight: 850 }}>REPORT CATEGORIES</div><h2 style={{ margin: "5px 0 4px", fontSize: 21, fontWeight: 850 }}>Reports by work area</h2><p style={{ margin: 0, fontSize: 12, color: "#718078" }}>Open a report area you have been granted access to. Areas without permission are not listed.</p></div>
     {listedReports.length ? <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,245px),1fr))", gap: 13 }}>
       {listedReports.map(item => <Link key={item.href} href={item.href} style={{ ...styles.panel, display: "flex", flexDirection: "column", minHeight: 176, padding: 18, textDecoration: "none", color: "#173d34", transition: "transform .15s ease,border-color .15s ease" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}><span style={{ display: "grid", placeItems: "center", width: 38, height: 38, borderRadius: 11, background: "#e8f5ec", color: "#12614d", fontSize: 20, fontWeight: 850 }}>{item.icon}</span><span style={{ fontSize: 9, fontWeight: 850, color: "#7d8b83", letterSpacing: 1 }}>{item.tag.toUpperCase()}</span></div>
