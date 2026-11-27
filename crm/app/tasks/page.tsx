@@ -1251,7 +1251,7 @@ const isSalesperson =
         ];
       }),
     ];
-    const blob = new Blob(["\\uFEFF" + rows.map((row) => row.map(escapeCsv).join(",")).join("\\r\\n")], { type: "text/csv;charset=utf-8;" });
+    const blob = new Blob(["\uFEFF" + rows.map((row) => row.map(escapeCsv).join(",")).join("\r\n")], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
@@ -3069,13 +3069,7 @@ const isSalesperson =
           </div>
           <div style={{ padding: "0 14px 14px", overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse", minWidth: 650 }}>
             <thead><tr style={{ textAlign: "left", color: "#52665a", fontSize: 11 }}><th style={{ padding: 8 }}>Salesperson</th><th style={{ padding: 8 }}>Report date</th><th style={{ padding: 8 }}>Revision</th><th style={{ padding: 8 }}>Students / target</th><th style={{ padding: 8 }}>Finalised at (EAT)</th><th style={{ padding: 8 }}>PDF</th></tr></thead>
-            <tbody>{contactReportSnapshots.filter((snapshot) => snapshot.report_date === dailyContactSummary.todayKey).reduce((latest, snapshot) => {
-              const existing = latest.find((item) => item.salesperson_id === snapshot.salesperson_id);
-              if (!existing || snapshot.revision > existing.revision) {
-                return [...latest.filter((item) => item.salesperson_id !== snapshot.salesperson_id), snapshot];
-              }
-              return latest;
-            }, [] as ContactReportSnapshot[]).filter((snapshot) => canViewTeamContactPerformance || snapshot.salesperson_id === currentUserId).map((snapshot) => {
+            <tbody>{contactReportSnapshots.filter((snapshot) => snapshot.report_date === dailyContactSummary.todayKey).sort((a, b) => a.salesperson_id.localeCompare(b.salesperson_id) || b.revision - a.revision).filter((snapshot) => canViewTeamContactPerformance || snapshot.salesperson_id === currentUserId).map((snapshot) => {
               const data = snapshot.report_data as any;
               const owner = profiles.find((profile) => profile.id === snapshot.salesperson_id);
               return <tr key={snapshot.id}><td style={{ padding: 8, borderTop: "1px solid #edf3ef", fontSize: 12 }}>{owner?.full_name || data.salesperson_name || "Salesperson"}</td><td style={{ padding: 8, borderTop: "1px solid #edf3ef", fontSize: 12 }}>{snapshot.report_date}</td><td style={{ padding: 8, borderTop: "1px solid #edf3ef", fontSize: 12 }}>{snapshot.revision}{snapshot.correction_reason ? <div style={{ color: "#64756b", fontSize: 10 }}>{snapshot.correction_reason}</div> : null}</td><td style={{ padding: 8, borderTop: "1px solid #edf3ef", fontSize: 12 }}>{String(data.unique_students_contacted ?? 0)} / {String(data.target ?? 50)}<div style={{ color: "#64756b", fontSize: 10 }}>{String(data.status ?? "")}</div></td><td style={{ padding: 8, borderTop: "1px solid #edf3ef", fontSize: 12 }}>{formatDateTime(snapshot.finalized_at)}</td><td style={{ padding: 8, borderTop: "1px solid #edf3ef" }}><button type="button" onClick={() => printContactReport(snapshot)} style={{ border: "1px solid #087443", borderRadius: 6, padding: "6px 8px", background: "#fff", color: "#075442", fontSize: 11 }}>Print / Save PDF</button></td></tr>;
