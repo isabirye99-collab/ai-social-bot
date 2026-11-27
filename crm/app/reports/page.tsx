@@ -12,6 +12,7 @@ type ReportCard = { title: string; description: string; href: string; module: Cr
 const moduleReports: ReportCard[] = [
   { title: "Lead & recruitment", description: "Lead volume, follow-ups, conversion and recruitment pipeline.", href: "/reports/modules/leads", module: "leads", tag: "Recruitment", icon: "↗" },
   { title: "Tasks & productivity", description: "Assigned work, completed activities and follow-up workload.", href: "/reports/modules/tasks", module: "tasks", tag: "Productivity", icon: "✓" },
+  { title: "Salesperson contact performance", description: "Daily answered-call results, unique students reached, approved-absence adjustments and target attainment.", href: "/reports/contact-performance", module: "reports", tag: "Sales performance", icon: "☎" },
   { title: "Marketing activity", description: "Campaigns, outreach activity and marketing performance.", href: "/reports/modules/marketing", module: "marketing", tag: "Marketing", icon: "◉" },
   { title: "Strategy & intake", description: "Intake targets, planned activities, budgets and outcomes.", href: "/reports/modules/strategy", module: "strategy", tag: "Planning", icon: "◎" },
   { title: "Alumni relations", description: "Alumni profiles, verification, engagement and cohort reporting.", href: "/reports/modules/alumni", module: "alumni", tag: "Relationships", icon: "♧" },
