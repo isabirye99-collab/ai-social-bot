@@ -2007,41 +2007,6 @@ const isSalesperson =
         outcomeNotes
       );
 
-      // Log each call outcome in the existing engagement history. The task_id
-      // lookup makes retries idempotent at the UI level and avoids counting a
-      // second interaction when the task save is retried.
-      if ((outcomeTask.task_type || "").toLowerCase() === "call" && outcomeTask.lead_id) {
-        const { data: priorInteraction, error: priorInteractionError } = await supabase
-          .from("engagement_interactions")
-          .select("id")
-          .eq("task_id", outcomeTask.id)
-          .limit(1)
-          .maybeSingle();
-        if (priorInteractionError) throw priorInteractionError;
-
-        if (!priorInteraction) {
-          const normalizedOutcome = selectedOutcome.trim().toLowerCase();
-          const response = ["no answer", "unreachable"].includes(normalizedOutcome)
-            ? "unanswered"
-            : normalizedOutcome === "wrong number"
-              ? "invalid_number"
-              : "answered";
-          const { error: interactionInsertError } = await supabase
-            .from("engagement_interactions")
-            .insert({
-              lead_id: outcomeTask.lead_id,
-              task_id: outcomeTask.id,
-              channel: "call",
-              response,
-              outcome: selectedOutcome,
-              assigned_to: currentUserId,
-              created_by: currentUserId,
-              contacted_at: new Date().toISOString(),
-            });
-          if (interactionInsertError) throw interactionInsertError;
-        }
-      }
-
       const previousDescription =
         outcomeTask.description
           ?.trim() || "";
@@ -2079,6 +2044,41 @@ const isSalesperson =
 
       if (taskError) {
         throw taskError;
+      }
+
+      // Log each call outcome in the existing engagement history. The task_id
+      // lookup makes retries idempotent at the UI level and avoids counting a
+      // second interaction when the task save is retried.
+      if ((outcomeTask.task_type || "").toLowerCase() === "call" && outcomeTask.lead_id) {
+        const { data: priorInteraction, error: priorInteractionError } = await supabase
+          .from("engagement_interactions")
+          .select("id")
+          .eq("task_id", outcomeTask.id)
+          .limit(1)
+          .maybeSingle();
+        if (priorInteractionError) throw priorInteractionError;
+
+        if (!priorInteraction) {
+          const normalizedOutcome = selectedOutcome.trim().toLowerCase();
+          const response = ["no answer", "unreachable"].includes(normalizedOutcome)
+            ? "unanswered"
+            : normalizedOutcome === "wrong number"
+              ? "invalid_number"
+              : "answered";
+          const { error: interactionInsertError } = await supabase
+            .from("engagement_interactions")
+            .insert({
+              lead_id: outcomeTask.lead_id,
+              task_id: outcomeTask.id,
+              channel: "call",
+              response,
+              outcome: selectedOutcome,
+              assigned_to: currentUserId,
+              created_by: currentUserId,
+              contacted_at: new Date().toISOString(),
+            });
+          if (interactionInsertError) throw interactionInsertError;
+        }
       }
 
       if (
