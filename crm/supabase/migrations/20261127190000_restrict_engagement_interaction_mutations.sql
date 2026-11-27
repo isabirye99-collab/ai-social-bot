@@ -97,8 +97,8 @@ create policy "Active staff create engagement interactions"
         and assigned_to = auth.uid()
         and exists (
           select 1 from public.tasks t
-          where t.id = task_id
-            and t.lead_id = lead_id
+          where t.id = engagement_interactions.task_id
+            and t.lead_id = engagement_interactions.lead_id
             and t.task_type::text = 'call'
             and (t.assigned_to = auth.uid() or t.created_by = auth.uid())
         )
