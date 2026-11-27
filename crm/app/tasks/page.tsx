@@ -698,7 +698,7 @@ const isSalesperson =
           supabase
             .from("engagement_interactions")
             .select("id,lead_id,channel,response,outcome,assigned_to,contacted_at,created_by,task_id")
-            .eq("channel", "call")
+            .eq("channel", "outgoing_call")
             .order("contacted_at", { ascending: false })
         ),
 
@@ -919,7 +919,7 @@ const isSalesperson =
       const channel = (interaction.channel || "").trim().toLowerCase();
       const response = (interaction.response || "").trim().toLowerCase();
       const outcome = (interaction.outcome || "").trim().toLowerCase();
-      return channel === "call" &&
+      return channel === "outgoing_call" &&
         response === "answered" &&
         outcome !== "wrong number" &&
         Boolean(interaction.lead_id) &&
@@ -2615,7 +2615,8 @@ const isSalesperson =
             .insert({
               lead_id: outcomeTask.lead_id,
               task_id: outcomeTask.id,
-              channel: "call",
+              reason: "Salesperson task call outcome",
+              channel: "outgoing_call",
               response,
               outcome: selectedOutcome,
               assigned_to: currentUserId,
