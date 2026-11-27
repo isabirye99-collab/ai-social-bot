@@ -75,6 +75,40 @@ type ContactReviewHistory = {
   decided_at: string;
 };
 
+type WorkingCalendarDay = {
+  calendar_date: string;
+  title: string;
+  day_type: "public_holiday" | "ciu_closure" | "working_day";
+  is_active: boolean;
+  notes: string | null;
+};
+
+type AbsenceRequest = {
+  id: string;
+  salesperson_id: string;
+  absence_date: string;
+  day_fraction: number;
+  reason: string;
+  status: "pending" | "approved" | "rejected";
+  requested_by: string;
+  requested_at: string;
+  decided_by: string | null;
+  decided_at: string | null;
+  decision_notes: string | null;
+};
+
+type ContactReportSnapshot = {
+  id: string;
+  report_date: string;
+  salesperson_id: string;
+  revision: number;
+  report_data: Record<string, unknown>;
+  finalized_at: string;
+  finalized_by: string;
+  supersedes_id: string | null;
+  correction_reason: string | null;
+};
+
 type Lead = {
   id: string;
   name: string | null;
@@ -388,6 +422,17 @@ export default function TasksPage() {
   const [stages, setStages] = useState<PipelineStage[]>([]);
   const [dailyInteractions, setDailyInteractions] = useState<DailyInteraction[]>([]);
   const [contactReviewHistory, setContactReviewHistory] = useState<ContactReviewHistory[]>([]);
+  const [workingCalendar, setWorkingCalendar] = useState<WorkingCalendarDay[]>([]);
+  const [absenceRequests, setAbsenceRequests] = useState<AbsenceRequest[]>([]);
+  const [contactReportSnapshots, setContactReportSnapshots] = useState<ContactReportSnapshot[]>([]);
+  const [calendarDate, setCalendarDate] = useState("");
+  const [calendarTitle, setCalendarTitle] = useState("");
+  const [calendarType, setCalendarType] = useState<WorkingCalendarDay["day_type"]>("public_holiday");
+  const [calendarNotes, setCalendarNotes] = useState("");
+  const [absenceDate, setAbsenceDate] = useState("");
+  const [absenceFraction, setAbsenceFraction] = useState("1");
+  const [absenceReason, setAbsenceReason] = useState("");
+  const [savingGovernance, setSavingGovernance] = useState(false);
   const [savingReviewLeadId, setSavingReviewLeadId] = useState<string | null>(null);
   const [reviewClock, setReviewClock] = useState(() => Date.now());
 
@@ -606,6 +651,9 @@ const isSalesperson =
         stagesResult,
         interactionsResult,
         reviewHistoryResult,
+        calendarResult,
+        absenceResult,
+        reportSnapshotsResult,
       ] = await Promise.all([
         fetchAllPages(tasksQuery),
 
@@ -645,6 +693,25 @@ const isSalesperson =
             .select("id,lead_id,trigger_interaction_id,decision,notes,new_assigned_to,decided_by,decided_at")
             .order("decided_at", { ascending: false })
         ),
+
+        fetchAllPages(
+          supabase.from("ciu_working_calendar")
+            .select("calendar_date,title,day_type,is_active,notes")
+            .eq("is_active", true)
+            .order("calendar_date", { ascending: true })
+        ),
+
+        fetchAllPages(
+          supabase.from("salesperson_absence_requests")
+            .select("id,salesperson_id,absence_date,day_fraction,reason,status,requested_by,requested_at,decided_by,decided_at,decision_notes")
+            .order("absence_date", { ascending: false })
+        ),
+
+        fetchAllPages(
+          supabase.from("salesperson_contact_report_snapshots")
+            .select("id,report_date,salesperson_id,revision,report_data,finalized_at,finalized_by,supersedes_id,correction_reason")
+            .order("revision", { ascending: false })
+        ),
       ]);
 
       if (tasksResult.error)
@@ -667,7 +734,13 @@ const isSalesperson =
 
       if (reviewHistoryResult.error)
         throw reviewHistoryResult.error;
+      if (calendarResult.error) throw calendarResult.error;
+      if (absenceResult.error) throw absenceResult.error;
+      if (reportSnapshotsResult.error) throw reportSnapshotsResult.error;
 
+      setWorkingCalendar((calendarResult.data || []) as WorkingCalendarDay[]);
+      setAbsenceRequests((absenceResult.data || []) as AbsenceRequest[]);
+      setContactReportSnapshots((reportSnapshotsResult.data || []) as ContactReportSnapshot[]);
       setDailyInteractions((interactionsResult.data || []) as DailyInteraction[]);
       setContactReviewHistory((reviewHistoryResult.data || []) as ContactReviewHistory[]);
 
