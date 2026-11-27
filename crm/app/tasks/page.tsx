@@ -464,6 +464,14 @@ const isSalesperson =
     currentRole === "admin" ||
     currentRole === "super_admin";
 
+  // Team-wide contact performance and exception reviews are management-only.
+  // Other non-salesperson roles (e.g. marketing, finance, viewer) must not
+  // inherit access merely because they are not salespeople.
+  const canViewTeamContactPerformance =
+    currentRole === "super_admin" ||
+    currentRole === "admin" ||
+    currentRole === "manager";
+
   const loadAll = async () => {
     try {
       setLoading(true);
@@ -814,7 +822,7 @@ const isSalesperson =
   }, [dailyInteractions, currentUserId, profiles]);
 
   const exportDailyContactReport = () => {
-    if (currentRole === "salesperson") {
+    if (!canViewTeamContactPerformance) {
       setError("Team contact reports are available to authorised management only.");
       return;
     }
@@ -2507,7 +2515,7 @@ const isSalesperson =
           ))}
         </section>
 
-        {!isSalesperson && (
+        {canViewTeamContactPerformance && (
           <section aria-label="Daily salesperson contact progress" style={{ marginBottom: 16, border: "1px solid #cfe1d6", borderRadius: 14, background: "#ffffff", overflow: "hidden" }}>
             <div style={{ padding: "14px 16px", background: "#f0f8f3", borderBottom: "1px solid #dce9e1", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
               <div>
@@ -2545,7 +2553,7 @@ const isSalesperson =
           </section>
         )}
 
-        {!isSalesperson && unansweredReviewFlags.length > 0 && (
+        {canViewTeamContactPerformance && unansweredReviewFlags.length > 0 && (
           <section aria-label="Leads requiring unanswered-call review" style={{ marginBottom: 16, border: "1px solid #f0d4a8", borderRadius: 14, background: "#fffdf7", overflow: "hidden" }}>
             <div style={{ padding: "14px 16px", background: "#fff6e5", borderBottom: "1px solid #f0d4a8" }}>
               <div style={{ color: "#7a4b00", fontSize: 15, fontWeight: 800 }}>Management Review Required</div>
