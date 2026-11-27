@@ -243,6 +243,16 @@ const EMPTY_FORM: TaskForm = {
   priority: "medium",
 };
 
+function isMissingOptionalTableError(error: unknown) {
+  if (!error || typeof error !== "object") return false;
+  const candidate = error as { code?: string; message?: string };
+  return (
+    candidate.code === "42P01" ||
+    candidate.code === "PGRST205" ||
+    /relation .* does not exist|could not find the table .* in the schema cache/i.test(candidate.message || "")
+  );
+}
+
 function formatDate(value: string | null) {
   if (!value) return "—";
 
@@ -753,12 +763,21 @@ const isSalesperson =
       if (interactionsResult.error)
         throw interactionsResult.error;
 
-      if (reviewHistoryResult.error)
-        throw reviewHistoryResult.error;
-      if (calendarResult.error) throw calendarResult.error;
-      if (absenceResult.error) throw absenceResult.error;
-      if (absenceHistoryResult.error) throw absenceHistoryResult.error;
-      if (reportSnapshotsResult.error) throw reportSnapshotsResult.error;
+      // These governance tables are introduced by the salesperson-accountability
+      // migrations. Keep the core Tasks page usable before those migrations are
+      // deployed, but do not hide permission, network, or other database errors.
+      const optionalGovernanceResults = [
+        reviewHistoryResult,
+        calendarResult,
+        absenceResult,
+        absenceHistoryResult,
+        reportSnapshotsResult,
+      ];
+      for (const result of optionalGovernanceResults) {
+        if (result.error && !isMissingOptionalTableError(result.error)) {
+          throw result.error;
+        }
+      }
 
       setWorkingCalendar((calendarResult.data || []) as WorkingCalendarDay[]);
       setAbsenceRequests((absenceResult.data || []) as AbsenceRequest[]);
