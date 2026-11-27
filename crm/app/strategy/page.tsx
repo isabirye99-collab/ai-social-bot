@@ -972,7 +972,7 @@ export default function StrategyPlanningPage() {
   const visibleAttentionTotal = (attentionFilter === "all" || attentionFilter === "activities" ? attentionActivities.length : 0) + (attentionFilter === "all" || attentionFilter === "risks" ? attentionRisks.length : 0) + (attentionFilter === "all" || attentionFilter === "actions" ? attentionActions.length : 0);
 
   return (
-    <main className="mx-auto w-full max-w-7xl space-y-6 px-4 py-5 sm:px-6 lg:px-8">
+    <main className="ciu-consistent-workspace mx-auto w-full max-w-7xl space-y-6 px-4 py-5 sm:px-6 lg:px-8">
       <header className="flex flex-col justify-between gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-end">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-800">CIU CRM · Strategy & Planning</p>
