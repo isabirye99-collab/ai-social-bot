@@ -33,6 +33,8 @@ export default function ModuleReportPage() {
   const config = configs[moduleKey];
   const [profile, setProfile] = useState<Profile | null>(null);
   const [records, setRecords] = useState<ReportRecord[]>([]);
+  const [pageNumber, setPageNumber] = useState(0);
+  const pageSize = 100;
   const [staffNames, setStaffNames] = useState<Record<string, string>>({});
   const [leadNames, setLeadNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -51,12 +53,19 @@ export default function ModuleReportPage() {
     try {
       const role = String(profile.role || "").trim().toLowerCase().replace(/[ -]/g, "_");
       const canViewTeam = ["super_admin", "admin", "manager"].includes(role);
-      let query = (supabase as any).from(config.table).select(config.columns.join(",")).gte(config.dateColumn, fromDate + "T00:00:00").lte(config.dateColumn, toDate + "T23:59:59").order(config.dateColumn, { ascending: false }).limit(1000);
-      if (moduleKey === "strategy") query = (supabase as any).from(config.table).select(config.columns.join(",")).gte("strategy_year", Number(fromDate.slice(0, 4))).lte("strategy_year", Number(toDate.slice(0, 4))).order("strategy_year", { ascending: false }).limit(1000);
+      let query = (supabase as any).from(config.table).select(config.columns.join(",")).gte(config.dateColumn, fromDate + "T00:00:00").lte(config.dateColumn, toDate + "T23:59:59").order(config.dateColumn, { ascending: false });
+      if (moduleKey === "strategy") query = (supabase as any).from(config.table).select(config.columns.join(",")).gte("strategy_year", Number(fromDate.slice(0, 4))).lte("strategy_year", Number(toDate.slice(0, 4))).order("strategy_year", { ascending: false });
       if (!canViewTeam && config.columns.includes("assigned_to")) query = query.eq("assigned_to", profile.id);
-      const { data, error: queryError } = await query;
-      if (queryError) throw queryError;
-      const rows = (data || []) as ReportRecord[];
+      const rows: ReportRecord[] = [];
+      let offset = 0;
+      while (true) {
+        const { data: pageData, error: queryError } = await query.range(offset, offset + 999);
+        if (queryError) throw queryError;
+        const batch = (pageData || []) as ReportRecord[];
+        rows.push(...batch);
+        if (batch.length < 1000) break;
+        offset += 1000;
+      }
       const staffIds = [...new Set(rows.map(row => row.assigned_to).filter((value): value is string => typeof value === "string" && value.length > 0))];
       const leadIds = [...new Set(rows.map(row => row.lead_id).filter((value): value is string => typeof value === "string" && value.length > 0))];
       const [staffResult, leadResult] = await Promise.all([
@@ -66,6 +75,7 @@ export default function ModuleReportPage() {
       setStaffNames(Object.fromEntries((staffResult.data || []).map((item: any) => [item.id, item.full_name || "Unnamed staff member"])));
       setLeadNames(Object.fromEntries((leadResult.data || []).map((item: any) => [item.id, item.full_name || "Lead name unavailable"])));
       setRecords(rows);
+      setPageNumber(0);
     } catch (e) { setRecords([]); setError(e instanceof Error ? e.message : "Unable to load this report. Check module access and database permissions."); }
     finally { setLoading(false); }
   }, [config, profile, modules, fromDate, toDate, moduleKey]);
@@ -89,6 +99,9 @@ export default function ModuleReportPage() {
     return () => { active = false; };
   }, [router]);
   useEffect(() => { if (profile && config && modules.includes(config.permission)) void load(); else if (profile) setLoading(false); }, [profile, config, modules, load]);
+  const visibleRecords = records.slice(pageNumber * pageSize, (pageNumber + 1) * pageSize);
+  const pageCount = Math.max(1, Math.ceil(records.length / pageSize));
+
   const statusCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const record of records) { const status = config?.statusColumn ? String(record[config.statusColumn] || "Not set") : "All records"; counts[status] = (counts[status] || 0) + 1; }
@@ -121,13 +134,21 @@ export default function ModuleReportPage() {
     </section>
     {error && <div role="alert" style={{ ...panel, borderColor: "#f0c7c7", color: "#a12e2e", marginBottom: 16 }}>Could not load this report: {error}</div>}
     <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(190px,1fr))", gap: 12, marginBottom: 16 }}>
-      <div style={panel}><div style={{ color: "#718078", fontSize: 11, fontWeight: 800 }}>RECORDS IN PERIOD</div><div style={{ fontSize: 30, fontWeight: 850, marginTop: 7 }}>{records.length.toLocaleString()}</div><div style={{ fontSize: 11, color: "#718078", marginTop: 5 }}>Showing up to 1,000 matching records</div></div>
+      <div style={panel}><div style={{ color: "#718078", fontSize: 11, fontWeight: 800 }}>RECORDS IN PERIOD</div><div style={{ fontSize: 30, fontWeight: 850, marginTop: 7 }}>{records.length.toLocaleString()}</div><div style={{ fontSize: 11, color: "#718078", marginTop: 5 }}>All matching records loaded</div></div>
       {statusCounts.slice(0, 3).map(([status, count]) => <div key={status} style={panel}><div style={{ color: "#718078", fontSize: 11, fontWeight: 800, textTransform: "uppercase" }}>{status}</div><div style={{ fontSize: 25, fontWeight: 850, marginTop: 7 }}>{count.toLocaleString()}</div></div>)}
     </section>
     <section style={{ ...panel, padding: 0, overflow: "hidden" }}><div style={{ padding: 16, borderBottom: "1px solid #e5eee8", display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}><strong style={{ fontSize: 14 }}>Report records</strong><span style={{ fontSize: 11, color: "#718078" }}>{fromDate} – {toDate}</span></div>
-      {loading ? <div style={{ padding: 24, color: "#718078" }}>Loading report records…</div> : records.length ? <div style={{ overflowX: "auto" }}><table style={{ borderCollapse: "collapse", width: "100%", minWidth: 650, fontSize: 12 }}><thead><tr>{config.columns.map(col => <th key={col} style={{ textAlign: "left", padding: 12, background: "#f3f8f4", color: "#526d60", whiteSpace: "nowrap" }}>{columnTitle(col, moduleKey)}</th>)}</tr></thead><tbody>{records.map((record, index) => <tr key={String(record.id ?? index)}>{config.columns.map(col => <td key={col} style={{ padding: 12, borderTop: "1px solid #edf2ee", whiteSpace: "nowrap" }}>{displayValue(record, col)}</td>)}</tr>)}</tbody></table></div> : <div style={{ padding: 24, color: "#718078" }}>No records were found for this period. If you expected data, check the selected dates and your database access.</div>}
+      {loading ? <div style={{ padding: 24, color: "#718078" }}>Loading report records…</div> : records.length ? <div style={{ overflowX: "auto" }}><table style={{ borderCollapse: "collapse", width: "100%", minWidth: 650, fontSize: 12 }}><thead><tr>{config.columns.map(col => <th key={col} style={{ textAlign: "left", padding: 12, background: "#f3f8f4", color: "#526d60", whiteSpace: "nowrap" }}>{columnTitle(col, moduleKey)}</th>)}</tr></thead><tbody>{visibleRecords.map((record, index) => <tr key={String(record.id ?? (pageNumber * pageSize + index))}>{config.columns.map(col => <td key={col} style={{ padding: 12, borderTop: "1px solid #edf2ee", whiteSpace: "nowrap" }}>{displayValue(record, col)}</td>)}</tr>)}</tbody></table></div> : <div style={{ padding: 24, color: "#718078" }}>No records were found for this period. If you expected data, check the selected dates and your database access.</div>}
     </section>
-    <p style={{ color: "#7a8981", fontSize: 10, lineHeight: 1.6, marginTop: 12 }}>This report shows up to 1,000 records and reflects the permissions enforced by your account and database policies. Export includes the records currently loaded.</p>
+    {!loading && records.length > pageSize && <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginTop: 12, padding: "10px 2px" }}>
+      <span style={{ color: "#718078", fontSize: 11 }}>Showing {(pageNumber * pageSize + 1).toLocaleString()}–{Math.min((pageNumber + 1) * pageSize, records.length).toLocaleString()} of {records.length.toLocaleString()} records</span>
+      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <button type="button" onClick={() => setPageNumber(value => Math.max(0, value - 1))} disabled={pageNumber === 0} style={{ padding: "8px 12px", border: "1px solid #cbded1", borderRadius: 8, background: "#fff", color: "#106053", fontWeight: 750, opacity: pageNumber === 0 ? .45 : 1 }}>Previous</button>
+        <span style={{ color: "#526d60", fontSize: 11 }}>Page {pageNumber + 1} of {pageCount}</span>
+        <button type="button" onClick={() => setPageNumber(value => Math.min(pageCount - 1, value + 1))} disabled={pageNumber >= pageCount - 1} style={{ padding: "8px 12px", border: "1px solid #cbded1", borderRadius: 8, background: "#fff", color: "#106053", fontWeight: 750, opacity: pageNumber >= pageCount - 1 ? .45 : 1 }}>Next</button>
+      </div>
+    </div>}
+    <p style={{ color: "#7a8981", fontSize: 10, lineHeight: 1.6, marginTop: 12 }}>This report loads all matching records in pages so the totals and CSV export are not capped at 1,000 rows. The table displays 100 rows per page. Data visibility still follows your account permissions and database policies.</p>
     <style jsx>{` .ciu-module-report { font-family: inherit; } .ciu-module-report-hero { border-radius: 18px; box-shadow: 0 14px 34px rgba(0,77,64,.16); } .ciu-module-report section { border-color: #dfe9e5 !important; border-radius: 14px !important; box-shadow: 0 7px 24px rgba(28,58,49,.06); } .ciu-module-report button { font-family: inherit; } @media (max-width: 700px) { .ciu-module-report-hero { padding: 20px !important; } } `}</style>
   </main>;
 }
