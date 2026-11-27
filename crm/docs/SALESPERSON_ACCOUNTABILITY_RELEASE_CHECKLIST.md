@@ -27,6 +27,11 @@ The route also uses the existing `NEXT_PUBLIC_SUPABASE_URL`. After setting varia
 - Verify the Vercel project root is `crm`, so `crm/vercel.json` is used by Vercel.
 - Verify the cron schedule is available for the project's Vercel plan and confirm the first production invocation in function logs. Do not manually invoke with production secrets in a public or untrusted environment.
 
+## Continuous integration
+- Workflow: `.github/workflows/ciu-crm-build.yml`.
+- Runs `npm ci` and `npm run build` in `crm/` for matching pull requests and pushes to the feature branch, with placeholder Supabase build variables only.
+- Confirm a completed GitHub Actions run before release; adding the workflow file does not itself prove the workflow has executed.
+
 ## Required tests before release
 1. Run the CRM build/type-check against the exact PR head commit.
 2. Apply migrations to a non-production Supabase environment first.
