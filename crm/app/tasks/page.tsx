@@ -867,6 +867,30 @@ const isSalesperson =
     };
   }, [tasks, leads, selectedIntake]);
 
+  const getEATDateKey = (value: Date) => {
+    const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Africa/Kampala", year: "numeric", month: "2-digit", day: "2-digit" })
+      .formatToParts(value).reduce((result, part) => {
+        if (part.type !== "literal") result[part.type] = part.value;
+        return result;
+      }, {} as Record<string, string>);
+    return `${parts.year}-${parts.month}-${parts.day}`;
+  };
+
+  const isOfficialWorkingDay = (dateKey: string) => {
+    const calendarOverride = workingCalendar.find((day) => day.calendar_date === dateKey && day.is_active);
+    if (calendarOverride) return calendarOverride.day_type === "working_day";
+    const weekday = new Date(`${dateKey}T12:00:00Z`).getUTCDay();
+    return weekday !== 0 && weekday !== 6;
+  };
+
+  const approvedAbsenceFraction = (staffId: string, dateKey: string) =>
+    Math.min(1, absenceRequests
+      .filter((request) => request.salesperson_id === staffId && request.absence_date === dateKey && request.status === "approved")
+      .reduce((sum, request) => sum + Number(request.day_fraction || 0), 0));
+
+  const targetForStaff = (staffId: string, dateKey: string) =>
+    isOfficialWorkingDay(dateKey) ? Math.max(0, Math.round(50 * (1 - approvedAbsenceFraction(staffId, dateKey)))) : 0;
+
   const dailyContactSummary = useMemo(() => {
     const isQualifyingAnsweredCall = (interaction: DailyInteraction) => {
       const channel = (interaction.channel || "").trim().toLowerCase();
@@ -879,16 +903,7 @@ const isSalesperson =
         Boolean(interaction.assigned_to || interaction.created_by);
     };
 
-    const kampalaDateKey = new Intl.DateTimeFormat("en-GB", {
-      timeZone: "Africa/Kampala",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).formatToParts(new Date()).reduce((parts, part) => {
-      if (part.type !== "literal") parts[part.type] = part.value;
-      return parts;
-    }, {} as Record<string, string>);
-    const todayKey = `${kampalaDateKey.year}-${kampalaDateKey.month}-${kampalaDateKey.day}`;
+    const todayKey = getEATDateKey(new Date());
     const qualifying = dailyInteractions.filter((interaction) => {
       if (!isQualifyingAnsweredCall(interaction) || !interaction.contacted_at) return false;
       const parts = new Intl.DateTimeFormat("en-GB", {
@@ -921,10 +936,15 @@ const isSalesperson =
           id: profile.id,
           name: profile.full_name || "Unnamed salesperson",
           contacted: countForStaff(profile.id),
+          target: targetForStaff(profile.id, todayKey),
+          absenceFraction: approvedAbsenceFraction(profile.id, todayKey),
         }))
         .sort((a, b) => b.contacted - a.contacted || a.name.localeCompare(b.name)),
+      todayKey,
+      isWorkingDay: isOfficialWorkingDay(todayKey),
+      myTarget: targetForStaff(currentUserId, todayKey),
     };
-  }, [dailyInteractions, currentUserId, profiles]);
+  }, [dailyInteractions, currentUserId, profiles, workingCalendar, absenceRequests]);
 
   const exportDailyContactReport = () => {
     if (!canViewTeamContactPerformance) {
