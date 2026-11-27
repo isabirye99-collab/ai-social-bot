@@ -902,7 +902,7 @@ const isSalesperson =
       ["Unique students reached by answered calls", uniqueStudentCount],
       ["Status", uniqueStudentCount >= 50 ? "Target achieved" : uniqueStudentCount > 0 ? "Below target" : "No qualifying calls"],
       [],
-      ["Call time (EAT)", "Student", "Phone", "Outcome", "Notes / recorded outcome"],
+      ["Call time (EAT)", "Student", "Phone", "Outcome"],
       ...myCalls
         .sort((a, b) => new Date(a.contacted_at || 0).getTime() - new Date(b.contacted_at || 0).getTime())
         .map((interaction) => {
@@ -912,7 +912,6 @@ const isSalesperson =
             lead?.name || lead?.ciu_number || "Unnamed student",
             lead?.phone || "",
             interaction.outcome || "",
-            "",
           ];
         }),
     ];
