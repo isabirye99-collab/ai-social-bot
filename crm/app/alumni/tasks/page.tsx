@@ -114,7 +114,7 @@ export default function AlumniTasksPage() {
         <label style={{ fontSize: 12, fontWeight: 700 }}>Assign to<select value={form.assigned_to} onChange={e => setForm({...form,assigned_to:e.target.value})} style={field}><option value="">Unassigned</option>{profiles.map(p=><option key={p.id} value={p.id}>{p.full_name}</option>)}</select><span style={{ display:"block",fontWeight:400,color:"#718078",fontSize:10,marginTop:4 }}>Default assignee is Vivian Kayaga, Alumni Relations Officer.</span></label>
       </div>
       <label style={{ display:"block",marginTop:12,fontSize:12,fontWeight:700 }}>Notes<textarea value={form.notes} onChange={e=>setForm({...form,notes:e.target.value})} rows={2} placeholder="Context, contact objective or preparation notes" style={{...field,resize:"vertical"}}/></label>
-      <button type="submit" disabled={saving} style={{...primary,marginTop:12,opacity:saving?.65:1}}>{saving ? "Saving…" : "Create task"}</button>
+      <button type="submit" disabled={saving} style={{...primary,marginTop:12,opacity: saving ? 0.65 : 1}}>{saving ? "Saving…" : "Create task"}</button>
     </form>
     <section style={card}>
       <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,flexWrap:"wrap",marginBottom:14 }}><div><h2 style={{margin:0,fontSize:17,fontWeight:850}}>Task register</h2><p style={{margin:"4px 0 0",fontSize:12,color:"#718078"}}>Review ownership, due dates and outcomes. Tasks are stored separately from alumni records.</p></div><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search task, alumnus or Alumni ID" style={{...field,marginTop:0,maxWidth:320}}/></div>
