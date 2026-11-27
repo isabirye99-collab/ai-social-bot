@@ -1228,6 +1228,40 @@ const isSalesperson =
     popup.document.close();
   };
 
+  const exportContactReviewHistory = () => {
+    if (!canViewTeamContactPerformance) {
+      setError("Only authorised management users can export review history.");
+      return;
+    }
+    const escapeCsv = (value: unknown) => `"${String(value ?? "").replace(/"/g, '""')}"`;
+    const rows: unknown[][] = [
+      ["CIU Management Contact Review Audit"],
+      ["Generated at (EAT)", new Intl.DateTimeFormat("en-UG", { timeZone: "Africa/Kampala", dateStyle: "medium", timeStyle: "short" }).format(new Date())],
+      [],
+      ["Decision time (EAT)", "Student", "CIU number", "Phone", "Decision", "Manager", "New assignee", "Notes", "Lead ID", "Trigger interaction ID"],
+      ...contactReviewHistory.map((review) => {
+        const lead = leads.find((item) => item.id === review.lead_id);
+        const reviewer = profiles.find((profile) => profile.id === review.decided_by);
+        const assignee = review.new_assigned_to ? profiles.find((profile) => profile.id === review.new_assigned_to) : null;
+        return [
+          new Intl.DateTimeFormat("en-UG", { timeZone: "Africa/Kampala", dateStyle: "short", timeStyle: "short" }).format(new Date(review.decided_at)),
+          lead?.name || "", lead?.ciu_number || "", lead?.phone || "",
+          review.decision === "retain" ? "Retain assignment" : review.decision === "reassign" ? "Reassign lead" : "Other action",
+          reviewer?.full_name || review.decided_by, assignee?.full_name || "", review.notes, review.lead_id, review.trigger_interaction_id,
+        ];
+      }),
+    ];
+    const blob = new Blob(["\\uFEFF" + rows.map((row) => row.map(escapeCsv).join(",")).join("\\r\\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `ciu-contact-review-audit-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
   const unansweredReviewFlags = useMemo(() => {
     const grouped = new Map<string, DailyInteraction[]>();
     for (const interaction of dailyInteractions) {
@@ -3136,6 +3170,7 @@ const isSalesperson =
           <section aria-label="Management contact review history" style={{ marginBottom: 16, border: "1px solid #cfe1d6", borderRadius: 14, background: "#ffffff", overflow: "hidden" }}>
             <div style={{ padding: "14px 16px", background: "#f0f8f3", borderBottom: "1px solid #dce9e1" }}>
               <div style={{ color: "#075442", fontSize: 15, fontWeight: 800 }}>Management Contact Review History</div>
+              <button type="button" onClick={exportContactReviewHistory} style={{ marginTop: 10, border: "1px solid #0b6b50", borderRadius: 8, padding: "8px 11px", background: "#ffffff", color: "#075442", fontWeight: 750, fontSize: 12, cursor: "pointer" }}>Export audit history (CSV)</button>
               <div style={{ color: "#527064", fontSize: 12, marginTop: 4 }}>Append-only record of previous decisions. Reassignments are reflected in the lead's current assignment; earlier decisions remain visible here.</div>
             </div>
             <div style={{ overflowX: "auto" }}>
