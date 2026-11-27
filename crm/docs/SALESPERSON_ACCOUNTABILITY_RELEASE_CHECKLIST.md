@@ -11,6 +11,7 @@ Review and apply in this order in a controlled release:
 1. `supabase/migrations/20261127140000_salesperson_contact_review_history.sql`
 2. `supabase/migrations/20261127170000_salesperson_calendar_absence_report_snapshots.sql` (includes append-only absence decision audit history)
 3. `supabase/migrations/20261127180000_align_salesperson_call_interactions.sql` (aligns task call logging with the existing engagement interaction constraints: outgoing-call channel, optional engagement contact link, and supported outcome labels)
+4. `supabase/migrations/20261127190000_restrict_engagement_interaction_mutations.sql` (limits edits/deletes to record creators or management; task-outcome interactions are management-only for edits/deletes)
 
 The live Supabase migration history was checked read-only on 2026-11-27. None of these three migrations is recorded as applied. Do not run them against production until the release owner has reviewed the SQL, confirmed the schema/role assumptions, taken a backup or confirmed the normal recovery process, and explicitly approved the change. The UI queries the new tables, so deploying UI code before migrations are applied will cause Tasks-page data loading errors.
 
@@ -40,6 +41,7 @@ The route also uses the existing `NEXT_PUBLIC_SUPABASE_URL`. After setting varia
 1. Run the CRM build/type-check against the exact PR head commit.
 2. Apply migrations to a non-production Supabase environment first.
 3. Verify salesperson can see/export only their own report and absence requests.
+4. Verify interaction policy migration: active staff can read/create; ordinary interaction creators can edit/delete their own records; management can administer all records; non-management staff cannot edit/delete salesperson task-outcome records; inactive users are blocked. Verify Call Centre & WhatsApp still supports normal logging, follow-up task linking, and lead assignment.
 4. Verify manager/admin/super_admin can see team progress, approve/reject absences, manage the calendar, record review decisions, and view both contact-review and absence-decision audit histories.
 5. Verify marketing, finance, viewer, and short-course roles cannot read team report snapshots or write review/absence decisions.
 6. Verify 50 unique answered-call contacts meets target; repeat calls to the same lead count once; unanswered calls, messages, and wrong numbers do not count.
