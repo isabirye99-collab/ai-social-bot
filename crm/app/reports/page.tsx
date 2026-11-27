@@ -63,6 +63,13 @@ export default function ReportsPage() {
   const canViewTeam = ["super_admin", "admin", "manager"].includes(role);
   const canViewReports = modules.includes("reports");
   const allowedModules = moduleReports.filter(item => modules.includes(item.module));
+  const listedReports: ReportCard[] = [
+    ...(canViewReports ? [
+      { title: "Individual reports", description: "Your personal activity, assigned leads, calls, follow-ups and results for a selected period.", href: "/reports/performance?view=individual", module: "reports" as CrmModule, tag: "My performance", icon: "◎" },
+      ...(canViewTeam ? [{ title: "General reports", description: "Organisation-wide performance, team results and individual staff breakdowns for authorised managers.", href: "/reports/performance?view=general", module: "reports" as CrmModule, tag: "Management overview", icon: "▥" }] : []),
+    ] : []),
+    ...allowedModules,
+  ];
 
   if (loading) return <main className="ciu-page" style={{ padding: 32, color: "#173d34" }}><div style={{ ...styles.panel, padding: 24 }}>Preparing your reports and access permissions…</div></main>;
 
@@ -116,8 +123,8 @@ export default function ReportsPage() {
     </section>}
 
     <div style={{ marginBottom: 13 }}><div style={{ color: "#16715b", fontSize: 10, letterSpacing: 1.5, fontWeight: 850 }}>03 · MODULE REPORTS</div><h2 style={{ margin: "5px 0 4px", fontSize: 21, fontWeight: 850 }}>Reports by work area</h2><p style={{ margin: 0, fontSize: 12, color: "#718078" }}>Open a module you have been granted access to. Modules without permission are not listed.</p></div>
-    {allowedModules.length ? <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,245px),1fr))", gap: 13 }}>
-      {allowedModules.map(item => <Link key={item.module} href={item.href} style={{ ...styles.panel, display: "flex", flexDirection: "column", minHeight: 176, padding: 18, textDecoration: "none", color: "#173d34", transition: "transform .15s ease,border-color .15s ease" }}>
+    {listedReports.length ? <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,245px),1fr))", gap: 13 }}>
+      {listedReports.map(item => <Link key={item.href} href={item.href} style={{ ...styles.panel, display: "flex", flexDirection: "column", minHeight: 176, padding: 18, textDecoration: "none", color: "#173d34", transition: "transform .15s ease,border-color .15s ease" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}><span style={{ display: "grid", placeItems: "center", width: 38, height: 38, borderRadius: 11, background: "#e8f5ec", color: "#12614d", fontSize: 20, fontWeight: 850 }}>{item.icon}</span><span style={{ fontSize: 9, fontWeight: 850, color: "#7d8b83", letterSpacing: 1 }}>{item.tag.toUpperCase()}</span></div>
         <h3 style={{ margin: "14px 0 6px", fontSize: 15, fontWeight: 850 }}>{item.title}</h3><p style={{ margin: 0, color: "#718078", fontSize: 11, lineHeight: 1.65 }}>{item.description}</p><span style={{ marginTop: "auto", paddingTop: 14, color: "#106053", fontSize: 11, fontWeight: 850 }}>Open report <span aria-hidden="true">→</span></span>
       </Link>)}
