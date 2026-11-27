@@ -968,14 +968,14 @@ const isSalesperson =
     const rows = [
       ["Report date (EAT)", dateKey],
       ["Generated at (EAT)", new Intl.DateTimeFormat("en-UG", { timeZone: "Africa/Kampala", dateStyle: "medium", timeStyle: "short" }).format(new Date())],
-      ["Target per salesperson", 50],
+      ["Report working day", dailyContactSummary.isWorkingDay ? "Yes" : "No"],
       [],
       ["Salesperson", "Unique students contacted", "Daily target", "Status"],
       ...dailyContactSummary.staff.map((person) => [
         person.name,
         person.contacted,
-        50,
-        person.contacted >= 50 ? "Target achieved" : person.contacted > 0 ? "Below target" : "No qualifying calls",
+        person.target,
+        person.target === 0 ? "Exempt / non-working day" : person.contacted >= person.target ? "Target achieved" : person.contacted > 0 ? "Below target" : "No qualifying calls",
       ]),
     ];
     const csv = "\uFEFF" + rows.map((row) => row.map((value) => escapeCsv(value ?? "")).join(",")).join("\r\n");
@@ -1018,14 +1018,15 @@ const isSalesperson =
       return dateKeyFor(new Date(interaction.contacted_at)) === todayKey;
     });
     const uniqueStudentCount = new Set(myCalls.map((interaction) => interaction.lead_id)).size;
+    const myTarget = targetForStaff(currentUserId, todayKey);
     const escapeCsv = (value: string | number) => `"${String(value).replace(/"/g, '""')}"`;
     const rows: Array<Array<string | number>> = [
       ["CIU Salesperson Daily Contact Report"],
       ["Report date (EAT)", todayKey],
       ["Generated at (EAT)", new Intl.DateTimeFormat("en-UG", { timeZone: "Africa/Kampala", dateStyle: "medium", timeStyle: "short" }).format(new Date())],
-      ["Daily target", 50],
+      ["Daily target", myTarget],
       ["Unique students reached by answered calls", uniqueStudentCount],
-      ["Status", uniqueStudentCount >= 50 ? "Target achieved" : uniqueStudentCount > 0 ? "Below target" : "No qualifying calls"],
+      ["Status", myTarget === 0 ? "Exempt / non-working day" : uniqueStudentCount >= myTarget ? "Target achieved" : uniqueStudentCount > 0 ? "Below target" : "No qualifying calls"],
       [],
       ["Call time (EAT)", "Student", "Phone", "Outcome"],
       ...myCalls
@@ -1256,7 +1257,10 @@ const isSalesperson =
       while (weekdaysAdded < 2) {
         due.setUTCDate(due.getUTCDate() + 1);
         const weekday = due.getUTCDay();
-        if (weekday !== 0 && weekday !== 6) weekdaysAdded += 1;
+        const dateKey = `${due.getUTCFullYear()}-${String(due.getUTCMonth() + 1).padStart(2, "0")}-${String(due.getUTCDate()).padStart(2, "0")}`;
+        const override = workingCalendar.find((day) => day.calendar_date === dateKey && day.is_active);
+        const isWorking = override ? override.day_type === "working_day" : weekday !== 0 && weekday !== 6;
+        if (isWorking) weekdaysAdded += 1;
       }
       return due;
     };
@@ -1300,7 +1304,7 @@ const isSalesperson =
       return !latestDecision || new Date(latestDecision.decided_at).getTime() < new Date(flag.lastContactedAt).getTime();
     });
     return pendingFlags.sort((a, b) => new Date(a.lastContactedAt).getTime() - new Date(b.lastContactedAt).getTime());
-  }, [dailyInteractions, leads, profiles, reviewClock, contactReviewHistory]);
+  }, [dailyInteractions, leads, profiles, reviewClock, contactReviewHistory, workingCalendar]);
 
   const performanceSummary = useMemo(() => {
     const [intakeYear, intakeMonth] = selectedIntake.split("-").map(Number);
@@ -2068,11 +2072,10 @@ const isSalesperson =
   };
 
   const suggestNextWeekdayFollowUp = () => {
-    // Weekend-aware suggestion only. Uganda public holidays still require a
-    // maintained CIU calendar before they can be excluded reliably.
+    // Suggest the next official working day using the maintained CIU calendar.
     const suggested = new Date();
     suggested.setDate(suggested.getDate() + 1);
-    while (suggested.getDay() === 0 || suggested.getDay() === 6) {
+    while (!isOfficialWorkingDay(getEATDateKey(suggested))) {
       suggested.setDate(suggested.getDate() + 1);
     }
     suggested.setHours(9, 0, 0, 0);
@@ -2948,7 +2951,7 @@ const isSalesperson =
         {/* ROLE-SPECIFIC PERFORMANCE SUMMARY */}
         <section aria-label="Task performance summary" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(145px, 1fr))", gap: 8, marginBottom: 10 }}>
           {[
-            { label: performanceSummary.isManager ? "Team contacted today (per-salesperson unique)" : "Unique students contacted today", value: performanceSummary.isManager ? dailyContactSummary.team : dailyContactSummary.mine, note: "Answered calls only · Target: 50 per salesperson" },
+            { label: performanceSummary.isManager ? "Team contacted today (per-salesperson unique)" : "Unique students contacted today", value: performanceSummary.isManager ? dailyContactSummary.team : dailyContactSummary.mine, note: "Answered calls only · target adjusts for approved absence and non-working days" },
             { label: performanceSummary.isManager ? "Team outstanding" : "My outstanding", value: performanceSummary.outstanding },
             { label: performanceSummary.isManager ? "Team overdue" : "My overdue", value: performanceSummary.overdue },
             { label: performanceSummary.isManager ? "Team completed today" : "Completed today", value: performanceSummary.completedToday },
@@ -3050,7 +3053,7 @@ const isSalesperson =
           <section aria-label="My daily contact report" style={{ marginBottom: 16, border: "1px solid #cfe1d6", borderRadius: 12, background: "#ffffff", padding: "12px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
             <div>
               <div style={{ color: "#075442", fontSize: 14, fontWeight: 800 }}>My Daily Contact Progress</div>
-              <div style={{ color: "#536b5d", fontSize: 12, marginTop: 4 }}>Today: {dailyContactSummary.mine} unique students reached by answered phone calls out of 50.</div>
+              <div style={{ color: "#536b5d", fontSize: 12, marginTop: 4 }}>Today: {dailyContactSummary.mine} unique students reached by answered phone calls out of {dailyContactSummary.myTarget} target.</div>
             </div>
             <button type="button" onClick={exportMyDailyContactReport} style={{ border: "1px solid #087443", borderRadius: 8, padding: "8px 11px", background: "#ffffff", color: "#075442", fontSize: 12, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>Export My Report (CSV)</button>
           </section>
@@ -3061,7 +3064,7 @@ const isSalesperson =
             <div style={{ padding: "14px 16px", background: "#f0f8f3", borderBottom: "1px solid #dce9e1", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
               <div>
                 <div style={{ color: "#075442", fontSize: 15, fontWeight: 800 }}>Daily Salesperson Contact Progress</div>
-                <div style={{ color: "#536b5d", fontSize: 12, marginTop: 4 }}>CIU working-day target: 50 unique students reached by answered phone call per salesperson. Counts are attributed to the staff member who recorded the call.</div>
+                <div style={{ color: "#536b5d", fontSize: 12, marginTop: 4 }}>CIU working-day target: 50 unique students reached by answered phone call, proportionately adjusted for approved absence. Counts are attributed to the staff member who recorded the call.</div>
               </div>
               <button type="button" onClick={exportDailyContactReport} style={{ border: "1px solid #087443", borderRadius: 8, padding: "8px 11px", background: "#ffffff", color: "#075442", fontSize: 12, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>Export CSV for Excel</button>
             </div>
@@ -3075,16 +3078,16 @@ const isSalesperson =
                 </tr></thead>
                 <tbody>
                   {dailyContactSummary.staff.map((person) => {
-                    const achieved = person.contacted >= 50;
+                    const achieved = person.target > 0 && person.contacted >= person.target;
                     return <tr key={person.id}>
                       <td style={{ padding: "9px 10px", borderBottom: "1px solid #eef2ef", color: "#183b2b", fontSize: 12, fontWeight: 650 }}>{person.name}</td>
-                      <td style={{ padding: "9px 10px", borderBottom: "1px solid #eef2ef", color: "#183b2b", fontSize: 12 }}>{person.contacted} / 50</td>
+                      <td style={{ padding: "9px 10px", borderBottom: "1px solid #eef2ef", color: "#183b2b", fontSize: 12 }}>{person.contacted} / {person.target}</td>
                       <td style={{ padding: "9px 10px", borderBottom: "1px solid #eef2ef", minWidth: 120 }}>
                         <div style={{ height: 7, background: "#e8efe9", borderRadius: 999, overflow: "hidden" }}>
-                          <div style={{ height: "100%", width: `${Math.min(100, (person.contacted / 50) * 100)}%`, background: achieved ? "#087443" : "#8bc63f", borderRadius: 999 }} />
+                          <div style={{ height: "100%", width: `${person.target > 0 ? Math.min(100, (person.contacted / person.target) * 100) : 0}%`, background: achieved ? "#087443" : "#8bc63f", borderRadius: 999 }} />
                         </div>
                       </td>
-                      <td style={{ padding: "9px 10px", borderBottom: "1px solid #eef2ef", fontSize: 11, fontWeight: 700, color: achieved ? "#087443" : person.contacted > 0 ? "#8a5a00" : "#64748b" }}>{achieved ? "Target achieved" : person.contacted > 0 ? "In progress" : "No qualifying calls"}</td>
+                      <td style={{ padding: "9px 10px", borderBottom: "1px solid #eef2ef", fontSize: 11, fontWeight: 700, color: achieved ? "#087443" : person.contacted > 0 ? "#8a5a00" : "#64748b" }}>{person.target === 0 ? "Exempt / non-working day" : achieved ? "Target achieved" : person.contacted > 0 ? "In progress" : "No qualifying calls"}</td>
                     </tr>;
                   })}
                   {dailyContactSummary.staff.length === 0 && <tr><td colSpan={4} style={{ padding: 12, color: "#64748b", fontSize: 12 }}>No active salesperson profiles were found.</td></tr>}
