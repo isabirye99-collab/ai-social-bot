@@ -364,6 +364,7 @@ export default function PartnershipsPage() {
           </div>
           <div className="flex flex-wrap gap-2">
             <button type="button" onClick={() => { setFileError(""); setEditingRecord(null); setContactForm({ name: "", primary_contact_name: "", primary_contact_email: "", primary_contact_phone: "", category: "", status: "prospect", notes: "" }); setShowAddContact(true); }} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-[#00695c] bg-white px-4 text-sm font-semibold text-[#00695c] hover:bg-emerald-50"><Users size={16} /> Add Contact</button>
+            <a href="/partnerships/work" className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-[#00695c] px-4 text-sm font-semibold text-white hover:bg-[#00574f]"><Handshake size={16} /> MOU Daily Work</a>
             <a href="/partnerships/mous" className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 text-sm font-semibold text-emerald-900 hover:bg-emerald-100"><Handshake size={16} /> MOU Register</a>
             <a href="/partnerships/mous/performance" className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 text-sm font-semibold text-emerald-900 hover:bg-emerald-100"><BarChart3 size={16} /> Performance Dashboard</a>
             <button type="button" onClick={downloadTemplate} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
@@ -374,6 +375,13 @@ export default function PartnershipsPage() {
             </button>
           </div>
         </header>
+
+        <a href="/partnerships/work" className="group block rounded-2xl border border-emerald-200 bg-emerald-50/60 p-5 transition hover:border-emerald-400 hover:bg-emerald-50 sm:p-6">
+          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+            <div><p className="text-xs font-bold uppercase tracking-[.14em] text-emerald-800">Primary workspace · MOU management</p><h2 className="mt-1 text-xl font-semibold text-slate-900">MOU Daily Work Centre</h2><p className="mt-1 max-w-3xl text-sm text-slate-600">Start each day with agreement expiry alerts, mandatory quarterly reviews, commitments to follow up and renewal priorities.</p></div>
+            <span className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-[#00695c] px-4 text-sm font-semibold text-white group-hover:bg-[#00574f]">Open daily work <span aria-hidden="true">→</span></span>
+          </div>
+        </a>
 
         <section aria-label="Partnership performance overview" className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
           {[
