@@ -3078,6 +3078,20 @@ const isSalesperson =
               </table></div>
             </div>
           )}
+          {absenceDecisionHistory.filter((entry) => canViewTeamContactPerformance || entry.salesperson_id === currentUserId).length > 0 && (
+            <div style={{ padding: 14, borderTop: "1px solid #e2ece5" }}>
+              <div style={{ color: "#075442", fontWeight: 750, fontSize: 13, marginBottom: 8 }}>Absence Decision Audit History</div>
+              <div style={{ color: "#64756b", fontSize: 11, marginBottom: 8 }}>Previous approval/rejection decisions are preserved for audit and cannot be silently edited or deleted.</div>
+              <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse", minWidth: 650 }}>
+                <thead><tr style={{ textAlign: "left", fontSize: 11, color: "#52665a" }}><th style={{ padding: 7 }}>Decision time (EAT)</th><th style={{ padding: 7 }}>Salesperson</th><th style={{ padding: 7 }}>Absence date</th><th style={{ padding: 7 }}>Decision</th><th style={{ padding: 7 }}>Decision by</th><th style={{ padding: 7 }}>Notes</th></tr></thead>
+                <tbody>{absenceDecisionHistory.filter((entry) => canViewTeamContactPerformance || entry.salesperson_id === currentUserId).slice(0, 50).map((entry) => {
+                  const owner = profiles.find((profile) => profile.id === entry.salesperson_id);
+                  const decisionMaker = profiles.find((profile) => profile.id === entry.decided_by);
+                  return <tr key={entry.id}><td style={{ padding: 7, borderTop: "1px solid #edf3ef", fontSize: 12, whiteSpace: "nowrap" }}>{formatDateTime(entry.decided_at)}</td><td style={{ padding: 7, borderTop: "1px solid #edf3ef", fontSize: 12 }}>{owner?.full_name || "Salesperson"}</td><td style={{ padding: 7, borderTop: "1px solid #edf3ef", fontSize: 12 }}>{entry.absence_date}</td><td style={{ padding: 7, borderTop: "1px solid #edf3ef", fontSize: 12, fontWeight: 750 }}>{entry.new_status}</td><td style={{ padding: 7, borderTop: "1px solid #edf3ef", fontSize: 12 }}>{decisionMaker?.full_name || "Management user"}</td><td style={{ padding: 7, borderTop: "1px solid #edf3ef", fontSize: 12 }}>{entry.decision_notes || "—"}</td></tr>;
+                })}</tbody>
+              </table></div>
+            </div>
+          )}
         </section>
 
         <section aria-label="Daily contact report finalisation" style={{ marginBottom: 16, border: "1px solid #cfe1d6", borderRadius: 14, background: "#ffffff", overflow: "hidden" }}>
