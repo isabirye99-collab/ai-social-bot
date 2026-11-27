@@ -161,9 +161,20 @@ declare
   v_actor uuid := auth.uid();
   v_role text;
   v_salesperson_id uuid;
+  v_salesperson_name text;
   v_latest public.salesperson_contact_report_snapshots%rowtype;
   v_revision integer;
   v_new_id uuid;
+  v_day_type text;
+  v_working_day boolean;
+  v_absence_fraction numeric(3,2);
+  v_target integer;
+  v_unique_students integer;
+  v_status text;
+  v_calls jsonb;
+  v_snapshot_data jsonb;
+  v_day_start timestamptz;
+  v_day_end timestamptz;
 begin
   if v_actor is null then raise exception 'Authentication required'; end if;
   if p_report_date is null or p_report_data is null or jsonb_typeof(p_report_data) <> 'object' then
@@ -186,6 +197,85 @@ begin
     raise exception 'A future report date cannot be finalised or corrected';
   end if;
 
+  -- Compute report metrics from the database, not from client-supplied JSON.
+  -- Call creator is the primary attribution; assigned_to is only a legacy fallback.
+  select p.full_name into v_salesperson_name
+    from public.profiles p where p.id = v_salesperson_id;
+  select c.day_type into v_day_type
+    from public.ciu_working_calendar c
+   where c.calendar_date = p_report_date and c.is_active = true
+   limit 1;
+  if found then
+    v_working_day := v_day_type = 'working_day';
+  else
+    v_working_day := extract(isodow from p_report_date) between 1 and 5;
+  end if;
+
+  select least(1::numeric, coalesce(sum(a.day_fraction), 0))
+    into v_absence_fraction
+    from public.salesperson_absence_requests a
+   where a.salesperson_id = v_salesperson_id
+     and a.absence_date = p_report_date
+     and a.status = 'approved';
+  v_target := case when v_working_day
+    then greatest(0, round(50 * (1 - v_absence_fraction))::integer)
+    else 0 end;
+
+  v_day_start := p_report_date::timestamp at time zone 'Africa/Kampala';
+  v_day_end := (p_report_date + 1)::timestamp at time zone 'Africa/Kampala';
+
+  select count(distinct i.lead_id)::integer
+    into v_unique_students
+    from public.engagement_interactions i
+   where i.channel = 'outgoing_call'
+     and lower(trim(coalesce(i.response, ''))) = 'answered'
+     and lower(trim(coalesce(i.outcome, ''))) <> 'wrong number'
+     and i.lead_id is not null
+     and coalesce(i.created_by, i.assigned_to) = v_salesperson_id
+     and i.contacted_at >= v_day_start
+     and i.contacted_at < v_day_end;
+
+  select coalesce(jsonb_agg(
+    jsonb_build_object(
+      'contacted_at', i.contacted_at,
+      'lead_id', i.lead_id,
+      'student_name', coalesce(l.name, l.ciu_number, 'Unnamed student'),
+      'ciu_number', coalesce(l.ciu_number, ''),
+      'phone', coalesce(l.phone, ''),
+      'outcome', coalesce(i.outcome, '')
+    ) order by i.contacted_at
+  ), '[]'::jsonb)
+    into v_calls
+    from public.engagement_interactions i
+    left join public.leads l on l.id = i.lead_id
+   where i.channel = 'outgoing_call'
+     and lower(trim(coalesce(i.response, ''))) = 'answered'
+     and lower(trim(coalesce(i.outcome, ''))) <> 'wrong number'
+     and i.lead_id is not null
+     and coalesce(i.created_by, i.assigned_to) = v_salesperson_id
+     and i.contacted_at >= v_day_start
+     and i.contacted_at < v_day_end;
+
+  v_status := case
+    when v_target = 0 then 'Exempt / non-working day'
+    when v_unique_students >= v_target then 'Target achieved'
+    when v_unique_students > 0 then 'Below target'
+    else 'No qualifying calls'
+  end;
+  v_snapshot_data := coalesce(p_report_data, '{}'::jsonb) || jsonb_build_object(
+    'salesperson_id', v_salesperson_id,
+    'report_date', p_report_date,
+    'salesperson_name', coalesce(v_salesperson_name, 'Unnamed salesperson'),
+    'target', v_target,
+    'unique_students_contacted', v_unique_students,
+    'status', v_status,
+    'working_day', v_working_day,
+    'approved_absence_fraction', v_absence_fraction,
+    'generated_at_eat', to_char(now() at time zone 'Africa/Kampala', 'YYYY-MM-DD HH24:MI:SS'),
+    'finalization_method', 'server-verified',
+    'calls', v_calls
+  );
+
   select * into v_latest from public.salesperson_contact_report_snapshots
    where report_date = p_report_date and salesperson_id = v_salesperson_id
    order by revision desc limit 1;
@@ -199,7 +289,7 @@ begin
     insert into public.salesperson_contact_report_snapshots
       (report_date, salesperson_id, revision, report_data, finalized_by, supersedes_id, correction_reason)
     values
-      (p_report_date, v_salesperson_id, v_revision, p_report_data, v_actor, v_latest.id, trim(p_correction_reason))
+      (p_report_date, v_salesperson_id, v_revision, v_snapshot_data, v_actor, v_latest.id, trim(p_correction_reason))
     returning id into v_new_id;
   else
     -- Only the first finalisation is limited to today's report after 17:00 EAT.
@@ -212,9 +302,12 @@ begin
     if nullif(trim(coalesce(p_correction_reason,'')), '') is not null then
       raise exception 'A correction reason is only valid after the original report exists';
     end if;
+    if not v_working_day then
+      raise exception 'An original report can only be finalised on an official CIU working day';
+    end if;
     insert into public.salesperson_contact_report_snapshots
       (report_date, salesperson_id, revision, report_data, finalized_by)
-    values (p_report_date, v_salesperson_id, 1, p_report_data, v_actor)
+    values (p_report_date, v_salesperson_id, 1, v_snapshot_data, v_actor)
     returning id into v_new_id;
   end if;
   return v_new_id;
