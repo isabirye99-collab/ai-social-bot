@@ -1052,6 +1052,181 @@ const isSalesperson =
     URL.revokeObjectURL(url);
   };
 
+  const requestMyAbsence = async () => {
+    if (!currentUserId || currentRole !== "salesperson") {
+      setError("Only salespeople can submit their own absence request.");
+      return;
+    }
+    if (!absenceDate || !absenceReason.trim()) {
+      setError("Choose an absence date and provide a reason.");
+      return;
+    }
+    try {
+      setSavingGovernance(true);
+      setError("");
+      setSuccess("");
+      const { error: insertError } = await supabase.from("salesperson_absence_requests").insert({
+        salesperson_id: currentUserId,
+        absence_date: absenceDate,
+        day_fraction: Number(absenceFraction),
+        reason: absenceReason.trim(),
+        requested_by: currentUserId,
+        status: "pending",
+      });
+      if (insertError) throw insertError;
+      setAbsenceDate("");
+      setAbsenceFraction("1");
+      setAbsenceReason("");
+      setSuccess("Absence request submitted for management approval. The target will not change unless approved.");
+      await loadAll();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not submit the absence request.");
+    } finally {
+      setSavingGovernance(false);
+    }
+  };
+
+  const decideAbsenceRequest = async (request: AbsenceRequest, decision: "approved" | "rejected") => {
+    if (!canViewTeamContactPerformance) return;
+    const notes = window.prompt(`Optional notes for ${decision === "approved" ? "approval" : "rejection"}:`, "");
+    if (notes === null) return;
+    try {
+      setSavingGovernance(true);
+      setError("");
+      const { error: rpcError } = await supabase.rpc("decide_salesperson_absence", {
+        p_request_id: request.id,
+        p_decision: decision,
+        p_decision_notes: notes.trim() || null,
+      });
+      if (rpcError) throw rpcError;
+      setSuccess(`Absence request ${decision}.`);
+      await loadAll();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save the absence decision.");
+    } finally {
+      setSavingGovernance(false);
+    }
+  };
+
+  const saveCalendarDay = async () => {
+    if (!canViewTeamContactPerformance) return;
+    if (!calendarDate || !calendarTitle.trim()) {
+      setError("Choose a date and enter a calendar title.");
+      return;
+    }
+    try {
+      setSavingGovernance(true);
+      setError("");
+      const { error: calendarError } = await supabase.from("ciu_working_calendar").upsert({
+        calendar_date: calendarDate,
+        title: calendarTitle.trim(),
+        day_type: calendarType,
+        notes: calendarNotes.trim() || null,
+        is_active: true,
+        created_by: currentUserId,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "calendar_date" });
+      if (calendarError) throw calendarError;
+      setCalendarDate("");
+      setCalendarTitle("");
+      setCalendarType("public_holiday");
+      setCalendarNotes("");
+      setSuccess("CIU calendar date saved. Daily targets and follow-up deadlines will use this calendar.");
+      await loadAll();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save the CIU calendar date.");
+    } finally {
+      setSavingGovernance(false);
+    }
+  };
+
+  const finalizeContactReport = async (staffId: string) => {
+    if (!currentUserId) return;
+    const person = dailyContactSummary.staff.find((item) => item.id === staffId);
+    if (!person) {
+      setError("Could not find the salesperson for this report.");
+      return;
+    }
+    const todayKey = dailyContactSummary.todayKey;
+    const previous = contactReportSnapshots
+      .filter((snapshot) => snapshot.report_date === todayKey && snapshot.salesperson_id === staffId)
+      .sort((a, b) => b.revision - a.revision)[0];
+    const correctionReason = previous
+      ? window.prompt("A report already exists. Enter the reason for this correction; the previous version will be preserved:")
+      : null;
+    if (previous && (correctionReason === null || !correctionReason.trim())) {
+      if (correctionReason !== null) setError("A correction reason is required.");
+      return;
+    }
+    if (!previous && window.confirm("Finalise this report now? It becomes an immutable snapshot. Any later correction creates a new revision and requires a reason.") === false) return;
+
+    const isMyReport = staffId === currentUserId;
+    if (!isMyReport && !canViewTeamContactPerformance) {
+      setError("Only authorised management can finalise another salesperson's report.");
+      return;
+    }
+    const calls = dailyInteractions.filter((interaction) => {
+      if (!interaction.contacted_at || !interaction.lead_id) return false;
+      if ((interaction.assigned_to || interaction.created_by) !== staffId) return false;
+      if ((interaction.channel || "").toLowerCase() !== "call" || (interaction.response || "").toLowerCase() !== "answered") return false;
+      if ((interaction.outcome || "").toLowerCase() === "wrong number") return false;
+      return getEATDateKey(new Date(interaction.contacted_at)) === todayKey;
+    });
+    const uniqueLeadIds = Array.from(new Set(calls.map((interaction) => interaction.lead_id)));
+    const target = targetForStaff(staffId, todayKey);
+    const snapshot = {
+      salesperson_id: staffId,
+      report_date: todayKey,
+      salesperson_name: person.name,
+      target,
+      unique_students_contacted: uniqueLeadIds.length,
+      status: target === 0 ? "Exempt / non-working day" : uniqueLeadIds.length >= target ? "Target achieved" : uniqueLeadIds.length > 0 ? "Below target" : "No qualifying calls",
+      working_day: isOfficialWorkingDay(todayKey),
+      approved_absence_fraction: approvedAbsenceFraction(staffId, todayKey),
+      generated_at_eat: new Intl.DateTimeFormat("en-UG", { timeZone: "Africa/Kampala", dateStyle: "medium", timeStyle: "short" }).format(new Date()),
+      calls: calls.map((interaction) => {
+        const lead = leads.find((item) => item.id === interaction.lead_id);
+        return {
+          contacted_at: interaction.contacted_at,
+          lead_id: interaction.lead_id,
+          student_name: lead?.name || lead?.ciu_number || "Unnamed student",
+          ciu_number: lead?.ciu_number || "",
+          phone: lead?.phone || "",
+          outcome: interaction.outcome || "",
+        };
+      }),
+    };
+    try {
+      setSavingGovernance(true);
+      setError("");
+      const { error: rpcError } = await supabase.rpc("finalize_salesperson_contact_report", {
+        p_report_date: todayKey,
+        p_report_data: snapshot,
+        p_correction_reason: previous ? correctionReason!.trim() : null,
+      });
+      if (rpcError) throw rpcError;
+      setSuccess(previous ? "Correction saved as a new report revision. The original snapshot remains unchanged." : "Daily contact report finalised and locked as an immutable snapshot.");
+      await loadAll();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not finalise the daily report.");
+    } finally {
+      setSavingGovernance(false);
+    }
+  };
+
+  const printContactReport = (snapshot: ContactReportSnapshot) => {
+    const data = snapshot.report_data as any;
+    const popup = window.open("", "_blank", "width=900,height=700");
+    if (!popup) {
+      setError("Allow pop-ups to print or save the report as PDF.");
+      return;
+    }
+    const safe = (value: unknown) => String(value ?? "").replace(/[&<>"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[character] || character));
+    const rows = Array.isArray(data.calls) ? data.calls.map((call: any) => `<tr><td>${safe(call.contacted_at ? new Intl.DateTimeFormat("en-UG", { timeZone: "Africa/Kampala", dateStyle: "short", timeStyle: "short" }).format(new Date(call.contacted_at)) : "")}</td><td>${safe(call.student_name)}</td><td>${safe(call.phone)}</td><td>${safe(call.outcome)}</td></tr>`).join("") : "";
+    popup.document.write(`<!doctype html><html><head><title>CIU Daily Contact Report</title><style>body{font:14px Arial,sans-serif;margin:28px;color:#173b2b}h1{font-size:22px;color:#075442}p{margin:6px 0}table{border-collapse:collapse;width:100%;margin-top:20px}th,td{border:1px solid #d9e4dc;padding:8px;text-align:left}th{background:#f0f8f3}@media print{button{display:none}}</style></head><body><h1>Clarke International University — Daily Contact Report</h1><p><b>Salesperson:</b> ${safe(data.salesperson_name)}</p><p><b>Report date:</b> ${safe(snapshot.report_date)} (EAT)</p><p><b>Unique students contacted:</b> ${safe(data.unique_students_contacted)} / ${safe(data.target)}</p><p><b>Status:</b> ${safe(data.status)}</p><p><b>Revision:</b> ${safe(snapshot.revision)} · <b>Finalised:</b> ${safe(new Intl.DateTimeFormat("en-UG", { timeZone: "Africa/Kampala", dateStyle: "medium", timeStyle: "short" }).format(new Date(snapshot.finalized_at)))}</p>${snapshot.correction_reason ? `<p><b>Correction reason:</b> ${safe(snapshot.correction_reason)}</p>` : ""}<table><thead><tr><th>Call time (EAT)</th><th>Student</th><th>Phone</th><th>Outcome</th></tr></thead><tbody>${rows}</tbody></table><p style="margin-top:24px;color:#64756b;font-size:11px">System-generated record. Manual call outcomes depend on user entry.</p><button onclick="window.print()">Print / Save as PDF</button></body></html>`);
+    popup.document.close();
+  };
+
   const unansweredReviewFlags = useMemo(() => {
     const grouped = new Map<string, DailyInteraction[]>();
     for (const interaction of dailyInteractions) {
