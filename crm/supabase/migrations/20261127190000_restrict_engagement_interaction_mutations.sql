@@ -107,7 +107,7 @@ create policy "Active staff create engagement interactions"
       where p.id = auth.uid() and p.is_active = true
     )
     and (
-      coalesce(reason, '') <> 'Salesperson task call outcome'
+      lower(trim(coalesce(reason, ''))) <> 'salesperson task call outcome'
       or (
         channel = 'outgoing_call'
         and lead_id is not null
@@ -130,7 +130,7 @@ create policy "Creators and management update engagement interactions"
   using (
     (
       created_by = auth.uid()
-      and coalesce(reason, '') <> 'Salesperson task call outcome'
+      and lower(trim(coalesce(reason, ''))) <> 'salesperson task call outcome'
       and exists (
         select 1 from public.profiles p
         where p.id = auth.uid() and p.is_active = true
@@ -145,7 +145,7 @@ create policy "Creators and management update engagement interactions"
   with check (
     (
       created_by = auth.uid()
-      and coalesce(reason, '') <> 'Salesperson task call outcome'
+      and lower(trim(coalesce(reason, ''))) <> 'salesperson task call outcome'
       and exists (
         select 1 from public.profiles p
         where p.id = auth.uid() and p.is_active = true
@@ -169,7 +169,7 @@ create policy "Management delete engagement interactions"
     )
     or (
       created_by = auth.uid()
-      and coalesce(reason, '') <> 'Salesperson task call outcome'
+      and lower(trim(coalesce(reason, ''))) <> 'salesperson task call outcome'
       and exists (
         select 1 from public.profiles p
         where p.id = auth.uid() and p.is_active = true
