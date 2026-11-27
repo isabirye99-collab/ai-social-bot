@@ -942,7 +942,7 @@ const isSalesperson =
         response === "answered" &&
         outcome !== "wrong number" &&
         Boolean(interaction.lead_id) &&
-        Boolean(interaction.assigned_to || interaction.created_by);
+        Boolean(interaction.created_by || interaction.assigned_to);
     };
 
     const todayKey = getEATDateKey(new Date());
@@ -961,12 +961,12 @@ const isSalesperson =
     });
     const countForStaff = (staffId: string) =>
       new Set(qualifying
-        .filter((interaction) => (interaction.assigned_to || interaction.created_by) === staffId)
+        .filter((interaction) => (interaction.created_by || interaction.assigned_to) === staffId)
         .map((interaction) => interaction.lead_id)
       ).size;
 
     const teamPairs = new Set(qualifying.map((interaction) =>
-      `${interaction.assigned_to || interaction.created_by}:${interaction.lead_id}`
+      `${interaction.created_by || interaction.assigned_to}:${interaction.lead_id}`
     ));
 
     return {
@@ -1052,7 +1052,7 @@ const isSalesperson =
     };
     const todayKey = dateKeyFor(new Date());
     const myCalls = dailyInteractions.filter((interaction) => {
-      const staffId = interaction.assigned_to || interaction.created_by;
+      const staffId = interaction.created_by || interaction.assigned_to;
       if (staffId !== currentUserId || !interaction.contacted_at || !interaction.lead_id) return false;
       if ((interaction.channel || "").trim().toLowerCase() !== "outgoing_call") return false;
       if ((interaction.response || "").trim().toLowerCase() !== "answered") return false;
@@ -1210,7 +1210,7 @@ const isSalesperson =
     }
     const calls = dailyInteractions.filter((interaction) => {
       if (!interaction.contacted_at || !interaction.lead_id) return false;
-      if ((interaction.assigned_to || interaction.created_by) !== staffId) return false;
+      if ((interaction.created_by || interaction.assigned_to) !== staffId) return false;
       if ((interaction.channel || "").toLowerCase() !== "outgoing_call" || (interaction.response || "").toLowerCase() !== "answered") return false;
       if ((interaction.outcome || "").toLowerCase() === "wrong number") return false;
       return getEATDateKey(new Date(interaction.contacted_at)) === todayKey;
@@ -1338,7 +1338,7 @@ const isSalesperson =
     const grouped = new Map<string, DailyInteraction[]>();
     for (const interaction of dailyInteractions) {
       if (!interaction.lead_id || !interaction.contacted_at) continue;
-      const staffId = interaction.assigned_to || interaction.created_by;
+      const staffId = interaction.created_by || interaction.assigned_to;
       if (!staffId) continue;
       const key = `${staffId}:${interaction.lead_id}`;
       const list = grouped.get(key) || [];
