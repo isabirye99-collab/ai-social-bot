@@ -939,7 +939,28 @@ const isSalesperson =
       grouped.set(key, list);
     }
 
-    const flags: Array<{ key: string; lead: Lead; staffName: string; attempts: number; lastContactedAt: string }> = [];
+    const addTwoWeekdaysForReview = (contactedAt: string) => {
+      const parts = new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Africa/Kampala",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).formatToParts(new Date(contactedAt)).reduce((values, part) => {
+        if (part.type !== "literal") values[part.type] = part.value;
+        return values;
+      }, {} as Record<string, string>);
+      // 14:00 UTC is 17:00 East Africa Time. This weekday-only estimate
+      // must be reconciled with the official CIU/Uganda holiday calendar.
+      const due = new Date(Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day), 14, 0, 0));
+      let weekdaysAdded = 0;
+      while (weekdaysAdded < 2) {
+        due.setUTCDate(due.getUTCDate() + 1);
+        const weekday = due.getUTCDay();
+        if (weekday !== 0 && weekday !== 6) weekdaysAdded += 1;
+      }
+      return due;
+    };
+    const flags: Array<{ key: string; lead: Lead; staffName: string; attempts: number; lastContactedAt: string; reviewDueAt: string; reviewOverdue: boolean }> = [];
     for (const [key, history] of grouped.entries()) {
       const sorted = [...history].sort((a, b) =>
         new Date(b.contacted_at || 0).getTime() - new Date(a.contacted_at || 0).getTime()
@@ -967,6 +988,8 @@ const isSalesperson =
         staffName: staff?.full_name || "Unknown salesperson",
         attempts,
         lastContactedAt: latest.contacted_at || "",
+        reviewDueAt: addTwoWeekdaysForReview(latest.contacted_at || new Date().toISOString()).toISOString(),
+        reviewOverdue: Date.now() > addTwoWeekdaysForReview(latest.contacted_at || new Date().toISOString()).getTime(),
       });
     }
     return flags.sort((a, b) => new Date(a.lastContactedAt).getTime() - new Date(b.lastContactedAt).getTime());
@@ -2638,6 +2661,7 @@ const isSalesperson =
                   <th style={{ padding: "8px 10px", borderBottom: "1px solid #f0d4a8" }}>Salesperson</th>
                   <th style={{ padding: "8px 10px", borderBottom: "1px solid #f0d4a8" }}>Consecutive unanswered calls</th>
                   <th style={{ padding: "8px 10px", borderBottom: "1px solid #f0d4a8" }}>Latest attempt</th>
+                  <th style={{ padding: "8px 10px", borderBottom: "1px solid #f0d4a8" }}>Review deadline (EAT)</th>
                 </tr></thead>
                 <tbody>{unansweredReviewFlags.map((flag) => (
                   <tr key={flag.key}>
@@ -2645,6 +2669,7 @@ const isSalesperson =
                     <td style={{ padding: "9px 10px", borderBottom: "1px solid #f8ead2", color: "#4b3718", fontSize: 12 }}>{flag.staffName}</td>
                     <td style={{ padding: "9px 10px", borderBottom: "1px solid #f8ead2", color: "#9a3412", fontWeight: 800, fontSize: 12 }}>{flag.attempts}</td>
                     <td style={{ padding: "9px 10px", borderBottom: "1px solid #f8ead2", color: "#4b3718", fontSize: 12 }}>{formatDateTime(flag.lastContactedAt)}</td>
+                    <td style={{ padding: "9px 10px", borderBottom: "1px solid #f8ead2", color: flag.reviewOverdue ? "#b42318" : "#4b3718", fontWeight: flag.reviewOverdue ? 800 : 500, fontSize: 12 }}>{formatDateTime(flag.reviewDueAt)}{flag.reviewOverdue ? <div style={{ marginTop: 3, fontSize: 10 }}>OVERDUE</div> : null}</td>
                   </tr>
                 ))}</tbody>
               </table>
