@@ -189,6 +189,7 @@ export default function AlumniPage() {
       <div><div style={{ color: brand, fontSize: 11, fontWeight: 800, letterSpacing: 1.5 }}>RELATIONSHIP MANAGEMENT</div><h1 style={{ margin: "7px 0 5px", fontSize: 28, fontWeight: 800 }}>Alumni</h1><p style={{ margin: 0, color: "#718078", fontSize: 13 }}>Manage graduate records, verify profiles and strengthen lifelong connections with CIU.</p></div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
         <Link href="/alumni/events" style={{ display: "inline-flex", alignItems: "center", padding: "10px 12px", border: "1px solid #d9e4dd", borderRadius: 8, color: brand, background: "#fff", textDecoration: "none", fontSize: 12, fontWeight: 750 }}>Events & Attendance</Link>
+        <Link href="/alumni/tasks" style={{ display: "inline-flex", alignItems: "center", padding: "10px 12px", border: "1px solid #d9e4dd", borderRadius: 8, color: brand, background: "#fff", textDecoration: "none", fontSize: 12, fontWeight: 750 }}>Daily Work & Follow-ups</Link>
         <Link href="/alumni/mentorship" style={{ display: "inline-flex", alignItems: "center", padding: "10px 12px", border: "1px solid #d9e4dd", borderRadius: 8, color: brand, background: "#fff", textDecoration: "none", fontSize: 12, fontWeight: 750 }}>Mentorship</Link>
         <Link href="/alumni/referrals" style={{ display: "inline-flex", alignItems: "center", padding: "10px 12px", border: "1px solid #d9e4dd", borderRadius: 8, color: brand, background: "#fff", textDecoration: "none", fontSize: 12, fontWeight: 750 }}>Referrals</Link>
         <Link href="/alumni/reports" style={{ display: "inline-flex", alignItems: "center", padding: "10px 12px", border: "1px solid #d9e4dd", borderRadius: 8, color: brand, background: "#fff", textDecoration: "none", fontSize: 12, fontWeight: 750 }}>Reports</Link>
@@ -229,6 +230,11 @@ export default function AlumniPage() {
           <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}><strong style={{ fontSize: 13 }}>Resolve duplicate flags</strong><span style={{ color: brand, fontSize: 19 }}>↗</span></div>
           <div style={{ fontSize: 25, fontWeight: 800, marginTop: 8, color: brand }}>Open queue</div>
           <p style={{ margin: "4px 0 0", color: "#718078", fontSize: 11, lineHeight: 1.5 }}>Check possible duplicate records carefully before confirming or dismissing a match.</p>
+        </Link>
+        <Link href="/alumni/tasks" style={{ display: "block", padding: 15, border: "1px solid #dce9df", borderRadius: 11, background: "#fff", textDecoration: "none", color: "#173d34" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}><strong style={{ fontSize: 13 }}>Daily work & follow-ups</strong><span style={{ color: brand, fontSize: 19 }}>↗</span></div>
+          <div style={{ fontSize: 25, fontWeight: 800, marginTop: 8, color: brand }}>Task register</div>
+          <p style={{ margin: "4px 0 0", color: "#718078", fontSize: 11, lineHeight: 1.5 }}>Assign alumni calls, profile reviews and follow-ups to Vivian Kayaga or another staff member; track due dates and outcomes.</p>
         </Link>
         <Link href="/alumni/communications" style={{ display: "block", padding: 15, border: "1px solid #dce9df", borderRadius: 11, background: "#fff", textDecoration: "none", color: "#173d34" }}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}><strong style={{ fontSize: 13 }}>Engage alumni</strong><span style={{ color: brand, fontSize: 19 }}>↗</span></div>
