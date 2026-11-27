@@ -23,6 +23,7 @@ alter table public.engagement_interactions
     'Admitted',
     'Paid Application Fee',
     'Acceptance Fee Paid',
+    'Paid Acceptance Fee',
     'Enrolled',
     'Follow up later',
     'Not interested',
