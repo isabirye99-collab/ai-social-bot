@@ -97,6 +97,18 @@ type AbsenceRequest = {
   decision_notes: string | null;
 };
 
+type AbsenceDecisionHistory = {
+  id: string;
+  request_id: string;
+  salesperson_id: string;
+  absence_date: string;
+  previous_status: "pending" | "approved" | "rejected";
+  new_status: "approved" | "rejected";
+  decision_notes: string | null;
+  decided_by: string;
+  decided_at: string;
+};
+
 type ContactReportSnapshot = {
   id: string;
   report_date: string;
@@ -425,6 +437,7 @@ export default function TasksPage() {
   const [contactReviewHistory, setContactReviewHistory] = useState<ContactReviewHistory[]>([]);
   const [workingCalendar, setWorkingCalendar] = useState<WorkingCalendarDay[]>([]);
   const [absenceRequests, setAbsenceRequests] = useState<AbsenceRequest[]>([]);
+  const [absenceDecisionHistory, setAbsenceDecisionHistory] = useState<AbsenceDecisionHistory[]>([]);
   const [contactReportSnapshots, setContactReportSnapshots] = useState<ContactReportSnapshot[]>([]);
   const [calendarDate, setCalendarDate] = useState("");
   const [calendarTitle, setCalendarTitle] = useState("");
@@ -654,6 +667,7 @@ const isSalesperson =
         reviewHistoryResult,
         calendarResult,
         absenceResult,
+        absenceHistoryResult,
         reportSnapshotsResult,
       ] = await Promise.all([
         fetchAllPages(tasksQuery),
@@ -709,6 +723,12 @@ const isSalesperson =
         ),
 
         fetchAllPages(
+          supabase.from("salesperson_absence_decision_history")
+            .select("id,request_id,salesperson_id,absence_date,previous_status,new_status,decision_notes,decided_by,decided_at")
+            .order("decided_at", { ascending: false })
+        ),
+
+        fetchAllPages(
           supabase.from("salesperson_contact_report_snapshots")
             .select("id,report_date,salesperson_id,revision,report_data,finalized_at,finalized_by,finalization_source,supersedes_id,correction_reason")
             .order("revision", { ascending: false })
@@ -737,10 +757,12 @@ const isSalesperson =
         throw reviewHistoryResult.error;
       if (calendarResult.error) throw calendarResult.error;
       if (absenceResult.error) throw absenceResult.error;
+      if (absenceHistoryResult.error) throw absenceHistoryResult.error;
       if (reportSnapshotsResult.error) throw reportSnapshotsResult.error;
 
       setWorkingCalendar((calendarResult.data || []) as WorkingCalendarDay[]);
       setAbsenceRequests((absenceResult.data || []) as AbsenceRequest[]);
+      setAbsenceDecisionHistory((absenceHistoryResult.data || []) as AbsenceDecisionHistory[]);
       setContactReportSnapshots((reportSnapshotsResult.data || []) as ContactReportSnapshot[]);
       setDailyInteractions((interactionsResult.data || []) as DailyInteraction[]);
       setContactReviewHistory((reviewHistoryResult.data || []) as ContactReviewHistory[]);
