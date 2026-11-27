@@ -73,7 +73,7 @@ export default function ReportsPage() {
 
   if (loading) return <main className="ciu-page" style={{ padding: 32, color: "#173d34" }}><div style={{ ...styles.panel, padding: 24 }}>Preparing your reports and access permissions…</div></main>;
 
-  return <main className="ciu-page ciu-report-centre" style={{ padding: "28px clamp(16px,3vw,34px) 48px", color: "#173d34" }}>
+  return <main className="ciu-consistent-workspace ciu-page ciu-report-centre" style={{ padding: "28px clamp(16px,3vw,34px) 48px", color: "#173d34" }}>
     <header style={{ ...styles.panel, overflow: "hidden", marginBottom: 22, background: "#ffffff", border: "1px solid #e3ebe5", borderRadius: 16, boxShadow: "0 5px 20px rgba(19,62,45,.035)" }}>
       <div style={{ padding: "24px clamp(18px,3vw,30px)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 22, flexWrap: "wrap" }}>
         <div style={{ maxWidth: 660, color: "#173d34" }}>
