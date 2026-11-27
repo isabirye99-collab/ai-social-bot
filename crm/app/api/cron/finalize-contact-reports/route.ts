@@ -140,7 +140,7 @@ export async function GET(request: Request) {
         continue;
       }
       const staffCalls = qualifying.filter((item) =>
-        (item.assigned_to || item.created_by) === profile.id
+        (item.created_by || item.assigned_to) === profile.id
       );
       const uniqueLeadIds = Array.from(new Set(staffCalls.map((item) => item.lead_id as string)));
       const absenceFraction = Math.min(1, (absences || [])
