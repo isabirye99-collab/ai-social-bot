@@ -845,7 +845,7 @@ const isSalesperson =
         person.contacted >= 50 ? "Target achieved" : person.contacted > 0 ? "Below target" : "No qualifying calls",
       ]),
     ];
-    const csv = "\\uFEFF" + rows.map((row) => row.map((value) => escapeCsv(value ?? "")).join(",")).join("\\r\\n");
+    const csv = "\uFEFF" + rows.map((row) => row.map((value) => escapeCsv(value ?? "")).join(",")).join("\r\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
