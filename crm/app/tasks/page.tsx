@@ -865,6 +865,69 @@ const isSalesperson =
     URL.revokeObjectURL(url);
   };
 
+  const exportMyDailyContactReport = () => {
+    if (!currentUserId) {
+      setError("Your signed-in salesperson profile is not ready. Please try again.");
+      return;
+    }
+
+    const dateKeyFor = (value: Date) => {
+      const parts = new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Africa/Kampala",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).formatToParts(value).reduce((result, part) => {
+        if (part.type !== "literal") result[part.type] = part.value;
+        return result;
+      }, {} as Record<string, string>);
+      return `${parts.year}-${parts.month}-${parts.day}`;
+    };
+    const todayKey = dateKeyFor(new Date());
+    const myCalls = dailyInteractions.filter((interaction) => {
+      const staffId = interaction.created_by || interaction.assigned_to;
+      if (staffId !== currentUserId || !interaction.contacted_at || !interaction.lead_id) return false;
+      if ((interaction.channel || "").trim().toLowerCase() !== "call") return false;
+      if ((interaction.response || "").trim().toLowerCase() !== "answered") return false;
+      if ((interaction.outcome || "").trim().toLowerCase() === "wrong number") return false;
+      return dateKeyFor(new Date(interaction.contacted_at)) === todayKey;
+    });
+    const uniqueStudentCount = new Set(myCalls.map((interaction) => interaction.lead_id)).size;
+    const escapeCsv = (value: string | number) => `"${String(value).replace(/"/g, '""')}"`;
+    const rows: Array<Array<string | number>> = [
+      ["CIU Salesperson Daily Contact Report"],
+      ["Report date (EAT)", todayKey],
+      ["Generated at (EAT)", new Intl.DateTimeFormat("en-UG", { timeZone: "Africa/Kampala", dateStyle: "medium", timeStyle: "short" }).format(new Date())],
+      ["Daily target", 50],
+      ["Unique students reached by answered calls", uniqueStudentCount],
+      ["Status", uniqueStudentCount >= 50 ? "Target achieved" : uniqueStudentCount > 0 ? "Below target" : "No qualifying calls"],
+      [],
+      ["Call time (EAT)", "Student", "Phone", "Outcome", "Notes / recorded outcome"],
+      ...myCalls
+        .sort((a, b) => new Date(a.contacted_at || 0).getTime() - new Date(b.contacted_at || 0).getTime())
+        .map((interaction) => {
+          const lead = leads.find((item) => item.id === interaction.lead_id);
+          return [
+            interaction.contacted_at ? new Intl.DateTimeFormat("en-UG", { timeZone: "Africa/Kampala", dateStyle: "short", timeStyle: "short" }).format(new Date(interaction.contacted_at)) : "",
+            lead?.name || lead?.ciu_number || "Unnamed student",
+            lead?.phone || "",
+            interaction.outcome || "",
+            "",
+          ];
+        }),
+    ];
+    const csv = "\uFEFF" + rows.map((row) => row.map((value) => escapeCsv(value ?? "")).join(",")).join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `ciu-my-daily-contact-report-${todayKey}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
   const unansweredReviewFlags = useMemo(() => {
     const grouped = new Map<string, DailyInteraction[]>();
     for (const interaction of dailyInteractions) {
@@ -2514,6 +2577,16 @@ const isSalesperson =
             </div>
           ))}
         </section>
+
+        {currentRole === "salesperson" && (
+          <section aria-label="My daily contact report" style={{ marginBottom: 16, border: "1px solid #cfe1d6", borderRadius: 12, background: "#ffffff", padding: "12px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+            <div>
+              <div style={{ color: "#075442", fontSize: 14, fontWeight: 800 }}>My Daily Contact Progress</div>
+              <div style={{ color: "#536b5d", fontSize: 12, marginTop: 4 }}>Today: {dailyContactSummary.mine} unique students reached by answered phone calls out of 50.</div>
+            </div>
+            <button type="button" onClick={exportMyDailyContactReport} style={{ border: "1px solid #087443", borderRadius: 8, padding: "8px 11px", background: "#ffffff", color: "#075442", fontSize: 12, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>Export My Report (CSV)</button>
+          </section>
+        )}
 
         {canViewTeamContactPerformance && (
           <section aria-label="Daily salesperson contact progress" style={{ marginBottom: 16, border: "1px solid #cfe1d6", borderRadius: 14, background: "#ffffff", overflow: "hidden" }}>
